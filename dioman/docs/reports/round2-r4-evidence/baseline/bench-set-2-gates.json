@@ -1,0 +1,29 @@
+{
+  "S2": {
+    "eligible": false,
+    "legacyOverhead": -0.1984574547241934,
+    "pipelineOverhead": 0.23980222898732806,
+    "passed": null
+  },
+  "S3": {
+    "eligible": false,
+    "legacyOverhead": 12.094293102674776,
+    "pipelineOverhead": 5.903174473434224,
+    "passed": null
+  },
+  "S4": {
+    "eligible": false,
+    "throughputChangePercent": 378.5933624167656,
+    "passed": null
+  },
+  "S5": {
+    "eligible": false,
+    "throughputChangePercent": 276.71155351129994,
+    "passed": null
+  },
+  "S6": {
+    "eligible": false,
+    "throughputChangePercent": 20.77054697851397,
+    "passed": null
+  }
+}

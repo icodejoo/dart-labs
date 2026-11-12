@@ -1,0 +1,12 @@
+{
+  "command": [
+    "dart",
+    "run",
+    "tool/coverage.dart",
+    "--min=100",
+    "--lcov=coverage/steady.lcov"
+  ],
+  "cwd": "C:\\ldq\\luckdraw",
+  "exit_code": 0,
+  "seconds": 1.52
+}

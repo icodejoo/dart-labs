@@ -20,10 +20,10 @@ class HeadlessBackend<T> {
   PresentedOverlay<T> present(PresentContext<T> ctx) {
     context = ctx;
     return PresentedOverlay<T>(
+        visible: Future<void>.value(),
         dismissed: done.future,
         dismiss: ([result]) async {
           if (!done.isCompleted) done.complete(result);
         });
   }
 }
-

@@ -1,0 +1,11 @@
+{
+  "name": "parity",
+  "args": [
+    "dart",
+    "run",
+    "tool/parity/generate.dart",
+    "--verify-manifest"
+  ],
+  "exitCode": 0,
+  "elapsedSeconds": 11.039
+}

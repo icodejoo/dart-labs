@@ -1,0 +1,32 @@
+[
+  {
+    "name": "analyze",
+    "exit": 0,
+    "seconds": 20.68
+  },
+  {
+    "name": "example",
+    "exit": 0,
+    "seconds": 7.5
+  },
+  {
+    "name": "test",
+    "exit": 0,
+    "seconds": 86.73
+  },
+  {
+    "name": "coverage-test",
+    "exit": 0,
+    "seconds": 156.67
+  },
+  {
+    "name": "coverage-audit",
+    "exit": 0,
+    "seconds": 0.73
+  },
+  {
+    "name": "docs-index",
+    "exit": 0,
+    "seconds": 0.66
+  }
+]

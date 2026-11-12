@@ -11,6 +11,7 @@ import 'perf_page.dart';
 // web 无法编译 benchmark_page（dart:io），此时回退到桩。
 import 'benchmark_stub.dart' if (dart.library.io) 'benchmark_page.dart';
 import 'digit_test_page.dart';
+import 'advanced_page.dart';
 
 void main() {
   runApp(const CountmanDemoApp());
@@ -35,7 +36,11 @@ class CountmanDemoApp extends StatelessWidget {
         useMaterial3: true,
       ),
       themeMode: ThemeMode.system,
-      initialRoute: '/',
+      // 基准脚本通过 --dart-define=INITIAL_ROUTE=/benchmark 直接进入基准页。
+      initialRoute: const String.fromEnvironment(
+        'INITIAL_ROUTE',
+        defaultValue: '/',
+      ),
       routes: {
         '/': (_) => const HomePage(),
         '/counter': (_) => const CounterPage(),
@@ -47,6 +52,7 @@ class CountmanDemoApp extends StatelessWidget {
         '/perf': (_) => const PerfPage(),
         '/benchmark': (_) => const BenchmarkPage(),
         '/digit-test': (_) => const DigitTestPage(),
+        '/advanced': (_) => const AdvancedPage(),
       },
     );
   }
@@ -67,7 +73,8 @@ class HomePage extends StatelessWidget {
           _PluginCard(
             icon: Icons.timer_outlined,
             title: 'Counter',
-            subtitle: 'TextCounter · CounterBuilder · OdometerCounter\n'
+            subtitle:
+                'TextCounter · CounterBuilder · OdometerCounter\n'
                 'RingCounter · BarCounter · AnimatedCounter',
             route: '/counter',
             color: const Color(0xFF5C6BC0),
@@ -76,7 +83,8 @@ class HomePage extends StatelessWidget {
           _PluginCard(
             icon: Icons.hourglass_empty_rounded,
             title: 'Countdown',
-            subtitle: 'CountdownBuilder · TextCountdown · RingCountdown\n'
+            subtitle:
+                'CountdownBuilder · TextCountdown · RingCountdown\n'
                 'BarCountdown · CardCountdown',
             route: '/countdown',
             color: const Color(0xFF26A69A),
@@ -92,13 +100,24 @@ class HomePage extends StatelessWidget {
           const SizedBox(height: 24),
           Padding(
             padding: const EdgeInsets.only(left: 4, bottom: 4),
-            child: Text('进阶 / More',
-                style: Theme.of(context)
-                    .textTheme
-                    .titleSmall
-                    ?.copyWith(fontWeight: FontWeight.w700)),
+            child: Text(
+              '进阶 / More',
+              style: Theme.of(
+                context,
+              ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+            ),
           ),
           const SizedBox(height: 8),
+          _PluginCard(
+            icon: Icons.tune_rounded,
+            title: '进阶 / 0.3 新特性',
+            subtitle:
+                'CountmanTheme · template · rounding · total\n'
+                'Elapsed since/limit/lap · OffsetClock · 自定义插件',
+            route: '/advanced',
+            color: const Color(0xFFFF7043),
+          ),
+          const SizedBox(height: 12),
           _PluginCard(
             icon: Icons.account_tree_rounded,
             title: 'Providers',
@@ -197,20 +216,26 @@ class _PluginCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(title,
-                        style: Theme.of(context)
-                            .textTheme
-                            .titleMedium
-                            ?.copyWith(fontWeight: FontWeight.w700)),
+                    Text(
+                      title,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                     const SizedBox(height: 4),
-                    Text(subtitle,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: cs.onSurface.withValues(alpha: 0.6))),
+                    Text(
+                      subtitle,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: cs.onSurface.withValues(alpha: 0.6),
+                      ),
+                    ),
                   ],
                 ),
               ),
-              Icon(Icons.chevron_right_rounded,
-                  color: cs.onSurface.withValues(alpha: 0.35)),
+              Icon(
+                Icons.chevron_right_rounded,
+                color: cs.onSurface.withValues(alpha: 0.35),
+              ),
             ],
           ),
         ),

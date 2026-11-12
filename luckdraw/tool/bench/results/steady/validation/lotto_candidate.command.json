@@ -1,0 +1,13 @@
+{
+  "command": [
+    "flutter",
+    "test",
+    "test/lotto",
+    "--no-pub",
+    "--concurrency=1",
+    "--reporter=json"
+  ],
+  "cwd": "C:\\ldq\\luckdraw",
+  "exit_code": 0,
+  "seconds": 8.908
+}

@@ -1,0 +1,21 @@
+[
+  "tool\\bench\\.flutter-plugins-dependencies",
+  "tool\\bench\\budgets.status.json",
+  "tool\\bench\\compare.dart",
+  "tool\\bench\\compare_shadow.py",
+  "tool\\bench\\README.md",
+  "tool\\bench\\run_device.ps1",
+  "tool\\bench\\android\\gradle.properties",
+  "tool\\bench\\android\\gradlew",
+  "tool\\bench\\android\\gradlew.bat",
+  "tool\\bench\\integration_test\\bench_support.dart",
+  "tool\\bench\\integration_test\\lever_bench_test.dart",
+  "tool\\bench\\integration_test\\shadow_capture_test.dart",
+  "tool\\bench\\lib\\main.dart",
+  "tool\\bench\\lib\\shadow_scene.dart",
+  "tool\\bench\\test_driver\\perf_driver.dart",
+  "tool\\bench\\test_driver\\shadow_driver.dart",
+  "tool\\bench\\android\\gradle\\wrapper\\gradle-wrapper.jar",
+  "tool\\bench\\android\\app\\src\\main\\java\\io\\flutter\\plugins\\GeneratedPluginRegistrant.java",
+  "example\\integration_test\\resize_test.dart"
+]

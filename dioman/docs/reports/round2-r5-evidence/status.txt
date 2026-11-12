@@ -1,0 +1,21 @@
+ M CHANGELOG.md
+ M README.md
+ M README.zh-CN.md
+ M docs/guides/migrating-to-pipeline.md
+ M lib/src/client.dart
+ M lib/src/client_internal.dart
+ M lib/src/plugin.dart
+ M lib/src/plugins/cache.dart
+ M lib/src/plugins/retry.dart
+ M lib/src/response_internal.dart
+ M test/accept/bin/inventory.dart
+ M test/accept/lib/api-inventory.json
+ M test/accept/lib/client.dart
+ M test/accept/lib/matrix.json
+ M test/boundary/client_boundary_test.dart
+ M test/integration/documentation_examples_integration_test.dart
+?? docs/reports/2026-11-03-round2-r5.md
+?? docs/reports/round2-r5-evidence/
+?? test/unit/async_dispose_test.dart
+?? test/unit/decode_test.dart
+?? test/unit/option_debug_test.dart

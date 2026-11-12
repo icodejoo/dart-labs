@@ -1,3 +1,4 @@
+import '../support/response_contract.dart';
 import '../support/constants.dart';
 import 'dart:async';
 import 'package:dioman/dioman.dart';
@@ -6,6 +7,8 @@ import '../support/fake_clock.dart';
 import '../support/fake_network.dart';
 import '../support/helpers.dart';
 import '../support/invariant_harness.dart';
+
+
 
 /// 夹具自身也须证明脚本、时间和不变量不会空跑。
 void main() {
@@ -42,8 +45,10 @@ void main() {
       const FakeReply(status: 500),
       const FakeReply(body: {pipelineTestCode: 0, pipelineTestData: 9})
     ];
-    expect((await api.send<Object?>(pipelineTestGetMethod, pipelineTestS)).kind,
-        DiomanKind.http);
+    expect(
+        outcomeOf(
+            (await api.send<Object?>(pipelineTestGetMethod, pipelineTestS))),
+        diomanTestHttp);
     expect(await api.get<int>(pipelineTestS), 9);
     expect(await api.get<int>(pipelineTestS), 9);
     net.failOn[4] = StateError('script');
@@ -82,4 +87,20 @@ void main() {
     h.loading[pipelineTestCallback] = [true];
     expect(() => h.assertAll(api), throwsA(isA<TestFailure>()));
   });
+
+  for (final invariant in [8, 9]) {
+    test('[INV-pipeline-internals] B8 I$invariant 夹具拒绝错误证据', () {
+      final api = testClient();
+      final h = InvariantHarness(FakeNetwork(), FakeClock());
+      h.entries[1] = h.exits[1] = h.settlements[1] = 1;
+      if (invariant == 8) {
+        h.ownership[1] = (false, diomanTestTimeout);
+      } else {
+        h.expectedEcho[1] = [1];
+        h.actualEcho[1] = [2];
+      }
+      expect(() => h.assertAll(api), throwsA(isA<TestFailure>()));
+      api.dispose();
+    });
+  }
 }

@@ -1,0 +1,18 @@
+{
+  "command": [
+    "dart",
+    "format",
+    "--output=none",
+    "--set-exit-if-changed",
+    "test/tool/bench_instr_test.dart",
+    "tool/bench/response_writer.dart",
+    "tool/bench/proc_cpu.dart",
+    "tool/bench/proc_cpu_sampler.dart",
+    "tool/bench/proc_cpu_replay.dart",
+    "tool/bench/test_driver/perf_driver.dart",
+    "tool/bench/integration_test/bench_support.dart"
+  ],
+  "cwd": "E:\\workspaces\\dart-labs\\luckdraw",
+  "exit_code": 0,
+  "seconds": 1.327
+}

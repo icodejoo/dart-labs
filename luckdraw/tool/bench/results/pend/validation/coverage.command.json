@@ -1,0 +1,12 @@
+{
+  "command": [
+    "dart",
+    "run",
+    "tool/coverage.dart",
+    "--min=100",
+    "--lcov=coverage/pend.lcov"
+  ],
+  "cwd": "E:\\workspaces\\dart-labs\\luckdraw",
+  "exit_code": 0,
+  "seconds": 2.11
+}

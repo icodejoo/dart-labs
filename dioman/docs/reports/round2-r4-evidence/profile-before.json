@@ -1,0 +1,23 @@
+{
+  "method": "5000 calls after 1000 warmup; intrusive stage timers",
+  "inclusiveMeanMicros": {
+    "profile:source:post": 84.69336,
+    "profile:source:pre": 138.0089,
+    "profile:credential:post": 138.3808,
+    "profile:credential:pre": 143.03694000000002,
+    "profile:attempt:post": 143.358,
+    "profile:attempt:pre": 147.53606,
+    "profile:prepare:post": 147.86012000000002,
+    "profile:prepare:pre": 160.77686000000003,
+    "profile:outer:post": 161.1599,
+    "profile:outer:pre": 166.3615
+  },
+  "stageBuiltinWindowMicros": {
+    "outer": 5.201600000000013,
+    "prepare": 12.916740000000004,
+    "attempt": 4.178059999999988,
+    "credential": 4.656140000000022,
+    "source": 53.31554000000001
+  },
+  "transportAndNormalizationMicros": 84.69336
+}

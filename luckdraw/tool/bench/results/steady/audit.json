@@ -1,0 +1,1672 @@
+{
+  "scenarios": {
+    "slot_raster": {
+      "valid": 3,
+      "attempts": 3,
+      "clean": 3,
+      "status": "FAIL",
+      "frame_budget": {
+        "99th_percentile_build_plus_raster_millis": {
+          "values": [
+            5.719,
+            10.702,
+            10.858
+          ],
+          "max": 10.858,
+          "limit": 12.0,
+          "status": "PASS"
+        },
+        "99th_percentile_frame_build_time_millis": {
+          "values": [
+            2.438,
+            2.161,
+            1.882
+          ],
+          "max": 2.438,
+          "limit": 4.0,
+          "status": "PASS"
+        }
+      },
+      "metrics": {
+        "average_frame_build_time_millis": {
+          "values": [
+            1.1669036544850493,
+            1.199531561461794,
+            1.181069767441861
+          ],
+          "median": 1.181069767441861,
+          "spread_ratio": 0.027625723624621446,
+          "spread_absolute": 0.03262790697674478,
+          "design_target": 1.0,
+          "gap_to_design": 0.1810697674418611,
+          "design_status": "FAIL",
+          "stable": true,
+          "target": 1.0,
+          "limit": 1.0,
+          "calibrated": false,
+          "status": "FAIL"
+        },
+        "90th_percentile_frame_build_time_millis": {
+          "values": [
+            1.717,
+            1.586,
+            1.552
+          ],
+          "median": 1.586,
+          "spread_ratio": 0.10403530895334176,
+          "spread_absolute": 0.16500000000000004,
+          "design_target": 2.0,
+          "gap_to_design": -0.20699999999999996,
+          "design_status": "满足设计目标",
+          "stable": true,
+          "target": 2.0,
+          "limit": 2.0,
+          "calibrated": false,
+          "status": "PASS"
+        },
+        "average_frame_rasterizer_time_millis": {
+          "values": [
+            2.88806312292359,
+            5.137405315614617,
+            5.5646079734219285
+          ],
+          "median": 5.137405315614617,
+          "spread_ratio": 0.5209915679347422,
+          "spread_absolute": 2.6765448504983387,
+          "design_target": 5.0,
+          "gap_to_design": 0.02748106312292342,
+          "design_status": "UNCERTAIN",
+          "stable": false,
+          "target": 5.0,
+          "limit": 5.0,
+          "calibrated": false,
+          "status": "UNCERTAIN"
+        },
+        "90th_percentile_frame_rasterizer_time_millis": {
+          "values": [
+            3.226,
+            6.676,
+            6.767
+          ],
+          "median": 6.676,
+          "spread_ratio": 0.530407429598562,
+          "spread_absolute": 3.5410000000000004,
+          "design_target": 8.0,
+          "gap_to_design": -0.16549999999999998,
+          "design_status": "UNCERTAIN",
+          "stable": false,
+          "target": 8.0,
+          "limit": 8.0,
+          "calibrated": false,
+          "status": "UNCERTAIN"
+        },
+        "dropped_frame_ratio": {
+          "values": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "median": 0.0,
+          "spread_ratio": null,
+          "spread_absolute": 0.0,
+          "design_target": 0.005,
+          "gap_to_design": -1.0,
+          "design_status": "满足设计目标",
+          "stable": true,
+          "target": 0.005,
+          "limit": 0.005,
+          "calibrated": false,
+          "status": "PASS"
+        },
+        "new_gen_gc_over_reference": {
+          "values": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "median": 0.0,
+          "spread_ratio": null,
+          "spread_absolute": 0.0,
+          "design_target": 1.0,
+          "gap_to_design": -1.0,
+          "design_status": "满足设计目标",
+          "stable": true,
+          "target": 0.0,
+          "limit": 0.0,
+          "calibrated": false,
+          "status": "PASS"
+        },
+        "rss_delta_bytes": {
+          "values": [
+            2281472.0,
+            2433024.0,
+            0.0
+          ],
+          "median": 2281472.0,
+          "spread_ratio": 1.066427289048474,
+          "spread_absolute": 2433024.0,
+          "design_target": 5622989.0,
+          "gap_to_design": -0.5942599211913806,
+          "design_status": "满足设计目标",
+          "stable": true,
+          "target": 5622989.0,
+          "limit": 5622989.0,
+          "calibrated": false,
+          "status": "PASS"
+        },
+        "rss_steady_growth_bytes": {
+          "values": [
+            225280.0,
+            0.0,
+            880640.0
+          ],
+          "median": 225280.0,
+          "spread_ratio": 3.909090909090909,
+          "spread_absolute": 880640.0,
+          "design_target": 1572864.0,
+          "gap_to_design": -0.8567708333333334,
+          "design_status": "满足设计目标",
+          "stable": true,
+          "target": 1572864.0,
+          "limit": 1572864.0,
+          "calibrated": false,
+          "status": "PASS"
+        },
+        "99th_percentile_frame_rasterizer_time_millis": {
+          "median": 9.187,
+          "status": "INFO",
+          "reason": "首版没有 P99 预算，保留诊断，不虚构目标"
+        }
+      },
+      "spikes": 4,
+      "spike_counts": [
+        0,
+        2,
+        2
+      ],
+      "spike_offsets_ms": [
+        2566.402,
+        2583.356,
+        4533.508,
+        4550.42
+      ],
+      "events_in_spikes": {
+        "Animate": {
+          "total_ms": 0.518,
+          "mean_ms": 0.1295,
+          "percent_combined": 0.9242408021981943
+        },
+        "Animator::Render": {
+          "total_ms": 0.034,
+          "mean_ms": 0.0085,
+          "percent_combined": 0.060664454198337076
+        },
+        "COMPOSITING": {
+          "total_ms": 1.221,
+          "mean_ms": 0.30525,
+          "percent_combined": 2.178567605181458
+        },
+        "CompositorContext::ScopedFrame::Raster": {
+          "total_ms": 0.307,
+          "mean_ms": 0.07675,
+          "percent_combined": 0.547764336437926
+        },
+        "ConsolidateHandles": {
+          "total_ms": 0.056,
+          "mean_ms": 0.014,
+          "percent_combined": 0.09991792456196695
+        },
+        "FINALIZE TREE": {
+          "total_ms": 0.033,
+          "mean_ms": 0.00825,
+          "percent_combined": 0.05888020554544481
+        },
+        "FlushOps": {
+          "total_ms": 42.677,
+          "mean_ms": 10.66925,
+          "percent_combined": 76.14637975948328
+        },
+        "LAYOUT": {
+          "total_ms": 0.021,
+          "mean_ms": 0.00525,
+          "percent_combined": 0.037469221710737605
+        },
+        "LAYOUT (root)": {
+          "total_ms": 0.079,
+          "mean_ms": 0.01975,
+          "percent_combined": 0.1409556435784891
+        },
+        "LayerTree::Paint": {
+          "total_ms": 0.152,
+          "mean_ms": 0.038,
+          "percent_combined": 0.2712057952396246
+        },
+        "LayerTree::Preroll": {
+          "total_ms": 0.135,
+          "mean_ms": 0.03375,
+          "percent_combined": 0.24087356814045605
+        },
+        "PAINT": {
+          "total_ms": 1.169,
+          "mean_ms": 0.29225,
+          "percent_combined": 2.08578667523106
+        },
+        "PAINT (root)": {
+          "total_ms": 1.302,
+          "mean_ms": 0.3255,
+          "percent_combined": 2.3230917460657317
+        },
+        "POST_FRAME": {
+          "total_ms": 0.041,
+          "mean_ms": 0.01025,
+          "percent_combined": 0.07315419476858295
+        },
+        "Rasterizer::DoDraw": {
+          "total_ms": 51.969,
+          "mean_ms": 12.99225,
+          "percent_combined": 92.72561824215822
+        },
+        "Rasterizer::DrawToSurfaces": {
+          "total_ms": 51.883,
+          "mean_ms": 12.97075,
+          "percent_combined": 92.5721728580095
+        },
+        "ReactOnce": {
+          "total_ms": 42.743,
+          "mean_ms": 10.68575,
+          "percent_combined": 76.26414017057417
+        },
+        "ReactorGLES::Operation": {
+          "total_ms": 42.592,
+          "mean_ms": 10.648,
+          "percent_combined": 75.99471862398744
+        },
+        "ReactorGLES::React": {
+          "total_ms": 42.757,
+          "mean_ms": 10.68925,
+          "percent_combined": 76.28911965171467
+        },
+        "RenderPassGLES::EncodeCommandsInReactor": {
+          "total_ms": 42.552,
+          "mean_ms": 10.638,
+          "percent_combined": 75.92334867787174
+        },
+        "SEMANTICS": {
+          "total_ms": 0.119,
+          "mean_ms": 0.02975,
+          "percent_combined": 0.21232558969417978
+        },
+        "SEMANTICS (root)": {
+          "total_ms": 0.346,
+          "mean_ms": 0.0865,
+          "percent_combined": 0.6173500339007244
+        },
+        "Semantics.ensureGeometry": {
+          "total_ms": 0.06,
+          "mean_ms": 0.015,
+          "percent_combined": 0.10705491917353603
+        },
+        "Semantics.ensureSemanticsNode": {
+          "total_ms": 0.039,
+          "mean_ms": 0.00975,
+          "percent_combined": 0.06958569746279841
+        },
+        "Semantics.updateChildren": {
+          "total_ms": 0.033,
+          "mean_ms": 0.00825,
+          "percent_combined": 0.05888020554544481
+        },
+        "SurfaceFrame::BuildDisplayList": {
+          "total_ms": 0.025,
+          "mean_ms": 0.00625,
+          "percent_combined": 0.04460621632230668
+        },
+        "SurfaceFrame::Encode": {
+          "total_ms": 43.418,
+          "mean_ms": 10.8545,
+          "percent_combined": 77.46850801127646
+        },
+        "SurfaceFrame::Submit": {
+          "total_ms": 50.742,
+          "mean_ms": 12.6855,
+          "percent_combined": 90.53634514505941
+        },
+        "SurfaceGLES::WrapOnScreenFBO": {
+          "total_ms": 0.167,
+          "mean_ms": 0.04175,
+          "percent_combined": 0.2979695250330086
+        },
+        "UPDATING COMPOSITING BITS": {
+          "total_ms": 0.017,
+          "mean_ms": 0.00425,
+          "percent_combined": 0.030332227099168538
+        },
+        "UPDATING COMPOSITING BITS (root)": {
+          "total_ms": 0.067,
+          "mean_ms": 0.01675,
+          "percent_combined": 0.1195446597437819
+        },
+        "luckdraw.slot.paint": {
+          "total_ms": 0.377,
+          "mean_ms": 0.09425,
+          "percent_combined": 0.6726617421403847
+        }
+      },
+      "normal_paint_mean_ms": 0.12325591882750846,
+      "per_window": [
+        {
+          "run_id": "1794335894537151",
+          "ui_mean_ms": 1.2191784511784514,
+          "raster_mean_ms": 2.947953020134228,
+          "spike_count": 0,
+          "first_five_spikes": 0,
+          "second_bins": {}
+        },
+        {
+          "run_id": "1794335965641572",
+          "ui_mean_ms": 1.2849127516778525,
+          "raster_mean_ms": 5.246023569023569,
+          "spike_count": 2,
+          "first_five_spikes": 0,
+          "second_bins": {
+            "2": 2
+          }
+        },
+        {
+          "run_id": "1794336036358822",
+          "ui_mean_ms": 1.2457205387205388,
+          "raster_mean_ms": 5.63448322147651,
+          "spike_count": 2,
+          "first_five_spikes": 0,
+          "second_bins": {
+            "4": 2
+          }
+        }
+      ]
+    },
+    "grid_steady": {
+      "valid": 3,
+      "attempts": 3,
+      "clean": 3,
+      "status": "FAIL",
+      "frame_budget": {
+        "99th_percentile_build_plus_raster_millis": {
+          "values": [
+            6.572,
+            8.554,
+            11.2
+          ],
+          "max": 11.2,
+          "limit": 12.0,
+          "status": "PASS"
+        },
+        "99th_percentile_frame_build_time_millis": {
+          "values": [
+            2.641,
+            2.617,
+            2.389
+          ],
+          "max": 2.641,
+          "limit": 4.0,
+          "status": "PASS"
+        }
+      },
+      "metrics": {
+        "average_frame_build_time_millis": {
+          "values": [
+            1.1390199335548175,
+            1.1688803986710963,
+            1.0959501661129565
+          ],
+          "median": 1.1390199335548175,
+          "spread_ratio": 0.06402893435809207,
+          "spread_absolute": 0.0729302325581398,
+          "design_target": 0.6,
+          "gap_to_design": 0.8983665559246958,
+          "design_status": "已按实测标定（未达最初设计目标）",
+          "stable": true,
+          "target": 1.2,
+          "limit": 1.2,
+          "calibrated": false,
+          "status": "PASS"
+        },
+        "90th_percentile_frame_build_time_millis": {
+          "values": [
+            1.973,
+            1.974,
+            1.881
+          ],
+          "median": 1.973,
+          "spread_ratio": 0.047136340598073985,
+          "spread_absolute": 0.09299999999999997,
+          "design_target": 1.5,
+          "gap_to_design": 0.31533333333333347,
+          "design_status": "FAIL",
+          "stable": true,
+          "target": 1.958,
+          "limit": 1.958,
+          "calibrated": false,
+          "status": "FAIL"
+        },
+        "average_frame_rasterizer_time_millis": {
+          "values": [
+            3.3012292358803976,
+            3.755558139534884,
+            6.229747508305645
+          ],
+          "median": 3.755558139534884,
+          "spread_ratio": 0.779782435424615,
+          "spread_absolute": 2.9285182724252476,
+          "design_target": 4.0,
+          "gap_to_design": -0.061110465116279045,
+          "design_status": "UNCERTAIN",
+          "stable": false,
+          "target": 4.0,
+          "limit": 4.0,
+          "calibrated": false,
+          "status": "UNCERTAIN"
+        },
+        "90th_percentile_frame_rasterizer_time_millis": {
+          "values": [
+            3.84,
+            4.247,
+            7.567
+          ],
+          "median": 4.247,
+          "spread_ratio": 0.8775606310336709,
+          "spread_absolute": 3.7270000000000003,
+          "design_target": 7.0,
+          "gap_to_design": -0.39328571428571435,
+          "design_status": "UNCERTAIN",
+          "stable": false,
+          "target": 7.0,
+          "limit": 7.0,
+          "calibrated": false,
+          "status": "UNCERTAIN"
+        },
+        "dropped_frame_ratio": {
+          "values": [
+            0.0,
+            0.0,
+            0.0033222591362126247
+          ],
+          "median": 0.0,
+          "spread_ratio": null,
+          "spread_absolute": 0.0033222591362126247,
+          "design_target": 0.005,
+          "gap_to_design": -1.0,
+          "design_status": "满足设计目标",
+          "stable": true,
+          "target": 0.005,
+          "limit": 0.005,
+          "calibrated": false,
+          "status": "PASS"
+        },
+        "new_gen_gc_over_reference": {
+          "values": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "median": 0.0,
+          "spread_ratio": null,
+          "spread_absolute": 0.0,
+          "design_target": 1.0,
+          "gap_to_design": -1.0,
+          "design_status": "满足设计目标",
+          "stable": true,
+          "target": 0.0,
+          "limit": 0.0,
+          "calibrated": false,
+          "status": "PASS"
+        },
+        "rss_delta_bytes": {
+          "values": [
+            1064960.0,
+            1171456.0,
+            745472.0
+          ],
+          "median": 1064960.0,
+          "spread_ratio": 0.4,
+          "spread_absolute": 425984.0,
+          "design_target": 5622989.0,
+          "gap_to_design": -0.8106060673424756,
+          "design_status": "满足设计目标",
+          "stable": true,
+          "target": 5622989.0,
+          "limit": 5622989.0,
+          "calibrated": false,
+          "status": "PASS"
+        },
+        "rss_steady_growth_bytes": {
+          "values": [
+            385024.0,
+            0.0,
+            0.0
+          ],
+          "median": 0.0,
+          "spread_ratio": null,
+          "spread_absolute": 385024.0,
+          "design_target": 1572864.0,
+          "gap_to_design": -1.0,
+          "design_status": "满足设计目标",
+          "stable": true,
+          "target": 1572864.0,
+          "limit": 1572864.0,
+          "calibrated": false,
+          "status": "PASS"
+        },
+        "99th_percentile_frame_rasterizer_time_millis": {
+          "median": 7.602,
+          "status": "INFO",
+          "reason": "首版没有 P99 预算，保留诊断，不虚构目标"
+        }
+      },
+      "spikes": 4,
+      "spike_counts": [
+        0,
+        2,
+        2
+      ],
+      "spike_offsets_ms": [
+        4700.149,
+        4717.864,
+        2867.303,
+        2883.695
+      ],
+      "events_in_spikes": {
+        "Animate": {
+          "total_ms": 0.745,
+          "mean_ms": 0.18625,
+          "percent_combined": 1.125717739498338
+        },
+        "Animator::Render": {
+          "total_ms": 0.045,
+          "mean_ms": 0.01125,
+          "percent_combined": 0.06799637352674524
+        },
+        "COMPOSITING": {
+          "total_ms": 1.47,
+          "mean_ms": 0.3675,
+          "percent_combined": 2.2212148685403448
+        },
+        "CompositorContext::ScopedFrame::Raster": {
+          "total_ms": 0.346,
+          "mean_ms": 0.0865,
+          "percent_combined": 0.52281656089453
+        },
+        "ConsolidateHandles": {
+          "total_ms": 0.059,
+          "mean_ms": 0.01475,
+          "percent_combined": 0.08915080084617709
+        },
+        "CreateGlyphAtlas": {
+          "total_ms": 0.119,
+          "mean_ms": 0.02975,
+          "percent_combined": 0.17981263221517074
+        },
+        "FINALIZE TREE": {
+          "total_ms": 0.043,
+          "mean_ms": 0.01075,
+          "percent_combined": 0.06497431248111213
+        },
+        "FlushOps": {
+          "total_ms": 50.244,
+          "mean_ms": 12.561,
+          "percent_combined": 75.92021758839529
+        },
+        "LAYOUT": {
+          "total_ms": 0.032,
+          "mean_ms": 0.008,
+          "percent_combined": 0.04835297673012995
+        },
+        "LAYOUT (root)": {
+          "total_ms": 0.194,
+          "mean_ms": 0.0485,
+          "percent_combined": 0.2931399214264128
+        },
+        "LayerTree::Paint": {
+          "total_ms": 0.167,
+          "mean_ms": 0.04175,
+          "percent_combined": 0.25234209731036567
+        },
+        "LayerTree::Preroll": {
+          "total_ms": 0.148,
+          "mean_ms": 0.037,
+          "percent_combined": 0.223632517376851
+        },
+        "PAINT": {
+          "total_ms": 1.347,
+          "mean_ms": 0.33675,
+          "percent_combined": 2.0353581142339072
+        },
+        "PAINT (root)": {
+          "total_ms": 1.399,
+          "mean_ms": 0.34975,
+          "percent_combined": 2.113931701420369
+        },
+        "POST_FRAME": {
+          "total_ms": 0.035,
+          "mean_ms": 0.00875,
+          "percent_combined": 0.05288606829857963
+        },
+        "Rasterizer::DoDraw": {
+          "total_ms": 60.945,
+          "mean_ms": 15.23625,
+          "percent_combined": 92.0897552130553
+        },
+        "Rasterizer::DrawToSurfaces": {
+          "total_ms": 60.837,
+          "mean_ms": 15.20925,
+          "percent_combined": 91.92656391659112
+        },
+        "ReactOnce": {
+          "total_ms": 50.318,
+          "mean_ms": 12.5795,
+          "percent_combined": 76.03203384708371
+        },
+        "ReactorGLES::Operation": {
+          "total_ms": 50.147,
+          "mean_ms": 12.53675,
+          "percent_combined": 75.77364762768208
+        },
+        "ReactorGLES::React": {
+          "total_ms": 50.334,
+          "mean_ms": 12.5835,
+          "percent_combined": 76.05621033544877
+        },
+        "RenderPassGLES::EncodeCommandsInReactor": {
+          "total_ms": 50.107,
+          "mean_ms": 12.52675,
+          "percent_combined": 75.71320640676942
+        },
+        "SEMANTICS": {
+          "total_ms": 0.157,
+          "mean_ms": 0.03925,
+          "percent_combined": 0.23723179208220008
+        },
+        "SEMANTICS (root)": {
+          "total_ms": 0.544,
+          "mean_ms": 0.136,
+          "percent_combined": 0.8220006044122091
+        },
+        "Semantics.ensureGeometry": {
+          "total_ms": 0.083,
+          "mean_ms": 0.02075,
+          "percent_combined": 0.12541553339377456
+        },
+        "Semantics.ensureSemanticsNode": {
+          "total_ms": 0.05,
+          "mean_ms": 0.0125,
+          "percent_combined": 0.07555152614082805
+        },
+        "Semantics.updateChildren": {
+          "total_ms": 0.048,
+          "mean_ms": 0.012,
+          "percent_combined": 0.07252946509519492
+        },
+        "SurfaceFrame::BuildDisplayList": {
+          "total_ms": 0.026,
+          "mean_ms": 0.0065,
+          "percent_combined": 0.03928679359323058
+        },
+        "SurfaceFrame::Encode": {
+          "total_ms": 52.004,
+          "mean_ms": 13.001,
+          "percent_combined": 78.57963130855244
+        },
+        "SurfaceFrame::Submit": {
+          "total_ms": 59.596,
+          "mean_ms": 14.899,
+          "percent_combined": 90.05137503777576
+        },
+        "SurfaceGLES::WrapOnScreenFBO": {
+          "total_ms": 0.235,
+          "mean_ms": 0.05875,
+          "percent_combined": 0.3550921728618918
+        },
+        "UPDATING COMPOSITING BITS": {
+          "total_ms": 0.021,
+          "mean_ms": 0.00525,
+          "percent_combined": 0.031731640979147775
+        },
+        "UPDATING COMPOSITING BITS (root)": {
+          "total_ms": 0.101,
+          "mean_ms": 0.02525,
+          "percent_combined": 0.15261408280447267
+        },
+        "luckdraw.grid.paint": {
+          "total_ms": 0.902,
+          "mean_ms": 0.2255,
+          "percent_combined": 1.3629495315805378
+        }
+      },
+      "normal_paint_mean_ms": 0.2102298065984073,
+      "per_window": [
+        {
+          "run_id": "1794336102072654",
+          "ui_mean_ms": 1.1681224489795918,
+          "raster_mean_ms": 3.3836203389830506,
+          "spike_count": 0,
+          "first_five_spikes": 0,
+          "second_bins": {}
+        },
+        {
+          "run_id": "1794336169263247",
+          "ui_mean_ms": 1.2350169491525422,
+          "raster_mean_ms": 3.8218108108108106,
+          "spike_count": 2,
+          "first_five_spikes": 0,
+          "second_bins": {
+            "4": 2
+          }
+        },
+        {
+          "run_id": "1794336234640396",
+          "ui_mean_ms": 1.125902027027027,
+          "raster_mean_ms": 6.015636054421769,
+          "spike_count": 2,
+          "first_five_spikes": 0,
+          "second_bins": {
+            "2": 2
+          }
+        }
+      ]
+    },
+    "lotto_draw": {
+      "valid": 4,
+      "attempts": 5,
+      "clean": 2,
+      "status": "FAIL",
+      "frame_budget": {
+        "99th_percentile_build_plus_raster_millis": {
+          "values": [
+            9.62,
+            9.169
+          ],
+          "max": 9.62,
+          "limit": 12.0,
+          "status": "PASS"
+        },
+        "99th_percentile_frame_build_time_millis": {
+          "values": [
+            4.725,
+            4.226
+          ],
+          "max": 4.725,
+          "limit": 4.0,
+          "status": "FAIL"
+        }
+      },
+      "metrics": {
+        "average_frame_build_time_millis": {
+          "values": [
+            2.142129533678757,
+            2.325656303972368
+          ],
+          "median": 2.2338929188255623,
+          "spread_ratio": 0.0821555808458795,
+          "spread_absolute": 0.1835267702936112,
+          "design_target": 1.5,
+          "gap_to_design": 0.4892619458837082,
+          "design_status": "已按实测标定（未达最初设计目标）",
+          "stable": true,
+          "target": 2.5,
+          "limit": 2.5,
+          "calibrated": false,
+          "status": "PASS"
+        },
+        "90th_percentile_frame_build_time_millis": {
+          "values": [
+            3.385,
+            3.399
+          ],
+          "median": 3.392,
+          "spread_ratio": 0.004127358490566107,
+          "spread_absolute": 0.014000000000000234,
+          "design_target": 3.0,
+          "gap_to_design": 0.1306666666666667,
+          "design_status": "已按实测标定（未达最初设计目标）",
+          "stable": true,
+          "target": 3.655,
+          "limit": 3.655,
+          "calibrated": false,
+          "status": "PASS"
+        },
+        "average_frame_rasterizer_time_millis": {
+          "values": [
+            4.6960984455958545,
+            4.766680483592402
+          ],
+          "median": 4.731389464594129,
+          "spread_ratio": 0.014917824568179337,
+          "spread_absolute": 0.07058203799654716,
+          "design_target": 6.0,
+          "gap_to_design": -0.21143508923431187,
+          "design_status": "满足设计目标",
+          "stable": true,
+          "target": 5.307,
+          "limit": 5.307,
+          "calibrated": false,
+          "status": "PASS"
+        },
+        "90th_percentile_frame_rasterizer_time_millis": {
+          "values": [
+            5.195,
+            5.087
+          ],
+          "median": 5.141,
+          "spread_ratio": 0.021007586072748597,
+          "spread_absolute": 0.10800000000000054,
+          "design_target": 9.0,
+          "gap_to_design": -0.4287777777777778,
+          "design_status": "满足设计目标",
+          "stable": true,
+          "target": 7.083,
+          "limit": 7.083,
+          "calibrated": false,
+          "status": "PASS"
+        },
+        "dropped_frame_ratio": {
+          "values": [
+            0.0017271157167530224,
+            0.0017271157167530224
+          ],
+          "median": 0.0017271157167530224,
+          "spread_ratio": 0.0,
+          "spread_absolute": 0.0,
+          "design_target": 0.005,
+          "gap_to_design": -0.6545768566493955,
+          "design_status": "满足设计目标",
+          "stable": true,
+          "target": 0.005,
+          "limit": 0.005,
+          "calibrated": false,
+          "status": "PASS"
+        },
+        "new_gen_gc_over_reference": {
+          "values": [
+            0.0,
+            0.0
+          ],
+          "median": 0.0,
+          "spread_ratio": null,
+          "spread_absolute": 0.0,
+          "design_target": 1.0,
+          "gap_to_design": -1.0,
+          "design_status": "满足设计目标",
+          "stable": true,
+          "target": 0.0,
+          "limit": 0.0,
+          "calibrated": false,
+          "status": "PASS"
+        },
+        "rss_delta_bytes": {
+          "values": [
+            3469312.0,
+            4784128.0,
+            2310144.0,
+            4034560.0
+          ],
+          "median": 3751936.0,
+          "spread_ratio": 0.6593886462882096,
+          "spread_absolute": 2473984.0,
+          "design_target": 5622989.0,
+          "gap_to_design": -0.3327506064834913,
+          "design_status": "满足设计目标",
+          "stable": true,
+          "target": 5622989.0,
+          "limit": 5622989.0,
+          "calibrated": false,
+          "status": "PASS"
+        },
+        "rss_steady_growth_bytes": {
+          "values": [
+            708608.0,
+            1605632.0,
+            0.0,
+            1224704.0
+          ],
+          "median": 966656.0,
+          "spread_ratio": 1.6610169491525424,
+          "spread_absolute": 1605632.0,
+          "design_target": 1572864.0,
+          "gap_to_design": -0.38541666666666663,
+          "design_status": "满足设计目标",
+          "stable": true,
+          "target": 1572864.0,
+          "limit": 1572864.0,
+          "calibrated": false,
+          "status": "PASS"
+        },
+        "99th_percentile_frame_rasterizer_time_millis": {
+          "median": 5.481999999999999,
+          "status": "INFO",
+          "reason": "首版没有 P99 预算，保留诊断，不虚构目标"
+        }
+      },
+      "spikes": 19,
+      "spike_counts": [
+        10,
+        9
+      ],
+      "spike_offsets_ms": [
+        583.907,
+        668.047,
+        818.009,
+        1134.089,
+        2333.811,
+        4234.257,
+        4334.375,
+        4350.752,
+        4417.364,
+        4434.105,
+        133.729,
+        200.034,
+        333.094,
+        1499.839,
+        1566.924,
+        2033.149,
+        4000.518,
+        4100.325,
+        4383.511
+      ],
+      "events_in_spikes": {
+        "Animate": {
+          "total_ms": 8.599,
+          "mean_ms": 0.452578947368421,
+          "percent_combined": 4.48121319505967
+        },
+        "Animator::Render": {
+          "total_ms": 0.743,
+          "mean_ms": 0.03910526315789474,
+          "percent_combined": 0.3872010005732451
+        },
+        "AppendToExistingAtlas": {
+          "total_ms": 0.009,
+          "mean_ms": 0.00047368421052631577,
+          "percent_combined": 0.004690187086351555
+        },
+        "BUILD": {
+          "total_ms": 6.481,
+          "mean_ms": 0.34110526315789474,
+          "percent_combined": 3.3774558340716037
+        },
+        "BlitPassGLES::EncodeCommandsInReactor": {
+          "total_ms": 0.322,
+          "mean_ms": 0.01694736842105263,
+          "percent_combined": 0.167804471311689
+        },
+        "COMPOSITING": {
+          "total_ms": 15.508,
+          "mean_ms": 0.8162105263157895,
+          "percent_combined": 8.081713481682213
+        },
+        "CompositorContext::ScopedFrame::Raster": {
+          "total_ms": 2.184,
+          "mean_ms": 0.11494736842105263,
+          "percent_combined": 1.1381520662879774
+        },
+        "ConsolidateHandles": {
+          "total_ms": 0.356,
+          "mean_ms": 0.018736842105263156,
+          "percent_combined": 0.18552295586012818
+        },
+        "CreateGlyphAtlas": {
+          "total_ms": 1.177,
+          "mean_ms": 0.06194736842105263,
+          "percent_combined": 0.6133722445150868
+        },
+        "Dart_InvokeClosure": {
+          "total_ms": 0.026,
+          "mean_ms": 0.001368421052631579,
+          "percent_combined": 0.01354942936057116
+        },
+        "FINALIZE TREE": {
+          "total_ms": 0.534,
+          "mean_ms": 0.028105263157894737,
+          "percent_combined": 0.2782844337901923
+        },
+        "FlushOps": {
+          "total_ms": 37.722,
+          "mean_ms": 1.9853684210526317,
+          "percent_combined": 19.65813747459482
+        },
+        "LAYOUT": {
+          "total_ms": 6.65,
+          "mean_ms": 0.35,
+          "percent_combined": 3.4655271249153157
+        },
+        "LAYOUT (root)": {
+          "total_ms": 7.502,
+          "mean_ms": 0.39484210526315794,
+          "percent_combined": 3.9095315024232633
+        },
+        "LayerTree::Paint": {
+          "total_ms": 0.807,
+          "mean_ms": 0.042473684210526316,
+          "percent_combined": 0.42055344207618944
+        },
+        "LayerTree::Preroll": {
+          "total_ms": 1.096,
+          "mean_ms": 0.05768421052631579,
+          "percent_combined": 0.5711605607379228
+        },
+        "PAINT": {
+          "total_ms": 48.179,
+          "mean_ms": 2.5357368421052633,
+          "percent_combined": 25.107613737036843
+        },
+        "PAINT (root)": {
+          "total_ms": 48.546,
+          "mean_ms": 2.5550526315789477,
+          "percent_combined": 25.29886914378029
+        },
+        "POST_FRAME": {
+          "total_ms": 0.388,
+          "mean_ms": 0.020421052631578947,
+          "percent_combined": 0.2021991766116004
+        },
+        "Rasterizer::DoDraw": {
+          "total_ms": 97.272,
+          "mean_ms": 5.119578947368421,
+          "percent_combined": 50.69154202928762
+        },
+        "Rasterizer::DrawToSurfaces": {
+          "total_ms": 96.884,
+          "mean_ms": 5.099157894736843,
+          "percent_combined": 50.48934285267601
+        },
+        "ReactOnce": {
+          "total_ms": 38.244,
+          "mean_ms": 2.0128421052631578,
+          "percent_combined": 19.93016832560321
+        },
+        "ReactorGLES::Operation": {
+          "total_ms": 37.05,
+          "mean_ms": 1.95,
+          "percent_combined": 19.307936838813905
+        },
+        "ReactorGLES::React": {
+          "total_ms": 38.51,
+          "mean_ms": 2.026842105263158,
+          "percent_combined": 20.068789410599823
+        },
+        "RenderPassGLES::EncodeCommandsInReactor": {
+          "total_ms": 36.573,
+          "mean_ms": 1.9248947368421052,
+          "percent_combined": 19.05935692323727
+        },
+        "SEMANTICS": {
+          "total_ms": 4.311,
+          "mean_ms": 0.22689473684210526,
+          "percent_combined": 2.246599614362395
+        },
+        "SEMANTICS (root)": {
+          "total_ms": 9.34,
+          "mean_ms": 0.49157894736842106,
+          "percent_combined": 4.867371931835947
+        },
+        "Semantics.ensureGeometry": {
+          "total_ms": 3.224,
+          "mean_ms": 0.16968421052631577,
+          "percent_combined": 1.680129240710824
+        },
+        "Semantics.ensureSemanticsNode": {
+          "total_ms": 0.824,
+          "mean_ms": 0.043368421052631584,
+          "percent_combined": 0.4294126843504091
+        },
+        "Semantics.updateChildren": {
+          "total_ms": 1.17,
+          "mean_ms": 0.06157894736842105,
+          "percent_combined": 0.6097243212257022
+        },
+        "SurfaceFrame::BuildDisplayList": {
+          "total_ms": 0.134,
+          "mean_ms": 0.0070526315789473685,
+          "percent_combined": 0.06983167439678983
+        },
+        "SurfaceFrame::Encode": {
+          "total_ms": 55.164,
+          "mean_ms": 2.903368421052632,
+          "percent_combined": 28.747720047944135
+        },
+        "SurfaceFrame::Submit": {
+          "total_ms": 90.747,
+          "mean_ms": 4.776157894736842,
+          "percent_combined": 47.29115639168274
+        },
+        "SurfaceGLES::WrapOnScreenFBO": {
+          "total_ms": 0.589,
+          "mean_ms": 0.031,
+          "percent_combined": 0.3069466882067851
+        },
+        "UPDATING COMPOSITING BITS": {
+          "total_ms": 0.12,
+          "mean_ms": 0.00631578947368421,
+          "percent_combined": 0.06253582781802074
+        },
+        "UPDATING COMPOSITING BITS (root)": {
+          "total_ms": 0.473,
+          "mean_ms": 0.024894736842105265,
+          "percent_combined": 0.2464953879826984
+        },
+        "UpdateAtlasBitmap": {
+          "total_ms": 0.358,
+          "mean_ms": 0.018842105263157893,
+          "percent_combined": 0.18656521965709522
+        },
+        "luckdraw.lotto.paint": {
+          "total_ms": 38.181,
+          "mean_ms": 2.009526315789474,
+          "percent_combined": 19.89733701599875
+        },
+        "luckdraw.lotto.record": {
+          "total_ms": 5.956,
+          "mean_ms": 0.3134736842105263,
+          "percent_combined": 3.103861587367763
+        },
+        "luckdraw.picture.record": {
+          "total_ms": 0.645,
+          "mean_ms": 0.03394736842105263,
+          "percent_combined": 0.3361300745218615
+        },
+        "luckdraw.raster.build": {
+          "total_ms": 0.344,
+          "mean_ms": 0.018105263157894735,
+          "percent_combined": 0.17926937307832613
+        },
+        "luckdraw.raster.prepare": {
+          "total_ms": 0.274,
+          "mean_ms": 0.014421052631578947,
+          "percent_combined": 0.1427901401844807
+        }
+      },
+      "normal_paint_mean_ms": 1.1073378640776699,
+      "per_window": [
+        {
+          "run_id": "1794336740704716",
+          "ui_mean_ms": 2.4241716417910446,
+          "raster_mean_ms": 4.915591760299625,
+          "spike_count": 10,
+          "first_five_spikes": 0,
+          "second_bins": {
+            "0": 3,
+            "1": 1,
+            "2": 1,
+            "4": 5
+          }
+        },
+        {
+          "run_id": "1794336808482013",
+          "ui_mean_ms": 2.5871604477611942,
+          "raster_mean_ms": 4.727734082397004,
+          "spike_count": 9,
+          "first_five_spikes": 0,
+          "second_bins": {
+            "0": 3,
+            "1": 2,
+            "2": 1,
+            "4": 3
+          }
+        }
+      ]
+    },
+    "lots_shaking": {
+      "valid": 3,
+      "attempts": 3,
+      "clean": 3,
+      "status": "PASS",
+      "frame_budget": {
+        "99th_percentile_build_plus_raster_millis": {
+          "values": [
+            6.213,
+            6.3,
+            5.983
+          ],
+          "max": 6.3,
+          "limit": 12.0,
+          "status": "PASS"
+        },
+        "99th_percentile_frame_build_time_millis": {
+          "values": [
+            2.486,
+            2.567,
+            2.541
+          ],
+          "max": 2.567,
+          "limit": 4.0,
+          "status": "PASS"
+        }
+      },
+      "metrics": {
+        "average_frame_build_time_millis": {
+          "values": [
+            1.2545149501661126,
+            1.3259700996677737,
+            1.4339169435215942
+          ],
+          "median": 1.3259700996677737,
+          "spread_ratio": 0.13529867181803823,
+          "spread_absolute": 0.17940199335548157,
+          "design_target": 1.0,
+          "gap_to_design": 0.3259700996677737,
+          "design_status": "已按实测标定（未达最初设计目标）",
+          "stable": true,
+          "target": 1.517,
+          "limit": 1.517,
+          "calibrated": false,
+          "status": "PASS"
+        },
+        "90th_percentile_frame_build_time_millis": {
+          "values": [
+            2.012,
+            2.086,
+            2.084
+          ],
+          "median": 2.084,
+          "spread_ratio": 0.03550863723608438,
+          "spread_absolute": 0.07399999999999984,
+          "design_target": 2.0,
+          "gap_to_design": 0.04200000000000004,
+          "design_status": "已按实测标定（未达最初设计目标）",
+          "stable": true,
+          "target": 2.227,
+          "limit": 2.227,
+          "calibrated": false,
+          "status": "PASS"
+        },
+        "average_frame_rasterizer_time_millis": {
+          "values": [
+            3.044152823920266,
+            3.028013289036546,
+            3.049225913621264
+          ],
+          "median": 3.044152823920266,
+          "spread_ratio": 0.00696831789062426,
+          "spread_absolute": 0.021212624584717954,
+          "design_target": 5.0,
+          "gap_to_design": -0.3911694352159467,
+          "design_status": "满足设计目标",
+          "stable": true,
+          "target": 5.0,
+          "limit": 5.0,
+          "calibrated": false,
+          "status": "PASS"
+        },
+        "90th_percentile_frame_rasterizer_time_millis": {
+          "values": [
+            3.496,
+            3.415,
+            3.396
+          ],
+          "median": 3.415,
+          "spread_ratio": 0.0292825768667643,
+          "spread_absolute": 0.10000000000000009,
+          "design_target": 8.0,
+          "gap_to_design": -0.573125,
+          "design_status": "满足设计目标",
+          "stable": true,
+          "target": 8.0,
+          "limit": 8.0,
+          "calibrated": false,
+          "status": "PASS"
+        },
+        "dropped_frame_ratio": {
+          "values": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "median": 0.0,
+          "spread_ratio": null,
+          "spread_absolute": 0.0,
+          "design_target": 0.005,
+          "gap_to_design": -1.0,
+          "design_status": "满足设计目标",
+          "stable": true,
+          "target": 0.005,
+          "limit": 0.005,
+          "calibrated": false,
+          "status": "PASS"
+        },
+        "new_gen_gc_over_reference": {
+          "values": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "median": 0.0,
+          "spread_ratio": null,
+          "spread_absolute": 0.0,
+          "design_target": 1.0,
+          "gap_to_design": -1.0,
+          "design_status": "满足设计目标",
+          "stable": true,
+          "target": 0.0,
+          "limit": 0.0,
+          "calibrated": false,
+          "status": "PASS"
+        },
+        "rss_delta_bytes": {
+          "values": [
+            933888.0,
+            0.0,
+            176128.0
+          ],
+          "median": 176128.0,
+          "spread_ratio": 5.3023255813953485,
+          "spread_absolute": 933888.0,
+          "design_target": 5622989.0,
+          "gap_to_design": -0.9686771572912556,
+          "design_status": "满足设计目标",
+          "stable": true,
+          "target": 5622989.0,
+          "limit": 5622989.0,
+          "calibrated": false,
+          "status": "PASS"
+        },
+        "rss_steady_growth_bytes": {
+          "values": [
+            229376.0,
+            0.0,
+            1867776.0
+          ],
+          "median": 229376.0,
+          "spread_ratio": 8.142857142857142,
+          "spread_absolute": 1867776.0,
+          "design_target": 1572864.0,
+          "gap_to_design": -0.8541666666666666,
+          "design_status": "满足设计目标",
+          "stable": true,
+          "target": 1572864.0,
+          "limit": 1572864.0,
+          "calibrated": false,
+          "status": "PASS"
+        },
+        "99th_percentile_frame_rasterizer_time_millis": {
+          "median": 3.863,
+          "status": "INFO",
+          "reason": "首版没有 P99 预算，保留诊断，不虚构目标"
+        }
+      },
+      "spikes": 2,
+      "spike_counts": [
+        0,
+        1,
+        1
+      ],
+      "spike_offsets_ms": [
+        3583.27,
+        2366.614
+      ],
+      "events_in_spikes": {
+        "Animate": {
+          "total_ms": 0.401,
+          "mean_ms": 0.2005,
+          "percent_combined": 2.5177371758648834
+        },
+        "Animator::Render": {
+          "total_ms": 0.033,
+          "mean_ms": 0.0165,
+          "percent_combined": 0.20719532868713506
+        },
+        "COMPOSITING": {
+          "total_ms": 4.597,
+          "mean_ms": 2.2985,
+          "percent_combined": 28.8629371507503
+        },
+        "CompositorContext::ScopedFrame::Raster": {
+          "total_ms": 0.163,
+          "mean_ms": 0.0815,
+          "percent_combined": 1.02341935078797
+        },
+        "ConsolidateHandles": {
+          "total_ms": 0.032,
+          "mean_ms": 0.016,
+          "percent_combined": 0.20091668236328247
+        },
+        "FINALIZE TREE": {
+          "total_ms": 0.022,
+          "mean_ms": 0.011,
+          "percent_combined": 0.1381302191247567
+        },
+        "FlushOps": {
+          "total_ms": 1.409,
+          "mean_ms": 0.7045,
+          "percent_combined": 8.846612670308282
+        },
+        "LAYOUT": {
+          "total_ms": 0.014,
+          "mean_ms": 0.007,
+          "percent_combined": 0.08790104853393609
+        },
+        "LAYOUT (root)": {
+          "total_ms": 0.048,
+          "mean_ms": 0.024,
+          "percent_combined": 0.30137502354492374
+        },
+        "LayerTree::Paint": {
+          "total_ms": 0.08,
+          "mean_ms": 0.04,
+          "percent_combined": 0.5022917059082063
+        },
+        "LayerTree::Preroll": {
+          "total_ms": 0.072,
+          "mean_ms": 0.036,
+          "percent_combined": 0.4520625353173856
+        },
+        "PAINT": {
+          "total_ms": 1.933,
+          "mean_ms": 0.9665,
+          "percent_combined": 12.136623344007031
+        },
+        "PAINT (root)": {
+          "total_ms": 1.962,
+          "mean_ms": 0.981,
+          "percent_combined": 12.318704087398757
+        },
+        "POST_FRAME": {
+          "total_ms": 0.465,
+          "mean_ms": 0.2325,
+          "percent_combined": 2.9195705405914483
+        },
+        "Rasterizer::DoDraw": {
+          "total_ms": 6.729,
+          "mean_ms": 3.3645,
+          "percent_combined": 42.24901111320399
+        },
+        "Rasterizer::DrawToSurfaces": {
+          "total_ms": 6.67,
+          "mean_ms": 3.335,
+          "percent_combined": 41.87857098009669
+        },
+        "ReactOnce": {
+          "total_ms": 1.448,
+          "mean_ms": 0.724,
+          "percent_combined": 9.091479876938532
+        },
+        "ReactorGLES::Operation": {
+          "total_ms": 1.368,
+          "mean_ms": 0.684,
+          "percent_combined": 8.589188171030326
+        },
+        "ReactorGLES::React": {
+          "total_ms": 1.457,
+          "mean_ms": 0.7285,
+          "percent_combined": 9.147987693853207
+        },
+        "RenderPassGLES::EncodeCommandsInReactor": {
+          "total_ms": 1.351,
+          "mean_ms": 0.6755,
+          "percent_combined": 8.482451183524832
+        },
+        "SEMANTICS": {
+          "total_ms": 1.16,
+          "mean_ms": 0.58,
+          "percent_combined": 7.28322973566899
+        },
+        "SEMANTICS (root)": {
+          "total_ms": 1.344,
+          "mean_ms": 0.672,
+          "percent_combined": 8.438500659257864
+        },
+        "Semantics.ensureGeometry": {
+          "total_ms": 0.598,
+          "mean_ms": 0.299,
+          "percent_combined": 3.7546305016638417
+        },
+        "Semantics.ensureSemanticsNode": {
+          "total_ms": 0.03,
+          "mean_ms": 0.015,
+          "percent_combined": 0.18835938971557734
+        },
+        "Semantics.updateChildren": {
+          "total_ms": 0.027,
+          "mean_ms": 0.0135,
+          "percent_combined": 0.1695234507440196
+        },
+        "SurfaceFrame::BuildDisplayList": {
+          "total_ms": 0.018,
+          "mean_ms": 0.009,
+          "percent_combined": 0.1130156338293464
+        },
+        "SurfaceFrame::Encode": {
+          "total_ms": 2.149,
+          "mean_ms": 1.0745,
+          "percent_combined": 13.492810949959189
+        },
+        "SurfaceFrame::Submit": {
+          "total_ms": 6.084,
+          "mean_ms": 3.042,
+          "percent_combined": 38.19928423431908
+        },
+        "SurfaceGLES::WrapOnScreenFBO": {
+          "total_ms": 0.06,
+          "mean_ms": 0.03,
+          "percent_combined": 0.37671877943115467
+        },
+        "UPDATING COMPOSITING BITS": {
+          "total_ms": 0.011,
+          "mean_ms": 0.0055,
+          "percent_combined": 0.06906510956237835
+        },
+        "UPDATING COMPOSITING BITS (root)": {
+          "total_ms": 0.043,
+          "mean_ms": 0.0215,
+          "percent_combined": 0.2699817919256608
+        },
+        "luckdraw.lots.paint": {
+          "total_ms": 1.123,
+          "mean_ms": 0.5615,
+          "percent_combined": 7.050919821686444
+        }
+      },
+      "normal_paint_mean_ms": 0.3724635241301908,
+      "per_window": [
+        {
+          "run_id": "1794336871606953",
+          "ui_mean_ms": 1.2845503355704697,
+          "raster_mean_ms": 3.098815436241611,
+          "spike_count": 0,
+          "first_five_spikes": 0,
+          "second_bins": {}
+        },
+        {
+          "run_id": "1794336934144721",
+          "ui_mean_ms": 1.3499127516778524,
+          "raster_mean_ms": 3.0819630872483224,
+          "spike_count": 1,
+          "first_five_spikes": 0,
+          "second_bins": {
+            "3": 1
+          }
+        },
+        {
+          "run_id": "1794336996368281",
+          "ui_mean_ms": 1.4716363636363636,
+          "raster_mean_ms": 3.1008020134228187,
+          "spike_count": 1,
+          "first_five_spikes": 0,
+          "second_bins": {
+            "2": 1
+          }
+        }
+      ]
+    }
+  },
+  "cpu": [
+    {
+      "attempt": 1,
+      "process": 40.039607930907906,
+      "ui_platform": 15.014852974090461,
+      "raster": 18.29935206217275,
+      "ui_platform_tid": 379,
+      "ui_platform_name": ".luckdraw_bench",
+      "raster_tid": 420,
+      "raster_name": "1.raster",
+      "seconds": 6.393669,
+      "before_read_ms": 1381.079,
+      "after_read_ms": 1536.642,
+      "frame_count": 477.0,
+      "fps": 59.9921142441025,
+      "frame_timing_elapsed_micros": 7951045,
+      "average_build_ms": 1.0456645702306082,
+      "average_raster_ms": 10.599781970649882,
+      "new_threads": [],
+      "exited_threads": [
+        574
+      ]
+    },
+    {
+      "attempt": 2,
+      "process": 35.52307810758078,
+      "ui_platform": 12.675635800502395,
+      "raster": 18.15276238096639,
+      "ui_platform_tid": 1198,
+      "ui_platform_name": ".luckdraw_bench",
+      "raster_tid": 1222,
+      "raster_name": "1.raster",
+      "seconds": 6.390212,
+      "before_read_ms": 1375.282,
+      "after_read_ms": 1530.99,
+      "frame_count": 477.0,
+      "fps": 60.08809897882984,
+      "frame_timing_elapsed_micros": 7938344,
+      "average_build_ms": 0.8945303983228508,
+      "average_raster_ms": 4.885693920335433,
+      "new_threads": [],
+      "exited_threads": [
+        1413
+      ]
+    },
+    {
+      "attempt": 3,
+      "process": 39.29146487225166,
+      "ui_platform": 14.930756651455631,
+      "raster": 18.545571419702785,
+      "ui_platform_tid": 2070,
+      "ui_platform_name": ".luckdraw_bench",
+      "raster_tid": 2104,
+      "raster_name": "1.raster",
+      "seconds": 6.362705,
+      "before_read_ms": 1336.095,
+      "after_read_ms": 1515.638,
+      "frame_count": 475.0,
+      "fps": 60.07586759987044,
+      "frame_timing_elapsed_micros": 7906669,
+      "average_build_ms": 1.0249347368421053,
+      "average_raster_ms": 13.979018947368417,
+      "new_threads": [],
+      "exited_threads": [
+        2317
+      ]
+    }
+  ],
+  "cpu_medians": {
+    "process": 39.29146487225166,
+    "ui_platform": 14.930756651455631,
+    "raster": 18.29935206217275
+  }
+}

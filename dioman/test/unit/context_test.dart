@@ -1,3 +1,4 @@
+import '../support/response_contract.dart';
 import 'package:dioman/src/diagnostics.dart';
 import '../support/constants.dart';
 import 'dart:async';
@@ -6,6 +7,9 @@ import 'package:dio/dio.dart';
 import 'package:test/test.dart';
 import '../support/fake_clock.dart';
 import '../support/helpers.dart';
+
+const _field = 'a';
+
 
 /// 取消等待的各个终局及逻辑状态共享。
 void main() {
@@ -88,7 +92,7 @@ void main() {
         case pipelineTestCancel:
           ctx.state.cancel();
           expect(await result, isNull);
-          expect(ctx.cancelled()!.kind, DiomanKind.cancel);
+          expect(outcomeOf(ctx.cancelled()!), diomanTestCancel);
       }
       expect(ctx.cancellationSubscriptions, 0);
       expect(clock.pendingTimers, 0);
@@ -165,5 +169,35 @@ void main() {
     expect(ctx.replayable, isTrue);
     final noKey = ctx.derive(const RequestPatch());
     expect(noKey.key(), pipelineTestUnit);
+  });
+
+  test('[DiomanContext.canReplay] B8 递归判断重放能力', () {
+    for (final body in [
+      null,
+      1,
+      true,
+      's',
+      FormData(),
+      {
+        _field: [1, null]
+      },
+      <int>[1]
+    ]) {
+      expect(
+          testContext(request: DiomanRequest(RequestOptions(data: body)))
+              .canReplay(),
+          isTrue);
+    }
+    for (final body in [
+      const Stream<int>.empty(),
+      Object(),
+      {_field: Object()},
+      [Object()]
+    ]) {
+      expect(
+          testContext(request: DiomanRequest(RequestOptions(data: body)))
+              .canReplay(),
+          isFalse);
+    }
   });
 }

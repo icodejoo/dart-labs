@@ -1,0 +1,194 @@
+{
+  "_note": "Web 首轮实测 B13b 九个探针已校准；B13c 补测 compat_wheel 并校准。两种压缩器分别按实测增量 × 1.1 向上取整；maxDeltaGzipBytes 保留 Dart codec 契约。APK 于2026-11-10真实构建五个arm64探针，maxLuckdrawBytes按包子树实测×1.1精确向上取整；其它五项null仍表示未校准。",
+  "_measurement": {
+    "date": "2026-11-10",
+    "timezone": "Asia/Shanghai",
+    "flutterVersion": "3.47.0",
+    "dartVersion": "3.13.0",
+    "report": "tool/treeshake/first_measurement.json",
+    "buildCommand": "flutter build web --release --source-maps --no-pub",
+    "gnuGzipCommand": "gzip -9 -n -c main.dart.js",
+    "cliBudgetCompressor": "Dart GZipCodec(level: 9)",
+    "gnuBudgetCompressor": "GNU gzip -9 -n",
+    "successfulBuilds": 10,
+    "failedBuilds": 0,
+    "recheckReport": "tool/treeshake/recheck_measurement.json",
+    "historyNote": "B13b 的 compat_wheel 失败保留在 first_measurement.json；B13c 补测成功，当前预算来自 recheck_measurement.json。"
+  },
+  "web": {
+    "baseline": {
+      "maxDeltaGzipBytes": 0,
+      "maxGnuDeltaGzipBytes": 0,
+      "measuredRawBytes": 1181712,
+      "measuredGzipBytes": 359912,
+      "measuredDeltaGzipBytes": 0,
+      "measuredDartGzipBytes": 360350,
+      "measuredDeltaDartGzipBytes": 0
+    },
+    "wheel_only": {
+      "maxDeltaGzipBytes": 48528,
+      "maxGnuDeltaGzipBytes": 47843,
+      "measuredRawBytes": 1319121,
+      "measuredGzipBytes": 403405,
+      "measuredDeltaGzipBytes": 43493,
+      "measuredDartGzipBytes": 404466,
+      "measuredDeltaDartGzipBytes": 44116
+    },
+    "grid_only": {
+      "maxDeltaGzipBytes": 6005,
+      "maxGnuDeltaGzipBytes": 6190,
+      "measuredRawBytes": 1129484,
+      "measuredGzipBytes": 365539,
+      "measuredDeltaGzipBytes": 5627,
+      "measuredDartGzipBytes": 365809,
+      "measuredDeltaDartGzipBytes": 5459
+    },
+    "slot_only": {
+      "maxDeltaGzipBytes": 7572,
+      "maxGnuDeltaGzipBytes": 7367,
+      "measuredRawBytes": 1133269,
+      "measuredGzipBytes": 366609,
+      "measuredDeltaGzipBytes": 6697,
+      "measuredDartGzipBytes": 367233,
+      "measuredDeltaDartGzipBytes": 6883
+    },
+    "capsule_only": {
+      "maxDeltaGzipBytes": 7408,
+      "maxGnuDeltaGzipBytes": 7545,
+      "measuredRawBytes": 1133143,
+      "measuredGzipBytes": 366771,
+      "measuredDeltaGzipBytes": 6859,
+      "measuredDartGzipBytes": 367084,
+      "measuredDeltaDartGzipBytes": 6734
+    },
+    "number_wheel_only": {
+      "maxDeltaGzipBytes": 2935,
+      "maxGnuDeltaGzipBytes": 2440,
+      "measuredRawBytes": 1120318,
+      "measuredGzipBytes": 362130,
+      "measuredDeltaGzipBytes": 2218,
+      "measuredDartGzipBytes": 363018,
+      "measuredDeltaDartGzipBytes": 2668
+    },
+    "lots_only": {
+      "maxDeltaGzipBytes": 4873,
+      "maxGnuDeltaGzipBytes": 4606,
+      "measuredRawBytes": 1126151,
+      "measuredGzipBytes": 364099,
+      "measuredDeltaGzipBytes": 4187,
+      "measuredDartGzipBytes": 364780,
+      "measuredDeltaDartGzipBytes": 4430
+    },
+    "lotto_only": {
+      "maxDeltaGzipBytes": 4859,
+      "maxGnuDeltaGzipBytes": 4278,
+      "measuredRawBytes": 1124941,
+      "measuredGzipBytes": 363801,
+      "measuredDeltaGzipBytes": 3889,
+      "measuredDartGzipBytes": 364767,
+      "measuredDeltaDartGzipBytes": 4417,
+      "rebaselinedAfter": "F2（R6 游戏层缺陷修复使大乐透代码合理增大）；2026-11-10 按 B13c 复测实测 x1.1 重定"
+    },
+    "compat_wheel": {
+      "maxDeltaGzipBytes": 29653,
+      "maxGnuDeltaGzipBytes": 29101,
+      "measuredRawBytes": 1197019,
+      "measuredGzipBytes": 386367,
+      "measuredDeltaGzipBytes": 26455,
+      "measuredDartGzipBytes": 387307,
+      "measuredDeltaDartGzipBytes": 26957,
+      "report": "tool/treeshake/recheck_measurement.json"
+    },
+    "all_games": {
+      "maxDeltaGzipBytes": 83831,
+      "maxGnuDeltaGzipBytes": 83578,
+      "measuredRawBytes": 1353784,
+      "measuredGzipBytes": 435892,
+      "measuredDeltaGzipBytes": 75980,
+      "measuredDartGzipBytes": 436560,
+      "measuredDeltaDartGzipBytes": 76210
+    }
+  },
+  "apk": {
+    "baseline": {
+      "maxLuckdrawBytes": 0,
+      "measuredLuckdrawBytes": 0,
+      "measuredDartAotBytes": 1678480,
+      "measuredCompressedEntryBytes": 13823240,
+      "measuredAt": "2026-11-10T16:52:13+08:00",
+      "report": "tool/treeshake/apk_measurement.json"
+    },
+    "wheel_only": {
+      "maxLuckdrawBytes": 65181,
+      "measuredLuckdrawBytes": 59255,
+      "measuredDartAotBytes": 1880720,
+      "measuredCompressedEntryBytes": 14085384,
+      "measuredAt": "2026-11-10T16:52:13+08:00",
+      "report": "tool/treeshake/apk_measurement.json"
+    },
+    "grid_only": {
+      "maxLuckdrawBytes": 53944,
+      "measuredLuckdrawBytes": 49040,
+      "measuredDartAotBytes": 1701696,
+      "measuredCompressedEntryBytes": 13888776,
+      "measuredAt": "2026-11-10T16:52:13+08:00",
+      "report": "tool/treeshake/apk_measurement.json"
+    },
+    "slot_only": {
+      "maxLuckdrawBytes": 67401,
+      "measuredLuckdrawBytes": 61273,
+      "measuredDartAotBytes": 1723904,
+      "measuredCompressedEntryBytes": 13954312,
+      "measuredAt": "2026-11-10T16:52:13+08:00",
+      "report": "tool/treeshake/apk_measurement.json"
+    },
+    "capsule_only": {
+      "maxLuckdrawBytes": 67150,
+      "measuredLuckdrawBytes": 61045,
+      "measuredDartAotBytes": 1721296,
+      "measuredCompressedEntryBytes": 13954312,
+      "measuredAt": "2026-11-10T17:03:54.4782061+08:00",
+      "report": "tool/treeshake/apk_measurement.json"
+    },
+    "number_wheel_only": {
+      "maxLuckdrawBytes": 56669,
+      "measuredLuckdrawBytes": 51517,
+      "measuredDartAotBytes": 1721120,
+      "measuredCompressedEntryBytes": 13954312,
+      "measuredAt": "2026-11-10T17:07:42.2103441+08:00",
+      "report": "tool/treeshake/apk_measurement.json"
+    },
+    "lots_only": {
+      "maxLuckdrawBytes": 51324,
+      "measuredLuckdrawBytes": 46658,
+      "measuredDartAotBytes": 1715088,
+      "measuredCompressedEntryBytes": 13888776,
+      "measuredAt": "2026-11-10T17:10:47.2990355+08:00",
+      "report": "tool/treeshake/apk_measurement.json"
+    },
+    "lotto_only": {
+      "maxLuckdrawBytes": 66038,
+      "measuredLuckdrawBytes": 60034,
+      "measuredDartAotBytes": 1732976,
+      "measuredCompressedEntryBytes": 13954312,
+      "measuredAt": "2026-11-10T17:14:30.5069550+08:00",
+      "report": "tool/treeshake/apk_measurement.json"
+    },
+    "compat_wheel": {
+      "maxLuckdrawBytes": 137581,
+      "measuredLuckdrawBytes": 125073,
+      "measuredDartAotBytes": 2203808,
+      "measuredCompressedEntryBytes": 14347528,
+      "measuredAt": "2026-11-10T17:17:53.8665631+08:00",
+      "report": "tool/treeshake/apk_measurement.json"
+    },
+    "all_games": {
+      "maxLuckdrawBytes": 268143,
+      "measuredLuckdrawBytes": 243766,
+      "measuredDartAotBytes": 2271152,
+      "measuredCompressedEntryBytes": 14478600,
+      "measuredAt": "2026-11-10T16:52:13+08:00",
+      "report": "tool/treeshake/apk_measurement.json"
+    }
+  }
+}

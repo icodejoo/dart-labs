@@ -78,6 +78,7 @@ class _Backend {
   PresentedOverlay<String> present(PresentContext<String> ctx) {
     calls++;
     return PresentedOverlay(
+        visible: Future<void>.value(),
         dismissed: done.future,
         dismiss: ([value]) async {
           if (!done.isCompleted) done.complete(value);
@@ -190,6 +191,7 @@ void main() {
     await m.ready();
     const cd = OverlayCooldown(minGap: Duration(hours: 3));
     m.submit<String>(id: _id, cooldown: cd, present: _Backend().present);
+    await Future<void>.delayed(Duration.zero); // 该用例验证可见之后的 minGap 与抑制叠加。
     m.remove(_id);
     m.suppress(_id, duration: _hour);
     expect(m.cooldownStatus(_id, cd).wait, _threeHours);

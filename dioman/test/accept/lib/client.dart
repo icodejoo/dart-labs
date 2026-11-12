@@ -134,21 +134,23 @@ class Tokens implements DiomanTokenManager {
   }
 }
 
-/// 只读库返回的类别、原因和逻辑状态，不重复判定业务信封。
+/// 只读库返回的失败标记、HTTP 状态和业务码，不重复判定业务信封。
 String classify(Object error) {
   if (error is! DiomanResponse) return 'unknown:$error';
-  return switch (error.kind) {
-    DiomanKind.ok => tkOk,
-    DiomanKind.http => 'http:${error.status}',
-    DiomanKind.biz => 'business:${error.code}',
-    DiomanKind.network => tkNetwork,
-    DiomanKind.timeout => tkTimeout,
-    DiomanKind.cancel => tkCanceled,
-    DiomanKind.parse => 'parse',
-    DiomanKind.auth => error.reason ?? tkExpired,
-    DiomanKind.breaker => 'breaker_open',
-    DiomanKind.offline => tkOffline,
-    DiomanKind.internal => 'internal',
+  return switch (failureOf(error)?.kind) {
+    null => error.ok
+        ? tkOk
+        : error.status < 200 || error.status >= 300
+            ? 'http:${error.status}'
+            : 'business:${error.code}',
+    DiomanFailureKind.network => tkNetwork,
+    DiomanFailureKind.timeout => tkTimeout,
+    DiomanFailureKind.cancel => tkCanceled,
+    DiomanFailureKind.parse => 'parse',
+    DiomanFailureKind.auth => failureOf(error)?.reason ?? tkExpired,
+    DiomanFailureKind.breaker => 'breaker_open',
+    DiomanFailureKind.offline => tkOffline,
+    DiomanFailureKind.internal => 'internal',
   };
 }
 
@@ -186,11 +188,14 @@ class ScenarioClient {
     }
     api = Dioman<DiomanResponse<dynamic>>(
       dio: dio,
-      // 只读库已分类的逻辑状态；服务停止守卫不重分类、不改结果。
+      deadline:
+          timeout[tkTotalMs] == null ? null : ms(timeout[tkTotalMs] as num),
+      statusOf: effectiveStatus,
+      // 读取使用者配置的有效状态；服务停止守卫不重分类、不改结果。
       response: DiomanResponseFactory(
           expectJson: true,
           create: (result) {
-            checkServiceStatus(result.status, data: result.data);
+            checkServiceStatus(effectiveStatus(result), data: result.data);
             return result;
           }),
       key: DiomanKeyOptions(
@@ -374,6 +379,14 @@ class ScenarioClient {
     final key = cache[tkKey] ??
         options[tkKey] ??
         (plugins.containsKey(tkKey) ? false : null);
+    // total_ms / timeout-total 表达逻辑预算；其余旧场景的 timeout_ms
+    // 仍是每次传输的接收超时，不能意外终止外层 retry。
+    final totalBudget = obj(plugins[tkTimeout])[tkTotalMs] != null ||
+        (config[tkRequires] as List? ?? const [])
+            .contains(timeoutTotalCapability);
+    final requestTimeout = options[tkTimeoutMs] == null
+        ? null
+        : ms(options[tkTimeoutMs] as num);
     return DiomanCall(
         headers: {...this.headers, ...?headers},
         cancelToken: token,
@@ -382,11 +395,9 @@ class ScenarioClient {
             : key == 'deep' || key == true
                 ? null
                 : key,
-        envelope: options[tkNormalize] as bool?,
         silent: options[tkSilent] == true,
-        receiveTimeout: options[tkTimeoutMs] == null
-            ? null
-            : ms(options[tkTimeoutMs] as num),
+        deadline: totalBudget ? requestTimeout : null,
+        receiveTimeout: totalBudget ? null : requestTimeout,
         options: {
           DiomanAuth.option: options[tkAuth] == true
               ? const DiomanAuthOptions(enabled: true)
@@ -427,9 +438,20 @@ class ScenarioClient {
         });
   }
 
+  /// 使用者配置的有效状态；按请求快照识别业务风格。
+  int effectiveStatus(DiomanResponse<dynamic> r) =>
+      (r.request.query[tkStyle] ?? r.request.headers[styleHeader] ?? style) ==
+                  tkBusiness &&
+              r.status >= 200 &&
+              r.status < 300 &&
+              r.code is int &&
+              r.code != 0
+          ? r.code as int
+          : r.status;
+
   /// 释放客户端和宿主端口。
   Future<void> dispose() async {
-    api.dispose();
+    await api.dispose();
     dio.close(force: true);
     await connectivity.close();
   }

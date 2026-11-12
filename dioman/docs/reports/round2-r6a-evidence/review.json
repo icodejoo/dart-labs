@@ -1,0 +1,7 @@
+{
+  "command": "codex review --uncommitted",
+  "exit_code": 0,
+  "findings": 0,
+  "scope": "只读核对 import、路径引用、归并遗漏与冲突",
+  "raw_log": "coverage/round2-r6a/review.log"
+}

@@ -1,0 +1,15 @@
+{
+  "tools_passed": 223,
+  "skipped": 0,
+  "failed": 0,
+  "lib_merged": false,
+  "format_paths": [
+    "test/tool/bench_instr_test.dart",
+    "tool/bench/response_writer.dart",
+    "tool/bench/proc_cpu.dart",
+    "tool/bench/proc_cpu_sampler.dart",
+    "tool/bench/proc_cpu_replay.dart",
+    "tool/bench/test_driver/perf_driver.dart",
+    "tool/bench/integration_test/bench_support.dart"
+  ]
+}

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 
 /// Opacity of the muted default track (behind the progress fill) when no
@@ -108,4 +109,160 @@ Widget buildProgressPaint({
     value: '${(progress * 100).round()}%',
     child: CustomPaint(size: size, painter: painter, child: paintChild),
   );
+}
+
+/// 进度来源的换算视图：监听原始值（数值或 `TimeParts`），换算成 0–1 进度，
+/// 并按整数百分比去抖，供常驻 painter 与语义使用。
+///
+/// 自身是 [ValueListenable]，每次原始值通知时原地更新 [value] 并通知监听者（即
+/// painter 的 repaint 源），不分配对象。
+class _ProgressView<T> extends ChangeNotifier implements ValueListenable<double> {
+  /// 绑定原始值来源 [source] 与换算函数 [toProgress]，并立即换算一次初值。
+  _ProgressView(this._source, this._toProgress) {
+    _progress = _toProgress(_source.value);
+    percent = ValueNotifier<int>((_progress * 100).round());
+    _source.addListener(_onSource);
+  }
+
+  /// 原始值来源。
+  ValueListenable<T> _source;
+
+  /// 原始值 → 0–1 进度的换算函数。
+  double Function(T value) _toProgress;
+
+  /// 最近一次换算出的进度。
+  late double _progress;
+
+  /// 整数百分比；只在百分比整数变化时通知，驱动 Semantics。
+  late final ValueNotifier<int> percent;
+
+  @override
+  double get value => _progress;
+
+  /// 原始值变化：换算、更新百分比并通知 painter。
+  void _onSource() {
+    _progress = _toProgress(_source.value);
+    percent.value = (_progress * 100).round();
+    notifyListeners();
+  }
+
+  /// 换绑来源或换算函数；进度因此变化时通知 painter 重绘。
+  void rebind(ValueListenable<T> source, double Function(T value) toProgress) {
+    if (!identical(source, _source)) {
+      _source.removeListener(_onSource);
+      _source = source;
+      _source.addListener(_onSource);
+    }
+    _toProgress = toProgress;
+    final next = toProgress(source.value);
+    if (next == _progress) return;
+    _progress = next;
+    percent.value = (next * 100).round();
+    notifyListeners();
+  }
+
+  /// 解除对来源的监听并释放通知器。
+  @override
+  void dispose() {
+    _source.removeListener(_onSource);
+    percent.dispose();
+    super.dispose();
+  }
+}
+
+/// 常驻 painter 的进度绘制：painter 随组件生命周期创建，进度通过 `repaint` 监听原地更新，
+/// 不随进度逐帧新建 painter / Semantics / 百分比字符串。
+///
+/// [source] 推送原始值（计数值或 `TimeParts`），[toProgress] 把它换算成 0–1；
+/// [painterFactory] 收到可监听的进度，应把它交给 painter 的 `progressListenable`。
+/// [configKey] 是视觉配置的值相等键（样式、颜色、文字方向等）：它变化时才重建 painter，
+/// 其余重建复用同一个实例。Semantics 的百分比只在整数百分比变化时重建。
+///
+/// 示例：
+/// ```dart
+/// ResidentProgressPaint<double>(
+///   source: value, toProgress: (v) => v / 100, size: const Size.square(80),
+///   configKey: (style, color),
+///   painterFactory: (progress) => ringPainterFrom(style,
+///       progressListenable: progress, color: color, trackColor: track),
+/// )
+/// ```
+class ResidentProgressPaint<T> extends StatefulWidget {
+  /// 创建常驻进度绘制；[child] 绘制在 painter 之上（如环形中心）。
+  const ResidentProgressPaint({
+    super.key,
+    required this.source,
+    required this.toProgress,
+    required this.size,
+    required this.configKey,
+    required this.painterFactory,
+    this.child,
+  });
+
+  /// 原始值来源。
+  final ValueListenable<T> source;
+
+  /// 原始值 → 0–1 进度的换算函数。
+  final double Function(T value) toProgress;
+
+  /// 绘制尺寸。
+  final Size size;
+
+  /// 视觉配置的值相等键；变化时重建 painter。
+  final Object? configKey;
+
+  /// 用可监听的进度创建 painter。
+  final CustomPainter Function(ValueListenable<double> progress) painterFactory;
+
+  /// 绘制在 painter 之上的子组件。
+  final Widget? child;
+
+  @override
+  State<ResidentProgressPaint<T>> createState() =>
+      _ResidentProgressPaintState<T>();
+}
+
+/// 持有常驻 painter 与进度视图。
+class _ResidentProgressPaintState<T> extends State<ResidentProgressPaint<T>> {
+  /// 进度换算视图，生命周期与本 State 一致。
+  late final _ProgressView<T> _view;
+
+  /// 常驻 painter；仅在 [ResidentProgressPaint.configKey] 变化时重建。
+  late CustomPainter _painter;
+
+  @override
+  void initState() {
+    super.initState();
+    _view = _ProgressView<T>(widget.source, widget.toProgress);
+    _painter = widget.painterFactory(_view);
+  }
+
+  @override
+  void didUpdateWidget(ResidentProgressPaint<T> old) {
+    super.didUpdateWidget(old);
+    _view.rebind(widget.source, widget.toProgress);
+    if (old.configKey != widget.configKey) {
+      _painter = widget.painterFactory(_view);
+    }
+  }
+
+  @override
+  void dispose() {
+    _view.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<int>(
+      valueListenable: _view.percent,
+      child: CustomPaint(
+        size: widget.size,
+        painter: _painter,
+        child: widget.child,
+      ),
+      builder: (_, percent, child) =>
+          Semantics(container: true, value: '$percent%', child: child),
+    );
+  }
 }

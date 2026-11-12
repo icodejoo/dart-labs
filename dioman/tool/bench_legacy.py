@@ -11,17 +11,24 @@ import shutil
 import subprocess
 import sys
 import uuid
+import os
 
 ROOT = Path(__file__).resolve().parents[1]
 REVISION = '895d959'
+PRIORITY_FLAGS = (subprocess.HIGH_PRIORITY_CLASS
+                  if os.name == 'nt' and os.environ.get('DIOMAN_BENCH_HIGH_PRIORITY') == '1' else 0)
 
 
 def main():
+    """在固定旧提交的临时工作树中运行一轮并可靠清理。"""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--out', type=Path)
     args = parser.parse_args()
     temporary = ROOT / ('.bench-legacy-' + uuid.uuid4().hex)
     dart = shutil.which('dart')
+    if os.name == 'nt':
+        from dioman_bench_load import dart_executable, benchmark_command
+        dart = dart_executable()
     if not dart:
         raise RuntimeError('dart unavailable')
     added = False
@@ -31,9 +38,11 @@ def main():
         added = True
         package = temporary / 'dioman'
         subprocess.run([dart, 'pub', 'get', '--offline'], cwd=package,
-                       check=True, stdout=sys.stderr)
-        result = subprocess.run([dart, 'run', 'benchmark/legacy.dart'],
-                                cwd=package, check=True, capture_output=True, text=True)
+                       check=True, stdout=sys.stderr, creationflags=PRIORITY_FLAGS)
+        result = subprocess.run(benchmark_command('benchmark/legacy.dart') if os.name == 'nt'
+                                else [dart, 'run', 'benchmark/legacy.dart'],
+                                cwd=package, check=True, capture_output=True, text=True,
+                                creationflags=PRIORITY_FLAGS)
         sys.stderr.write(result.stderr)
         data = json.loads(result.stdout.strip())
         data['implementation'] = 'legacy-' + REVISION

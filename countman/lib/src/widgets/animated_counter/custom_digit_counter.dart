@@ -45,30 +45,51 @@ class AnimatedCounterBuilder extends _BaseAnimatedCounter {
     super.key,
     super.value,
     super.controller,
+    super.plugin,
+    super.fps,
+    super.animateOnce,
+    @Deprecated('改用 timeline: CounterTimeline(duration: ...)')
     super.duration,
     super.negativeSignDuration,
+    @Deprecated('改用 timeline: CounterTimeline(curve: ...)')
     super.curve,
+    @Deprecated('改用 style: AnimatedCounterStyle(textStyle: ...)')
     super.textStyle,
     super.prefix,
     super.infix,
     super.suffix,
+    @Deprecated('改用 format: CounterFormat(fractionDigits: ...)')
     super.fractionDigits,
+    @Deprecated('改用 format: CounterFormat(wholeDigits: ...)')
     super.wholeDigits,
+    @Deprecated('改用 format: CounterFormat(hideLeadingZeroes: ...)')
     super.hideLeadingZeroes,
+    @Deprecated('改用 format: CounterFormat(thousandSeparator: ...)')
     super.thousandSeparator,
+    @Deprecated('改用 format: CounterFormat(groupingPattern: ...)')
     super.groupingPattern,
+    @Deprecated('改用 format: CounterFormat(decimalSeparator: ...)')
     super.decimalSeparator,
+    @Deprecated('改用 style: AnimatedCounterStyle(separatorStyle: ...)')
     super.separatorStyle,
+    @Deprecated('改用 style: AnimatedCounterStyle(mainAxisAlignment: ...)')
     super.mainAxisAlignment,
+    @Deprecated('改用 style: AnimatedCounterStyle(crossAxisAlignment: ...)')
     super.crossAxisAlignment,
+    @Deprecated('改用 style: AnimatedCounterStyle(padding: ...)')
     super.padding,
+    @Deprecated('改用 style: AnimatedCounterStyle(useTabularFigures: ...)')
     super.useTabularFigures,
+    @Deprecated('改用 style: AnimatedCounterStyle(prefixStyle: ...)')
     super.prefixStyle,
+    @Deprecated('改用 style: AnimatedCounterStyle(infixStyle: ...)')
     super.infixStyle,
+    @Deprecated('改用 style: AnimatedCounterStyle(suffixStyle: ...)')
     super.suffixStyle,
     super.prefixOverflow,
     super.infixOverflow,
     super.suffixOverflow,
+    @Deprecated('改用 format: CounterFormat(showPositiveSign: ...)')
     super.showPositiveSign,
     super.positiveSignDuration,
     super.semanticsLabel,
@@ -77,8 +98,11 @@ class AnimatedCounterBuilder extends _BaseAnimatedCounter {
     super.flipDirection,
     super.minValue,
     super.maxValue,
+    @Deprecated('改用 style: AnimatedCounterStyle(increasingColor: ...)')
     super.increasingColor,
+    @Deprecated('改用 style: AnimatedCounterStyle(decreasingColor: ...)')
     super.decreasingColor,
+    @Deprecated('改用 style: AnimatedCounterStyle(colorFadeDuration: ...)')
     super.colorFadeDuration,
     super.prefixWidget,
     super.infixWidget,
@@ -87,19 +111,30 @@ class AnimatedCounterBuilder extends _BaseAnimatedCounter {
     super.decimalSeparatorWidget,
     super.negativeSignWidget,
     super.positiveSignWidget,
+    @Deprecated('改用 timeline: CounterTimeline(staggerDelay: ...)')
     super.staggerDelay,
+    @Deprecated('改用 timeline: CounterTimeline(staggerDirection: ...)')
     super.staggerDirection,
+    @Deprecated('改用 format: CounterFormat(compactNotation: ...)')
     super.compactNotation,
     super.triggerHaptics,
+    @Deprecated('改用 format: CounterFormat(compactFractionDigits: ...)')
     super.compactFractionDigits,
     super.initialValue,
+    @Deprecated('改用 format: CounterFormat(numeralSystem: ...)')
     super.numeralSystem,
+    @Deprecated('改用 format: CounterFormat(numeralMapper: ...)')
     super.numeralMapper,
     super.transition,
+    @Deprecated('改用 timeline: CounterTimeline(reverseDuration: ...)')
     super.reverseDuration,
+    @Deprecated('改用 timeline: CounterTimeline(reverseCurve: ...)')
     super.reverseCurve,
+    @Deprecated('改用 timeline: CounterTimeline(startDelay: ...)')
     super.startDelay,
+    @Deprecated('改用 timeline: CounterTimeline(speedMultiplier: ...)')
     super.speedMultiplier,
+    @Deprecated('改用 format: CounterFormat(compactAbbreviations: ...)')
     super.compactAbbreviations,
     super.onPause,
     super.onResume,
@@ -107,14 +142,19 @@ class AnimatedCounterBuilder extends _BaseAnimatedCounter {
     super.onRepeat,
     super.onReverse,
     super.repaintBoundary,
+    @Deprecated('改用 timeline: CounterTimeline(autoEaseThreshold: ...)')
     super.autoEaseThreshold,
+    @Deprecated('改用 timeline: CounterTimeline(curveForDigit: ...)')
     super.curveForDigit,
     super.colorResolver,
+    @Deprecated('改用 timeline: CounterTimeline(interpolation: ...)')
     super.interpolation,
+    @Deprecated('改用 timeline: CounterTimeline(bounceOvershoot: ...)')
     super.bounceOvershoot,
     // 仅保留旧参数的源码兼容性。
     @Deprecated('No effect; use bounceOvershoot instead')
     super.bounceElasticity,
+    @Deprecated('改用 timeline: CounterTimeline(fast: ...)')
     super.fast,
     super.style,
     this.digitBuilder,
@@ -128,6 +168,7 @@ class AnimatedCounterBuilder extends _BaseAnimatedCounter {
 
 // ── state ─────────────────────────────────────────────────────────────────────
 
+/// 按数位通知重建的自定义组件渲染路径。
 class _AnimatedCounterBuilderState extends _BaseCounterState<AnimatedCounterBuilder> {
   final _rebuildNotifier = ValueNotifier<int>(0);
 
@@ -147,6 +188,7 @@ class _AnimatedCounterBuilderState extends _BaseCounterState<AnimatedCounterBuil
 
   // ── build ─────────────────────────────────────────────────────────────────
 
+  /// 两条路径共用端点可见性和量化颜色；仅数字子树逐帧更新。
   @override
   Widget build(BuildContext context) {
     final style      = _resolveStyle(context);
@@ -169,16 +211,18 @@ class _AnimatedCounterBuilderState extends _BaseCounterState<AnimatedCounterBuil
     final inner = ValueListenableBuilder<int>(
       valueListenable: _rebuildNotifier,
       builder: (ctx, _, __) {
-        final integerDigitCount = _currentDigitValues.length - effFD;
+        final color = _digitTint ?? style.color ?? const Color(0xFF000000);
+        final digitStyle = _digitStyleFor(style);
+        final integerDigitCount = _engine.currentDigits.length - effFD;
 
-        // In fast mode _currentDigitValues carries progress (not magnitude), so
+        // In fast mode _engine.currentDigits carries progress (not magnitude), so
         // leading-zero visibility must read the endpoint digits instead.
         //
-        // 快速模式下 _currentDigitValues 携带进度（非磁量），故隐藏前导零需改读端点位。
+        // 快速模式下 _engine.currentDigits 携带进度（非磁量），故隐藏前导零需改读端点位。
         bool digitNonZero(int j) => widget._timeFast
-            ? ((j < _fastFromDigits.length && _fastFromDigits[j] != 0) ||
-                (j < _fastToDigits.length && _fastToDigits[j] != 0))
-            : _currentDigitValues[j].round() != 0;
+            ? ((_currentT < 1 && j < _engine.fastFromDigits.length && _engine.fastFromDigits[j] != 0) ||
+                (j < _engine.fastToDigits.length && _engine.fastToDigits[j] != 0))
+            : _engine.currentDigits[j].round() != 0;
 
         // ── integer digits ────────────────────────────────────────────────
         final integerWidgets = <Widget>[];
@@ -213,19 +257,19 @@ class _AnimatedCounterBuilderState extends _BaseCounterState<AnimatedCounterBuil
             vis = nzI || isLast || anySigBefore;
             reveal = 1.0;
           } else {
-            final double cum = _currentDigitValues[i];
+            final double cum = _engine.currentDigits[i];
             vis = isLast || cum > _kLeadingRevealEps;
             reveal = isLast ? 1.0 : cum.clamp(0.0, 1.0);
           }
           Widget digit = DigitColumn(
-            key: ValueKey(_currentDigitValues.length - i),
-            value: _targetDigitValues[i],
-            oldValue: _oldDigitValues[i],
-            animationValue: _currentDigitValues[i],
+            key: ValueKey(_engine.currentDigits.length - i),
+            value: _engine.targetDigits[i],
+            oldValue: _engine.oldDigits[i],
+            animationValue: _engine.currentDigits[i],
             size: _prototypeSize!,
             color: color,
-            style: style,
-            padding: widget.padding,
+            style: digitStyle,
+            padding: _effPadding,
             flipDirection: _effectiveFlipDirection,
             digitBuilder: widget.digitBuilder,
             digitTransitionBuilder: widget.digitTransitionBuilder,
@@ -234,8 +278,8 @@ class _AnimatedCounterBuilderState extends _BaseCounterState<AnimatedCounterBuil
             numeralMapper: widget._fmtNumeralMapper,
             transition: widget.transition,
             fast: widget._timeFast,
-            fastFromDigit: i < _fastFromDigits.length ? _fastFromDigits[i] : 0,
-            fastToDigit: i < _fastToDigits.length ? _fastToDigits[i] : 0,
+            fastFromDigit: i < _engine.fastFromDigits.length ? _engine.fastFromDigits[i] : 0,
+            fastToDigit: i < _engine.fastToDigits.length ? _engine.fastToDigits[i] : 0,
             increasing: !_isAnimatingDecrease,
             visible: vis,
             revealAlpha: reveal,
@@ -252,15 +296,18 @@ class _AnimatedCounterBuilderState extends _BaseCounterState<AnimatedCounterBuil
         if (widget._fmtThousandSeparator != null) {
           int firstVisible = 0;
           if (widget._fmtHideLeadingZeroes) {
-            firstVisible = _currentDigitValues.indexWhere((d) => d.round() != 0);
-            if (firstVisible == -1) firstVisible = _currentDigitValues.length - 1;
+            firstVisible = -1;
+            for (var j = 0; j < integerDigitCount; j++) {
+              if (digitNonZero(j)) { firstVisible = j; break; }
+            }
+            if (firstVisible == -1) firstVisible = _engine.currentDigits.length - 1;
           }
           // 从右插入，保持左侧索引稳定；边界算法与 Painter 共用。
           for (int i = integerDigitCount - 1; i > firstVisible; i--) {
             if (isGroupingBoundary(integerDigitCount - i, widget._fmtGroupingPattern)) {
               integerWidgets.insert(i,
                   widget.thousandSeparatorWidget ??
-                      Text(widget._fmtThousandSeparator!, style: widget.separatorStyle));
+                      Text(widget._fmtThousandSeparator!, style: _effSeparatorStyle));
             }
           }
         }
@@ -269,15 +316,15 @@ class _AnimatedCounterBuilderState extends _BaseCounterState<AnimatedCounterBuil
           style: style,
           child: Row(
             mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: widget.mainAxisAlignment,
-            crossAxisAlignment: widget.crossAxisAlignment,
+            mainAxisAlignment: _effMainAxisAlignment,
+            crossAxisAlignment: _effCrossAxisAlignment,
             textDirection: TextDirection.ltr,
             children: [
               // Prefix
               if (widget.prefixWidget != null)
                 widget.prefixWidget!
               else if (widget.prefix != null)
-                _buildAffix(widget.prefix!, widget.prefixStyle, widget.prefixOverflow),
+                _buildAffix(widget.prefix!, _effPrefixStyle, widget.prefixOverflow),
 
               // Negative sign (animated width)
               ClipRect(
@@ -287,6 +334,7 @@ class _AnimatedCounterBuilderState extends _BaseCounterState<AnimatedCounterBuil
                   builder: (_, double v, __) => Center(
                     widthFactor: v,
                     child: widget.negativeSignWidget != null
+                        // 自定义符号可能包含图片等任意内容，无法用文字颜色 alpha 表达，因此例外使用 Opacity。
                         ? Opacity(opacity: v, child: widget.negativeSignWidget!)
                         : Text('-', style: TextStyle(color: color.withValues(alpha: color.a * v))),
                   ),
@@ -302,7 +350,8 @@ class _AnimatedCounterBuilderState extends _BaseCounterState<AnimatedCounterBuil
                     builder: (_, double v, __) => Center(
                       widthFactor: v,
                       child: widget.positiveSignWidget != null
-                          ? Opacity(opacity: v, child: widget.positiveSignWidget!)
+                          // 自定义符号可能包含图片等任意内容，无法用文字颜色 alpha 表达，因此例外使用 Opacity。
+                        ? Opacity(opacity: v, child: widget.positiveSignWidget!)
                           : Text('+', style: TextStyle(color: color.withValues(alpha: color.a * v))),
                     ),
                   ),
@@ -312,7 +361,7 @@ class _AnimatedCounterBuilderState extends _BaseCounterState<AnimatedCounterBuil
               if (widget.infixWidget != null)
                 widget.infixWidget!
               else if (widget.infix != null)
-                _buildAffix(widget.infix!, widget.infixStyle, widget.infixOverflow),
+                _buildAffix(widget.infix!, _effInfixStyle, widget.infixOverflow),
 
               // Integer digits (with thousand separators)
               ...integerWidgets,
@@ -320,19 +369,19 @@ class _AnimatedCounterBuilderState extends _BaseCounterState<AnimatedCounterBuil
               // Decimal separator + fraction digits
               if (effFD != 0) ...[
                 widget.decimalSeparatorWidget ??
-                    Text(widget._fmtDecimalSeparator, style: widget.separatorStyle),
-                for (int i = _currentDigitValues.length - effFD;
-                    i < _currentDigitValues.length; i++)
+                    Text(widget._fmtDecimalSeparator, style: _effSeparatorStyle),
+                for (int i = _engine.currentDigits.length - effFD;
+                    i < _engine.currentDigits.length; i++)
                   () {
                     Widget d = DigitColumn(
                       key: ValueKey('decimal$i'),
-                      value: _targetDigitValues[i],
-                      oldValue: _oldDigitValues[i],
-                      animationValue: _currentDigitValues[i],
+                      value: _engine.targetDigits[i],
+                      oldValue: _engine.oldDigits[i],
+                      animationValue: _engine.currentDigits[i],
                       size: _prototypeSize!,
                       color: color,
-                      style: style,
-                      padding: widget.padding,
+                      style: digitStyle,
+                      padding: _effPadding,
                       flipDirection: _effectiveFlipDirection,
                       digitBuilder: widget.digitBuilder,
                       digitTransitionBuilder: widget.digitTransitionBuilder,
@@ -341,8 +390,8 @@ class _AnimatedCounterBuilderState extends _BaseCounterState<AnimatedCounterBuil
                       numeralMapper: widget._fmtNumeralMapper,
                       transition: widget.transition,
                       fast: widget._timeFast,
-                      fastFromDigit: i < _fastFromDigits.length ? _fastFromDigits[i] : 0,
-                      fastToDigit: i < _fastToDigits.length ? _fastToDigits[i] : 0,
+                      fastFromDigit: i < _engine.fastFromDigits.length ? _engine.fastFromDigits[i] : 0,
+                      fastToDigit: i < _engine.fastToDigits.length ? _engine.fastToDigits[i] : 0,
                       increasing: !_isAnimatingDecrease,
                       bounceOffset: i < _bounceOffsets.length ? _bounceOffsets[i] : 0.0,
                     );
@@ -355,13 +404,13 @@ class _AnimatedCounterBuilderState extends _BaseCounterState<AnimatedCounterBuil
 
               // Compact suffix (K/M/B/T)
               if (compactSuffix != null)
-                Text(compactSuffix, style: widget.suffixStyle ?? style),
+                Text(compactSuffix, style: _effSuffixStyle ?? style),
 
               // Suffix
               if (widget.suffixWidget != null)
                 widget.suffixWidget!
               else if (widget.suffix != null)
-                _buildAffix(widget.suffix!, widget.suffixStyle, widget.suffixOverflow),
+                _buildAffix(widget.suffix!, _effSuffixStyle, widget.suffixOverflow),
             ],
           ),
         );
@@ -369,7 +418,8 @@ class _AnimatedCounterBuilderState extends _BaseCounterState<AnimatedCounterBuil
     );
 
     Widget content = widget.repaintBoundary ? RepaintBoundary(child: inner) : inner;
-    content = _wrapColorTint(content, color);
-    return _wrapSemantics(content, widget.semanticsLabel ?? _buildSemanticText(val));
+    // 渐变终点色只记录、不在 build 里驱动任何东西；渐变由插件任务推进。
+    _tintBaseColor = color;
+    return _wrapOnce(_wrapSemantics(content, widget.semanticsLabel ?? _buildSemanticText(val)));
   }
 }

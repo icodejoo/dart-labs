@@ -1,0 +1,25 @@
+{
+  "directory": "wheel_1",
+  "exitCode": 1,
+  "before": {
+    "raw": "Current Battery Service state:\n  AC powered: false\n  USB powered: true\n  Wireless powered: false\n  Dock powered: false\n  Max charging current: 0\n Time when the latest updated value of the Max charging current was sent via battery changed broadcast: +17s829ms\n  Max charging voltage: 4980736\n  Charge counter: 2819973\n  engine: 0\n  soc decimal: 0\n  adapter power: 0\n  board temp status: 0\n  low bat status: 0\n  reverse wl chg status: 0\n  reverse wl chg exception: 0\n  chg shut vbat: 3200\n  last mode flag: 0\n  last mode keep time: 4\n  status: 2\n  health: 2\n  present: true\n  level: 47\n  scale: 100\n  voltage: 3902\n Time when the latest updated value of the voltage was sent via battery changed broadcast: +6d3h48m22s533ms\n The last voltage value sent via the battery changed broadcast: 3902\n  temperature: 283\n  technology: Li-poly\n  Charging state: 0\n  Charging policy: 0\n  Capacity level: -1",
+    "level": 47,
+    "recordedAt": "2026-11-10T09:36:35.4263337Z",
+    "temperatureC": 28.3
+  },
+  "deviceLogStart": "11-10 17:38:59.000",
+  "freeKB": 10943224,
+  "target": "wheel",
+  "after": {
+    "raw": "Current Battery Service state:\n  AC powered: false\n  USB powered: true\n  Wireless powered: false\n  Dock powered: false\n  Max charging current: 0\n Time when the latest updated value of the Max charging current was sent via battery changed broadcast: +17s829ms\n  Max charging voltage: 4980736\n  Charge counter: 2837651\n  engine: 0\n  soc decimal: 0\n  adapter power: 0\n  board temp status: 0\n  low bat status: 0\n  reverse wl chg status: 0\n  reverse wl chg exception: 0\n  chg shut vbat: 3200\n  last mode flag: 0\n  last mode keep time: 4\n  status: 2\n  health: 2\n  present: true\n  level: 47\n  scale: 100\n  voltage: 3894\n Time when the latest updated value of the voltage was sent via battery changed broadcast: +6d3h51m22s523ms\n The last voltage value sent via the battery changed broadcast: 3894\n  temperature: 287\n  technology: Li-poly\n  Charging state: 0\n  Charging policy: 0\n  Capacity level: -1",
+    "level": 47,
+    "recordedAt": "2026-11-10T09:40:06.4177722Z",
+    "temperatureC": 28.7
+  },
+  "timedOut": false,
+  "elapsedMs": 210396,
+  "command": "flutter drive --profile --no-pub --no-dds -d 10AE9K17UE0011S --driver=test_driver/perf_driver.dart --target=integration_test/wheel_bench_test.dart --dart-define=LUCKDRAW_TIMELINE=true --dart-define=SCENARIO=wheel",
+  "startedAt": "2026-11-10T09:36:35.8379364Z",
+  "attempt": 1,
+  "endedAt": "2026-11-10T09:40:06.4188096Z"
+}

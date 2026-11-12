@@ -1,0 +1,10 @@
+{
+  "failedRun": {
+    "command": "dart test --concurrency=1 --coverage-path=coverage/local.info --branch-coverage --reporter expanded",
+    "exitCode": 1,
+    "reason": "Dart VM Out of memory",
+    "log": "coverage/r3-memory-pressure-tests.log",
+    "countedAsPass": false
+  },
+  "recovery": "等 codex review 完成后，全部分析、台账、全量覆盖测试和闸门完全串行独立运行；最终 checks.json 全部退出 0"
+}

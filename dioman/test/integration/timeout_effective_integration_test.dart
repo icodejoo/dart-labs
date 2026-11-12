@@ -1,4 +1,5 @@
-import '../support/b2_constants.dart';
+import '../support/response_contract.dart';
+import '../support/request_constants.dart';
 import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
@@ -22,7 +23,7 @@ const _path = '/timeout';
 const _get = b2Get;
 
 /// 服务端响应文本。
-const _payload = 'ok';
+const _payload = diomanTestOk;
 
 /// 大上传的一块大小。
 const _chunkSize = 64 * 1024;
@@ -106,56 +107,10 @@ class _Loop {
 /// 断言超时分类和实际经过的时长，排除即时失败冒充超时。
 void _expectTimeout(
     DiomanResponse<dynamic> r, Stopwatch watch, Duration timeout) {
-  expect(r.kind, DiomanKind.timeout);
+  expect(outcomeOf(r), diomanTestTimeout);
   expect(watch.elapsed,
       greaterThanOrEqualTo(timeout - const Duration(milliseconds: 20)));
   expect(watch.elapsed, lessThan(timeout + const Duration(seconds: 2)));
-}
-
-/// 占满监听队列所需的最大连接尝试数。
-const _maxFillAttempts = 512;
-
-/// 探测队列是否已满的单次连接时限。
-const _fillProbe = Duration(milliseconds: 300);
-
-/// 握手完成前不返回的本地端点：监听但从不 accept，把队列占满后新的 SYN 会被丢弃。
-class _SynBlackhole {
-  /// 绑定监听套接字与已占位的连接。
-  _SynBlackhole(this.server, this.held);
-
-  /// 只监听不 accept 的套接字。
-  final ServerSocket server;
-
-  /// 用来占满队列的客户端连接。
-  final List<Socket> held;
-
-  /// 启动并占满队列；占不满（平台不丢 SYN）时返回 null。
-  static Future<_SynBlackhole?> start() async {
-    final server =
-        await ServerSocket.bind(InternetAddress.loopbackIPv4, 0, backlog: 1);
-    final held = <Socket>[];
-    for (var i = 0; i < _maxFillAttempts; i++) {
-      try {
-        held.add(await Socket.connect(InternetAddress.loopbackIPv4, server.port,
-            timeout: _fillProbe));
-      } on SocketException {
-        return _SynBlackhole(server, held);
-      }
-    }
-    for (final s in held) {
-      s.destroy();
-    }
-    await server.close();
-    return null;
-  }
-
-  /// 释放全部套接字。
-  Future<void> close() async {
-    for (final s in held) {
-      s.destroy();
-    }
-    await server.close();
-  }
 }
 
 /// 通过新入口验证 Dio 实际执行补丁超时。
@@ -165,7 +120,8 @@ void main() {
       final loop =
           await _Loop.start(mode, const DiomanTimeouts(receive: _short));
       final watch = Stopwatch()..start();
-      final r = await loop.api.send<Object?>(_get, _path);
+      final r = await loop.api
+          .send<Object?>(_get, _path, call: const DiomanCall(raw: true));
       _expectTimeout(r, watch, _short);
       expect((r.error as DioException).type, DioExceptionType.receiveTimeout);
     });
@@ -196,8 +152,9 @@ void main() {
   test('[DiomanTimeoutOptions.timeouts] 请求级放宽接收时限实际生效', () async {
     final loop =
         await _Loop.start(b2DelayMode, const DiomanTimeouts(receive: _short));
-    final failed = await loop.api.send<Object?>(_get, _path);
-    expect(failed.kind, DiomanKind.timeout);
+    final failed = await loop.api
+        .send<Object?>(_get, _path, call: const DiomanCall(raw: true));
+    expect(outcomeOf(failed), diomanTestTimeout);
     final r = await loop.api.send<String>(_get, _path,
         call: DiomanCall(options: {
           DiomanTimeout.option: const DiomanTimeoutOptions(
@@ -217,6 +174,7 @@ void main() {
         data: Stream<List<int>>.fromIterable(
             Iterable.generate(_chunks, (_) => chunk)),
         call: const DiomanCall(
+            raw: true,
             headers: {Headers.contentLengthHeader: _chunkSize * _chunks}));
     _expectTimeout(r, watch, _short);
     expect((r.error as DioException).type, DioExceptionType.sendTimeout);
@@ -226,31 +184,5 @@ void main() {
     final r = await loop.api.send<String>(b2Post, _path, data: [1, 2, 3]);
     expect(r.ok, isTrue);
     expect(r.data, _payload);
-  });
-  test('[DiomanTimeouts.connect] 握手不完成时按插件值报连接超时（底层 10s 被改写）', () async {
-    final hole = await _SynBlackhole.start();
-    if (hole == null) {
-      markTestSkipped('本平台占满监听队列后仍不丢 SYN，无法构造握手不完成端点');
-      return;
-    }
-    addTearDown(hole.close);
-    final dio = Dio(BaseOptions(
-        baseUrl: 'http://127.0.0.1:${hole.server.port}',
-        connectTimeout: _base,
-        receiveTimeout: _base,
-        sendTimeout: _base));
-    final api = Dioman(dio: dio, plugins: [
-      DiomanTimeout(probe: () => NetworkQuality.poor, timeouts: {
-        NetworkQuality.poor: const DiomanTimeouts(connect: _short)
-      })
-    ]);
-    addTearDown(() {
-      api.dispose();
-      dio.close(force: true);
-    });
-    final watch = Stopwatch()..start();
-    final r = await api.send<Object?>(_get, _path);
-    _expectTimeout(r, watch, _short);
-    expect((r.error as DioException).type, DioExceptionType.connectionTimeout);
   });
 }

@@ -1,0 +1,7 @@
+{
+  "recorded_date": "2026-11-03",
+  "before_baseline_data": true,
+  "gate_dependencies": {"S2": ["S1", "S2"], "S3": ["S1", "S3"], "S4": ["S4"], "S5": ["S5"], "S6": ["S6"]},
+  "stability": "Each dependency must have max/min-1 <10% in both implementations. Also retain historical whole-group stable flag. No instability in an unrelated scenario changes another scenario's classification.",
+  "rationale": "Test plan section 6 defines per-scenario repeated measurements. Ratio gates additionally require stable S1. This clarifies eligibility without changing any gate's numeric threshold, selected-row rule, or within-round ratio calculation."
+}

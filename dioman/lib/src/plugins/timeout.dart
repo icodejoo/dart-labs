@@ -1,5 +1,4 @@
 import '../client.dart';
-import '../constants.dart';
 import '../context.dart';
 import '../options.dart';
 import '../plugin.dart';
@@ -68,7 +67,7 @@ class DiomanTimeout<R extends DiomanResponse<dynamic>> extends DiomanPlugin<R> {
   final bool enabled;
 
   /// 稳定名称。
-  static const pluginName = diomanTimeoutName;
+  static const pluginName = 'dioman:timeout';
 
   /// 请求级 bool 或 DiomanTimeoutOptions 键。
   static final option = DiomanOptionKey<DiomanTimeoutOptions>(pluginName);

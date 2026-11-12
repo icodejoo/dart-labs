@@ -1,0 +1,19 @@
+{
+  "index_missing": [],
+  "evidence_sizes": {
+    "docs/reports/round2-r6b-evidence/acceptance.json": 2221,
+    "docs/reports/round2-r6b-evidence/checks.json": 243,
+    "docs/reports/round2-r6b-evidence/cleanup.json": 2603,
+    "docs/reports/round2-r6b-evidence/coverage.json": 2380,
+    "docs/reports/round2-r6b-evidence/documentation-examples.json": 406,
+    "docs/reports/round2-r6b-evidence/lib-sha256.json": 3692,
+    "docs/reports/round2-r6b-evidence/mutations.json": 780,
+    "docs/reports/round2-r6b-evidence/result-provenance.json": 118,
+    "docs/reports/round2-r6b-evidence/review.json": 471,
+    "docs/reports/round2-r6b-evidence/status.txt": 942,
+    "docs/reports/round2-r6b-evidence/tests.json": 178,
+    "test/accept/evidence/2026-11-03-r6b-summary.json": 8752
+  },
+  "lib_sha256_matched": 37,
+  "listening_after": []
+}

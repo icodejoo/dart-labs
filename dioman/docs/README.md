@@ -4,11 +4,13 @@
 
 ## 续做
 
-- [当前状态](status.md) — 重构 B0–B8 已完成，闸门全部为 0。active。
+- [当前状态](status.md) — 第二轮各批进度、验证入口与当前约束。active。
+- [洋葱管线第二轮方案](design/pipeline-round2-plan.md) — 对照 axp 新版的终审结论、响应契约对齐 0002（已拍板）、R0–R6 分批与推翻的旧约定。active。
 
 ## 决策
 
-- [0001 洋葱管线重构的决策](decisions/0001-pipeline-redesign.md) — 以 Dio 为引擎的洋葱管线、固定阶段、归一化进内核、错误模型、取消与 key 内核化、mock 回到 source，及推翻的旧约定。active。
+- [0001 洋葱管线重构的决策](decisions/0001-pipeline-redesign.md) — 以 Dio 为引擎的洋葱管线、固定阶段、归一化进内核、错误模型、取消与 key 内核化、mock 回到 source，及推翻的旧约定；D3/D5 部分已被 0002 取代。active。
+- [0002 响应契约：HTTP 状态与内核失败事实](decisions/0002-response-contract.md) — 对齐 axp 0002：失败标记与 failureOf、status 只表示 HTTP、statusOf、parse 钩子、字段归属表。active。
 
 ## 设计
 
@@ -31,7 +33,18 @@
 
 ## 报告
 
-- [线上全量验收矩阵 2026-11-03](reports/2026-11-03-online-accept-matrix.md) — Render 线上 6426 项、29 失败对照本地全通过，归因线上拓扑。active。
+- [第二轮终验 2026-11-03](reports/2026-11-03-round2-final.md) — 5708 项全绿、覆盖 100%、112 项变异全击中、真实验收 6426/6426 与方法矩阵 156/156 零失败；性能暂缓，pana 160/160（dio 下限 ^5.4.0）。active。
+- [第二轮 R6b：逻辑请求截止时间](reports/2026-11-03-round2-r6b.md) — 5704 项全绿、全库行/分支覆盖 100%、timeout-total 26 格真实通过与 142 格契约不适用、共享归属与 breaker 修复。active。
+
+- [第二轮 R6a 测试按主题改名 2026-11-03](reports/2026-11-03-round2-r6a.md) — 19 个批次文件归入 42 个主题文件与完整改名清单，用例数与 lib 不变。active。
+- [第二轮 R5 Dart 化 API 2026-11-03](reports/2026-11-03-round2-r5.md) — decode 解码钩子、异步 dispose（Future<void>）、debug 选项检查；真实验收 768 通过 0 失败。active。
+- [第二轮 R4b 性能复测（负载门控）2026-11-03](reports/2026-11-03-round2-r4b.md) — 三组干净基线；极差<10% 口径达不到，门槛未判定，已暂缓。active。
+- [第二轮 R4 性能与真实验收 2026-11-03](reports/2026-11-03-round2-r4.md) — 真实验收 768 通过 0 失败；两项候选撤回；五项性能门槛因负载未判定，待复测。active。
+- [第二轮 R3 原生数据瘦身 2026-11-03](reports/2026-11-03-round2-r3.md) — ctx.native 原生槽与 I11、按需 raw、internal 失败事实、Retry-After 小事实、缓存快照。active。
+- [第二轮 R2b 收口与发版前必修 2026-11-03](reports/2026-11-03-round2-r2b.md) — 条件导入去掉 dart:io（pana 保留 web/wasm）、key 隔离、缓存硬否决、retry 默认值。active。
+- [第二轮 R2a 契约对齐 axp 0002 2026-11-03](reports/2026-11-03-round2-r2a.md) — failureOf、HTTP status、statusOf、parse；真实验收 normal×两风格 768 通过 0 失败。active。
+- [第二轮 R1 生命周期与作用域 2026-11-03](reports/2026-11-03-round2-r1.md) — auth 会话按 TokenManager 共享、loading 按回调共享、extend(dio:)；先红后绿与 I10。active。
+- [axp 重构复盘与参照评估 2026-10-31](reports/2026-10-31-axp-refactor-lessons.md) — axp 要点、踩坑、TS→Dart 映射与 dioman 评估；第二轮方案的输入，顶部有终审更正。active。
 - [洋葱管线 B0 基线 2026-10-29](reports/2026-10-29-pipeline-b0.md) — 六场景 JIT 三轮原始数据、旧测试归档与迁移公式核对。active。
 - [总账缺口报告 2026-10-28](reports/2026-10-28-matrix-gaps.md) — G1–G5 当前缺口与按插件分布，P2 补测基线（由 `gates --report` 生成）。active。
 - [插件五方法真实矩阵 2026-10-27](reports/2026-10-27-plugin-matrix.md) — 156 格结论，"待补"项将由总账接管。active。
@@ -51,8 +64,8 @@
 | 要找 | 路径 |
 |---|---|
 | 各层用例 | `test/{unit,rule,boundary,combo,integration}/` |
-| 假传输、假时钟、不变量、凭证和装配 | `test/support/{fake_network,fake_clock,invariant_harness,b3_helpers,helpers}.dart` |
-| 本地真实 HTTP 回环 | `test/integration/{b3_transport,source_transport,timeout_effective}_integration_test.dart` |
+| 假传输、假时钟、不变量、凭证和装配 | `test/support/{fake_network,fake_clock,invariant_harness,auth_test_helpers,source_test_helpers,helpers}.dart` |
+| 本地真实 HTTP 回环 | `test/integration/*_integration_test.dart`（如 auth_session、retry_after、source_transport、timeout_effective） |
 | 本地全量组合（powerset） | `test/combo/powerset_combo_test.dart` |
 | 整形插件成对组合 | `test/combo/prepare_pairs_combo_test.dart` |
 | 唯一入口与旧 key 固定基准 | `lib/dioman.dart`、`test/support/key_baseline.json` |

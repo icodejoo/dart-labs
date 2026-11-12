@@ -1,0 +1,13 @@
+{
+  "head": "4a4756f41a04778df29b10de4bb4c0911aed1261",
+  "branch": "jelon/dioman-round2",
+  "lib_sha256_equals_r3": true,
+  "temporary_worktrees": 0,
+  "ports_free": {
+    "47280": true,
+    "47290": true
+  },
+  "max_evidence_file_bytes": 17767,
+  "diff_check_exit": 0,
+  "status": " M benchmark/README.md\n M benchmark/summary.md\n M tool/pipeline_b6_bench.py\n M tool/pipeline_b6_bench_summary.py\n?? benchmark/round2_r4_micro.dart\n?? docs/reports/2026-11-03-round2-r4.md\n?? docs/reports/round2-r4-evidence/\n?? test/unit/request_snapshot_test.dart\n?? tool/round2_r4_accept.py\n?? tool/round2_r4_bench.py\n?? tool/round2_r4_mutations.py\n?? tool/round2_r4_summary.py\n"
+}

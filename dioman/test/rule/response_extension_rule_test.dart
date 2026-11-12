@@ -28,6 +28,7 @@ void main() {
           expect(r.label, pipelineTestYes);
           return r;
         });
+    addTearDown(api.dispose);
     final result =
         await api.send<int>(pipelineTestGetMethod, pipelineTestTypedPath);
     expect(result, isA<_ExtendedResult<int>>());
@@ -51,9 +52,7 @@ class _ExtendedResult<T> extends DiomanResponse<T> {
   _ExtendedResult(DiomanResponse<dynamic> r)
       : super(
             ok: r.ok,
-            kind: r.kind,
             status: r.status,
-            httpStatus: r.httpStatus,
             data: r.data as T?,
             request: r.request,
             callSite: r.callSite);

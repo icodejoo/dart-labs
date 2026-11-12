@@ -21,6 +21,7 @@ import 'package:countman/src/counter/plugin.dart';
 
 import 'reduce_motion.dart';
 import 'style_support.dart';
+import 'countman_theme.dart';
 import 'providers.dart';
 import 'animated_counter/animated_counter.dart';
 
@@ -134,6 +135,27 @@ class OdometerCounterStyle with BoxStyleFields, StyleProps {
           decoration: decoration ?? other.decoration,
         );
 
+  /// 在 [a] 与 [b] 之间按 [t]（0–1）插值，用于 `ThemeExtension.lerp`。
+  ///
+  /// 文字样式、对齐、内边距、装饰逐字段插值；交叉轴对齐不可插值，在 `t < 0.5` 时取
+  /// [a]，否则取 [b]；任一端为空时同样按 `t < 0.5` 取一端。已失效的弃用字段不参与。
+  /// 例如 `OdometerCounterStyle.lerp(a, b, 0.5)`。
+  static OdometerCounterStyle? lerp(
+      OdometerCounterStyle? a, OdometerCounterStyle? b, double t) {
+    if (identical(a, b)) return a;
+    if (a == null || b == null) return t < 0.5 ? a : b;
+    return OdometerCounterStyle(
+      numberTextStyle: TextStyle.lerp(a.numberTextStyle, b.numberTextStyle, t),
+      digitAlignment: Alignment.lerp(a.digitAlignment, b.digitAlignment, t),
+      crossAxisAlignment:
+          pickField(a.crossAxisAlignment, b.crossAxisAlignment, t),
+      prefixStyle: TextStyle.lerp(a.prefixStyle, b.prefixStyle, t),
+      suffixStyle: TextStyle.lerp(a.suffixStyle, b.suffixStyle, t),
+      padding: EdgeInsetsGeometry.lerp(a.padding, b.padding, t),
+      decoration: Decoration.lerp(a.decoration, b.decoration, t),
+    );
+  }
+
   @override
   List<Object?> get props => [
         numberTextStyle,
@@ -180,6 +202,7 @@ class OdometerCounter extends StatelessWidget {
     this.allowNegative = false,
     @Deprecated('No effect; use AnimatedCounter directly')
     this.plugin,
+    this.fps,
     @Deprecated('No effect; use AnimatedCounter directly')
     this.controller,
     this.style,
@@ -201,7 +224,11 @@ class OdometerCounter extends StatelessWidget {
     this.bounceOvershoot = 0.0,
     @Deprecated('No effect; use bounceOvershoot instead')
     this.bounceElasticity = 4.0,
-  })  : assert(bounceOvershoot >= 0.0),
+  }) : assert(
+         fps == null || (fps > 0 && fps < double.infinity),
+         'fps 必须为有限正数',
+       ),
+       assert(bounceOvershoot >= 0.0),
         assert(bounceElasticity >= 1.0);
 
   /// Start value (default 0).
@@ -235,6 +262,10 @@ class OdometerCounter extends StatelessWidget {
   // 已失效，仅保留源码兼容性。
   @Deprecated('No effect; use AnimatedCounter directly')
   final Counter? plugin;
+
+  /// 实例显示刷新上限（帧/秒），返回可空配置；null 继承插件再到全局。
+  /// 示例：`fps: 30`；只限制显示更新，完成与阈值不延迟。
+  final double? fps;
 
   /// Inert (source compatibility only).
   ///
@@ -291,6 +322,7 @@ class OdometerCounter extends StatelessWidget {
   /// Called once the animation reaches [to].
   ///
   /// 动画到达 [to] 时回调一次。
+  /// 非有限端点按 0 处理；allowNegative 为 false 时回传不小于 0 的实际目标值。
   final void Function(double value)? onComplete;
 
   /// Inert (source compatibility only).
@@ -324,42 +356,54 @@ class OdometerCounter extends StatelessWidget {
   @Deprecated('No effect; use bounceOvershoot instead')
   final double bounceElasticity;
 
+  /// 将非有限端点归零，完成回调报告实际钳制显示值。
   @override
   Widget build(BuildContext context) {
     // Style: this widget's style over the enclosing provider's odometer style.
     //
     // 样式：本组件样式叠加在所在 provider 的 odometer 样式之上。
     final scope = CountmanScope.maybeOf<Counter>(context);
-    final st = style?.merge(scope?.odometerCounterStyle) ?? scope?.odometerCounterStyle;
+    final themeStyle = CountmanTheme.maybeOf(context)?.odometerCounterStyle;
+    final providerStyle = scope?.odometerCounterStyle?.merge(themeStyle) ?? themeStyle;
+    final st = style?.merge(providerStyle) ?? providerStyle;
 
     // Fixed-width leading zeros — the mechanical-odometer look. Width = digit
     // count of the larger endpoint.
     //
     // 固定位宽前导零——机械里程表外观。位宽 = 较大端点的位数。
-    final int maxAbs = math.max((from ?? 0).abs(), to.abs()).floor();
+    final safeFrom = from != null && from!.isFinite ? from! : 0.0;
+    final safeTo = to.isFinite ? to : 0.0;
+    final displayedTo = allowNegative ? safeTo : math.max(0.0, safeTo);
+    final int maxAbs = math.max(safeFrom.abs(), displayedTo.abs()).floor();
     final int wholeDigits = maxAbs == 0 ? 1 : maxAbs.toString().length;
 
     final Widget counter = AnimatedCounter(
-      initialValue: from ?? 0,
-      value: to,
+      plugin: plugin,
+      fps: fps,
+      initialValue: safeFrom,
+      value: safeTo,
       // Honor the OS "reduce motion" flag, like CounterBuilder / CardCountdown.
       //
       // 遵循系统「减弱动态」标志，与 CounterBuilder / CardCountdown 一致。
-      duration: motionDuration(duration),
-      curve: curve,
+      timeline: CounterTimeline(
+        duration: motionDuration(duration),
+        curve: curve,
+        bounceOvershoot: bounceOvershoot,
+      ),
+      format: CounterFormat(
+        wholeDigits: wholeDigits,
+        hideLeadingZeroes: false,
+        thousandSeparator: groupSeparator,
+      ),
       transition: CounterTransition.slide,
       minValue: allowNegative ? null : 0,
-      wholeDigits: wholeDigits,
-      hideLeadingZeroes: false,
-      thousandSeparator: groupSeparator,
       prefix: prefix,
       suffix: suffix,
       prefixWidget: prefixWidget,
       suffixWidget: suffixWidget,
-      bounceOvershoot: bounceOvershoot,
       bounceElasticity: bounceElasticity,
       onAnimationStart: onStart,
-      onAnimationEnd: onComplete == null ? null : () => onComplete!(to),
+      onAnimationEnd: onComplete == null ? null : () => onComplete!(displayedTo),
       style: AnimatedCounterStyle(
         textStyle: st?.numberTextStyle,
         numberAlignment: st?.digitAlignment?.x ?? 0.0,

@@ -2,9 +2,15 @@
 
 Dioman brings authentication, retries, caching and the rest of your request policies together around Dio, for Dart and Flutter.
 
+R2b preserves web and Wasm support through a conditional native network classifier. Automatic keys include responseType in both deep and fast modes; Map keys carry type tags, so numeric 1 differs from string '1'. Byte keys retain the content hash and full base64 payload. Explicit keys and custom builders keep their output.
+
+Cancellation short-circuits at next() before entering inner plugins. cancelAll(reason) and a caller CancelToken preserve the first cancellation reason as failureOf(result)?.reason, converting non-null reasons with toString(); omitted reasons remain null. Debug logs report each option key whose plugin is absent once per client, including false/null options; installed but disabled plugins count as installed.
+
+For Dioman<R> where R is not DiomanResponse<dynamic>, supply response: DiomanResponseFactory<R>(create: ...). Missing create throws ArgumentError during construction, before plugin setup.
+
 ## Purpose
 
-Request policies get harder to maintain when each interceptor has to understand the backend envelope and coordinate with every other interceptor. Dioman gives your app one request entry point and normalizes results before plugins see them, so auth, retry and cache can work with the same business status instead of each decoding it again.
+Request policies get harder to maintain when each interceptor has to understand the backend envelope and coordinate with every other interceptor. Dioman gives your app one request entry point and normalizes results before plugins see them, so plugins share one result contract. Auth, retry and breaker read the effective status chosen by your client configuration.
 
 The pipeline wraps each attempt in a predictable order. When auth refreshes a token or retry sends again, that attempt naturally passes through the inner cache, share and mock layers. The kernel keeps cancellation attached to the whole call and loading callbacks paired through those waits. You configure the policies you need without wiring their cleanup and replay paths together.
 
@@ -17,6 +23,8 @@ dart pub add dioman
 ```
 
 Requires Dart ^3.5.0; Dio is the only runtime dependency.
+
+> **0.8.0 is a breaking release** (pipeline rewrite). Upgrading from 0.7.x: see the [migration guide](docs/guides/migrating-to-pipeline.md) and the [CHANGELOG](CHANGELOG.md).
 
 ## Quick start
 
@@ -41,9 +49,9 @@ Future<void> main() async {
         query: {'id': 42});
     print(data);
     final result = await api.send<dynamic>('GET', '/health');
-    print('${result.kind.name}: ${result.status} / ${result.httpStatus}');
+    print('${failureOf(result)?.kind.name}: ${result.status}, code ${result.code}');
   } on DiomanResponse catch (failure) {
-    print('${failure.kind.name}: ${failure.message}');
+    print('${failureOf(failure)?.kind.name}: ${failure.message}');
   } finally {
     api.dispose();
     api.dio.close(force: true);
@@ -55,11 +63,93 @@ Future<void> main() async {
 
 Use get/post/put/patch/delete/head when you want the data, or send when you also need the DiomanResponse metadata. Verb methods throw a failed result that you can catch; send lets you inspect the same failure as a return value. Programming errors keep their original exception and stack. If your app has its own failure type, configure reject to map expected verb-method failures.
 
-Result fields: `ok`, `kind`, `status` (logical status), `httpStatus`, `code`, `message`, `data`, `reason`, `request`, `raw`, `error`, `errorStack`, `callSite`.
+Result fields: `ok`, `status` (HTTP only; 0 without a response), `code`, `message`, `data`, `request`, `raw`, `error`, `callSite`. Read the kernel's readonly kind/reason through `failureOf(r)`; a marked result always has ok=false. Use `isDiomanCancel(e)` or `api.isCancel(e)` to recognize cancellation.
 
-Kinds: `ok`, `http`, `biz`, `network`, `timeout`, `cancel`, `parse`, `auth`, `breaker`, `offline`, `internal`.
+R3: results default to null raw/error. Reading native data, including headers on success, requires `DiomanCall(raw: true)`. The returned or thrown copy carries only its own transport data; cache hits and share followers have none. Plugins can read `ctx.native` before settlement. Internal errors and stacks live in `failureOf(r)?.error` / `failureOf(r)?.errorStack` and are always rethrown with the original stack.
 
-By default, a response is treated as an envelope when it contains code and at least one of data/message, and is unwrapped once. If your backend uses another format, customize detection, success codes and logical status with Envelope and DiomanResponseFactory. Set call.envelope=false to keep the original data for one call.
+```dart
+import 'package:dioman/dioman.dart';
+Future<String?> readEtag(Dioman api) async {
+  final result = await api.send<Object?>('GET', '/pets',
+      call: const DiomanCall(raw: true));
+  return result.raw?.headers.value('etag');
+}
+```
+
+### Business style
+
+Default parse unwraps one level only when a Map contains code and at least one of data/message; other bodies remain whole in data. Defaults are code=0, message='', data=null. Success requires HTTP 2xx and code=0 or '0'. Configure factory parse for other protocols. Business codes never rewrite HTTP status. Configure client statusOf explicitly for business style; retry/auth/breaker read ctx.statusOf. An exhaustive failure switch includes null for unmarked success, HTTP failure and business failure.
+
+```dart
+import 'package:dio/dio.dart';
+import 'package:dioman/dioman.dart';
+
+Future<void> main() async {
+  final api = Dioman(dio: Dio(),
+      statusOf: (r) => r.status >= 200 && r.status < 300 &&
+          r.code is int && r.code != 0 ? r.code as int : r.status);
+  try {
+    final r = await api.send<Object?>('GET', 'https://api.example.com/items');
+    final label = switch (failureOf(r)?.kind) {
+      DiomanFailureKind.cancel => 'cancel',
+      DiomanFailureKind.timeout => 'timeout',
+      DiomanFailureKind.network => 'network',
+      DiomanFailureKind.parse => 'parse',
+      DiomanFailureKind.auth => 'auth',
+      DiomanFailureKind.breaker => 'breaker',
+      DiomanFailureKind.offline => 'offline',
+      DiomanFailureKind.internal => 'internal',
+      null => r.ok ? 'ok' : 'HTTP ${r.status}, code ${r.code}',
+    };
+    print(label);
+  } finally {
+    api.dispose();
+    api.dio.close(force: true);
+  }
+}
+```
+
+### Decoding and disposal
+
+All data methods and send accept an optional T Function(Object? data) decode. It runs only after a successful result settles; data methods return T and send returns a response with decoded data. Expected failures skip decode. Decoder exceptions keep their original object and stack, bypass plugins, and never become parse failures. Each share follower decodes independently; decoders should treat input data as readonly. Omitting decode preserves existing behavior.
+
+DiomanPluginInstance.dispose now returns FutureOr<void>; Dioman.dispose returns Future<void> and waits for each instance in reverse registration order. It attempts every cleanup, then rethrows the first error with its original stack. Repeated calls return the same completion signal. Cancellation and refusal of new requests happen synchronously even without await; await disposal before releasing resources used by async plugins.
+
+eject(name) still returns bool and starts cleanup immediately. Async cleanup remains owned by the client: await api.dispose() waits for removed instances too and reports the first observed cleanup error with its original stack. Ejection is rejected once disposal starts.
+
+With debug enabled, invalid retry.jitter and cache.clone field types are rejected before sending, including cache misses. Unknown option value types still throw ArgumentError; absent-plugin warnings are unchanged.
+
+```dart
+import 'package:dioman/dioman.dart';
+
+/// 用户请求路径。
+const _userPath = '/user';
+
+/// 调用方的数据模型。
+class User {
+  /// 保存用户编号。
+  User(this.id);
+
+  /// 从成功响应的数据构造用户。
+  factory User.fromJson(Object? data) => User((data as Map)['id'] as int);
+
+  /// 用户编号。
+  final int id;
+}
+
+/// 解码仅在成功落定后执行。
+Future<User> loadUser(Dioman api) =>
+    api.get<User>(_userPath, decode: User.fromJson);
+
+/// send 保留结果字段并转换 data。
+Future<DiomanResponse<User>> sendUser(Dioman api) =>
+    api.send<User>('GET', _userPath, decode: User.fromJson);
+
+/// 等待插件完成清理。
+Future<void> closeClient(Dioman api) async {
+  await api.dispose();
+}
+```
 
 ## Plugins
 
@@ -70,6 +160,8 @@ Install the plugins your app needs, then adjust a call with DiomanCall(options: 
 ### Loading
 
 Loading keeps one display cycle around a logical call, including token refresh, cache hits, shared requests and offline waits. Your UI receives a paired open and close even when the call is cancelled.
+
+Equal (`==`) display callbacks share one true/false cycle across clients, including instance method tear-offs. `activeCount` counts only the current client. Disposal releases its own occupancy; a new client takes over a pending hide window, and disposing its owner sends the final false.
 
 Options: `delay, delayClose`. Full parameters and defaults: [plugin spec](docs/design/pipeline-plugin-spec.md).
 
@@ -83,7 +175,7 @@ Future<void> main() async {
   try {
     final result = await api.send<dynamic>('GET', '/items',
         call: DiomanCall(options: {DiomanLoading.option: false}));
-    print(result.kind);
+    print(failureOf(result)?.kind);
   } finally {
     api.dispose();
     api.dio.close(force: true);
@@ -93,7 +185,7 @@ Future<void> main() async {
 
 ### Notify
 
-The default `stringify` returns an empty string for `kind == internal`; custom formatting can opt in to a message.
+The default `stringify` returns an empty string for `failureOf(r)?.kind == DiomanFailureKind.internal`; custom formatting can opt in to a message.
 
 Notify waits for the final result before showing a message. By default it reports failures and stays quiet for successful, silent or cancelled calls.
 
@@ -109,7 +201,7 @@ Future<void> main() async {
   try {
     final result = await api.send<dynamic>('GET', '/items',
         call: DiomanCall(options: {DiomanNotify.option: false}));
-    print(result.kind);
+    print(failureOf(result)?.kind);
   } finally {
     api.dispose();
     api.dio.close(force: true);
@@ -133,7 +225,7 @@ Future<void> main() async {
   try {
     final result = await api.send<dynamic>('GET', '/items',
         call: DiomanCall(options: {DiomanRepath.option: const DiomanRepathOptions(removeKey: false)}));
-    print(result.kind);
+    print(failureOf(result)?.kind);
   } finally {
     api.dispose();
     api.dio.close(force: true);
@@ -157,7 +249,7 @@ Future<void> main() async {
   try {
     final result = await api.send<dynamic>('GET', '/items',
         call: DiomanCall(options: {DiomanFilter.option: false}));
-    print(result.kind);
+    print(failureOf(result)?.kind);
   } finally {
     api.dispose();
     api.dio.close(force: true);
@@ -181,7 +273,7 @@ Future<void> main() async {
   try {
     final result = await api.send<dynamic>('GET', '/items',
         call: DiomanCall(options: {DiomanTimeout.option: const DiomanTimeoutOptions(timeouts: {NetworkQuality.good: DiomanTimeouts(receive: Duration(seconds: 5))})}));
-    print(result.kind);
+    print(failureOf(result)?.kind);
   } finally {
     api.dispose();
     api.dio.close(force: true);
@@ -193,7 +285,7 @@ Future<void> main() async {
 
 Behavior change: `retryAfterMax` defaults to 60 seconds. A Retry-After value (seconds or HTTP date) above that limit returns the current result without retrying. To honor practically unlimited waits, explicitly supply a very large Duration, such as `retryAfterMax: Duration(days: 36500)`. Server waits still receive no jitter and ignore `delayMax`. Streams and opaque bodies are sent at most once.
 
-Set max explicitly when you want retries; its default is zero. Retry checks the method allowlist first, then uses logical status to decide whether to send another attempt through the inner layers.
+Retry defaults to two retries, with exponential waits starting at 300ms and a 10s delayMax. Set max: 0 to disable retries. Retry checks the method allowlist first, then uses ctx.statusOf to decide whether to send another attempt through the inner layers.
 
 Options: `max, methods, statusCodes, shouldRetry, delay, jitter, delayMax, respectRetryAfter, afterStatusCodes, retryAfterMax, onRetry`. Full parameters and defaults: [plugin spec](docs/design/pipeline-plugin-spec.md).
 
@@ -207,7 +299,7 @@ Future<void> main() async {
   try {
     final result = await api.send<dynamic>('GET', '/items',
         call: DiomanCall(options: {DiomanRetry.option: 2}));
-    print(result.kind);
+    print(failureOf(result)?.kind);
   } finally {
     api.dispose();
     api.dio.close(force: true);
@@ -231,7 +323,7 @@ Future<void> main() async {
   try {
     final result = await api.send<dynamic>('GET', '/items',
         call: DiomanCall(options: {DiomanBreaker.option: false}));
-    print(result.kind);
+    print(failureOf(result)?.kind);
   } finally {
     api.dispose();
     api.dio.close(force: true);
@@ -243,9 +335,9 @@ Future<void> main() async {
 
 `refreshTimeout` is available on the plugin and `DiomanAuthOptions` (default 30 seconds, measured with `DiomanClock`). Timeout follows the refresh failure path and notifies expiration once per session. If a new login replaces the token while refresh fails, waiting calls continue with the current token. When `onRefresh` sends through the same client, disable auth for that call: `call: DiomanCall(options: {DiomanAuth.option: false})`. A consumed stream or opaque body cannot be replayed; the original result is returned.
 
-Auth protects all requests by default and shares one refresh operation within a client. Implement onRefresh to fetch and save the new token through an independent client. The renewed value below only illustrates updating the store.
+Auth protects all requests by default and shares one refresh operation across clients using the same TokenManager. Implement onRefresh to fetch and save the new token through an independent client. The renewed value below only illustrates updating the store.
 
-Options: `tokenManager, onRefresh, onAccessExpired, onAccessDenied, onFailure, isProtected, ready, expiresAt, refreshLeeway, headerKey, buildHeader`. Full parameters and defaults: [plugin spec](docs/design/pipeline-plugin-spec.md).
+Options: `tokenManager, onRefresh, onAccessExpired, onAccessDenied, onFailure, isProtected, ready, expiresAt, refreshLeeway, refreshTimeout, headerKey, buildHeader`. Full parameters and defaults: [plugin spec](docs/design/pipeline-plugin-spec.md).
 
 ```dart
 import 'package:dio/dio.dart';
@@ -272,7 +364,7 @@ Future<void> main() async {
   try {
     final result = await api.send<dynamic>('GET', '/items',
         call: DiomanCall(options: {DiomanAuth.option: false}));
-    print(result.kind);
+    print(failureOf(result)?.kind);
   } finally {
     api.dispose();
     api.dio.close(force: true);
@@ -298,7 +390,7 @@ Future<void> main() async {
   try {
     final result = await api.send<dynamic>('GET', '/items',
         call: DiomanCall(options: {DiomanMock.option: true}));
-    print(result.kind);
+    print(failureOf(result)?.kind);
   } finally {
     api.dispose();
     api.dio.close(force: true);
@@ -324,7 +416,7 @@ Future<void> main() async {
   try {
     final result = await api.send<dynamic>('GET', '/items',
         call: DiomanCall(options: {DiomanShare.option: DiomanSharePolicy.start}));
-    print(result.kind);
+    print(failureOf(result)?.kind);
   } finally {
     api.dispose();
     api.dio.close(force: true);
@@ -334,7 +426,9 @@ Future<void> main() async {
 
 ### Cache
 
-Automatic keys preserve Map/String output, encode JSON arrays by content and hash byte lists up to 64 KiB by content. Larger byte bodies, FormData, streams, other objects and encoding failures produce no key and bypass cache/share. Cache hits recheck caller cancellation before returning.
+Automatic keys now include responseType and typed Map keys, encode JSON arrays by content and encode byte lists up to 64 KiB with a content hash plus full base64. Larger byte bodies, FormData, streams, other objects and encoding failures produce no key and bypass cache/share. Cache hits recheck caller cancellation before returning.
+
+Internal and cancel results are never cached, even when shouldStore returns true.
 
 Enable Cache per call with a Duration TTL. It uses memo by default and stores successful GET/HEAD results. Use clear to invalidate all in-flight writes, or remove to invalidate just one key.
 
@@ -350,7 +444,7 @@ Future<void> main() async {
   try {
     final result = await api.send<dynamic>('GET', '/items',
         call: DiomanCall(options: {DiomanCache.option: const Duration(minutes: 1)}));
-    print(result.kind);
+    print(failureOf(result)?.kind);
   } finally {
     api.dispose();
     api.dio.close(force: true);
@@ -374,13 +468,30 @@ Future<void> main() async {
   try {
     final result = await api.send<dynamic>('GET', '/items',
         call: DiomanCall(options: {DiomanOffline.option: const DiomanOfflineOptions(maxWait: Duration(seconds: 10))}));
-    print(result.kind);
+    print(failureOf(result)?.kind);
   } finally {
     api.dispose();
     api.dio.close(force: true);
   }
 }
 ```
+
+## Extension and resource lifetimes
+
+`api.extend(dio: engine, options: overrides, plugins: replacements)` returns a child client. Omitting `plugins` inherits the configuration list and runs setup again. `dispose()` leaves the caller's engine open.
+
+| Resource | Default extend | Explicit dio |
+|---|---|---|
+| BaseOptions | Cloned with separate Map containers | Uses the supplied engine options |
+| options override | Merges non-null, non-default fields after setup; Maps merge by top-level key | Same merge, mutating the supplied engine |
+| Interceptors, adapter, transformer | Omitted; new Dio defaults apply | Preserved |
+| Instances, pending requests, pipeline | Created for the child | Same |
+| Auth session, loading display | Shared by TokenManager / equal callback | Same |
+| Factory, key, reject, debug, clock | Configuration or callback references inherited | Same |
+
+BaseOptions cannot distinguish omitted fields from defaults, so defaults cannot reset inherited non-default values. Passing the parent's `dio` shares a mutable engine; option overrides also affect the parent.
+
+Auth refresh, expiration and missing-token notices follow the TokenManager. Missing credentials notify once per session, resetting when a new token is observed. The last owner releases the association: late refresh failures then leave tokens and notices untouched. With remaining owners, the shared failure is handled once.
 
 ## Environment
 
@@ -455,8 +566,33 @@ dart run test/accept/bin/matrix.dart gates
 
 ## Migration
 
-Dio unknown errors caused by decoding `FormatException` now return `kind: parse` with the HTTP status (when supplied by Dio). HTML remains text by default; `expectJson: true` rejects nonempty 2xx text, including text/html, regardless of MIME type.
+Dio unknown errors caused by decoding `FormatException` now return `kind: parse` with the HTTP status (when supplied by Dio). HTML remains text by default; `expectJson: true` rejects nonempty 2xx text in json mode regardless of MIME type. Explicit ResponseType.plain, bytes and stream bypass this strict JSON check.
 
 [0.7.2 → pipeline](docs/guides/migrating-to-pipeline.md) · [Architecture](docs/design/architecture.md) · [CHANGELOG](CHANGELOG.md)
 
 Runnable versions: `dart run example/dioman_example.dart` (offline); `dart run example/real_run.dart` uses a public service and requires network.
+
+## Logical request deadline
+
+`Dioman(deadline: ...)` sets a default budget; a non-null `DiomanCall(deadline: ...)` overrides it. If both are null there is no deadline; zero or negative durations expire immediately. The budget starts at logical request entry and includes retry delays, token refresh queues, offline queues, share waits and the entire transfer, including the response body. Expiry returns `timeout` with `reason: 'deadline'`, and is not classified as cancellation. Timers use `DiomanClock` and are cleared on settlement. `extend` inherits the default.
+
+This is separate from the timeout plugin and Dio connect/send/receive timeouts. A share subscriber whose deadline expires leaves independently; the last subscriber leaving cancels shared transport. end/race withdraw that caller under the same B8 ownership rules.
+
+```dart
+import 'package:dio/dio.dart';
+import 'package:dioman/dioman.dart';
+
+/// 默认五秒，本次两秒，覆盖排队、重试和传输。
+Future<void> deadlineExample() async {
+  final api = Dioman(dio: Dio(), deadline: const Duration(seconds: 5));
+  try {
+    final result = await api.send<Object?>('GET', 'https://example.com/pets',
+        call: const DiomanCall(deadline: Duration(seconds: 2)));
+    if (failureOf(result)?.reason == 'deadline') {
+      assert(failureOf(result)?.kind == DiomanFailureKind.timeout);
+    }
+  } finally {
+    await api.dispose();
+  }
+}
+```

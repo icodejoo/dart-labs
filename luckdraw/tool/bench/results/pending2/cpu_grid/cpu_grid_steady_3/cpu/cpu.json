@@ -1,0 +1,20 @@
+{
+  "pid": 14905,
+  "started_at": "2026-11-10T17:50:26.620683Z",
+  "end_read_started_at": "2026-11-10T17:50:31.782895Z",
+  "window_adb_calls": 2,
+  "requested_steady_seconds": 5,
+  "snapshot_strategy": "three buffered cat processes; no per-thread subprocess",
+  "before_read_micros": 148350,
+  "after_read_micros": 126654,
+  "access": null,
+  "access_failures": {
+    "shell": "FormatException: 线程在快照内变化或缺少 comm，不得错配",
+    "run-as": "Bad state: adb 1:  \"${p##*/}\"\r\n  stats=\"$stats $p/stat\"; comms=\"$comms $p/comm\"\r\ndone\r\nprintf nSTATSn; cat $stats\r\nprintf COMMSn; cat $comms: syntax error: unmatched 'for'\r\nHZt100\r\nPROCESSt14905 (.luckdraw_bench) R 1277 1277 0 0 -1 4194624 39982 0 72 0 474 128 0 0 10 -10 40 0 56173916 24596996096 56973 18446744073709551615 369156755456 369156762040 549178416096 0 0 0 2101764 4097 1140884728 0 0 0 17 1 0 0 0 0 0 369156767744 369156767768 369639870464 549178419115 549178419214 549178419214 549178425310 0\r\nTIDSt",
+    "su": "Bad state: adb 127: /system/bin/sh: su: inaccessible or not found\r\n"
+  },
+  "method": "dumpsys cpuinfo raw fallback",
+  "valid_cpu": false,
+  "seconds": 5.162212,
+  "reason": "本设备 shell 无法读取目标进程线程级 CPU；run-as/su 也不可用。cpuinfo 不提供目标进程累计 CPU 时间，无法计算可信窗口增量，保留两份原文而不填零。"
+}

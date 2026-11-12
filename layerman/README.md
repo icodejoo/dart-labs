@@ -131,16 +131,27 @@ why there's no scope/attach step to wire up.
 
 Earlier versions had a `builder:` that returned a `Widget` the manager mounted into its own `Overlay`. That forced the manager to *be* UI — own an `OverlayState`, stay attached to the tree, ship an `OverlayManagerScope`. It contradicted the one thing the package is for.
 
-`present:` is a strict superset. Inside it you build any UI — `showDialog`, `Get.dialog`, `BotToast.show`, `Navigator.push`, or an `OverlayEntry` you insert yourself — and hand back a `PresentedOverlay(dismissed: ..., dismiss: ...)` handle. Anything `builder:` could render, a `present:` backend that owns its own `OverlayEntry` renders too — so nothing is lost, and the core is now headless (no `flutter/widgets` import), matching the headless TS sister package.
+`present:` is a strict superset. Inside it you build any UI — `showDialog`, `Get.dialog`, `BotToast.show`, `Navigator.push`, or an `OverlayEntry` you insert yourself — and hand back a `PresentedOverlay(visible: ..., dismissed: ..., dismiss: ...)` handle. Anything `builder:` could render, a `present:` backend that owns its own `OverlayEntry` renders too — so nothing is lost, and the core is now headless (no `flutter/widgets` import), matching the headless TS sister package.
 
 ```dart
 manager.open(present: (ctx) {
+  final visible = Completer<void>();
   final done = Completer<String?>();
   final cancel = BotToast.showWidget(
-    toastBuilder: (_) => MyCard(onOk: () => done.complete('ok')),
+    toastBuilder: (_) => OverlayVisibility(
+      visible: visible,
+      child: MyCard(onOk: () => done.complete('ok')),
+    ),
   );
   done.future.whenComplete(cancel);
-  return PresentedOverlay(dismissed: done.future, dismiss: ([r]) async => cancel());
+  return PresentedOverlay<String>(
+    visible: visible.future,
+    dismissed: done.future,
+    dismiss: ([r]) async {
+      cancel();
+      if (!done.isCompleted) done.complete(r);
+    },
+  );
 });
 ```
 
@@ -770,6 +781,7 @@ without an animation-end signal. A custom backend can complete `dismissed` itsel
 manager.open<void>(
   id: 'sheet',
   present: (ctx) {
+    final visible = Completer<void>();
     final done = Completer<void>();
     var closing = false;
     late OverlayEntry entry;
@@ -787,11 +799,12 @@ manager.open<void>(
       builder: (_) => AnimatedOpacity(
         opacity: closing ? 0 : 1,
         duration: const Duration(milliseconds: 250),
-        child: const MySheet(),
+        child: OverlayVisibility(visible: visible, child: const MySheet()),
       ),
     );
-    Overlay.of(navigatorKey.currentContext!).insert(entry);
+    navigatorKey.currentState!.overlay!.insert(entry);
     return PresentedOverlay<void>(
+      visible: visible.future,
       dismissed: done.future,
       dismiss: ([_]) async => requestClose(),
     );
@@ -838,6 +851,10 @@ bidirectional handle:
 
 ```dart
 PresentedOverlay<T>(
+  visible: firstPaintVisible,       // Future<void>: successful first visible frame
+  // Waiting visible uses phase=open and occupies its slot; duration already runs.
+  // visible error => failed; an earlier end keeps its reason and has no shown.
+  // Only visible success while still open records cooldown and emits shown.
   dismissed: someFuture,            // the backend's "fully closed" signal (any path)
   dismiss: ([T? result]) async {},  // orchestrator-driven, targeted close
 )
@@ -900,19 +917,8 @@ manager.open<bool>(
       settings: RouteSettings(name: 'om://${ctx.id}'),
       builder: (_) => const ConfirmDialog(),
     );
-    navigator.push(route);
-    return PresentedOverlay<bool>(
-      dismissed: route.completed,
-      dismiss: ([r]) async {
-        final nav = route.navigator;
-        if (nav == null || !route.isActive) return;
-        if (route.isCurrent && !route.willHandlePopInternally) {
-          nav.pop(r); // on top: animated pop
-        } else {
-          nav.removeRoute(route); // covered or internal history: remove exactly this one
-        }
-      },
-    );
+    // 成功构建、挂载且位于栈顶的首帧才确认可见。
+    return presentRoute(navigator, route);
   },
 );
 ```
@@ -939,8 +945,11 @@ manager.open<void>(
   id: 'saved',
   slot: 'snack', // a dedicated lane so a toast can coexist with a modal dialog
   present: (ctx) {
-    final c = Get.snackbar('Saved', 'Your changes are safe.');
-    return PresentedOverlay<void>(
+    final visible = Completer<void>();
+    final c = Get.snackbar('Saved', 'Your changes are safe.',
+      messageText: OverlayVisibility(visible: visible, child: const Text('Your changes are safe.')),
+    );
+    return PresentedOverlay<void>(visible: visible.future,
       dismissed: c.future,
       dismiss: ([_]) => c.close(),
     );
@@ -981,13 +990,14 @@ manager.open<void>(
   id: 'tip',
   slot: 'toast',
   present: (ctx) {
+    final visible = Completer<void>();
     final done = Completer<void>();
-    final cancel = BotToast.showText(
-      text: 'Copied to clipboard',
+    final cancel = BotToast.showCustomText(
+      toastBuilder: (_) => OverlayVisibility(visible: visible, child: Card(child: Text('Copied to clipboard'))),
       onlyOne: false,               // replace decisions belong to the manager
       onClose: () => done.complete(), // fires after the exit animation
     );
-    return PresentedOverlay<void>(
+    return PresentedOverlay<void>(visible: visible.future,
       dismissed: done.future,
       dismiss: ([_]) async => cancel(),
     );
@@ -1006,20 +1016,23 @@ manager.open<void>(
   id: 'copied',
   slot: 'toast',
   present: (ctx) {
+    // 原生 showToast 没有可见回报；使用可确认首帧的 FToast widget。
+    final visible = Completer<void>();
     final done = Completer<void>();
-    Fluttertoast.showToast(
-      msg: 'Copied',
-      toastLength: Toast.LENGTH_SHORT, // ~2s on Android
+    final toast = FToast()..init(navigatorKey.currentContext!); // 已挂载页面中、Overlay 下的 context。
+    toast.showToast(
+      child: OverlayVisibility(visible: visible, child: const Card(child: Text('Copied'))),
+      toastDuration: const Duration(seconds: 2),
     );
-    // No native "closed" event — approximate it so the queue advances.
     final timer = Timer(const Duration(seconds: 2), () {
       if (!done.isCompleted) done.complete();
     });
     return PresentedOverlay<void>(
+      visible: visible.future,
       dismissed: done.future,
       dismiss: ([_]) async {
         timer.cancel();
-        await Fluttertoast.cancel(); // coarse: cancels all toasts
+        toast.removeCustomToast();
         if (!done.isCompleted) done.complete();
       },
     );
@@ -1036,7 +1049,7 @@ manager.open<void>(
 For any library you can *show* and *close*:
 
 1. Call the library's show API inside `present`.
-2. Return `PresentedOverlay(dismissed:, dismiss:)`.
+2. Return `PresentedOverlay(visible:, dismissed:, dismiss:)`.
 3. **`dismissed`** must complete on *every* close path (user, timeout, your
    `dismiss`). For routes use `route.completed` (after the exit animation).
    Otherwise use `onClose`, or synthesize a signal if none exists.
@@ -1226,7 +1239,8 @@ typedef Present<T> = PresentedOverlay<T> Function(PresentContext<T> context);
 
 ```dart
 class PresentedOverlay<T> {
-  PresentedOverlay({required Future<T?> dismissed, Future<void> Function([T? result])? dismiss});
+  PresentedOverlay({required this.visible, required this.dismissed, this.dismiss});
+  final Future<void> visible;                         // successful first visible frame
   final Future<T?> dismissed;                          // backend "closed" signal
   final Future<void> Function([T? result])? dismiss;   // orchestrator close
 }
@@ -1258,7 +1272,7 @@ typedef OverlayPredicate = bool Function(Map<String, Object?> context);
 | `BottomSheetManager(GlobalKey<NavigatorState> navigatorKey, {...})` | Same constructor parameters as `DialogManager`, plus `bool isScrollControlled = false`, `Color? backgroundColor`, `bool enableDrag = true`, `bool? showDragHandle`. |
 | `Present<T> DialogManager.call<T>(Widget Function(PresentContext<T> ctx, void Function([T? result]) close) builder, {...})` | `bool? barrierDismissible`, `Color? barrierColor`, `bool? useSafeArea`; non-null values override constructor defaults. |
 | `Present<T> BottomSheetManager.call<T>(Widget Function(PresentContext<T> ctx, void Function([T? result]) close) builder, {...})` | Same call parameters, plus `bool? isScrollControlled`, `Color? backgroundColor`, `bool? enableDrag`, `bool? showDragHandle`. |
-| `PresentedOverlay<T> presentRoute<T>(NavigatorState navigator, TransitionRoute<T> route)` | Push and retain the route, await its completed future, target that route for dismissal. |
+| `PresentedOverlay<T> presentRoute<T>(NavigatorState navigator, TransitionRoute<T> route, {Future<void>? visible})` | Push and retain the route, await its completed future, target that route for dismissal. |
 | `LayermanLifecycle(Layerman manager, {Set<AppLifecycleState> pauseOn = const <AppLifecycleState>{AppLifecycleState.paused, AppLifecycleState.hidden}})` | `final Layerman manager`, `bool get isAttached`, `void attach()`, `void detach()`, `void didChangeAppLifecycleState(AppLifecycleState state)`; attach/detach are idempotent. |
 
 ## Deliberate differences from the TS package
@@ -1297,6 +1311,7 @@ void main() {
     final result = manager.open<bool>(
       duration: const Duration(seconds: 1),
       present: (_) => PresentedOverlay<bool>(
+        visible: Future<void>.value(), // headless test: immediate visibility
         dismissed: dismissed.future,
         dismiss: ([value]) async { dismissed.complete(value); },
       ),
@@ -1440,16 +1455,27 @@ final manager = Layerman(gap: const Duration(milliseconds: 300));
 
 早先版本有个 `builder:`,返回一个由 manager 挂进它自有 `Overlay` 的 `Widget`。这逼着 manager 自己*变成* UI——要持有 `OverlayState`、要挂在树上、还得配一个 `OverlayManagerScope`,跟这个包存在的唯一意义相悖。
 
-`present:` 是它的严格超集。你在里面构造任意 UI——`showDialog`、`Get.dialog`、`BotToast.show`、`Navigator.push`,或自己插一个 `OverlayEntry`——再返回一个 `PresentedOverlay(dismissed: ..., dismiss: ...)` 句柄。`builder:` 能渲染的,一个自己持有 `OverlayEntry` 的 `present:` 后端照样能渲染——所以什么都没丢,而核心从此 headless(不 import `flutter/widgets`),跟 headless 的 TS 姊妹包对齐。
+`present:` 是它的严格超集。你在里面构造任意 UI——`showDialog`、`Get.dialog`、`BotToast.show`、`Navigator.push`,或自己插一个 `OverlayEntry`——再返回一个 `PresentedOverlay(visible: ..., dismissed: ..., dismiss: ...)` 句柄。`builder:` 能渲染的,一个自己持有 `OverlayEntry` 的 `present:` 后端照样能渲染——所以什么都没丢,而核心从此 headless(不 import `flutter/widgets`),跟 headless 的 TS 姊妹包对齐。
 
 ```dart
 manager.open(present: (ctx) {
+  final visible = Completer<void>();
   final done = Completer<String?>();
   final cancel = BotToast.showWidget(
-    toastBuilder: (_) => MyCard(onOk: () => done.complete('ok')),
+    toastBuilder: (_) => OverlayVisibility(
+      visible: visible,
+      child: MyCard(onOk: () => done.complete('ok')),
+    ),
   );
   done.future.whenComplete(cancel);
-  return PresentedOverlay(dismissed: done.future, dismiss: ([r]) async => cancel());
+  return PresentedOverlay<String>(
+    visible: visible.future,
+    dismissed: done.future,
+    dismiss: ([r]) async {
+      cancel();
+      if (!done.isCompleted) done.complete(r);
+    },
+  );
 });
 ```
 
@@ -1991,6 +2017,7 @@ manager.clearWhere((r) => (r.data as Map?)?['group'] == 'promo'); // 按条件�
 manager.open<void>(
   id: 'sheet',
   present: (ctx) {
+    final visible = Completer<void>();
     final done = Completer<void>();
     var closing = false;
     late OverlayEntry entry;
@@ -2008,11 +2035,12 @@ manager.open<void>(
       builder: (_) => AnimatedOpacity(
         opacity: closing ? 0 : 1,
         duration: const Duration(milliseconds: 250),
-        child: const MySheet(),
+        child: OverlayVisibility(visible: visible, child: const MySheet()),
       ),
     );
-    Overlay.of(navigatorKey.currentContext!).insert(entry);
+    navigatorKey.currentState!.overlay!.insert(entry);
     return PresentedOverlay<void>(
+      visible: visible.future,
       dismissed: done.future,
       dismiss: ([_]) async => requestClose(),
     );
@@ -2056,6 +2084,10 @@ resolving 条目在 `resolvingIds` 和 `records` 中，不在 `activeIds` / `que
 
 ```dart
 PresentedOverlay<T>(
+  visible: firstPaintVisible,       // Future<void>: successful first visible frame
+  // Waiting visible uses phase=open and occupies its slot; duration already runs.
+  // visible error => failed; an earlier end keeps its reason and has no shown.
+  // Only visible success while still open records cooldown and emits shown.
   dismissed: someFuture,            // 后端「已完全关闭」的信号(任意关闭路径)
   dismiss: ([T? result]) async {},  // 由编排器发起的定向关闭
 )
@@ -2111,19 +2143,8 @@ manager.open<bool>(
       settings: RouteSettings(name: 'om://${ctx.id}'),
       builder: (_) => const ConfirmDialog(),
     );
-    navigator.push(route);
-    return PresentedOverlay<bool>(
-      dismissed: route.completed,
-      dismiss: ([r]) async {
-        final nav = route.navigator;
-        if (nav == null || !route.isActive) return;
-        if (route.isCurrent && !route.willHandlePopInternally) {
-          nav.pop(r); // 栈顶：播放退场动画
-        } else {
-          nav.removeRoute(route); // 被覆盖或带内部历史：只移除这一条
-        }
-      },
-    );
+    // 成功构建、挂载且位于栈顶的首帧才确认可见。
+    return presentRoute(navigator, route);
   },
 );
 ```
@@ -2149,8 +2170,11 @@ manager.open<void>(
   id: 'saved',
   slot: 'snack', // 单独车道:让 toast 能与主 dialog 并存
   present: (ctx) {
-    final c = Get.snackbar('已保存', '你的修改已安全保存');
-    return PresentedOverlay<void>(dismissed: c.future, dismiss: ([_]) => c.close());
+    final visible = Completer<void>();
+    final c = Get.snackbar('已保存', '你的修改已安全保存',
+      messageText: OverlayVisibility(visible: visible, child: const Text('你的修改已安全保存')),
+    );
+    return PresentedOverlay<void>(visible: visible.future, dismissed: c.future, dismiss: ([_]) => c.close());
   },
 );
 ```
@@ -2185,13 +2209,14 @@ manager.open<void>(
   id: 'tip',
   slot: 'toast',
   present: (ctx) {
+    final visible = Completer<void>();
     final done = Completer<void>();
-    final cancel = BotToast.showText(
-      text: '已复制',
+    final cancel = BotToast.showCustomText(
+      toastBuilder: (_) => OverlayVisibility(visible: visible, child: Card(child: Text('已复制'))),
       onlyOne: false,               // replace 决策归管理器
       onClose: () => done.complete(),
     );
-    return PresentedOverlay<void>(dismissed: done.future, dismiss: ([_]) async => cancel());
+    return PresentedOverlay<void>(visible: visible.future, dismissed: done.future, dismiss: ([_]) async => cancel());
   },
 );
 ```
@@ -2206,16 +2231,23 @@ manager.open<void>(
   id: 'copied',
   slot: 'toast',
   present: (ctx) {
+    // 原生 showToast 没有可见回报；使用可确认首帧的 FToast widget。
+    final visible = Completer<void>();
     final done = Completer<void>();
-    Fluttertoast.showToast(msg: '已复制', toastLength: Toast.LENGTH_SHORT); // 安卓约 2s
+    final toast = FToast()..init(navigatorKey.currentContext!); // 已挂载页面中、Overlay 下的 context。
+    toast.showToast(
+      child: OverlayVisibility(visible: visible, child: const Card(child: Text('Copied'))),
+      toastDuration: const Duration(seconds: 2),
+    );
     final timer = Timer(const Duration(seconds: 2), () {
-      if (!done.isCompleted) done.complete(); // 无原生关闭事件 -> 近似合成
+      if (!done.isCompleted) done.complete();
     });
     return PresentedOverlay<void>(
+      visible: visible.future,
       dismissed: done.future,
       dismiss: ([_]) async {
         timer.cancel();
-        await Fluttertoast.cancel(); // 粗粒度:会取消所有 toast
+        toast.removeCustomToast();
         if (!done.isCompleted) done.complete();
       },
     );
@@ -2231,7 +2263,7 @@ manager.open<void>(
 对任何「能显示、能关闭」的库:
 
 1. 在 `present` 里调用该库的显示 API。
-2. 返回 `PresentedOverlay(dismissed:, dismiss:)`。
+2. 返回 `PresentedOverlay(visible:, dismissed:, dismiss:)`。
 3. **`dismissed`** 必须在**每一条**关闭路径上完成；路由使用退场动画后的
    `route.completed`，其它后端使用 `onClose`，没有信号时再自行合成。
 4. **`dismiss`** 必须通过**那一条**浮层自己的句柄关闭它——绝不「关掉栈顶那个」。
@@ -2324,6 +2356,7 @@ void main() {
     final result = manager.open<bool>(
       duration: const Duration(seconds: 1),
       present: (_) => PresentedOverlay<bool>(
+        visible: Future<void>.value(), // headless test: immediate visibility
         dismissed: dismissed.future,
         dismiss: ([value]) async { dismissed.complete(value); },
       ),

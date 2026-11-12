@@ -1,0 +1,10 @@
+{
+  "name": "bench-analyze",
+  "args": [
+    "flutter",
+    "analyze",
+    "--no-pub"
+  ],
+  "exitCode": 1,
+  "elapsedSeconds": 4.814
+}

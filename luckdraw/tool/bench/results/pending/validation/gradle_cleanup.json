@@ -1,0 +1,18 @@
+[
+  {
+    "proof": [
+      "2026-11-11T00:34:21.152+0800 [DEBUG] [org.gradle.launcher.daemon.server.DefaultDaemonConnection] thread 47: Received non-IO message from client: Build{id=74af0e75-e088-4c6d-bbd4-71c62d6330f0, currentDir=C:\\ldq\\luckdraw\\tool\\bench\\android}",
+      "2026-11-11T00:34:21.152+0800 [INFO] [org.gradle.launcher.daemon.server.DefaultIncomingConnectionHandler] Received command: Build{id=74af0e75-e088-4c6d-bbd4-71c62d6330f0, currentDir=C:\\ldq\\luckdraw\\tool\\bench\\android}."
+    ],
+    "pid": 38476,
+    "command": "E:\\sdk\\jdk\\openjdk-21.0.5+11\\bin\\java.exe --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.lang.invoke=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED --add-opens=java.prefs/java.util.prefs=ALL-UNNAMED --add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED --add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED --add-opens=java.prefs/java.util.prefs=ALL-UNNAMED --add-opens=java.base/java.nio.charset=ALL-UNNAMED --add-opens=java.base/java.net=ALL-UNNAMED --add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED --add-opens=java.xml/javax.xml.namespace=ALL-UNNAMED -XX:MaxMetaspaceSize=1G -XX:ReservedCodeCacheSize=256m -XX:+HeapDumpOnOutOfMemoryError -Xmx2G -Dfile.encoding=UTF-8 -Duser.country=CN -Duser.language=zh -Duser.variant -cp C:\\Users\\jelon\\.gradle\\wrapper\\dists\\gradle-8.14.3-all\\10utluxaxniiv4wxiphsi49nj\\gradle-8.14.3\\lib\\gradle-daemon-main-8.14.3.jar -javaagent:C:\\Users\\jelon\\.gradle\\wrapper\\dists\\gradle-8.14.3-all\\10utluxaxniiv4wxiphsi49nj\\gradle-8.14.3\\lib\\agents\\gradle-instrumentation-agent-8.14.3.jar org.gradle.launcher.daemon.bootstrap.GradleDaemon 8.14.3"
+  },
+  {
+    "proof": [
+      "2026-11-11T00:35:25.094+0800 [DEBUG] [org.gradle.launcher.daemon.server.DefaultDaemonConnection] thread 47: Received non-IO message from client: Build{id=7435c6c2-afe0-4996-8a62-b7c74de3669a, currentDir=C:\\ldq\\luckdraw\\tool\\bench\\android}",
+      "2026-11-11T00:35:25.094+0800 [INFO] [org.gradle.launcher.daemon.server.DefaultIncomingConnectionHandler] Received command: Build{id=7435c6c2-afe0-4996-8a62-b7c74de3669a, currentDir=C:\\ldq\\luckdraw\\tool\\bench\\android}."
+    ],
+    "pid": 30904,
+    "command": "E:\\sdk\\jdk\\openjdk-21.0.5+11\\bin\\java.exe --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.lang.invoke=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED --add-opens=java.prefs/java.util.prefs=ALL-UNNAMED --add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED --add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED --add-opens=java.prefs/java.util.prefs=ALL-UNNAMED --add-opens=java.base/java.nio.charset=ALL-UNNAMED --add-opens=java.base/java.net=ALL-UNNAMED --add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED --add-opens=java.xml/javax.xml.namespace=ALL-UNNAMED -XX:MaxMetaspaceSize=1G -XX:ReservedCodeCacheSize=256m -XX:+HeapDumpOnOutOfMemoryError -Xmx2G -Dfile.encoding=UTF-8 -Djavax.net.ssl.trustStoreType=WINDOWS-ROOT -Duser.country=CN -Duser.language=zh -Duser.variant -cp C:\\Users\\jelon\\.gradle\\wrapper\\dists\\gradle-8.14.3-all\\10utluxaxniiv4wxiphsi49nj\\gradle-8.14.3\\lib\\gradle-daemon-main-8.14.3.jar -javaagent:C:\\Users\\jelon\\.gradle\\wrapper\\dists\\gradle-8.14.3-all\\10utluxaxniiv4wxiphsi49nj\\gradle-8.14.3\\lib\\agents\\gradle-instrumentation-agent-8.14.3.jar org.gradle.launcher.daemon.bootstrap.GradleDaemon 8.14.3"
+  }
+]

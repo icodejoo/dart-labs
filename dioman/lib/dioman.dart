@@ -3,7 +3,8 @@ library;
 
 export 'src/client.dart' show Dioman;
 export 'src/clock.dart' show DiomanClock;
-export 'src/context.dart' show DiomanLogger, StateKey, DiomanContext;
+export 'src/context.dart'
+    show DiomanLogger, StateKey, DiomanContext, DiomanNative;
 export 'src/key.dart' show DiomanKeyOptions, DiomanKeyService;
 export 'src/options.dart'
     show replaceOption, DiomanOptionKey, resolveOption, DiomanCall;
@@ -12,8 +13,10 @@ export 'src/plugin.dart' show DiomanNext, DiomanPlugin, DiomanPluginInstance;
 export 'src/request.dart' show DiomanRequest, RequestPatch;
 export 'src/response.dart'
     show
-        DiomanKind,
-        Envelope,
+        DiomanFailureKind,
+        DiomanParsed,
+        failureOf,
+        isDiomanCancel,
         DiomanResponse,
         DiomanFailure,
         DiomanResponseFactory;

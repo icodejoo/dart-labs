@@ -1,0 +1,40 @@
+--- a/lib/src/request.dart
++++ b/lib/src/request.dart
+@@ -9,11 +9,16 @@
+ class DiomanRequest {
+   /// 从 [options] 拷贝有效配置；[call] 保存调用选项，例如 `DiomanRequest(ro)`。
+   DiomanRequest(RequestOptions options, {DiomanCall call = const DiomanCall()})
+-      : _options = options.copyWith(),
++      : this._owned(options.copyWith(), call: call);
++
++  /// 接管内部独占配置，集合视图不对外暴露可写引用。
++  DiomanRequest._owned(RequestOptions options,
++      {DiomanCall call = const DiomanCall()})
++      : _options = options,
+         data = options.data,
+         headers = Map.unmodifiable(options.headers),
+-        query = Map.unmodifiable(options.queryParameters),
+-        extra = Map.unmodifiable(options.extra),
++        query = UnmodifiableMapView(options.queryParameters),
++        extra = UnmodifiableMapView(options.extra),
+         call = DiomanCall(
+             raw: call.raw,
+             key: call.key,
+@@ -49,7 +54,7 @@
+   String get baseUrl => _options.baseUrl;
+ 
+   /// 有效 URI。
+-  Uri get uri => toRequestOptions().uri;
++  Uri get uri => _options.uri;
+ 
+   /// 连接超时。
+   Duration? get connectTimeout => _options.connectTimeout;
+@@ -103,7 +108,7 @@
+     if (!identical(patch.cancelToken, _absent)) {
+       o.cancelToken = patch.cancelToken as CancelToken?;
+     }
+-    return DiomanRequest(o, call: call);
++    return DiomanRequest._owned(o, call: call);
+   }
+ }
+ 

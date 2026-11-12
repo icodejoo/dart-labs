@@ -1,0 +1,24 @@
+{
+  "commands": [
+    "analyze",
+    "bench_analyze",
+    "format",
+    "format_check",
+    "tools",
+    "devfin-a",
+    "devfin-b",
+    "devfin-c",
+    "devfin-d",
+    "coverage",
+    "imports",
+    "acceptance",
+    "acceptance_json",
+    "parity",
+    "publish"
+  ],
+  "all_exit_zero": true,
+  "all_under_300s": true,
+  "readme_dart_blocks_unchanged": true,
+  "analysis_options_matches_guide": true,
+  "pubspec_unchanged": true
+}

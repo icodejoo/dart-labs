@@ -1,0 +1,78 @@
+{
+  "clone-off": [
+    {
+      "warmupMillis": 500,
+      "measurementMillis": 2000,
+      "results": [
+        {
+          "scenario": "clone-off",
+          "operations": 41547,
+          "elapsedSeconds": 2.000014,
+          "meanMicros": 48.1385900305678
+        }
+      ]
+    },
+    {
+      "warmupMillis": 500,
+      "measurementMillis": 2000,
+      "results": [
+        {
+          "scenario": "clone-off",
+          "operations": 37478,
+          "elapsedSeconds": 2.0000238,
+          "meanMicros": 53.36527562836864
+        }
+      ]
+    },
+    {
+      "warmupMillis": 500,
+      "measurementMillis": 2000,
+      "results": [
+        {
+          "scenario": "clone-off",
+          "operations": 38173,
+          "elapsedSeconds": 2.0000389,
+          "meanMicros": 52.394071726089116
+        }
+      ]
+    }
+  ],
+  "clone-on": [
+    {
+      "warmupMillis": 500,
+      "measurementMillis": 2000,
+      "results": [
+        {
+          "scenario": "clone-on",
+          "operations": 39046,
+          "elapsedSeconds": 2.0000094,
+          "meanMicros": 51.22187676074374
+        }
+      ]
+    },
+    {
+      "warmupMillis": 500,
+      "measurementMillis": 2000,
+      "results": [
+        {
+          "scenario": "clone-on",
+          "operations": 40213,
+          "elapsedSeconds": 2.000028,
+          "meanMicros": 49.735856563797775
+        }
+      ]
+    },
+    {
+      "warmupMillis": 500,
+      "measurementMillis": 2000,
+      "results": [
+        {
+          "scenario": "clone-on",
+          "operations": 38501,
+          "elapsedSeconds": 2.0000104,
+          "meanMicros": 51.94697280590114
+        }
+      ]
+    }
+  ]
+}

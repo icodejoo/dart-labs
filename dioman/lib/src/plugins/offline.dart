@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:collection';
 import '../client.dart';
-import '../constants.dart';
 import '../context.dart';
 import '../options.dart';
 import '../plugin.dart';
@@ -17,10 +16,6 @@ const _queueFullReason = 'queueFull';
 
 /// 等待超时的稳定原因。
 const _timeoutReason = 'timeout';
-
-/// 所有销毁出口使用同一个离线失败值。
-const _disposedFailure =
-    DiomanFailure(kind: DiomanKind.offline, reason: _disposedReason);
 
 /// 离线请求级配置；省略字段沿用插件级值。
 class DiomanOfflineOptions {
@@ -84,7 +79,7 @@ class DiomanOffline<R extends DiomanResponse<dynamic>> extends DiomanPlugin<R> {
   static const defaultMaxQueueSize = 50;
 
   /// 稳定名称。
-  static const pluginName = diomanOfflineName;
+  static const pluginName = 'dioman:offline';
 
   /// 请求级 bool 或配置键。
   static final option = DiomanOptionKey<DiomanOfflineOptions>(pluginName);
@@ -175,8 +170,10 @@ class _Offline<R extends DiomanResponse<dynamic>>
       return next();
     }
     if (disposed) {
-      ctx.set(cancellationFailure, _disposedFailure);
-      return ctx.fail(_disposedFailure);
+      final failure =
+          ctx.fail(DiomanFailureKind.offline, reason: _disposedReason);
+      ctx.set(cancellationFailure, failure);
+      return failure;
     }
     final cancel = ctx.cancelled();
     if (cancel != null) return cancel;
@@ -193,19 +190,20 @@ class _Offline<R extends DiomanResponse<dynamic>>
           entry.ready.future.then((reason) => (reason,)),
           timeout: o.maxWait);
       if (disposed) {
-        ctx.set(cancellationFailure, _disposedFailure);
-        return ctx.fail(_disposedFailure);
+        final failure =
+            ctx.fail(DiomanFailureKind.offline, reason: _disposedReason);
+        ctx.set(cancellationFailure, failure);
+        return failure;
       }
       final cancel = ctx.cancelled();
       if (cancel != null) return cancel;
       if (ready == null) {
-        return ctx.fail(const DiomanFailure(
-            kind: DiomanKind.offline, reason: _timeoutReason));
+        return ctx.fail(DiomanFailureKind.offline, reason: _timeoutReason);
       }
       final reason = ready.$1;
       return reason == null
           ? await next()
-          : ctx.fail(DiomanFailure(kind: DiomanKind.offline, reason: reason));
+          : ctx.fail(DiomanFailureKind.offline, reason: reason);
     } finally {
       queue.remove(entry);
     }

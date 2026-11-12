@@ -1,0 +1,21 @@
+{
+  "planned": 2,
+  "executed": 2,
+  "interrupted": false,
+  "remaining": 0,
+  "counts": {
+    "通过": 2
+  },
+  "by_style": {
+    "http": {
+      "通过": 1
+    },
+    "business": {
+      "通过": 1
+    }
+  },
+  "skip_reasons": {},
+  "skip_count": 0,
+  "failures": [],
+  "scope": "仅 conc.barrier-32-peak，两种风格；不与全量跳过集合比较"
+}

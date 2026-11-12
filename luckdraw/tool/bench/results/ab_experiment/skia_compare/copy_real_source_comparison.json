@@ -1,0 +1,10 @@
+{
+  "realLibFiles": 145,
+  "normalizedTextDifferences": [],
+  "rawByteDifferences": [
+    "lib\\src\\core\\foundation\\options.dart",
+    "lib\\src\\core\\render\\cached_picture.dart",
+    "lib\\src\\core\\render\\picture_cache.dart"
+  ],
+  "note": "三个文件仅CRLF/LF不同；不修改真实仓库源码"
+}

@@ -6,6 +6,8 @@ summary: 为什么把 dioman 从"Dio 拦截器插件"改成"以 Dio 为引擎的
 ---
 ## TL;DR
 
+> 2026-11-03 更新：D3 的逻辑状态、D5 的公开 kind 和字段集，以及规格 C8 已被 [0002](0002-response-contract.md) 取代；其余决定继续有效。
+
 - dioman 的定位是**以 Dio 为引擎的请求包装器**，不是 Dio 插件。dioman 自己持有调用链：插件是 `(ctx, next)` 中间件，最内层调用一次 `dio.fetch`。重试、重放就是再调一次 `next()`。
 - **归一化进内核**：传输边界判定一次，产出 `DiomanResponse`；所有插件只读它的 `ok`、`kind`、逻辑 `status`。最外层落定：成功返回数据，可预期的失败抛 `DiomanResponse`（它 `implements Exception`），程序 bug 原样抛出原始异常和 stack。
 - **排序用固定阶段**：内置插件位置固定，自定义插件只选阶段。cancel、key、normalize、log 降为内核能力；mock 回到 source 阶段。
@@ -65,7 +67,9 @@ dioman 0.7 的复杂度和缺陷主要来自"在同序执行的 Dio 拦截器链
 | 判定：Dio 的 `Response` 或异常 → `DiomanResponse` | 紧贴传输层 | 每次发送一次 |
 | 落定：成功返回数据，否则抛出 | 洋葱最外层 | 每个逻辑请求一次 |
 
-**推翻的旧约定**：`DiomanNormalize` 插件及其请求级开关；`DiomanCache.shouldStore` 的 normalize 自动接线；`DiomanException`（业务失败改为 `kind: biz` 的 `DiomanResponse`）。
+**推翻的旧约定**：`DiomanNormalize` 插件及其请求级开关；`DiomanCache.shouldStore` 的 normalize 自动接线；`DiomanException`（业务失败改为 `kind: biz` 的 `DiomanResponse`；其中 `kind: biz` 的写法已被 0002 取代）。
+
+新口径见 [0002](0002-response-contract.md)：status 仅表示 HTTP，业务风格显式配置 statusOf，业务失败是没有失败标记、`ok` 为 false 的结果。归一化进内核、拆分判定与落定、删除上述旧机制，这几项决定都不变。
 
 **对验收的影响**：testkit D21"未装 normalize 时业务码透传"在这个模型里不成立。这和 axp 碰到的情况一样，相关场景按缺能力跳过（testkit 侧加能力名，见实施计划 B7）。
 
@@ -78,11 +82,13 @@ dioman 0.7 的复杂度和缺陷主要来自"在同序执行的 Dio 拦截器链
 ## D5 `DiomanResponse`：字段在构造时算好，判定由工厂负责
 
 **决定**：
-- `class DiomanResponse<D> implements Exception`，字段都是 `final`：`ok`、`kind`、`status`（逻辑状态）、`httpStatus`、`code`、`message`、`data`、`reason`、`request`、`raw`、`error`、`errorStack`、`callSite`（仅 debug）。
-- 判定由每个客户端一份的 `DiomanResponseFactory` 完成：信封字段名、成功码判定、逻辑状态映射都是工厂的选项；需要扩展字段时，子类化 `DiomanResponse` 并在工厂的 `create` 钩子里构造。
+- `class DiomanResponse<D> implements Exception`，字段都是 `final`：`ok`、`kind`、`status`（逻辑状态）、`httpStatus`、`code`、`message`、`data`、`reason`、`request`、`raw`、`error`、`errorStack`、`callSite`（仅 debug）。（已被 0002 取代）
+- 判定由每个客户端一份的 `DiomanResponseFactory` 完成：信封字段名、成功码判定、逻辑状态映射都是工厂的选项；需要扩展字段时，子类化 `DiomanResponse` 并在工厂的 `create` 钩子里构造。（已被 0002 取代）
 - 插件需要凭空造结果时走 `ctx.fail()`，保证经过工厂，扩展字段始终存在。
 
-**与 axp 的不同**：axp 的开放点是"子类覆盖 `ok`/`status` getter"，并用"实例自有属性遮住原型 getter"保证 getter 只在收到响应时求值。Dart 没有属性遮蔽，所以改成：`ok`/`status`/`kind` 由工厂在构造时算好写进 final 字段；只有"收到了响应"这条分支会调用使用者提供的判定函数。"只在收到响应时求值"由调用位置保证，不依赖对象的形状。
+**与 axp 的不同**：axp 的开放点是"子类覆盖 `ok`/`status` getter"，并用"实例自有属性遮住原型 getter"保证 getter 只在收到响应时求值。Dart 没有属性遮蔽，所以改成：`ok`/`status`/`kind` 由工厂在构造时算好写进 final 字段；只有"收到了响应"这条分支会调用使用者提供的判定函数。"只在收到响应时求值"由调用位置保证，不依赖对象的形状。（已被 0002 取代）
+
+新口径见 [0002](0002-response-contract.md)：内核在 create 后写入私有失败标记，ok 用合成 getter 保护，协议转换走 parse，有效状态走客户端 statusOf；字段处置按该决策的 R2a/R3 表执行。
 
 ## D6 可预期的失败抛 `DiomanResponse`，bug 原样抛出
 

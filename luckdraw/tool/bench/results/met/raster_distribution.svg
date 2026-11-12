@@ -1,0 +1,370 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="620" viewBox="0 0 1100 620">
+<rect width="1100" height="620" fill="white"/>
+<g font-family="sans-serif" fill="#17202a">
+<text x="50" y="28" font-size="20">Saved 60Hz windows: Raster distribution (MET, 2026-11-10)</text>
+<text x="50" y="54">Blue: scenario; orange: reference square; dashed red: 15.5ms; bins: 1ms</text>
+<text x="50" y="88" font-size="17">Average Raster — 130 independent windows</text>
+<rect x="70" y="220.0" width="45" height="0.0" fill="#e1e8ee"/>
+<text x="84" y="238" font-size="11">0</text>
+<rect x="120" y="220.0" width="45" height="0.0" fill="#e1e8ee"/>
+<text x="134" y="238" font-size="11">1</text>
+<rect x="170" y="192.5" width="45" height="27.5" fill="#e1e8ee"/>
+<text x="184" y="238" font-size="11">2</text>
+<text x="184" y="186.5" font-size="11">11</text>
+<rect x="220" y="187.5" width="45" height="32.5" fill="#e1e8ee"/>
+<text x="234" y="238" font-size="11">3</text>
+<text x="234" y="181.5" font-size="11">13</text>
+<rect x="270" y="125.0" width="45" height="95.0" fill="#e1e8ee"/>
+<text x="284" y="238" font-size="11">4</text>
+<text x="284" y="119.0" font-size="11">38</text>
+<rect x="320" y="147.5" width="45" height="72.5" fill="#e1e8ee"/>
+<text x="334" y="238" font-size="11">5</text>
+<text x="334" y="141.5" font-size="11">29</text>
+<rect x="370" y="190.0" width="45" height="30.0" fill="#e1e8ee"/>
+<text x="384" y="238" font-size="11">6</text>
+<text x="384" y="184.0" font-size="11">12</text>
+<rect x="420" y="212.5" width="45" height="7.5" fill="#e1e8ee"/>
+<text x="434" y="238" font-size="11">7</text>
+<text x="434" y="206.5" font-size="11">3</text>
+<rect x="470" y="220.0" width="45" height="0.0" fill="#e1e8ee"/>
+<text x="484" y="238" font-size="11">8</text>
+<rect x="520" y="217.5" width="45" height="2.5" fill="#e1e8ee"/>
+<text x="534" y="238" font-size="11">9</text>
+<text x="534" y="211.5" font-size="11">1</text>
+<rect x="570" y="220.0" width="45" height="0.0" fill="#e1e8ee"/>
+<text x="584" y="238" font-size="11">10</text>
+<rect x="620" y="215.0" width="45" height="5.0" fill="#e1e8ee"/>
+<text x="634" y="238" font-size="11">11</text>
+<text x="634" y="209.0" font-size="11">2</text>
+<rect x="670" y="217.5" width="45" height="2.5" fill="#e1e8ee"/>
+<text x="684" y="238" font-size="11">12</text>
+<text x="684" y="211.5" font-size="11">1</text>
+<rect x="720" y="215.0" width="45" height="5.0" fill="#e1e8ee"/>
+<text x="734" y="238" font-size="11">13</text>
+<text x="734" y="209.0" font-size="11">2</text>
+<rect x="770" y="220.0" width="45" height="0.0" fill="#e1e8ee"/>
+<text x="784" y="238" font-size="11">14</text>
+<rect x="820" y="220.0" width="45" height="0.0" fill="#e1e8ee"/>
+<text x="834" y="238" font-size="11">15</text>
+<rect x="870" y="175.0" width="45" height="45.0" fill="#e1e8ee"/>
+<text x="884" y="238" font-size="11">16</text>
+<text x="884" y="169.0" font-size="11">18</text>
+<rect x="920" y="220.0" width="45" height="0.0" fill="#e1e8ee"/>
+<text x="934" y="238" font-size="11">17</text>
+<rect x="970" y="220.0" width="45" height="0.0" fill="#e1e8ee"/>
+<text x="984" y="238" font-size="11">18</text>
+<line x1="70" x2="1020" y1="220" y2="220" stroke="#333"/>
+<text x="980" y="255">ms</text>
+<circle cx="192.373" cy="265" r="2.5" fill="#db7600"><title>tool/bench/results/bench_20261110_180650/lots_2/lots_shaking_reference_1794308933597372.timeline_summary.json: 2.447468ms</title></circle>
+<circle cx="193.315" cy="270" r="2.5" fill="#db7600"><title>tool/bench/results/bench_20261110_180650/wheel_4/wheel_steady_reference_1794305667616945.timeline_summary.json: 2.466299ms</title></circle>
+<circle cx="198.789" cy="275" r="2.5" fill="#db7600"><title>tool/bench/results/perf_ablation/wheel_no_text_1/wheel_steady_reference_1794313086663358.timeline_summary.json: 2.575781ms</title></circle>
+<circle cx="200.620" cy="280" r="2.5" fill="#db7600"><title>tool/bench/results/perf_ablation/wheel_raster_2/wheel_steady_reference_1794312714447022.timeline_summary.json: 2.612402ms</title></circle>
+<circle cx="205.602" cy="285" r="2.5" fill="#db7600"><title>tool/bench/results/ab_experiment/B3/wheel_steady_reference_1794318645468846.timeline_summary.json: 2.712040ms</title></circle>
+<circle cx="205.779" cy="290" r="2.5" fill="#db7600"><title>tool/bench/results/bench_20261110_180650/slot_3/slot_raster_reference_1794306659957714.timeline_summary.json: 2.715585ms</title></circle>
+<circle cx="206.683" cy="265" r="2.5" fill="#1263a0"><title>tool/bench/results/bench_20261110_180650/slot_3/slot_raster_1794306659957714.timeline_summary.json: 2.733651ms</title></circle>
+<circle cx="206.813" cy="270" r="2.5" fill="#db7600"><title>tool/bench/results/perf_after/wheel_default_1/wheel_steady_reference_1794313406972146.timeline_summary.json: 2.736256ms</title></circle>
+<circle cx="208.407" cy="275" r="2.5" fill="#1263a0"><title>tool/bench/results/bench_20261110_180650/slot_1/slot_raster_1794306159431550.timeline_summary.json: 2.768136ms</title></circle>
+<circle cx="211.446" cy="280" r="2.5" fill="#db7600"><title>tool/bench/results/bench_20261110_180650/slot_4/slot_raster_reference_1794306825736505.timeline_summary.json: 2.828914ms</title></circle>
+<circle cx="217.486" cy="285" r="2.5" fill="#1263a0"><title>tool/bench/results/perf_after/number_wheel_spin_3/number_wheel_spin_1794313785579170.timeline_summary.json: 2.949711ms</title></circle>
+<circle cx="220.100" cy="290" r="2.5" fill="#1263a0"><title>tool/bench/results/perf_after/number_wheel_spin_2/number_wheel_spin_1794313710151659.timeline_summary.json: 3.001990ms</title></circle>
+<circle cx="224.156" cy="265" r="2.5" fill="#1263a0"><title>tool/bench/results/bench_20261110_180650/lots_3/lots_shaking_1794309094772711.timeline_summary.json: 3.083113ms</title></circle>
+<circle cx="241.686" cy="270" r="2.5" fill="#1263a0"><title>tool/bench/results/perf_after/grid_steady_2/grid_steady_1794314716054046.timeline_summary.json: 3.433728ms</title></circle>
+<circle cx="242.026" cy="275" r="2.5" fill="#1263a0"><title>tool/bench/results/bench_20261110_180650/slot_1/slot_steady_1794306159431550.timeline_summary.json: 3.440528ms</title></circle>
+<circle cx="242.782" cy="280" r="2.5" fill="#1263a0"><title>tool/bench/results/bench_20261110_180650/slot_4/slot_steady_1794306825736505.timeline_summary.json: 3.455635ms</title></circle>
+<circle cx="243.188" cy="285" r="2.5" fill="#1263a0"><title>tool/bench/results/perf_ablation/wheel_no_text_1/wheel_steady_1794313086663358.timeline_summary.json: 3.463761ms</title></circle>
+<circle cx="244.647" cy="290" r="2.5" fill="#1263a0"><title>tool/bench/results/bench_20261110_180650/lever_2/lever_steady_1794307088000701.timeline_summary.json: 3.492934ms</title></circle>
+<circle cx="247.918" cy="265" r="2.5" fill="#1263a0"><title>tool/bench/results/bench_20261110_180650/grid_3/grid_steady_1794305983682447.timeline_summary.json: 3.558352ms</title></circle>
+<circle cx="253.508" cy="270" r="2.5" fill="#1263a0"><title>tool/bench/results/perf_after/capsule_mixing_4/capsule_mixing_1794314342104240.timeline_summary.json: 3.670159ms</title></circle>
+<circle cx="255.683" cy="275" r="2.5" fill="#1263a0"><title>tool/bench/results/bench_20261110_180650/lever_1/lever_steady_1794306971906081.timeline_summary.json: 3.713658ms</title></circle>
+<circle cx="259.240" cy="280" r="2.5" fill="#1263a0"><title>tool/bench/results/bench_20261110_180650/lever_3/lever_steady_1794307182571397.timeline_summary.json: 3.784791ms</title></circle>
+<circle cx="260.415" cy="285" r="2.5" fill="#1263a0"><title>tool/bench/results/perf_after/capsule_mixing_2/capsule_mixing_1794313932872435.timeline_summary.json: 3.808296ms</title></circle>
+<circle cx="269.803" cy="290" r="2.5" fill="#1263a0"><title>tool/bench/results/perf_after/capsule_mixing_1/capsule_mixing_1794313856923256.timeline_summary.json: 3.996053ms</title></circle>
+<circle cx="274.900" cy="265" r="2.5" fill="#db7600"><title>tool/bench/results/ab_experiment/skia_compare/S3/wheel_steady_reference_1794320002742381.timeline_summary.json: 4.097990ms</title></circle>
+<circle cx="284.241" cy="270" r="2.5" fill="#db7600"><title>tool/bench/results/bench_20261110_180650/slot_1/slot_steady_reference_1794306159431550.timeline_summary.json: 4.284811ms</title></circle>
+<circle cx="284.425" cy="275" r="2.5" fill="#1263a0"><title>tool/bench/results/ab_experiment/skia_compare/S2/wheel_steady_1794319742323060.timeline_summary.json: 4.288505ms</title></circle>
+<circle cx="286.301" cy="280" r="2.5" fill="#db7600"><title>tool/bench/results/bench_20261110_180650/grid_1/grid_steady_reference_1794305776155025.timeline_summary.json: 4.326020ms</title></circle>
+<circle cx="286.314" cy="285" r="2.5" fill="#db7600"><title>tool/bench/results/ab_experiment/skia_compare/S1/wheel_steady_reference_1794319481306794.timeline_summary.json: 4.326279ms</title></circle>
+<circle cx="288.060" cy="290" r="2.5" fill="#db7600"><title>tool/bench/results/bench_20261110_180650/number_wheel_4/number_wheel_spin_reference_1794308364525262.timeline_summary.json: 4.361199ms</title></circle>
+<circle cx="288.618" cy="265" r="2.5" fill="#db7600"><title>tool/bench/results/bench_20261110_180650/lever_1/lever_steady_reference_1794306971906081.timeline_summary.json: 4.372362ms</title></circle>
+<circle cx="290.618" cy="270" r="2.5" fill="#db7600"><title>tool/bench/results/perf_after/lotto_draw_1/lotto_draw_reference_1794314421829493.timeline_summary.json: 4.412355ms</title></circle>
+<circle cx="291.366" cy="275" r="2.5" fill="#db7600"><title>tool/bench/results/perf_after/grid_steady_2/grid_steady_reference_1794314716054046.timeline_summary.json: 4.427322ms</title></circle>
+<circle cx="294.470" cy="280" r="2.5" fill="#db7600"><title>tool/bench/results/bench_20261110_180650/lotto_1/lotto_draw_reference_1794309329997426.timeline_summary.json: 4.489409ms</title></circle>
+<circle cx="297.966" cy="285" r="2.5" fill="#db7600"><title>tool/bench/results/bench_20261110_180650/capsule_2/capsule_mixing_reference_1794307482879570.timeline_summary.json: 4.559322ms</title></circle>
+<circle cx="299.059" cy="290" r="2.5" fill="#db7600"><title>tool/bench/results/ab_experiment/skia_compare/S2/wheel_steady_reference_1794319742323060.timeline_summary.json: 4.581173ms</title></circle>
+<circle cx="300.256" cy="265" r="2.5" fill="#db7600"><title>tool/bench/results/ab_experiment/C3/wheel_steady_reference_1794318836384152.timeline_summary.json: 4.605126ms</title></circle>
+<circle cx="300.293" cy="270" r="2.5" fill="#db7600"><title>tool/bench/results/bench_20261110_180650/lots_3/lots_shaking_reference_1794309094772711.timeline_summary.json: 4.605854ms</title></circle>
+<circle cx="300.887" cy="275" r="2.5" fill="#1263a0"><title>tool/bench/results/perf_after/lotto_draw_3/lotto_draw_1794314571366953.timeline_summary.json: 4.617741ms</title></circle>
+<circle cx="302.221" cy="280" r="2.5" fill="#db7600"><title>tool/bench/results/bench_20261110_180650/lotto_2/lotto_draw_reference_1794309404767165.timeline_summary.json: 4.644415ms</title></circle>
+<circle cx="305.133" cy="285" r="2.5" fill="#db7600"><title>tool/bench/results/ab_experiment/skia_compare/I3/wheel_steady_reference_1794320135284961.timeline_summary.json: 4.702669ms</title></circle>
+<circle cx="305.351" cy="290" r="2.5" fill="#1263a0"><title>tool/bench/results/bench_20261110_180650/lots_2/lots_shaking_1794308933597372.timeline_summary.json: 4.707027ms</title></circle>
+<circle cx="306.272" cy="265" r="2.5" fill="#db7600"><title>tool/bench/results/ab_experiment/C2/wheel_steady_reference_1794318375940604.timeline_summary.json: 4.725439ms</title></circle>
+<circle cx="306.329" cy="270" r="2.5" fill="#1263a0"><title>tool/bench/results/ab_experiment/skia_compare/S1/wheel_steady_1794319481306794.timeline_summary.json: 4.726588ms</title></circle>
+<circle cx="306.440" cy="275" r="2.5" fill="#db7600"><title>tool/bench/results/perf_ablation/wheel_no_images_1/wheel_steady_reference_1794313161872611.timeline_summary.json: 4.728804ms</title></circle>
+<circle cx="307.357" cy="280" r="2.5" fill="#db7600"><title>tool/bench/results/perf_after/capsule_mixing_1/capsule_mixing_reference_1794313856923256.timeline_summary.json: 4.747146ms</title></circle>
+<circle cx="308.128" cy="285" r="2.5" fill="#db7600"><title>tool/bench/results/ab_experiment/skia_compare/I1/wheel_steady_reference_1794319612227772.timeline_summary.json: 4.762558ms</title></circle>
+<circle cx="309.464" cy="290" r="2.5" fill="#1263a0"><title>tool/bench/results/perf_ablation/wheel_no_images_1/wheel_steady_1794313161872611.timeline_summary.json: 4.789286ms</title></circle>
+<circle cx="310.760" cy="265" r="2.5" fill="#db7600"><title>tool/bench/results/bench_20261110_180650/wheel_3/wheel_steady_reference_1794305572288023.timeline_summary.json: 4.815209ms</title></circle>
+<circle cx="311.485" cy="270" r="2.5" fill="#db7600"><title>tool/bench/results/perf_ablation/wheel_picture_1/wheel_steady_reference_1794312864115392.timeline_summary.json: 4.829698ms</title></circle>
+<circle cx="313.604" cy="275" r="2.5" fill="#db7600"><title>tool/bench/results/ab_experiment/A3/wheel_steady_reference_1794318510944013.timeline_summary.json: 4.872086ms</title></circle>
+<circle cx="316.885" cy="280" r="2.5" fill="#db7600"><title>tool/bench/results/perf_after/grid_steady_3/grid_steady_reference_1794314791537683.timeline_summary.json: 4.937708ms</title></circle>
+<circle cx="317.189" cy="285" r="2.5" fill="#db7600"><title>tool/bench/results/bench_20261110_180650/slot_1/slot_raster_reference_1794306159431550.timeline_summary.json: 4.943787ms</title></circle>
+<circle cx="317.368" cy="290" r="2.5" fill="#1263a0"><title>tool/bench/results/perf_after/wheel_default_1/wheel_steady_1794313406972146.timeline_summary.json: 4.947369ms</title></circle>
+<circle cx="317.388" cy="265" r="2.5" fill="#db7600"><title>tool/bench/results/bench_20261110_180650/grid_3/grid_steady_reference_1794305983682447.timeline_summary.json: 4.947764ms</title></circle>
+<circle cx="317.849" cy="270" r="2.5" fill="#db7600"><title>tool/bench/results/bench_20261110_180650/lever_3/lever_steady_reference_1794307182571397.timeline_summary.json: 4.956970ms</title></circle>
+<circle cx="318.060" cy="275" r="2.5" fill="#db7600"><title>tool/bench/results/perf_after/grid_steady_1/grid_steady_reference_1794314642091899.timeline_summary.json: 4.961196ms</title></circle>
+<circle cx="318.341" cy="280" r="2.5" fill="#db7600"><title>tool/bench/results/perf_after/lotto_draw_2/lotto_draw_reference_1794314496989620.timeline_summary.json: 4.966811ms</title></circle>
+<circle cx="318.394" cy="285" r="2.5" fill="#db7600"><title>tool/bench/results/bench_20261110_180650/wheel_1/wheel_steady_reference_1794305396820500.timeline_summary.json: 4.967877ms</title></circle>
+<circle cx="318.445" cy="290" r="2.5" fill="#1263a0"><title>tool/bench/results/perf_ablation/wheel_raster_2/wheel_steady_1794312714447022.timeline_summary.json: 4.968890ms</title></circle>
+<circle cx="319.081" cy="265" r="2.5" fill="#db7600"><title>tool/bench/results/ab_experiment/C1/wheel_steady_reference_1794317579433547.timeline_summary.json: 4.981618ms</title></circle>
+<circle cx="319.308" cy="270" r="2.5" fill="#db7600"><title>tool/bench/results/perf_after/wheel_default_2/wheel_steady_reference_1794313485209525.timeline_summary.json: 4.986163ms</title></circle>
+<circle cx="320.004" cy="275" r="2.5" fill="#db7600"><title>tool/bench/results/bench_20261110_180650/number_wheel_1/number_wheel_spin_reference_1794307935246425.timeline_summary.json: 5.000080ms</title></circle>
+<circle cx="320.132" cy="280" r="2.5" fill="#db7600"><title>tool/bench/results/bench_20261110_180650/capsule_1/capsule_mixing_reference_1794307338918934.timeline_summary.json: 5.002645ms</title></circle>
+<circle cx="320.135" cy="285" r="2.5" fill="#1263a0"><title>tool/bench/results/perf_ablation/wheel_picture_1/wheel_steady_1794312864115392.timeline_summary.json: 5.002705ms</title></circle>
+<circle cx="320.426" cy="290" r="2.5" fill="#db7600"><title>tool/bench/results/perf_after/number_wheel_spin_1/number_wheel_spin_reference_1794313634381578.timeline_summary.json: 5.008515ms</title></circle>
+<circle cx="321.030" cy="265" r="2.5" fill="#db7600"><title>tool/bench/results/perf_after/lotto_draw_3/lotto_draw_reference_1794314571366953.timeline_summary.json: 5.020598ms</title></circle>
+<circle cx="321.263" cy="270" r="2.5" fill="#db7600"><title>tool/bench/results/perf_after/wheel_default_3/wheel_steady_reference_1794313560628439.timeline_summary.json: 5.025259ms</title></circle>
+<circle cx="321.515" cy="275" r="2.5" fill="#db7600"><title>tool/bench/results/bench_20261110_180650/capsule_3/capsule_mixing_reference_1794307751074775.timeline_summary.json: 5.030306ms</title></circle>
+<circle cx="321.526" cy="280" r="2.5" fill="#1263a0"><title>tool/bench/results/perf_after/lotto_draw_1/lotto_draw_1794314421829493.timeline_summary.json: 5.030516ms</title></circle>
+<circle cx="322.442" cy="285" r="2.5" fill="#db7600"><title>tool/bench/results/perf_after/number_wheel_spin_2/number_wheel_spin_reference_1794313710151659.timeline_summary.json: 5.048834ms</title></circle>
+<circle cx="323.077" cy="290" r="2.5" fill="#db7600"><title>tool/bench/results/ab_experiment/B1/wheel_steady_reference_1794317443730982.timeline_summary.json: 5.061545ms</title></circle>
+<circle cx="323.146" cy="265" r="2.5" fill="#db7600"><title>tool/bench/results/perf_after/capsule_mixing_2/capsule_mixing_reference_1794313932872435.timeline_summary.json: 5.062924ms</title></circle>
+<circle cx="323.877" cy="270" r="2.5" fill="#db7600"><title>tool/bench/results/bench_20261110_180650/lever_2/lever_steady_reference_1794307088000701.timeline_summary.json: 5.077542ms</title></circle>
+<circle cx="326.490" cy="275" r="2.5" fill="#db7600"><title>tool/bench/results/ab_experiment/A2/wheel_steady_reference_1794317714016543.timeline_summary.json: 5.129801ms</title></circle>
+<circle cx="326.707" cy="280" r="2.5" fill="#1263a0"><title>tool/bench/results/ab_experiment/skia_compare/I3/wheel_steady_1794320135284961.timeline_summary.json: 5.134146ms</title></circle>
+<circle cx="326.817" cy="285" r="2.5" fill="#db7600"><title>tool/bench/results/perf_after/number_wheel_spin_3/number_wheel_spin_reference_1794313785579170.timeline_summary.json: 5.136344ms</title></circle>
+<circle cx="326.914" cy="290" r="2.5" fill="#1263a0"><title>tool/bench/results/ab_experiment/skia_compare/I2/wheel_steady_1794319872704160.timeline_summary.json: 5.138282ms</title></circle>
+<circle cx="329.683" cy="265" r="2.5" fill="#db7600"><title>tool/bench/results/ab_experiment/B2_retry1/wheel_steady_reference_1794318240377721.timeline_summary.json: 5.193651ms</title></circle>
+<circle cx="329.786" cy="270" r="2.5" fill="#db7600"><title>tool/bench/results/ab_experiment/A1/wheel_steady_reference_1794317307523105.timeline_summary.json: 5.195718ms</title></circle>
+<circle cx="331.905" cy="275" r="2.5" fill="#1263a0"><title>tool/bench/results/perf_ablation/wheel_raster_3/wheel_steady_1794312788194243.timeline_summary.json: 5.238103ms</title></circle>
+<circle cx="332.326" cy="280" r="2.5" fill="#1263a0"><title>tool/bench/results/ab_experiment/skia_compare/I1/wheel_steady_1794319612227772.timeline_summary.json: 5.246525ms</title></circle>
+<circle cx="332.595" cy="285" r="2.5" fill="#1263a0"><title>tool/bench/results/perf_after/wheel_default_2/wheel_steady_1794313485209525.timeline_summary.json: 5.251907ms</title></circle>
+<circle cx="336.647" cy="290" r="2.5" fill="#db7600"><title>tool/bench/results/perf_after/capsule_mixing_4/capsule_mixing_reference_1794314342104240.timeline_summary.json: 5.332944ms</title></circle>
+<circle cx="339.839" cy="265" r="2.5" fill="#db7600"><title>tool/bench/results/ab_experiment/skia_compare/I2/wheel_steady_reference_1794319872704160.timeline_summary.json: 5.396774ms</title></circle>
+<circle cx="340.950" cy="270" r="2.5" fill="#1263a0"><title>tool/bench/results/bench_20261110_180650/grid_2/grid_steady_1794305881436541.timeline_summary.json: 5.419003ms</title></circle>
+<circle cx="342.758" cy="275" r="2.5" fill="#db7600"><title>tool/bench/results/bench_20261110_180650/number_wheel_2/number_wheel_spin_reference_1794308053039094.timeline_summary.json: 5.455169ms</title></circle>
+<circle cx="344.316" cy="280" r="2.5" fill="#1263a0"><title>tool/bench/results/perf_ablation/wheel_raster_1/wheel_steady_1794312634478011.timeline_summary.json: 5.486319ms</title></circle>
+<circle cx="344.988" cy="285" r="2.5" fill="#1263a0"><title>tool/bench/results/perf_after/grid_steady_1/grid_steady_1794314642091899.timeline_summary.json: 5.499757ms</title></circle>
+<circle cx="367.217" cy="290" r="2.5" fill="#1263a0"><title>tool/bench/results/bench_20261110_180650/lotto_2/lotto_draw_1794309404767165.timeline_summary.json: 5.944339ms</title></circle>
+<circle cx="369.905" cy="265" r="2.5" fill="#1263a0"><title>tool/bench/results/bench_20261110_180650/capsule_2/capsule_mixing_1794307482879570.timeline_summary.json: 5.998109ms</title></circle>
+<circle cx="370.451" cy="270" r="2.5" fill="#1263a0"><title>tool/bench/results/bench_20261110_180650/capsule_3/capsule_mixing_1794307751074775.timeline_summary.json: 6.009023ms</title></circle>
+<circle cx="374.483" cy="275" r="2.5" fill="#1263a0"><title>tool/bench/results/perf_after/grid_steady_3/grid_steady_1794314791537683.timeline_summary.json: 6.089664ms</title></circle>
+<circle cx="374.507" cy="280" r="2.5" fill="#1263a0"><title>tool/bench/results/bench_20261110_180650/lotto_1/lotto_draw_1794309329997426.timeline_summary.json: 6.090131ms</title></circle>
+<circle cx="376.318" cy="285" r="2.5" fill="#1263a0"><title>tool/bench/results/bench_20261110_180650/lotto_3/lotto_draw_1794309488538708.timeline_summary.json: 6.126352ms</title></circle>
+<circle cx="378.354" cy="290" r="2.5" fill="#1263a0"><title>tool/bench/results/bench_20261110_180650/capsule_1/capsule_mixing_1794307338918934.timeline_summary.json: 6.167073ms</title></circle>
+<circle cx="378.375" cy="265" r="2.5" fill="#1263a0"><title>tool/bench/results/bench_20261110_180650/slot_4/slot_raster_1794306825736505.timeline_summary.json: 6.167505ms</title></circle>
+<circle cx="378.698" cy="270" r="2.5" fill="#1263a0"><title>tool/bench/results/bench_20261110_180650/grid_1/grid_steady_1794305776155025.timeline_summary.json: 6.173957ms</title></circle>
+<circle cx="386.259" cy="275" r="2.5" fill="#1263a0"><title>tool/bench/results/ab_experiment/B2_retry1/wheel_steady_1794318240377721.timeline_summary.json: 6.325189ms</title></circle>
+<circle cx="394.059" cy="280" r="2.5" fill="#1263a0"><title>tool/bench/results/ab_experiment/C1/wheel_steady_1794317579433547.timeline_summary.json: 6.481176ms</title></circle>
+<circle cx="405.602" cy="285" r="2.5" fill="#1263a0"><title>tool/bench/results/ab_experiment/B3/wheel_steady_1794318645468846.timeline_summary.json: 6.712047ms</title></circle>
+<circle cx="405.771" cy="290" r="2.5" fill="#1263a0"><title>tool/bench/results/ab_experiment/A3/wheel_steady_1794318510944013.timeline_summary.json: 6.715429ms</title></circle>
+<circle cx="416.005" cy="265" r="2.5" fill="#1263a0"><title>tool/bench/results/ab_experiment/A1/wheel_steady_1794317307523105.timeline_summary.json: 6.920096ms</title></circle>
+<circle cx="440.047" cy="270" r="2.5" fill="#1263a0"><title>tool/bench/results/bench_20261110_180650/number_wheel_1/number_wheel_spin_1794307935246425.timeline_summary.json: 7.400947ms</title></circle>
+<circle cx="446.549" cy="275" r="2.5" fill="#db7600"><title>tool/bench/results/bench_20261110_180650/grid_2/grid_steady_reference_1794305881436541.timeline_summary.json: 7.530973ms</title></circle>
+<circle cx="464.967" cy="280" r="2.5" fill="#1263a0"><title>tool/bench/results/bench_20261110_180650/number_wheel_2/number_wheel_spin_1794308053039094.timeline_summary.json: 7.899330ms</title></circle>
+<circle cx="525.321" cy="285" r="2.5" fill="#1263a0"><title>tool/bench/results/bench_20261110_180650/slot_3/slot_steady_1794306659957714.timeline_summary.json: 9.106427ms</title></circle>
+<circle cx="623.935" cy="290" r="2.5" fill="#1263a0"><title>tool/bench/results/bench_20261110_180650/wheel_4/wheel_steady_1794305667616945.timeline_summary.json: 11.078690ms</title></circle>
+<circle cx="626.225" cy="265" r="2.5" fill="#1263a0"><title>tool/bench/results/ab_experiment/A2/wheel_steady_1794317714016543.timeline_summary.json: 11.124503ms</title></circle>
+<circle cx="673.561" cy="270" r="2.5" fill="#1263a0"><title>tool/bench/results/perf_ablation/wheel_picture_3/wheel_steady_1794313011385089.timeline_summary.json: 12.071226ms</title></circle>
+<circle cx="753.770" cy="275" r="2.5" fill="#1263a0"><title>tool/bench/results/perf_ablation/wheel_picture_2/wheel_steady_1794312938177742.timeline_summary.json: 13.675403ms</title></circle>
+<circle cx="764.961" cy="280" r="2.5" fill="#1263a0"><title>tool/bench/results/ab_experiment/C3/wheel_steady_1794318836384152.timeline_summary.json: 13.899220ms</title></circle>
+<circle cx="892.019" cy="285" r="2.5" fill="#1263a0"><title>tool/bench/results/perf_after/lotto_draw_2/lotto_draw_1794314496989620.timeline_summary.json: 16.440377ms</title></circle>
+<circle cx="892.452" cy="290" r="2.5" fill="#1263a0"><title>tool/bench/results/bench_20261110_180650/wheel_1/wheel_steady_1794305396820500.timeline_summary.json: 16.449040ms</title></circle>
+<circle cx="893.918" cy="265" r="2.5" fill="#db7600"><title>tool/bench/results/bench_20261110_180650/slot_4/slot_steady_reference_1794306825736505.timeline_summary.json: 16.478355ms</title></circle>
+<circle cx="899.467" cy="270" r="2.5" fill="#1263a0"><title>tool/bench/results/bench_20261110_180650/number_wheel_4/number_wheel_spin_1794308364525262.timeline_summary.json: 16.589342ms</title></circle>
+<circle cx="901.390" cy="275" r="2.5" fill="#1263a0"><title>tool/bench/results/ab_experiment/skia_compare/S3/wheel_steady_1794320002742381.timeline_summary.json: 16.627807ms</title></circle>
+<circle cx="904.613" cy="280" r="2.5" fill="#db7600"><title>tool/bench/results/bench_20261110_180650/slot_3/slot_steady_reference_1794306659957714.timeline_summary.json: 16.692259ms</title></circle>
+<circle cx="905.168" cy="285" r="2.5" fill="#db7600"><title>tool/bench/results/bench_20261110_180650/lotto_3/lotto_draw_reference_1794309488538708.timeline_summary.json: 16.703369ms</title></circle>
+<circle cx="906.666" cy="290" r="2.5" fill="#1263a0"><title>tool/bench/results/ab_experiment/C2/wheel_steady_1794318375940604.timeline_summary.json: 16.733329ms</title></circle>
+<circle cx="906.705" cy="265" r="2.5" fill="#db7600"><title>tool/bench/results/perf_ablation/wheel_picture_2/wheel_steady_reference_1794312938177742.timeline_summary.json: 16.734100ms</title></circle>
+<circle cx="907.203" cy="270" r="2.5" fill="#1263a0"><title>tool/bench/results/perf_after/wheel_default_3/wheel_steady_1794313560628439.timeline_summary.json: 16.744056ms</title></circle>
+<circle cx="907.465" cy="275" r="2.5" fill="#1263a0"><title>tool/bench/results/bench_20261110_180650/lots_4/lots_shaking_1794309197830176.timeline_summary.json: 16.749292ms</title></circle>
+<circle cx="907.499" cy="280" r="2.5" fill="#db7600"><title>tool/bench/results/perf_ablation/wheel_raster_3/wheel_steady_reference_1794312788194243.timeline_summary.json: 16.749977ms</title></circle>
+<circle cx="907.599" cy="285" r="2.5" fill="#db7600"><title>tool/bench/results/perf_ablation/wheel_picture_3/wheel_steady_reference_1794313011385089.timeline_summary.json: 16.751970ms</title></circle>
+<circle cx="908.434" cy="290" r="2.5" fill="#1263a0"><title>tool/bench/results/perf_after/number_wheel_spin_1/number_wheel_spin_1794313634381578.timeline_summary.json: 16.768671ms</title></circle>
+<circle cx="909.366" cy="265" r="2.5" fill="#1263a0"><title>tool/bench/results/bench_20261110_180650/wheel_3/wheel_steady_1794305572288023.timeline_summary.json: 16.787326ms</title></circle>
+<circle cx="909.889" cy="270" r="2.5" fill="#db7600"><title>tool/bench/results/bench_20261110_180650/lots_4/lots_shaking_reference_1794309197830176.timeline_summary.json: 16.797774ms</title></circle>
+<circle cx="912.517" cy="275" r="2.5" fill="#1263a0"><title>tool/bench/results/ab_experiment/B1/wheel_steady_1794317443730982.timeline_summary.json: 16.850332ms</title></circle>
+<circle cx="913.337" cy="280" r="2.5" fill="#db7600"><title>tool/bench/results/perf_ablation/wheel_raster_1/wheel_steady_reference_1794312634478011.timeline_summary.json: 16.866743ms</title></circle>
+<line x1="845.0" x2="845.0" y1="95" y2="300" stroke="#bd2020" stroke-dasharray="5 4"/>
+<text x="50" y="338" font-size="17">P90 Raster — 130 independent windows</text>
+<rect x="70" y="470.0" width="45" height="0.0" fill="#e1e8ee"/>
+<text x="84" y="488" font-size="11">0</text>
+<rect x="120" y="470.0" width="45" height="0.0" fill="#e1e8ee"/>
+<text x="134" y="488" font-size="11">1</text>
+<rect x="170" y="465.0" width="45" height="5.0" fill="#e1e8ee"/>
+<text x="184" y="488" font-size="11">2</text>
+<text x="184" y="459.0" font-size="11">2</text>
+<rect x="220" y="432.5" width="45" height="37.5" fill="#e1e8ee"/>
+<text x="234" y="488" font-size="11">3</text>
+<text x="234" y="426.5" font-size="11">15</text>
+<rect x="270" y="452.5" width="45" height="17.5" fill="#e1e8ee"/>
+<text x="284" y="488" font-size="11">4</text>
+<text x="284" y="446.5" font-size="11">7</text>
+<rect x="320" y="417.5" width="45" height="52.5" fill="#e1e8ee"/>
+<text x="334" y="488" font-size="11">5</text>
+<text x="334" y="411.5" font-size="11">21</text>
+<rect x="370" y="350.0" width="45" height="120.0" fill="#e1e8ee"/>
+<text x="384" y="488" font-size="11">6</text>
+<text x="384" y="344.0" font-size="11">48</text>
+<rect x="420" y="455.0" width="45" height="15.0" fill="#e1e8ee"/>
+<text x="434" y="488" font-size="11">7</text>
+<text x="434" y="449.0" font-size="11">6</text>
+<rect x="470" y="455.0" width="45" height="15.0" fill="#e1e8ee"/>
+<text x="484" y="488" font-size="11">8</text>
+<text x="484" y="449.0" font-size="11">6</text>
+<rect x="520" y="470.0" width="45" height="0.0" fill="#e1e8ee"/>
+<text x="534" y="488" font-size="11">9</text>
+<rect x="570" y="470.0" width="45" height="0.0" fill="#e1e8ee"/>
+<text x="584" y="488" font-size="11">10</text>
+<rect x="620" y="470.0" width="45" height="0.0" fill="#e1e8ee"/>
+<text x="634" y="488" font-size="11">11</text>
+<rect x="670" y="470.0" width="45" height="0.0" fill="#e1e8ee"/>
+<text x="684" y="488" font-size="11">12</text>
+<rect x="720" y="470.0" width="45" height="0.0" fill="#e1e8ee"/>
+<text x="734" y="488" font-size="11">13</text>
+<rect x="770" y="470.0" width="45" height="0.0" fill="#e1e8ee"/>
+<text x="784" y="488" font-size="11">14</text>
+<rect x="820" y="470.0" width="45" height="0.0" fill="#e1e8ee"/>
+<text x="834" y="488" font-size="11">15</text>
+<rect x="870" y="462.5" width="45" height="7.5" fill="#e1e8ee"/>
+<text x="884" y="488" font-size="11">16</text>
+<text x="884" y="456.5" font-size="11">3</text>
+<rect x="920" y="415.0" width="45" height="55.0" fill="#e1e8ee"/>
+<text x="934" y="488" font-size="11">17</text>
+<text x="934" y="409.0" font-size="11">22</text>
+<rect x="970" y="470.0" width="45" height="0.0" fill="#e1e8ee"/>
+<text x="984" y="488" font-size="11">18</text>
+<line x1="70" x2="1020" y1="470" y2="470" stroke="#333"/>
+<text x="980" y="505">ms</text>
+<circle cx="216.550" cy="515" r="2.5" fill="#db7600"><title>tool/bench/results/perf_ablation/wheel_raster_2/wheel_steady_reference_1794312714447022.timeline_summary.json: 2.931000ms</title></circle>
+<circle cx="217.200" cy="520" r="2.5" fill="#db7600"><title>tool/bench/results/bench_20261110_180650/lots_2/lots_shaking_reference_1794308933597372.timeline_summary.json: 2.944000ms</title></circle>
+<circle cx="221.450" cy="525" r="2.5" fill="#db7600"><title>tool/bench/results/ab_experiment/B3/wheel_steady_reference_1794318645468846.timeline_summary.json: 3.029000ms</title></circle>
+<circle cx="222.800" cy="530" r="2.5" fill="#1263a0"><title>tool/bench/results/bench_20261110_180650/slot_3/slot_raster_1794306659957714.timeline_summary.json: 3.056000ms</title></circle>
+<circle cx="223.350" cy="535" r="2.5" fill="#db7600"><title>tool/bench/results/bench_20261110_180650/slot_3/slot_raster_reference_1794306659957714.timeline_summary.json: 3.067000ms</title></circle>
+<circle cx="223.350" cy="540" r="2.5" fill="#db7600"><title>tool/bench/results/bench_20261110_180650/wheel_4/wheel_steady_reference_1794305667616945.timeline_summary.json: 3.067000ms</title></circle>
+<circle cx="224.100" cy="515" r="2.5" fill="#db7600"><title>tool/bench/results/perf_ablation/wheel_no_text_1/wheel_steady_reference_1794313086663358.timeline_summary.json: 3.082000ms</title></circle>
+<circle cx="226.200" cy="520" r="2.5" fill="#db7600"><title>tool/bench/results/perf_after/wheel_default_1/wheel_steady_reference_1794313406972146.timeline_summary.json: 3.124000ms</title></circle>
+<circle cx="227.350" cy="525" r="2.5" fill="#db7600"><title>tool/bench/results/bench_20261110_180650/slot_4/slot_raster_reference_1794306825736505.timeline_summary.json: 3.147000ms</title></circle>
+<circle cx="228.150" cy="530" r="2.5" fill="#1263a0"><title>tool/bench/results/bench_20261110_180650/slot_1/slot_raster_1794306159431550.timeline_summary.json: 3.163000ms</title></circle>
+<circle cx="235.150" cy="535" r="2.5" fill="#1263a0"><title>tool/bench/results/perf_after/number_wheel_spin_3/number_wheel_spin_1794313785579170.timeline_summary.json: 3.303000ms</title></circle>
+<circle cx="239.500" cy="540" r="2.5" fill="#1263a0"><title>tool/bench/results/perf_after/number_wheel_spin_2/number_wheel_spin_1794313710151659.timeline_summary.json: 3.390000ms</title></circle>
+<circle cx="246.600" cy="515" r="2.5" fill="#1263a0"><title>tool/bench/results/bench_20261110_180650/lots_3/lots_shaking_1794309094772711.timeline_summary.json: 3.532000ms</title></circle>
+<circle cx="261.600" cy="520" r="2.5" fill="#1263a0"><title>tool/bench/results/bench_20261110_180650/slot_4/slot_steady_1794306825736505.timeline_summary.json: 3.832000ms</title></circle>
+<circle cx="264.650" cy="525" r="2.5" fill="#1263a0"><title>tool/bench/results/perf_after/grid_steady_2/grid_steady_1794314716054046.timeline_summary.json: 3.893000ms</title></circle>
+<circle cx="266.050" cy="530" r="2.5" fill="#1263a0"><title>tool/bench/results/bench_20261110_180650/lever_2/lever_steady_1794307088000701.timeline_summary.json: 3.921000ms</title></circle>
+<circle cx="267.050" cy="535" r="2.5" fill="#1263a0"><title>tool/bench/results/perf_ablation/wheel_no_text_1/wheel_steady_1794313086663358.timeline_summary.json: 3.941000ms</title></circle>
+<circle cx="272.200" cy="540" r="2.5" fill="#1263a0"><title>tool/bench/results/bench_20261110_180650/grid_3/grid_steady_1794305983682447.timeline_summary.json: 4.044000ms</title></circle>
+<circle cx="274.200" cy="515" r="2.5" fill="#1263a0"><title>tool/bench/results/bench_20261110_180650/slot_1/slot_steady_1794306159431550.timeline_summary.json: 4.084000ms</title></circle>
+<circle cx="280.850" cy="520" r="2.5" fill="#1263a0"><title>tool/bench/results/bench_20261110_180650/lever_1/lever_steady_1794306971906081.timeline_summary.json: 4.217000ms</title></circle>
+<circle cx="283.850" cy="525" r="2.5" fill="#1263a0"><title>tool/bench/results/perf_after/capsule_mixing_4/capsule_mixing_1794314342104240.timeline_summary.json: 4.277000ms</title></circle>
+<circle cx="285.700" cy="530" r="2.5" fill="#1263a0"><title>tool/bench/results/perf_after/capsule_mixing_1/capsule_mixing_1794313856923256.timeline_summary.json: 4.314000ms</title></circle>
+<circle cx="292.400" cy="535" r="2.5" fill="#1263a0"><title>tool/bench/results/bench_20261110_180650/lever_3/lever_steady_1794307182571397.timeline_summary.json: 4.448000ms</title></circle>
+<circle cx="296.100" cy="540" r="2.5" fill="#1263a0"><title>tool/bench/results/perf_after/capsule_mixing_2/capsule_mixing_1794313932872435.timeline_summary.json: 4.522000ms</title></circle>
+<circle cx="320.900" cy="515" r="2.5" fill="#1263a0"><title>tool/bench/results/perf_after/lotto_draw_3/lotto_draw_1794314571366953.timeline_summary.json: 5.018000ms</title></circle>
+<circle cx="327.500" cy="520" r="2.5" fill="#1263a0"><title>tool/bench/results/perf_ablation/wheel_no_images_1/wheel_steady_1794313161872611.timeline_summary.json: 5.150000ms</title></circle>
+<circle cx="328.850" cy="525" r="2.5" fill="#db7600"><title>tool/bench/results/bench_20261110_180650/slot_1/slot_steady_reference_1794306159431550.timeline_summary.json: 5.177000ms</title></circle>
+<circle cx="333.550" cy="530" r="2.5" fill="#db7600"><title>tool/bench/results/perf_after/lotto_draw_1/lotto_draw_reference_1794314421829493.timeline_summary.json: 5.271000ms</title></circle>
+<circle cx="343.450" cy="535" r="2.5" fill="#db7600"><title>tool/bench/results/ab_experiment/skia_compare/S3/wheel_steady_reference_1794320002742381.timeline_summary.json: 5.469000ms</title></circle>
+<circle cx="344.550" cy="540" r="2.5" fill="#db7600"><title>tool/bench/results/ab_experiment/skia_compare/S1/wheel_steady_reference_1794319481306794.timeline_summary.json: 5.491000ms</title></circle>
+<circle cx="344.850" cy="515" r="2.5" fill="#db7600"><title>tool/bench/results/perf_after/grid_steady_2/grid_steady_reference_1794314716054046.timeline_summary.json: 5.497000ms</title></circle>
+<circle cx="347.150" cy="520" r="2.5" fill="#db7600"><title>tool/bench/results/bench_20261110_180650/lever_1/lever_steady_reference_1794306971906081.timeline_summary.json: 5.543000ms</title></circle>
+<circle cx="347.550" cy="525" r="2.5" fill="#db7600"><title>tool/bench/results/bench_20261110_180650/number_wheel_4/number_wheel_spin_reference_1794308364525262.timeline_summary.json: 5.551000ms</title></circle>
+<circle cx="350.150" cy="530" r="2.5" fill="#1263a0"><title>tool/bench/results/perf_ablation/wheel_picture_1/wheel_steady_1794312864115392.timeline_summary.json: 5.603000ms</title></circle>
+<circle cx="353.700" cy="535" r="2.5" fill="#db7600"><title>tool/bench/results/ab_experiment/skia_compare/S2/wheel_steady_reference_1794319742323060.timeline_summary.json: 5.674000ms</title></circle>
+<circle cx="354.400" cy="540" r="2.5" fill="#db7600"><title>tool/bench/results/bench_20261110_180650/capsule_2/capsule_mixing_reference_1794307482879570.timeline_summary.json: 5.688000ms</title></circle>
+<circle cx="359.850" cy="515" r="2.5" fill="#db7600"><title>tool/bench/results/ab_experiment/C3/wheel_steady_reference_1794318836384152.timeline_summary.json: 5.797000ms</title></circle>
+<circle cx="361.650" cy="520" r="2.5" fill="#db7600"><title>tool/bench/results/bench_20261110_180650/lots_3/lots_shaking_reference_1794309094772711.timeline_summary.json: 5.833000ms</title></circle>
+<circle cx="361.800" cy="525" r="2.5" fill="#db7600"><title>tool/bench/results/ab_experiment/C2/wheel_steady_reference_1794318375940604.timeline_summary.json: 5.836000ms</title></circle>
+<circle cx="362.150" cy="530" r="2.5" fill="#1263a0"><title>tool/bench/results/ab_experiment/skia_compare/S2/wheel_steady_1794319742323060.timeline_summary.json: 5.843000ms</title></circle>
+<circle cx="363.950" cy="535" r="2.5" fill="#db7600"><title>tool/bench/results/ab_experiment/skia_compare/I3/wheel_steady_reference_1794320135284961.timeline_summary.json: 5.879000ms</title></circle>
+<circle cx="365.000" cy="540" r="2.5" fill="#db7600"><title>tool/bench/results/perf_after/capsule_mixing_1/capsule_mixing_reference_1794313856923256.timeline_summary.json: 5.900000ms</title></circle>
+<circle cx="367.900" cy="515" r="2.5" fill="#1263a0"><title>tool/bench/results/perf_after/lotto_draw_1/lotto_draw_1794314421829493.timeline_summary.json: 5.958000ms</title></circle>
+<circle cx="368.700" cy="520" r="2.5" fill="#db7600"><title>tool/bench/results/bench_20261110_180650/slot_1/slot_raster_reference_1794306159431550.timeline_summary.json: 5.974000ms</title></circle>
+<circle cx="369.950" cy="525" r="2.5" fill="#db7600"><title>tool/bench/results/perf_after/number_wheel_spin_2/number_wheel_spin_reference_1794313710151659.timeline_summary.json: 5.999000ms</title></circle>
+<circle cx="371.800" cy="530" r="2.5" fill="#db7600"><title>tool/bench/results/bench_20261110_180650/wheel_3/wheel_steady_reference_1794305572288023.timeline_summary.json: 6.036000ms</title></circle>
+<circle cx="372.500" cy="535" r="2.5" fill="#db7600"><title>tool/bench/results/bench_20261110_180650/grid_1/grid_steady_reference_1794305776155025.timeline_summary.json: 6.050000ms</title></circle>
+<circle cx="375.300" cy="540" r="2.5" fill="#db7600"><title>tool/bench/results/bench_20261110_180650/lotto_1/lotto_draw_reference_1794309329997426.timeline_summary.json: 6.106000ms</title></circle>
+<circle cx="375.350" cy="515" r="2.5" fill="#db7600"><title>tool/bench/results/perf_after/grid_steady_1/grid_steady_reference_1794314642091899.timeline_summary.json: 6.107000ms</title></circle>
+<circle cx="376.050" cy="520" r="2.5" fill="#db7600"><title>tool/bench/results/perf_after/lotto_draw_2/lotto_draw_reference_1794314496989620.timeline_summary.json: 6.121000ms</title></circle>
+<circle cx="376.400" cy="525" r="2.5" fill="#1263a0"><title>tool/bench/results/bench_20261110_180650/lots_2/lots_shaking_1794308933597372.timeline_summary.json: 6.128000ms</title></circle>
+<circle cx="376.850" cy="530" r="2.5" fill="#db7600"><title>tool/bench/results/ab_experiment/B2_retry1/wheel_steady_reference_1794318240377721.timeline_summary.json: 6.137000ms</title></circle>
+<circle cx="377.200" cy="535" r="2.5" fill="#1263a0"><title>tool/bench/results/ab_experiment/skia_compare/S1/wheel_steady_1794319481306794.timeline_summary.json: 6.144000ms</title></circle>
+<circle cx="378.850" cy="540" r="2.5" fill="#db7600"><title>tool/bench/results/perf_after/number_wheel_spin_3/number_wheel_spin_reference_1794313785579170.timeline_summary.json: 6.177000ms</title></circle>
+<circle cx="379.550" cy="515" r="2.5" fill="#db7600"><title>tool/bench/results/perf_after/wheel_default_2/wheel_steady_reference_1794313485209525.timeline_summary.json: 6.191000ms</title></circle>
+<circle cx="379.750" cy="520" r="2.5" fill="#1263a0"><title>tool/bench/results/ab_experiment/skia_compare/I3/wheel_steady_1794320135284961.timeline_summary.json: 6.195000ms</title></circle>
+<circle cx="380.500" cy="525" r="2.5" fill="#db7600"><title>tool/bench/results/ab_experiment/A3/wheel_steady_reference_1794318510944013.timeline_summary.json: 6.210000ms</title></circle>
+<circle cx="381.850" cy="530" r="2.5" fill="#db7600"><title>tool/bench/results/perf_ablation/wheel_no_images_1/wheel_steady_reference_1794313161872611.timeline_summary.json: 6.237000ms</title></circle>
+<circle cx="382.250" cy="535" r="2.5" fill="#db7600"><title>tool/bench/results/bench_20261110_180650/lotto_2/lotto_draw_reference_1794309404767165.timeline_summary.json: 6.245000ms</title></circle>
+<circle cx="383.050" cy="540" r="2.5" fill="#db7600"><title>tool/bench/results/perf_ablation/wheel_picture_1/wheel_steady_reference_1794312864115392.timeline_summary.json: 6.261000ms</title></circle>
+<circle cx="384.050" cy="515" r="2.5" fill="#db7600"><title>tool/bench/results/perf_after/grid_steady_3/grid_steady_reference_1794314791537683.timeline_summary.json: 6.281000ms</title></circle>
+<circle cx="385.850" cy="520" r="2.5" fill="#db7600"><title>tool/bench/results/bench_20261110_180650/number_wheel_1/number_wheel_spin_reference_1794307935246425.timeline_summary.json: 6.317000ms</title></circle>
+<circle cx="385.900" cy="525" r="2.5" fill="#db7600"><title>tool/bench/results/perf_after/wheel_default_3/wheel_steady_reference_1794313560628439.timeline_summary.json: 6.318000ms</title></circle>
+<circle cx="387.850" cy="530" r="2.5" fill="#db7600"><title>tool/bench/results/perf_after/capsule_mixing_2/capsule_mixing_reference_1794313932872435.timeline_summary.json: 6.357000ms</title></circle>
+<circle cx="387.900" cy="535" r="2.5" fill="#db7600"><title>tool/bench/results/perf_after/number_wheel_spin_1/number_wheel_spin_reference_1794313634381578.timeline_summary.json: 6.358000ms</title></circle>
+<circle cx="388.500" cy="540" r="2.5" fill="#db7600"><title>tool/bench/results/ab_experiment/C1/wheel_steady_reference_1794317579433547.timeline_summary.json: 6.370000ms</title></circle>
+<circle cx="389.200" cy="515" r="2.5" fill="#db7600"><title>tool/bench/results/ab_experiment/skia_compare/I2/wheel_steady_reference_1794319872704160.timeline_summary.json: 6.384000ms</title></circle>
+<circle cx="390.750" cy="520" r="2.5" fill="#1263a0"><title>tool/bench/results/bench_20261110_180650/lotto_2/lotto_draw_1794309404767165.timeline_summary.json: 6.415000ms</title></circle>
+<circle cx="391.950" cy="525" r="2.5" fill="#1263a0"><title>tool/bench/results/bench_20261110_180650/lotto_1/lotto_draw_1794309329997426.timeline_summary.json: 6.439000ms</title></circle>
+<circle cx="392.200" cy="530" r="2.5" fill="#db7600"><title>tool/bench/results/perf_after/lotto_draw_3/lotto_draw_reference_1794314571366953.timeline_summary.json: 6.444000ms</title></circle>
+<circle cx="392.200" cy="535" r="2.5" fill="#db7600"><title>tool/bench/results/ab_experiment/B1/wheel_steady_reference_1794317443730982.timeline_summary.json: 6.444000ms</title></circle>
+<circle cx="393.400" cy="540" r="2.5" fill="#db7600"><title>tool/bench/results/ab_experiment/A1/wheel_steady_reference_1794317307523105.timeline_summary.json: 6.468000ms</title></circle>
+<circle cx="393.450" cy="515" r="2.5" fill="#db7600"><title>tool/bench/results/perf_after/capsule_mixing_4/capsule_mixing_reference_1794314342104240.timeline_summary.json: 6.469000ms</title></circle>
+<circle cx="394.200" cy="520" r="2.5" fill="#db7600"><title>tool/bench/results/ab_experiment/skia_compare/I1/wheel_steady_reference_1794319612227772.timeline_summary.json: 6.484000ms</title></circle>
+<circle cx="394.850" cy="525" r="2.5" fill="#db7600"><title>tool/bench/results/bench_20261110_180650/wheel_1/wheel_steady_reference_1794305396820500.timeline_summary.json: 6.497000ms</title></circle>
+<circle cx="395.300" cy="530" r="2.5" fill="#1263a0"><title>tool/bench/results/perf_ablation/wheel_raster_3/wheel_steady_1794312788194243.timeline_summary.json: 6.506000ms</title></circle>
+<circle cx="396.550" cy="535" r="2.5" fill="#db7600"><title>tool/bench/results/bench_20261110_180650/lever_2/lever_steady_reference_1794307088000701.timeline_summary.json: 6.531000ms</title></circle>
+<circle cx="397.850" cy="540" r="2.5" fill="#1263a0"><title>tool/bench/results/perf_after/grid_steady_1/grid_steady_1794314642091899.timeline_summary.json: 6.557000ms</title></circle>
+<circle cx="398.250" cy="515" r="2.5" fill="#1263a0"><title>tool/bench/results/ab_experiment/skia_compare/I2/wheel_steady_1794319872704160.timeline_summary.json: 6.565000ms</title></circle>
+<circle cx="398.550" cy="520" r="2.5" fill="#1263a0"><title>tool/bench/results/perf_ablation/wheel_raster_2/wheel_steady_1794312714447022.timeline_summary.json: 6.571000ms</title></circle>
+<circle cx="399.900" cy="525" r="2.5" fill="#1263a0"><title>tool/bench/results/ab_experiment/skia_compare/I1/wheel_steady_1794319612227772.timeline_summary.json: 6.598000ms</title></circle>
+<circle cx="399.950" cy="530" r="2.5" fill="#db7600"><title>tool/bench/results/bench_20261110_180650/number_wheel_2/number_wheel_spin_reference_1794308053039094.timeline_summary.json: 6.599000ms</title></circle>
+<circle cx="400.600" cy="535" r="2.5" fill="#db7600"><title>tool/bench/results/bench_20261110_180650/lever_3/lever_steady_reference_1794307182571397.timeline_summary.json: 6.612000ms</title></circle>
+<circle cx="401.950" cy="540" r="2.5" fill="#db7600"><title>tool/bench/results/bench_20261110_180650/capsule_1/capsule_mixing_reference_1794307338918934.timeline_summary.json: 6.639000ms</title></circle>
+<circle cx="402.550" cy="515" r="2.5" fill="#db7600"><title>tool/bench/results/bench_20261110_180650/capsule_3/capsule_mixing_reference_1794307751074775.timeline_summary.json: 6.651000ms</title></circle>
+<circle cx="403.250" cy="520" r="2.5" fill="#db7600"><title>tool/bench/results/ab_experiment/A2/wheel_steady_reference_1794317714016543.timeline_summary.json: 6.665000ms</title></circle>
+<circle cx="403.550" cy="525" r="2.5" fill="#db7600"><title>tool/bench/results/bench_20261110_180650/grid_3/grid_steady_reference_1794305983682447.timeline_summary.json: 6.671000ms</title></circle>
+<circle cx="405.350" cy="530" r="2.5" fill="#1263a0"><title>tool/bench/results/perf_after/wheel_default_2/wheel_steady_1794313485209525.timeline_summary.json: 6.707000ms</title></circle>
+<circle cx="407.550" cy="535" r="2.5" fill="#1263a0"><title>tool/bench/results/bench_20261110_180650/capsule_3/capsule_mixing_1794307751074775.timeline_summary.json: 6.751000ms</title></circle>
+<circle cx="409.350" cy="540" r="2.5" fill="#1263a0"><title>tool/bench/results/perf_ablation/wheel_raster_1/wheel_steady_1794312634478011.timeline_summary.json: 6.787000ms</title></circle>
+<circle cx="409.450" cy="515" r="2.5" fill="#1263a0"><title>tool/bench/results/perf_after/wheel_default_1/wheel_steady_1794313406972146.timeline_summary.json: 6.789000ms</title></circle>
+<circle cx="411.000" cy="520" r="2.5" fill="#1263a0"><title>tool/bench/results/bench_20261110_180650/capsule_2/capsule_mixing_1794307482879570.timeline_summary.json: 6.820000ms</title></circle>
+<circle cx="411.650" cy="525" r="2.5" fill="#1263a0"><title>tool/bench/results/bench_20261110_180650/lotto_3/lotto_draw_1794309488538708.timeline_summary.json: 6.833000ms</title></circle>
+<circle cx="423.650" cy="530" r="2.5" fill="#1263a0"><title>tool/bench/results/bench_20261110_180650/slot_4/slot_raster_1794306825736505.timeline_summary.json: 7.073000ms</title></circle>
+<circle cx="430.000" cy="535" r="2.5" fill="#1263a0"><title>tool/bench/results/bench_20261110_180650/grid_2/grid_steady_1794305881436541.timeline_summary.json: 7.200000ms</title></circle>
+<circle cx="436.600" cy="540" r="2.5" fill="#1263a0"><title>tool/bench/results/bench_20261110_180650/capsule_1/capsule_mixing_1794307338918934.timeline_summary.json: 7.332000ms</title></circle>
+<circle cx="438.500" cy="515" r="2.5" fill="#1263a0"><title>tool/bench/results/bench_20261110_180650/grid_1/grid_steady_1794305776155025.timeline_summary.json: 7.370000ms</title></circle>
+<circle cx="449.150" cy="520" r="2.5" fill="#1263a0"><title>tool/bench/results/perf_after/grid_steady_3/grid_steady_1794314791537683.timeline_summary.json: 7.583000ms</title></circle>
+<circle cx="458.300" cy="525" r="2.5" fill="#1263a0"><title>tool/bench/results/ab_experiment/A3/wheel_steady_1794318510944013.timeline_summary.json: 7.766000ms</title></circle>
+<circle cx="474.550" cy="530" r="2.5" fill="#1263a0"><title>tool/bench/results/ab_experiment/A1/wheel_steady_1794317307523105.timeline_summary.json: 8.091000ms</title></circle>
+<circle cx="475.750" cy="535" r="2.5" fill="#1263a0"><title>tool/bench/results/ab_experiment/B3/wheel_steady_1794318645468846.timeline_summary.json: 8.115000ms</title></circle>
+<circle cx="481.250" cy="540" r="2.5" fill="#1263a0"><title>tool/bench/results/ab_experiment/B2_retry1/wheel_steady_1794318240377721.timeline_summary.json: 8.225000ms</title></circle>
+<circle cx="489.650" cy="515" r="2.5" fill="#1263a0"><title>tool/bench/results/ab_experiment/C1/wheel_steady_1794317579433547.timeline_summary.json: 8.393000ms</title></circle>
+<circle cx="505.750" cy="520" r="2.5" fill="#1263a0"><title>tool/bench/results/bench_20261110_180650/number_wheel_1/number_wheel_spin_1794307935246425.timeline_summary.json: 8.715000ms</title></circle>
+<circle cx="512.400" cy="525" r="2.5" fill="#1263a0"><title>tool/bench/results/bench_20261110_180650/number_wheel_2/number_wheel_spin_1794308053039094.timeline_summary.json: 8.848000ms</title></circle>
+<circle cx="894.500" cy="530" r="2.5" fill="#db7600"><title>tool/bench/results/bench_20261110_180650/grid_2/grid_steady_reference_1794305881436541.timeline_summary.json: 16.490000ms</title></circle>
+<circle cx="913.100" cy="535" r="2.5" fill="#1263a0"><title>tool/bench/results/bench_20261110_180650/slot_3/slot_steady_1794306659957714.timeline_summary.json: 16.862000ms</title></circle>
+<circle cx="914.850" cy="540" r="2.5" fill="#1263a0"><title>tool/bench/results/bench_20261110_180650/wheel_4/wheel_steady_1794305667616945.timeline_summary.json: 16.897000ms</title></circle>
+<circle cx="925.650" cy="515" r="2.5" fill="#1263a0"><title>tool/bench/results/ab_experiment/A2/wheel_steady_1794317714016543.timeline_summary.json: 17.113000ms</title></circle>
+<circle cx="935.300" cy="520" r="2.5" fill="#1263a0"><title>tool/bench/results/perf_ablation/wheel_picture_3/wheel_steady_1794313011385089.timeline_summary.json: 17.306000ms</title></circle>
+<circle cx="936.300" cy="525" r="2.5" fill="#1263a0"><title>tool/bench/results/perf_ablation/wheel_picture_2/wheel_steady_1794312938177742.timeline_summary.json: 17.326000ms</title></circle>
+<circle cx="936.700" cy="530" r="2.5" fill="#1263a0"><title>tool/bench/results/ab_experiment/C3/wheel_steady_1794318836384152.timeline_summary.json: 17.334000ms</title></circle>
+<circle cx="937.950" cy="535" r="2.5" fill="#1263a0"><title>tool/bench/results/bench_20261110_180650/number_wheel_4/number_wheel_spin_1794308364525262.timeline_summary.json: 17.359000ms</title></circle>
+<circle cx="938.600" cy="540" r="2.5" fill="#1263a0"><title>tool/bench/results/ab_experiment/B1/wheel_steady_1794317443730982.timeline_summary.json: 17.372000ms</title></circle>
+<circle cx="940.450" cy="515" r="2.5" fill="#1263a0"><title>tool/bench/results/perf_after/wheel_default_3/wheel_steady_1794313560628439.timeline_summary.json: 17.409000ms</title></circle>
+<circle cx="946.750" cy="520" r="2.5" fill="#1263a0"><title>tool/bench/results/ab_experiment/skia_compare/S3/wheel_steady_1794320002742381.timeline_summary.json: 17.535000ms</title></circle>
+<circle cx="946.800" cy="525" r="2.5" fill="#1263a0"><title>tool/bench/results/bench_20261110_180650/wheel_3/wheel_steady_1794305572288023.timeline_summary.json: 17.536000ms</title></circle>
+<circle cx="948.800" cy="530" r="2.5" fill="#1263a0"><title>tool/bench/results/bench_20261110_180650/wheel_1/wheel_steady_1794305396820500.timeline_summary.json: 17.576000ms</title></circle>
+<circle cx="949.500" cy="535" r="2.5" fill="#1263a0"><title>tool/bench/results/bench_20261110_180650/lots_4/lots_shaking_1794309197830176.timeline_summary.json: 17.590000ms</title></circle>
+<circle cx="951.100" cy="540" r="2.5" fill="#db7600"><title>tool/bench/results/perf_ablation/wheel_picture_3/wheel_steady_reference_1794313011385089.timeline_summary.json: 17.622000ms</title></circle>
+<circle cx="952.200" cy="515" r="2.5" fill="#1263a0"><title>tool/bench/results/perf_after/number_wheel_spin_1/number_wheel_spin_1794313634381578.timeline_summary.json: 17.644000ms</title></circle>
+<circle cx="952.500" cy="520" r="2.5" fill="#1263a0"><title>tool/bench/results/ab_experiment/C2/wheel_steady_1794318375940604.timeline_summary.json: 17.650000ms</title></circle>
+<circle cx="953.150" cy="525" r="2.5" fill="#db7600"><title>tool/bench/results/perf_ablation/wheel_picture_2/wheel_steady_reference_1794312938177742.timeline_summary.json: 17.663000ms</title></circle>
+<circle cx="953.250" cy="530" r="2.5" fill="#db7600"><title>tool/bench/results/bench_20261110_180650/lots_4/lots_shaking_reference_1794309197830176.timeline_summary.json: 17.665000ms</title></circle>
+<circle cx="954.300" cy="535" r="2.5" fill="#db7600"><title>tool/bench/results/bench_20261110_180650/slot_4/slot_steady_reference_1794306825736505.timeline_summary.json: 17.686000ms</title></circle>
+<circle cx="955.100" cy="540" r="2.5" fill="#db7600"><title>tool/bench/results/perf_ablation/wheel_raster_3/wheel_steady_reference_1794312788194243.timeline_summary.json: 17.702000ms</title></circle>
+<circle cx="955.650" cy="515" r="2.5" fill="#db7600"><title>tool/bench/results/bench_20261110_180650/slot_3/slot_steady_reference_1794306659957714.timeline_summary.json: 17.713000ms</title></circle>
+<circle cx="957.450" cy="520" r="2.5" fill="#db7600"><title>tool/bench/results/perf_ablation/wheel_raster_1/wheel_steady_reference_1794312634478011.timeline_summary.json: 17.749000ms</title></circle>
+<circle cx="958.500" cy="525" r="2.5" fill="#db7600"><title>tool/bench/results/bench_20261110_180650/lotto_3/lotto_draw_reference_1794309488538708.timeline_summary.json: 17.770000ms</title></circle>
+<circle cx="960.250" cy="530" r="2.5" fill="#1263a0"><title>tool/bench/results/perf_after/lotto_draw_2/lotto_draw_1794314496989620.timeline_summary.json: 17.805000ms</title></circle>
+<line x1="845.0" x2="845.0" y1="345" y2="550" stroke="#bd2020" stroke-dasharray="5 4"/>
+</g></svg>

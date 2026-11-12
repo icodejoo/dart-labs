@@ -1,0 +1,32 @@
+luckdraw
+Copyright (c) 2026 codejoo
+
+This product is a Dart/Flutter port (a derivative work) of lucky-canvas.
+
+  lucky-canvas
+  https://github.com/buuing/lucky-canvas
+  Copyright (c) 2021 Li Dong Qi (ldq)
+  Licensed under the Apache License, Version 2.0
+
+Upstream reference revision: 7a8c0bbcb992a297b390e3a2ebaa1a3385c1f2f9
+(packages/core, version 1.7.26, committed 2026-07-30).
+
+Changes made in this port:
+  - Rewritten from TypeScript/Canvas 2D to Dart/Flutter (CustomPainter + Ticker).
+  - Platform adaptation layers (WEB / UNI / TARO / MP-WX) and the Vue-style
+    observer system were removed; Flutter's widget lifecycle replaces them.
+  - Configuration models, layout geometry and animation algorithms follow the
+    upstream behaviour; the rendering and extension architecture is new.
+
+This project is NOT affiliated with, endorsed by, or maintained by the
+lucky-canvas authors.
+
+Example assets (example/assets/imgs, example/assets/official_ref):
+  The images under example/assets/imgs are the demo artwork published with the
+  upstream project's documentation site (https://100px.net, npm package
+  "buuing@0.0.3"), and example/assets/official_ref holds screenshots of that
+  site. They are included ONLY so the example app can reproduce the official
+  demos 1:1 for verification. The upstream site states these images are for
+  learning and exchange only and must not be used commercially; many imitate
+  third-party brands. They must not be reused in commercial
+  products and are not part of luckdraw's library code (lib/).

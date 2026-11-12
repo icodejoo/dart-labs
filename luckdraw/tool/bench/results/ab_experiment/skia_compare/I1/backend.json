@@ -1,0 +1,11 @@
+{
+  "requested": "impeller",
+  "impeller_enabled": true,
+  "verified": true,
+  "verified_by": "ext.ui.window.impellerEnabled",
+  "raw_response": {
+    "type": "Success",
+    "enabled": true
+  },
+  "recorded_at": "2026-11-10T14:06:02.189014Z"
+}

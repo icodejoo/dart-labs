@@ -1,0 +1,18 @@
+{
+  "name": "fin-b",
+  "args": [
+    "flutter",
+    "test",
+    "--no-pub",
+    "--concurrency=1",
+    "--coverage",
+    "--coverage-path=coverage/fin-b.lcov",
+    "--reporter=json",
+    "test/lots",
+    "test/lotto",
+    "test/number_wheel",
+    "test/parity"
+  ],
+  "exitCode": 0,
+  "elapsedSeconds": 36.541
+}

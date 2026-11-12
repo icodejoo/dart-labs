@@ -1,0 +1,13 @@
+{
+  "initial_groups_without_automatic_load_wait": [
+    1,
+    2
+  ],
+  "high_load_before_samples_without_retry": {
+    "1": 4,
+    "2": 5
+  },
+  "automatic_wait_from_baseline_group": 3,
+  "all_groups_unstable": true,
+  "used_for_performance_conclusions": false
+}

@@ -1,14 +1,50 @@
 # Changelog
 
-## Unreleased
+## 0.8.1
+
+- **Fix:** 0.8.0 was published from a working tree with unresolved merge conflict markers in `lib/` and does not compile; use 0.8.1. No API changes versus the intended 0.8.0.
+- Examples now `await api.dispose()` and demonstrate `decode` and a default `deadline`.
+
+## 0.8.0
+
+- **Dependency:** minimum `dio` raised from 5.0.0 to 5.4.0 (earlier versions lack `BaseOptions.preserveHeaderCase`, so lower-bound analysis failed).
+
+- 新增客户端与请求级 `deadline: Duration?`：以 `DiomanClock` 计时，覆盖逻辑请求的排队、重试、共享等待与完整传输；到期为 timeout/deadline，独立于 Dio 阶段超时。share 保持调用方自身预算归属，落定清理计时器；testkit 执行器声明 timeout-total 并映射原生预算。
+
+
+- **R5:** get/post/put/patch/delete/head/request/send accept an optional decode callback after successful settlement. Expected failures skip decoding; decoder exceptions bypass plugins and preserve their original stack. Share callers decode independently.
+- **Breaking (R5):** plugin instance dispose returns FutureOr<void>; client dispose returns Future<void>, waits in reverse registration order, attempts all cleanups and rethrows the first error with its original stack. Repeated calls share completion; cancellation and refusal of new requests remain synchronous without await. Without await, a cleanup failure surfaces as an unhandled async error on the returned future instead of a synchronous throw.
+- **R5:** eject keeps its bool return value while client disposal also waits for ejected async instances and reports cleanup errors; ejection after disposal starts is rejected.
+- **R5:** debug validates retry.jitter and cache.clone field types before use. Both README exhaustive failure switches retain the null branch.
+
+- **Breaking (R3/C30):** all results default to null raw/error. Use `DiomanCall(raw: true)` to attach the caller's native transport data, including headers on success. Cache hits and share followers never borrow native objects. `ctx.native` is readonly; its shared slot is cleared and sealed at settlement. Top-level errorStack is removed; internal error/errorStack move into failureOf and retain original-stack rethrows.
+- **C31:** Retry-After is extracted at the transport boundary and read through a private result field, including by share followers.
+- **C32:** memory cache stores snapshots and rebuilds hits through the same factory with the current caller's request. Persistent format and share request semantics are unchanged.
+
+- **C24**: Use a conditional IO network classifier, preserving unknown SocketException/HttpException/TlsException precision on VM and web/Wasm compatibility.
+- **Breaking — C25**: Automatic deep/fast keys include responseType; Map keys have type tags. Explicit keys/builders stay unchanged; B8 byte keys retain hash plus full base64. Existing automatic cache keys are invalidated.
+- **C26**: Internal and cancel results never enter memory or persistent cache, even when shouldStore returns true.
+- **C27**: expectJson respects explicit plain/bytes/stream response types. next() short-circuits cancellation; cancelAll(reason) and caller CancelToken preserve the first reason as a string, or null when omitted.
+- **C28**: Debug warns once per client/option key when a plugin is absent. Dioman<R> requires a create factory for every type except DiomanResponse<dynamic>, checked before plugin setup.
+- **Breaking — C29**: Retry defaults to max: 2, exponential waits from 300ms, delayMax: 10s. The idempotent method allowlist and Retry-After precedence, 60s limit, and exemption from jitter/delayMax remain unchanged.
+
+- **Breaking — C22**: Replace top-level kind/reason and DiomanKind with readonly failureOf and DiomanFailureKind. Kernel markers survive create and derivation; marked results always have ok=false. Remove httpStatus; status is HTTP only. Add statusOf, cancellation predicates and parse/DiomanParsed; remove Envelope, envelope/isEnvelope/logicalStatus and call.envelope. Missing business code is 0.
+- **Breaking — C23**: Retry/auth/breaker use effective status; mock uses HTTP status; notify formats failure markers with HTTP status and suppresses internal/cancel. Business style requires explicit client statusOf.
+- Cache persistence keeps the data/expiresAt/result layout. New result metadata stores ok and an optional failure kind/reason, with HTTP status only. Reads remain compatible with 0.7 two-field entries and B4 kind/status/httpStatus metadata.
+
+
+- **C19**: Share auth refresh and expiration state by TokenManager with explicit owner counts. Release the association on the last disposal; late refresh failures then neither clear credentials nor notify. Remaining owners handle a shared failure once.
+- **C20**: Notify missing credentials once per session, reset when a login token is observed. Share loading by callback equality across clients, track each client's occupancy, and transfer pending hide windows to new owners. Disposing a window owner completes its final false.
+- **C21**: Add `extend(dio: engine)` to retain a supplied engine's interceptors, adapter and transformer. Default extend still clones BaseOptions into a fresh Dio and omits those extensions. Passing the parent's engine shares mutable options; overrides affect both clients.
+
 
 - **Fixed**: Treat ordinary integer lists as JSON when building automatic cache/share keys; only Uint8List uses byte hashing, so out-of-range integers no longer throw and JSON lists have distinct keys from raw bytes.
 - **Fixed**: Preserve internal errors and their original stacks when cache/mock observes cancellation after the inner pipeline returns.
 
 - **Behavior change (B8)**: Auth adds plugin/call `refreshTimeout` (30s, `DiomanClock`); timeout follows refresh failure and session notification deduplication. Failed refresh after a new login continues with the new token. Refresh requests through the same client must set `DiomanAuth.option: false` for that call.
 - **Behavior change (B8)**: `retryAfterMax` defaults to 60s; larger server waits return the current result without retry. Use an explicitly very large Duration to honor practically unlimited Retry-After. No jitter or `delayMax` is applied to server waits.
-- **Behavior change (B8)**: Unsafe automatic body keys now bypass cache/share. Map/String keys remain compatible; JSON arrays use content, byte bodies up to 64 KiB use a content hash, and larger bytes/FormData/streams/opaque objects/encoding failures return null.
-- **Behavior change (B8)**: Default notify suppresses internal results; Dio decoding FormatException is parse with the available HTTP status. HTML text remains accepted by default; expectJson now rejects nonempty 2xx text regardless of MIME type.
+- **Behavior change (B8)**: Unsafe automatic body keys now bypass cache/share. R2b supersedes Map/String key compatibility; JSON arrays use content, byte bodies up to 64 KiB use a content hash, and larger bytes/FormData/streams/opaque objects/encoding failures return null.
+- **Behavior change (B8)**: Default notify suppresses internal results; Dio decoding FormatException is parse with the available HTTP status. HTML text remains accepted by default; expectJson rejects nonempty 2xx text regardless of MIME type; C27 adds explicit response type exceptions.
 - Fix share end/race participant withdrawal, cancellation before cache hits, and replay of one-shot bodies in retry/auth/mock/share retry; plugins return the current result when the body cannot be replayed.
 
 Changes since 0.7.2. See the [migration guide](docs/guides/migrating-to-pipeline.md) for plugin-by-plugin examples and the complete API replacement table.
@@ -38,9 +74,9 @@ Future<void> main() async {
         call: DiomanCall(options: {DiomanCache.option: const Duration(minutes: 1)}));
     print(data);
     final result = await api.send<dynamic>('GET', '/health');
-    print('${result.kind.name}: ${result.status} / ${result.httpStatus}');
+    print('${failureOf(result)?.kind.name}: ${result.status}, code ${result.code}');
   } on DiomanResponse catch (failure) {
-    print('${failure.kind.name}: ${failure.message}');
+    print('${failureOf(failure)?.kind.name}: ${failure.message}');
   } finally {
     api.dispose();
     api.dio.close(force: true);
@@ -80,7 +116,7 @@ Future<void> main() async {
 }
 ```
 
-- **Breaking**: Replace the exception family with `DiomanResponse.kind` and `reason` to represent expected failures consistently. Catch `DiomanResponse` around verb methods, or inspect the result of `send`; programming errors still throw with their original stack.
+- **Breaking**: Replace the exception family with `failureOf(result)?.kind` and `failureOf(result)?.reason` to represent expected failures consistently. Catch `DiomanResponse` around verb methods, or inspect the result of `send`; programming errors still throw with their original stack.
 
 Before:
 
@@ -104,7 +140,7 @@ Future<void> main() async {
     try {
       await api.get<dynamic>('/items');
     } on DiomanResponse catch (failure) {
-      print('${failure.kind}: ${failure.reason}');
+      print('${failureOf(failure)?.kind}: ${failureOf(failure)?.reason}');
     }
     final result = await api.send<dynamic>('GET', '/items');
     if (!result.ok) print(result.message);
@@ -136,7 +172,7 @@ Future<void> main() async {
   final api = Dioman(dio: Dio());
   try {
     await api.send<dynamic>('GET', '/items', call: DiomanCall(
-      key: false, silent: true, envelope: false,
+      key: false, silent: true,
       options: {DiomanRetry.option: 2},
     ));
   } finally {
@@ -146,7 +182,7 @@ Future<void> main() async {
 }
 ```
 
-- **Breaking**: Route auth failures by normalized logical status, including business 401 inside HTTP 200. Change `onFailure(store, response)` to `onFailure(result, store)` and read `result.status`; the callback may now be asynchronous. Return a `RequestPatch` from `ready` instead of mutating Dio options.
+- **Breaking**: Route auth failures by the effective status configured with client `statusOf`, including business 401 inside HTTP 200. Change `onFailure(store, response)` to `onFailure(result, store)` and read HTTP `result.status` or business `result.code`; the callback may now be asynchronous. Return a `RequestPatch` from `ready` instead of mutating Dio options.
 
 Before:
 
@@ -186,7 +222,7 @@ Future<void> main() async {
   try {
     final result = await api.send<dynamic>('GET', '/items',
         call: DiomanCall(options: {DiomanAuth.option: false}));
-    print(result.kind);
+    print(failureOf(result)?.kind);
   } finally {
     api.dispose();
     api.dio.close(force: true);
@@ -219,7 +255,7 @@ Future<void> main() async {
   try {
     final result = await api.send<dynamic>('GET', '/items',
         call: DiomanCall(options: {DiomanMock.option: true}));
-    print(result.kind);
+    print(failureOf(result)?.kind);
   } finally {
     api.dispose();
     api.dio.close(force: true);
@@ -256,7 +292,7 @@ Future<void> main() async {
   try {
     final result = await api.send<dynamic>('GET', '/items',
         call: DiomanCall(options: {DiomanNotify.option: false}));
-    print(result.kind);
+    print(failureOf(result)?.kind);
   } finally {
     api.dispose();
     api.dio.close(force: true);
@@ -266,7 +302,7 @@ Future<void> main() async {
 
 - **Breaking**: Replace before/after/requires ordering, `sort`, `validate` and anchor insertion with fixed stages and `enforce: pre/post`. This makes replay follow the same inner pipeline; move custom extensions to `setup`/`handle` and inspect the resulting order.
 - **Breaking**: Move key generation, cancellation, normalization and debug logging into the kernel so they cover every logical call. Remove the corresponding plugins; use `DiomanKeyOptions`, `cancelAll`/`pending`, `DiomanResponseFactory` and `debug` or Dio `LogInterceptor`.
-- **Breaking**: Make retry, breaker, auth and cache consume the same normalized status. Update predicates to use `status`/`ok` rather than HTTP-only checks; breaker now counts each retry attempt and an open breaker stops retries.
+- **Breaking**: Make retry, breaker and auth consume `ctx.statusOf(result)`; cache consumes `ok`. Update predicates to distinguish HTTP `status`, business `code` and `ok`; breaker now counts each retry attempt and an open breaker stops retries.
 - **Breaking**: Filter top-level NaN as well as null and blank strings to avoid sending invalid numeric values. Supply a predicate or disable filter for requests that need to retain them; zero and false remain intact.
 - **Breaking**: Remove `DiomanTokenManager.canRefresh` because auth owns refresh validity. Keep token access, token updates and clear in the store; let the auth instance decide whether another refresh is allowed.
 - **Breaking**: Propagate decision-callback errors as programming errors while isolating notification errors, so invalid policy code cannot silently change a request. Fix throwing predicates at their source; treat `onRefresh` exceptions as refresh failure.

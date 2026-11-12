@@ -1,0 +1,128 @@
+{
+  "sources": [
+    {
+      "path": "coverage\\round2-final\\acceptance-final.json",
+      "sha256": "50d2d259c1bc9aaae55f15172cfc79f6137f4064a1dea0a818a5aee9a35b4347",
+      "bytes": 10382405,
+      "planned": 6426,
+      "executed": 6426,
+      "interrupted": false,
+      "counts": {
+        "通过": 1306,
+        "不适用": 4868,
+        "缺能力": 252
+      }
+    },
+    {
+      "path": "coverage\\round2-final\\plugin-matrix-final.json",
+      "sha256": "7498aa0cabbf8ff4b568f3a148007044a2407edbf4fb3b353ab1fd558fb8c017",
+      "bytes": 526080,
+      "planned": 156,
+      "executed": 156,
+      "interrupted": false,
+      "counts": {
+        "缺能力": 16,
+        "通过": 138,
+        "不适用": 2
+      }
+    }
+  ],
+  "additional_runs": [
+    {
+      "path": "coverage\\round2-final\\acceptance-full.json",
+      "sha256": "a855831a0409e74b78cea437ab85a795971e89efb2961385fcfc7dd9fd64fd8d",
+      "planned": 6426,
+      "executed": 6426,
+      "counts": {
+        "通过": 1304,
+        "不适用": 4868,
+        "缺能力": 252,
+        "失败": 2
+      }
+    },
+    {
+      "path": "coverage\\round2-final\\retry-0.json",
+      "sha256": "dda85fd7da68f1b78d217c152d3d419dad2575dd83418e413f961530398dcc19",
+      "planned": 1,
+      "executed": 1,
+      "counts": {
+        "失败": 1
+      }
+    },
+    {
+      "path": "coverage\\round2-final\\retry-1.json",
+      "sha256": "19e7f640291fd65308cb4238cf74a0b1e8b0deffb615ab7807f58d1cf7d28b16",
+      "planned": 1,
+      "executed": 1,
+      "counts": {
+        "失败": 1
+      }
+    },
+    {
+      "path": "coverage\\round2-final\\mapping-recheck.json",
+      "sha256": "7f4aade60bc9a0d77366ae039dcce5a5760a9af0cdfab98e20efb30e45288d36",
+      "planned": 2,
+      "executed": 2,
+      "counts": {
+        "通过": 2
+      }
+    }
+  ],
+  "scenarios": 459,
+  "counts": {
+    "通过": 1306,
+    "不适用": 4868,
+    "缺能力": 252
+  },
+  "b8_counts": {
+    "通过": 1280,
+    "不适用": 4726,
+    "缺能力": 420
+  },
+  "delta": {
+    "通过": 26,
+    "缺能力": -168,
+    "不适用": 142,
+    "失败": 0
+  },
+  "skip_reasons": {
+    "不适用：场景未声明此网络或风格；不推断未定义的正确预期": 4850,
+    "skipped: missing raw-business-code": 252,
+    "不适用：lossy 对每条连接以 15% 概率注入 RST，9 个并发请求里总有请求以 network 失败，与状态码分类无关，无法确定性断言；状态码分类由 normal、weak 覆盖": 2,
+    "不适用：本场景没有重试，请求落在 flap 前 1500ms 的离线窗口内，只会得到 network，与状态码分类无关；断网恢复由 retry.flap-recovers 覆盖": 2,
+    "不适用：lossy 对每条连接以 15% 概率注入 RST，单发无重试请求可能以 network 失败，无法确定性断言状态码分类；分类由 normal、weak 覆盖": 2,
+    "不适用：本场景没有重试，请求落在 flap 前 1500ms 的离线窗口内，只会得到 network，与状态码分类无关": 2,
+    "不适用：outer notify 包含 offline 早期失败，场景按旧链路排除这次通知；需终审裁决": 2,
+    "不适用：本场景重试预算（3 次、每次 100ms 退避）短于 flap 前 1500ms 的离线窗口，首发请求落在窗口内会以 network 耗尽重试，不是重试能恢复的有效对照；flap 下的重试恢复由 retry.flap-recovers 覆盖": 6,
+    "不适用：lossy 的随机 RST 会额外消耗重试次数，而本场景只比必需的 3 次多 1 次预算，最终是否成功取决于随机决策，无法确定性断言": 2
+  },
+  "invariants": {
+    "checked_final": 1444,
+    "checked_all_runs": 2754,
+    "pending_after_violations": 0,
+    "active_cancel_tokens_violations": 0,
+    "inflight_violations": 0,
+    "loading_violations": 0
+  },
+  "methods": {
+    "单体": {
+      "缺能力": 16,
+      "通过": 18
+    },
+    "配对": {
+      "通过": 64
+    },
+    "边界": {
+      "通过": 52
+    },
+    "全量": {
+      "通过": 4,
+      "不适用": 2
+    }
+  },
+  "b8_method_counts": {
+    "缺能力": 16,
+    "通过": 138,
+    "不适用": 2
+  }
+}

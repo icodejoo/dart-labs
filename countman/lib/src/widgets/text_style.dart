@@ -120,6 +120,32 @@ class CountmanTextStyle with BoxStyleFields, TextualStyleFields, StyleProps {
     );
   }
 
+  /// 在 [a] 与 [b] 之间按 [t]（0–1）插值，用于 `ThemeExtension.lerp`。
+  ///
+  /// 数值、颜色、文字样式、内边距、装饰逐字段插值；对齐、溢出、locale 等不可插值
+  /// 字段在 `t < 0.5` 时取 [a]，否则取 [b]；任一端为空时同样按 `t < 0.5` 取一端。
+  /// 例如 `CountmanTextStyle.lerp(light, dark, 0.5)`。
+  static CountmanTextStyle? lerp(
+      CountmanTextStyle? a, CountmanTextStyle? b, double t) {
+    if (identical(a, b)) return a;
+    if (a == null || b == null) return t < 0.5 ? a : b;
+    return CountmanTextStyle(
+      textStyle: TextStyle.lerp(a.textStyle, b.textStyle, t),
+      prefixStyle: TextStyle.lerp(a.prefixStyle, b.prefixStyle, t),
+      suffixStyle: TextStyle.lerp(a.suffixStyle, b.suffixStyle, t),
+      padding: EdgeInsetsGeometry.lerp(a.padding, b.padding, t),
+      decoration: Decoration.lerp(a.decoration, b.decoration, t),
+      textAlign: pickField(a.textAlign, b.textAlign, t),
+      maxLines: pickField(a.maxLines, b.maxLines, t),
+      overflow: pickField(a.overflow, b.overflow, t),
+      softWrap: pickField(a.softWrap, b.softWrap, t),
+      strutStyle: pickField(a.strutStyle, b.strutStyle, t),
+      textScaler: pickField(a.textScaler, b.textScaler, t),
+      locale: pickField(a.locale, b.locale, t),
+      textWidthBasis: pickField(a.textWidthBasis, b.textWidthBasis, t),
+    );
+  }
+
   @override
   List<Object?> get props => [
         textStyle,

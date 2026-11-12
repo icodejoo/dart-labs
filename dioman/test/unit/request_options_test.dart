@@ -3,6 +3,8 @@ import 'package:dioman/dioman.dart';
 import 'package:dio/dio.dart';
 import 'package:test/test.dart';
 
+
+
 /// 请求补丁及统一请求选项解析的规则测试。
 void main() {
   test(
@@ -120,5 +122,13 @@ void main() {
         isFalse);
     expect(DiomanOptionKey<int>(pipelineTestXValue).description,
         pipelineTestXValue);
+  });
+
+  test('[replaceOption] 标量覆盖合并返回请求值，保留布尔选项解析协议', () {
+    expect(resolveOption<int>(2, base: 1, merge: replaceOption), 2);
+    expect(
+        resolveOption<bool>(true, base: false, merge: replaceOption), isFalse);
+    expect(
+        resolveOption<bool>(false, base: true, merge: replaceOption), isNull);
   });
 }

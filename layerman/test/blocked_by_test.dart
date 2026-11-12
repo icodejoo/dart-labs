@@ -100,6 +100,7 @@ class _Backend {
   PresentedOverlay<int> present(PresentContext<int> ctx) {
     calls++;
     return PresentedOverlay(
+        visible: Future<void>.value(),
         dismissed: done.future,
         dismiss: ([value]) async {
           dismisses++;
