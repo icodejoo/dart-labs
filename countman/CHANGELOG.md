@@ -1,3 +1,7 @@
+## 0.3.2
+
+- Docs only: rewrote README wording in plain language; Chinese README renamed to README.zh-CN.md; the online demo now uses the shared demo kit with English/Chinese switching.
+
 ## 0.3.1
 
 - Docs only: new MIGRATION section for hidden-widget sleeping and `Countman.muteWhenHidden`; README performance tips document `DialCountdown.clearTickImageCache()` and `FlipCardPainter.clearFaceImageCache()`; 0.3.0 changelog entries translated to English and re-grouped (fps, `muteWhenHidden` and the cache-clearing APIs under Added); real example README.
