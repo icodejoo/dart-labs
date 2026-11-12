@@ -16,6 +16,7 @@ you wrote your own plugin.
 | 7 | `AnimatedCounter` flat parameters replaced by `format` / `timeline` / `style` | `AnimatedCounter` users (deprecation) |
 | 8 | `CounterBuilder.builder` is nullable | code reading that field |
 | 9 | Changing the plugin no longer restarts tasks | widgets that swapped plugins |
+| 10 | Hidden widgets sleep (`TickerMode`) | code relying on callbacks while hidden |
 
 Everything marked "deprecation" still compiles and behaves as before; you get
 analyzer warnings and can migrate at your own pace.
@@ -345,6 +346,20 @@ If you relied on the restart, ask for it explicitly:
 controller.restart(); // re-reads the widget's current configuration
 ```
 
+## 10. Hidden widgets sleep
+
+Widgets now follow `TickerMode`: under `TickerMode(enabled: false)` (including
+routes Flutter mutes when they are covered) they stop delivering `onUpdate` /
+`onTick`. Completion and threshold callbacks still fire on real time, the task
+is not paused and `runState` does not change. On resume the current value shows
+immediately. A bare `Offstage` does not mute tickers; wrap the child in
+`TickerMode(enabled: !offstage)` as well. To keep the 0.2.x behaviour, set this
+before mounting widgets:
+
+```dart
+Countman.muteWhenHidden = false; // default: true
+```
+
 ---
 
 ## New in 0.3.0 you may want to adopt
@@ -353,5 +368,7 @@ controller.restart(); // re-reads the widget's current configuration
 - `ElapsedOptions.since` / `initial` / `limit`, `lap()` / `laps`
 - `controller.runState` / `runStateListenable` / `restart()`
 - `CountmanTheme`, `CountmanClock` and friends
+- `Countman.fps` (display frame cap, see the README), `Countman.muteWhenHidden`
+- `DialCountdown.clearTickImageCache()` / `FlipCardPainter.clearFaceImageCache()`
 
 See [CHANGELOG.md](CHANGELOG.md) for the complete list.

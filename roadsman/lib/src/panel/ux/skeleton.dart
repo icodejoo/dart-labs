@@ -24,6 +24,7 @@ class SkeletonContext {
   /// Foreground (dot-matrix/shimmer) color.
   final Color foreground;
 
+  /// Creates a [SkeletonContext].
   const SkeletonContext({
     required this.panelWidth,
     required this.panelHeight,
@@ -98,6 +99,7 @@ class _ShimmerBlockState extends State<_ShimmerBlock> with SingleTickerProviderS
 /// consumer to overlay.
 class SkeletonRenderer {
   final SkeletonAdapter adapter;
+  /// Creates a [SkeletonRenderer].
   const SkeletonRenderer(this.adapter);
 
   Widget build(SkeletonContext ctx) => adapter.build(ctx);

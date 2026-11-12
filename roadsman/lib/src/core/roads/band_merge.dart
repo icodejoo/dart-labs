@@ -20,6 +20,7 @@ class Band {
   /// Vertical translation (logical pixels), defaults to 0.
   final double dy;
 
+  /// Creates a [Band].
   const Band({required this.prefix, required this.layout, this.dx = 0, this.dy = 0});
 }
 
@@ -27,6 +28,7 @@ class Band {
 class MergedBands {
   final List<LayoutCell> cells;
   final List<DrawCommand> decorations;
+  /// Creates a [MergedBands].
   const MergedBands({required this.cells, required this.decorations});
 }
 

@@ -13,6 +13,7 @@ class CelebrationOptions {
   /// Trigger patterns; defaults to firing only on a dragon streak.
   final List<CelebrationPattern> pattern;
 
+  /// Creates a [CelebrationOptions].
   const CelebrationOptions({this.pattern = const [CelebrationPattern.dragon]});
 }
 
@@ -21,6 +22,7 @@ class CelebrationEffect {
   bool enabled;
   final CelebrationOptions options;
 
+  /// Creates a [CelebrationEffect].
   CelebrationEffect({this.enabled = true, this.options = const CelebrationOptions()});
 
   /// Toggle the effect on/off.
