@@ -1,11 +1,16 @@
 name: Deploy xvg site
 
-# xvg 走 Rust FFI，没有 web 构建；这里直接发布 xvg/site 下的纯静态展示页。
+# 静态展示页与实验性 Flutter Web wasm demo 分别部署。
 on:
   push:
     branches: [main, xvg]
     paths:
+      - 'xvg/pubspec.yaml'
       - 'xvg/site/**'
+      - 'xvg/lib/**'
+      - 'xvg/rust/**'
+      - 'xvg/example/**'
+      - 'xvg/tool/build_web.dart'
       - '.github/workflows/deploy-xvg.yml'
   workflow_dispatch:
 
@@ -15,6 +20,9 @@ permissions:
 concurrency:
   group: gh-pages
   cancel-in-progress: false
+
+env:
+  FLUTTER_VERSION: '3.47.0'
 
 jobs:
   deploy:
@@ -30,8 +38,59 @@ jobs:
           destination_dir: xvg
           keep_files: true
 
+  deploy-demo:
+    name: Deploy experimental xvg wasm demo
+    needs: deploy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly-2026-06-24
+          targets: wasm32-unknown-unknown
+      - name: Read locked wasm-bindgen version
+        id: wasm-bindgen
+        shell: bash
+        run: |
+          version=$(python3 -c 'import tomllib; print(next(p["version"] for p in tomllib.load(open("xvg/rust/Cargo.lock", "rb"))["package"] if p["name"] == "wasm-bindgen"))')
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+      - name: Cache wasm-bindgen CLI and Cargo registry
+        id: wasm-bindgen-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/wasm-bindgen*
+            ~/.cargo/registry
+          key: xvg-wasm-bindgen-${{ runner.os }}-${{ runner.arch }}-${{ steps.wasm-bindgen.outputs.version }}
+      - name: Install matching wasm-bindgen CLI
+        if: steps.wasm-bindgen-cache.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          cargo install wasm-bindgen-cli --version "${{ steps.wasm-bindgen.outputs.version }}" --locked
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+      - name: Build Rust wasm
+        working-directory: xvg
+        run: |
+          flutter pub get
+          dart run tool/build_web.dart
+      - name: Build Flutter demo
+        working-directory: xvg/example
+        run: flutter build web --release --base-href /dart-labs/xvg/demo/
+      - name: Deploy xvg/demo/ to gh-pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: xvg/example/build/web
+          destination_dir: xvg/demo
+          keep_files: true
+
   update-index:
     name: Update root index
+    # 根索引只依赖静态页；demo 失败不阻塞索引，静态页失败也可按现有页面刷新。
     needs: deploy
+    if: ${{ !cancelled() }}
     uses: ./.github/workflows/update-root-index.yml
     secrets: inherit

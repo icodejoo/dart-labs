@@ -106,6 +106,10 @@ jobs:
         working-directory: xvg
         run: flutter analyze
 
+      - name: Verify native/web bridge consistency
+        working-directory: xvg
+        run: dart run tool/generate_web_bridge.dart --check
+
       - name: dart format check
         working-directory: xvg
         # Scoped to the package's own sources. `dart format` (unlike
