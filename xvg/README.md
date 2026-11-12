@@ -714,7 +714,11 @@ and NaN assert in debug. With both instance and global null, playback is unchang
 Global null or infinity means unlimited. Changes take effect by the next pump/frame.
 
 ```dart
-// Business code can listen for low-end-device or low-memory signals and set:
+// Set the initial global value at startup...
+await Xvg.ensureInitialized(fps: 60);
+
+// ...and change it at runtime. Business code can listen for low-end-device or
+// low-memory signals and set:
 Xvg.fps.value = 10;
 
 // Freeze every animation that follows global, then restore playback.

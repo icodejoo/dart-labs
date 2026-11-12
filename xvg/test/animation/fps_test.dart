@@ -531,6 +531,31 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
+  group('Xvg.ensureInitialized(fps:)', () {
+    /// Awaits initialization, tolerating a missing native backend in unit tests.
+    /// 等待初始化完成；单测环境可能没有原生后端，失败不影响全局值断言。
+    Future<void> settle(Future<void> init) =>
+        init.then<void>((_) {}, onError: (Object _) {});
+
+    test(
+      'sets the global synchronously and keeps it on a later null call',
+      () async {
+        final first = Xvg.ensureInitialized(fps: 30);
+        expect(Xvg.fps.value, 30);
+        await settle(first);
+        await settle(Xvg.ensureInitialized());
+        expect(Xvg.fps.value, 30);
+        await settle(Xvg.ensureInitialized(fps: 60));
+        expect(Xvg.fps.value, 60);
+      },
+    );
+
+    test('rejects invalid fps', () {
+      expect(() => Xvg.ensureInitialized(fps: -1), throwsAssertionError);
+      expect(Xvg.fps.value, isNull);
+    });
+  });
+
   testWidgets('Xvg.string forwards live fps to the animated renderer', (
     tester,
   ) async {

@@ -671,7 +671,10 @@ void observe(XvgAnimationController controller) {
 实例与全局变化最迟在下一次 pump/帧生效。
 
 ```dart
-// 业务自行监听低端设备、低内存等信号，再设置全局帧率。
+// 启动时设置全局初始值……
+await Xvg.ensureInitialized(fps: 60);
+
+// ……运行时随时修改。业务自行监听低端设备、低内存等信号，再设置全局帧率。
 Xvg.fps.value = 10;
 
 // 冻结全部跟随全局的动画，再恢复播放。

@@ -67,20 +67,29 @@ class Xvg extends StatefulWidget {
 
   /// Initializes the native (Rust) rendering backend. Call once, before
   /// rendering any Xvg widget — typically in `main()` before `runApp`.
-  /// Calling it again after the first successful call is a no-op.
+  /// Calling it again after the first successful call skips backend setup.
+  ///
+  /// A non-null [fps] sets the initial global [Xvg.fps] synchronously, on every
+  /// call, even when the backend is already initialized; null leaves it
+  /// untouched. It can still be changed later through `Xvg.fps.value`.
   ///
   /// 初始化原生（Rust）渲染后端，在渲染任何 Xvg 组件前调用一次——通常放在
-  /// `main()` 里 `runApp` 之前。首次成功调用后再次调用是空操作。
+  /// `main()` 里 `runApp` 之前。首次成功调用后再次调用不会重复初始化后端。
+  ///
+  /// 非 null 的 [fps] 会同步设置全局 [Xvg.fps] 的初始值，每次调用都生效，
+  /// 即使后端已初始化；null 不改动现有值。之后仍可通过 `Xvg.fps.value` 修改。
   ///
   /// Example:
   /// ```dart
   /// void main() async {
   ///   WidgetsFlutterBinding.ensureInitialized();
-  ///   await Xvg.ensureInitialized();
+  ///   await Xvg.ensureInitialized(fps: 60);
   ///   runApp(const MyApp());
   /// }
   /// ```
-  static Future<void> ensureInitialized() {
+  static Future<void> ensureInitialized({double? fps}) {
+    assert(fps == null || fps >= 0, fpsValidationMessage);
+    if (fps != null) xvgFpsNotifier.value = fps;
     if (RustLib.instance.initialized) return Future<void>.value();
     return RustLib.init();
   }

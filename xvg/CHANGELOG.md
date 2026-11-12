@@ -2,6 +2,7 @@
 
 - **Breaking**: `maxFps` renamed to `fps`: null follows global; 0 freezes at the first frame; `double.infinity` is unlimited and ignores global.
 - Add `Xvg.fps` for live global animation frame-rate control; external `animation` drivers and static sources are unaffected.
+- `Xvg.ensureInitialized({double? fps})` sets the initial global `Xvg.fps` at startup (non-null only, applied on every call).
 
 ## 0.1.3
 
