@@ -1,23 +1,23 @@
 # countman
 
-**High-performance counter, countdown & elapsed animations for Flutter — driven by ONE shared vsync ticker, not per-widget timers. Built for high-concurrency timing.**
+**Counter, countdown and stopwatch widgets for Flutter. They all run on one shared vsync ticker instead of a timer or `AnimationController` per widget, so the cost stays low when many are on screen.**
 
-**English** · [简体中文](https://github.com/icodejoo/dart-labs/blob/main/countman/README.zh.md)
+**English** | [简体中文](README.zh-CN.md)
 
 [![pub.dev](https://img.shields.io/pub/v/countman.svg)](https://pub.dev/packages/countman)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/icodejoo/dart-labs/blob/main/countman/LICENSE)
 [![Demo](https://img.shields.io/badge/demo-live-brightgreen)](https://icodejoo.github.io/dart-labs/countman/)
 
-**[▶ Live Demo](https://icodejoo.github.io/dart-labs/countman/)** — Interactive counter, countdown, elapsed and 0.3.x scheduler examples with English/Chinese controls and light/dark themes.
+**[▶ Live Demo](https://icodejoo.github.io/dart-labs/countman/)**: counter, countdown, elapsed and 0.3.x scheduler examples, with English/Chinese switching and light/dark themes.
 
 > **Upgrading from 0.2.x?** Read the
-> [migration guide](https://github.com/icodejoo/dart-labs/blob/main/countman/MIGRATION.md) —
-> custom plugins, `CountdownOptions` and the relative/absolute clock semantics changed.
+> [migration guide](https://github.com/icodejoo/dart-labs/blob/main/countman/MIGRATION.md).
+> Custom plugins, `CountdownOptions` and the relative/absolute clock behavior changed.
 
-- ⚡ **No `Timer.periodic`, no per-widget `AnimationController`** — a single `SchedulerBinding.scheduleFrameCallback` drives everything.
-- 😴 **Sleeps between updates** — a once-per-second countdown does not render a frame per vsync; the scheduler wakes up only when something is due.
-- 🚀 **Built for high concurrency** — the 100th live counter/timer costs the same as the 1st; the ticker auto-idles when nothing is animating.
-- 🎨 Counter · Countdown · Elapsed, each with text / ring / bar / odometer / dial / flip-card renderers, per-widget styles, a `ThemeExtension`, controllers and providers.
+- **No `Timer.periodic` and no per-widget `AnimationController`.** A single `SchedulerBinding.scheduleFrameCallback` drives everything.
+- **Sleeps between updates.** A once-per-second countdown does not render a frame on every vsync; the scheduler wakes up only when a task is due.
+- **Cost does not grow with the count.** The 100th live counter or timer costs the same as the 1st, and the ticker goes idle when nothing is animating.
+- Counter, Countdown and Elapsed widgets with text / ring / bar / odometer / dial / flip-card renderers, per-widget styles, a `ThemeExtension`, controllers and providers.
 
 ---
 
@@ -31,8 +31,8 @@ pause the task or change `runState`, and never calls `onPause` / `onResume`.
 CardCountdown settles its flip immediately when hidden or shown.
 
 For a bare `Offstage`, also wrap the child in `TickerMode(enabled: !offstage)`;
-Offstage itself does not mute tickers. To retain the previous update behavior,
-set this before mounting widgets (no TickerMode subscription):
+Offstage itself does not mute tickers. To keep updating while hidden, set this
+before mounting widgets (they then do not subscribe to `TickerMode`):
 
 ```dart
 Countman.muteWhenHidden = false; // default: true
@@ -40,8 +40,8 @@ Countman.muteWhenHidden = false; // default: true
 
 ## Frame cap fps
 
-Display updates resolve `fps` from instance > plugin > `Countman.fps`.
-Null falls back; all-null follows vsync, preserving the default behavior.
+Display updates use the first non-null `fps` from instance, then plugin, then `Countman.fps`.
+If all are null, updates follow vsync (the default).
 Completion and thresholds stay on real time; the terminal value always renders.
 Invalid values (not finite and positive) assert in debug and act as null in release.
 
@@ -79,11 +79,11 @@ also reduces its actual frame rate while preserving transition duration and curv
 ## Why countman?
 
 Most counter packages give every widget its own `AnimationController` (or a
-`Timer.periodic`). With N counters on screen you pay N frame-callback
-registrations, N timers, and N separate animation lifecycles — none of them
-aware of each other.
+`Timer.periodic`). With N counters on screen, that is N frame-callback
+registrations, N timers and N animation lifecycles that know nothing about
+each other.
 
-**countman** reverses this: one `SchedulerBinding.scheduleFrameCallback` drives
+**countman** does the opposite: one `SchedulerBinding.scheduleFrameCallback` drives
 every instance. Each plugin reports **when it next needs to run**; the ticker
 renders frames while something animates, **sleeps on a single global timer**
 between updates (a one-second countdown does not wake the engine 60 times a
@@ -97,8 +97,8 @@ Countman (1 scheduleFrameCallback + 1 sleep timer)
   └── Elapsed    — stopwatch timers, wake per update
 ```
 
-Each engine is a `CountmanPlugin`; you can register more than one instance of
-each to isolate independent "groups", or write your own
+Each engine is a `CountmanPlugin`. You can register more than one instance of
+each to keep independent "groups" apart, or write your own
 ([Writing a custom plugin](#writing-a-custom-plugin)).
 
 ---
@@ -132,15 +132,15 @@ Measured at 94 concurrent `AnimatedCounter` instances (0 → 999,999,999):
 - **Build: ~2 ms** — CustomPainter path skips widget instantiation entirely.
 - **Startup spike** is spread across frames with `StartScheduler` batching.
 
-**Sleeping scheduler (0.3.0).** Every task is processed when its own value
-crosses the next `interval` boundary (or completes, or crosses a threshold). In
-between, the scheduler arms one global timer instead of asking for a frame per
-vsync, so a text countdown at the default 1 s interval only produces frames
-around each update. Animations (`Counter`, the flip of `CardCountdown`) still
-run every frame while they move unless capped with fps. `CardCountdown`'s cost is therefore dominated by
-its transition type and duration — `calendar` animates about 90 % of every
-second, `slide` / `flip` about 45 % — and a shorter `duration` lowers it
-proportionally.
+**Sleeping scheduler (0.3.0).** A task is processed only when its value
+crosses the next `interval` boundary, completes, or crosses a threshold. In
+between, the scheduler arms one global timer instead of asking for a frame on
+every vsync, so a text countdown at the default 1 s interval produces frames
+only around each update. Animations (`Counter`, the flip of `CardCountdown`)
+still run every frame while they move, unless capped with fps. For
+`CardCountdown`, the cost depends mostly on the transition type and duration:
+`calendar` animates about 90 % of every second, `slide` / `flip` about 45 %,
+and a shorter `duration` lowers the cost proportionally.
 
 ### Head-to-head vs other packages
 
@@ -165,11 +165,11 @@ resident set size. Lower is better except FPS/jank.
 | RSS  avg / peak (MB) | 130.2 / 137.3 | 130.3 / 135.4 |
 | CPU (1 core) | 26.1 % | **10.0 %** |
 
-countman drives the slide+scale+opacity transition **every vsync** (fully
-smooth, cheaper per frame), so it renders far more frames and costs more total
-CPU; `slide_countdown` repaints only during its once-per-second slide bursts —
-lower CPU, but burstier cadence and pricier frames. Both are jank-free and use
-the same memory.
+countman drives the slide+scale+opacity transition on **every vsync** (smoother,
+cheaper per frame), so it renders far more frames and uses more CPU in total.
+`slide_countdown` repaints only during its once-per-second slide bursts: lower
+CPU, but a burstier cadence and costlier frames. Neither shows jank, and memory
+use is the same.
 
 **Text mode** — countman `TextCountdown` vs [`stop_watch_timer`](https://pub.dev/packages/stop_watch_timer) `^3.2.2` (driving a `Text` via `StreamBuilder`):
 
@@ -182,10 +182,10 @@ the same memory.
 | RSS  avg / peak (MB) | 113.8 / 116.0 | 113.9 / 116.4 |
 | CPU (1 core) | **12.1 %** | 18.8 % |
 
-For plain-text countdowns the single shared ticker + `markNeedsPaint` costs
-**~35 % less CPU** than 50 independent `stop_watch_timer` streams
-(12.1 % vs 18.8 % of a core) with steadier per-frame UI time; memory is
-identical. (Measured with the 0.2.x scheduler, see the note above.)
+For plain-text countdowns, the shared ticker with `markNeedsPaint` uses
+**about 35 % less CPU** than 50 independent `stop_watch_timer` streams
+(12.1 % vs 18.8 % of a core), with steadier per-frame UI time. Memory is the
+same. (0.2.x scheduler numbers, see the note above.)
 
 > Reproduce with `example/lib/benchmark_page.dart`:
 > `flutter run --profile -d windows --dart-define=BENCH_LIB=countmanCard`
@@ -195,7 +195,7 @@ identical. (Measured with the 0.2.x scheduler, see the note above.)
 
 ## Counter
 
-Number-interpolation widgets. They animate `from → to` on the shared ticker.
+Widgets that animate a number `from → to` on the shared ticker.
 All of them accept `from` / `to` / `duration` (default 1000 ms) / `curve`
 (default `Curves.easeOut`) / `allowNegative` (default `false`, clamps to ≥ 0) /
 `plugin` / `controller` ([`CounterValueController`](#counters-controller)) plus
@@ -204,7 +204,7 @@ lifecycle callbacks `onUpdate` / `onComplete` / `onReady` / `onStart` /
 
 ### `TextCounter`
 
-Drop-in text counter with optional prefix/suffix.
+Text counter with optional prefix and suffix.
 
 ```dart
 TextCounter(to: 9999)                                        // "9999"
@@ -284,10 +284,10 @@ OdometerCounter(to: 500, bounceOvershoot: 0.35)    // spring overshoot per digit
 
 ### `AnimatedCounter`
 
-Full-featured rolling-digit counter: composable transitions, stagger, compact
-notation, decimals, digit grouping, color tinting and programmatic control.
-Backed by a persistent `CustomPainter` — zero widget builds per frame (the
-`AnimatedCounterBuilder` variant uses the widget-tree path instead).
+Rolling-digit counter with composable transitions, stagger, compact notation,
+decimals, digit grouping, color tinting and control from code. It draws with a
+persistent `CustomPainter`, so no widgets are built per frame
+(`AnimatedCounterBuilder` uses the widget-tree path instead).
 
 Configuration is grouped into three objects, each field optional:
 
@@ -393,9 +393,9 @@ final value.
 
 ### `AnimatedCounterBuilder`
 
-Same engine as `AnimatedCounter` but exposes `digitBuilder` /
-`digitTransitionBuilder` so you can render each digit with your own widget
-(always uses the widget-tree path — reserve for a handful of counters).
+Same engine as `AnimatedCounter`, plus `digitBuilder` /
+`digitTransitionBuilder` so you can render each digit with your own widget.
+It always uses the widget-tree path, so keep it for a handful of counters.
 
 ```dart
 AnimatedCounterBuilder(
@@ -406,8 +406,8 @@ AnimatedCounterBuilder(
 
 ### `CounterBuilder`
 
-Low-level driver. Exposes the raw animated `double` via `builder` — build
-anything from it. The cached `child` is passed through untouched each frame.
+Low-level driver. `builder` receives the raw animated `double`; build whatever
+you like from it. The cached `child` is passed through unchanged every frame.
 
 ```dart
 CounterBuilder(
@@ -420,8 +420,8 @@ CounterBuilder(
 ```
 
 `valueTransform` maps the value before it reaches `builder`; `onUpdate` still
-sees the raw value. `CounterBuilder.listenable` hands you a
-`ValueListenable<double>` instead and does **not** rebuild per frame — wire it
+sees the raw value. `CounterBuilder.listenable` gives you a
+`ValueListenable<double>` instead and does **not** rebuild per frame. Wire it
 to a `CustomPainter(repaint: …)` (`CountdownBuilder.listenable` does the same
 for `TimeParts`).
 
@@ -501,7 +501,7 @@ ctrl.addStatusListener(listener);
 
 ## Countdown
 
-Every countdown widget accepts `to` — a `Duration`, `DateTime`, `int` (ms since
+Every countdown widget accepts `to`: a `Duration`, `DateTime`, `int` (ms since
 epoch) **or** ISO-8601 `String`. Shared knobs: `plugin`, `precise`,
 `controller` ([`CountdownController`](#countdown-controller)), `total`,
 `rounding`, `onComplete`, `onTick`, `threshold` + `onThreshold`, and lifecycle
@@ -511,8 +511,8 @@ epoch) **or** ISO-8601 `String`. Shared knobs: `plugin`, `precise`,
 
 | `to` | Anchored on | System-time change |
 |---|---|---|
-| `Duration` (or `CountdownOptions.duration`) | monotonic clock | no effect — "5 more minutes" stays 5 minutes |
-| `DateTime` / `int` / `String` (or `CountdownOptions.deadline`) | wall clock | the countdown shifts — "ends at 20:00" stays 20:00 |
+| `Duration` (or `CountdownOptions.duration`) | monotonic clock | no effect: "5 more minutes" stays 5 minutes |
+| `DateTime` / `int` / `String` (or `CountdownOptions.deadline`) | wall clock | the countdown shifts: "ends at 20:00" stays 20:00 |
 
 Use a `Duration` for "N minutes from now" and a deadline for something tied to a
 real moment (a sale start, an auction end). Background pauses and frame drops
@@ -522,7 +522,7 @@ or `reset()`, a task continues on the monotonic clock.
 
 ### `TextCountdown`
 
-Drop-in countdown text. `const`-constructible when `to` is a `Duration`.
+Countdown text. `const`-constructible when `to` is a `Duration`.
 
 ```dart
 TextCountdown(
@@ -618,7 +618,7 @@ DialCountdown(
 ### `CardCountdown`
 
 Flip-card display; each time unit (H/M/S) is a card that animates on digit
-change. Shared Counter progress drives a single persistent `CustomPainter` —
+change. Shared Counter progress drives a single persistent `CustomPainter`, so
 digit changes never rebuild the widget tree.
 
 ```dart
@@ -692,7 +692,7 @@ configuration (for example after you changed `to` and want a fresh start).
 
 ## Elapsed
 
-Stopwatch timers — count up until cancelled, or until an optional `limit`. Same
+Stopwatch timers. They count up until cancelled or until an optional `limit`. Same
 `plugin` / `precise` / `controller` ([`ElapsedController`](#elapsed-controller)) /
 `onTick` / `threshold` + `onThreshold` / lifecycle callbacks as Countdown, plus
 `since`, `initial`, `limit` and `onComplete`.
@@ -753,8 +753,8 @@ Laps are cleared by `reset()` / `restart()` and survive a plugin change.
 
 ## Formatters
 
-`CountdownFormat` provides `String Function(TimeParts)` formatters used by
-every countdown/elapsed text widget (via `formatter:`).
+`CountdownFormat` holds ready-made `String Function(TimeParts)` formatters for
+the countdown and elapsed text widgets (pass them via `formatter:`).
 
 | Formatter | Example | Notes |
 |---|---|---|
@@ -769,7 +769,7 @@ every countdown/elapsed text widget (via `formatter:`).
 
 ### `CountdownFormat.template`
 
-For localisation and custom layouts, describe the output with tokens in braces
+For localization and custom layouts, describe the output with tokens in braces
 (case-sensitive). The pattern is parsed once when you call `template`; each tick
 only concatenates.
 
@@ -1017,7 +1017,7 @@ assertion).
 ### Batch startup (`StartScheduler`)
 
 When a dense grid of `AnimatedCounter`s starts in one frame, the cold-start cost
-can blow the frame budget. `StartScheduler` spreads starts across frames.
+can exceed the frame budget. `StartScheduler` spreads starts across frames.
 
 ```dart
 StartScheduler.instance.defaultBatchSize = 5;   // ≤ 5 starts per frame
@@ -1212,14 +1212,14 @@ you can subclass one instead of starting from scratch. `RingPainter` /
 
 ## Contributing
 
-Issues and PRs are very welcome — bug reports, feature ideas, performance
-findings, docs, and **new demos** for the [example app](https://github.com/icodejoo/dart-labs/tree/main/countman/example) (which powers
-the [live demo](https://icodejoo.github.io/dart-labs/)) all help.
+Issues and PRs are welcome: bug reports, feature ideas, performance findings,
+docs, and new demos for the [example app](https://github.com/icodejoo/dart-labs/tree/main/countman/example)
+(it powers the [live demo](https://icodejoo.github.io/dart-labs/)) all help.
 
-- 🐛 [Open an issue](https://github.com/icodejoo/dart-labs/issues)
-- 🔧 [Send a PR](https://github.com/icodejoo/dart-labs/pulls) — please run
+- [Open an issue](https://github.com/icodejoo/dart-labs/issues)
+- [Send a PR](https://github.com/icodejoo/dart-labs/pulls) — please run
   `dart analyze` and `flutter test` (from `countman/`) before submitting.
-- 🎨 Adding a demo? Drop a page under `example/lib/` and wire it into the home
+- Adding a demo? Drop a page under `example/lib/` and wire it into the home
   hub in `example/lib/main.dart`.
 
 ## License
