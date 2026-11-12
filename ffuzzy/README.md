@@ -2,30 +2,32 @@
 
 English | [中文](README.zh-CN.md)
 
-Fast fuzzy search for Flutter, powered by a compact **C** engine.
+Fuzzy search for Flutter, built on a small C engine.
 
-`ffuzzy` is a byte-for-byte reimplementation of [`nucleo`](https://github.com/helix-editor/nucleo)
-(the matcher behind the Helix editor) in portable C. No Rust toolchain, no
-codegen — the engine is a few source files that every platform's SDK compiles
-on its own. The native library is **~32 KB** stripped.
+`ffuzzy` is a byte-for-byte port of [`nucleo`](https://github.com/helix-editor/nucleo)
+(the matcher used by the Helix editor) to portable C. You don't need a Rust
+toolchain or code generation. The engine is a few C source files, and each
+platform's SDK compiles them itself. The stripped native library is about
+**32 KB**.
 
-- **Fast** — meets or beats the Rust `nucleo` engine: faster in every
-  multi-threaded configuration and on `substring` across the board, at parity on
-  CJK and single-threaded `fuzzy`. ~100k-item corpus filters in ~1.4 ms.
-- **Tiny** — ~32 KB native `.so` (arm64), pure C, zero third-party deps.
+- **Fast** — as fast as or faster than the Rust `nucleo` engine: faster in every
+  multi-threaded setup and on `substring`, equal on CJK and single-threaded
+  `fuzzy`. Filtering a 100k-item corpus takes about 1.4 ms.
+- **Small** — about 32 KB native `.so` (arm64), pure C, no third-party dependencies.
 - **All platforms** — Android, iOS, macOS, Linux, Windows and **Web** (WASM).
-- **Search any object** — `FuzzyCorpus<T>` searches a `List<T>`; hits carry the
-  original object (`hit.raw`).
-- **Match modes as methods** — `fuzzy` (fzf-style, with `! ^ ' $` operators),
-  `substring`, `prefix`, `postfix`, `exact`, plus unified `search()` with
-  `SearchStrategy` (fuzzy / approx / fallback / merge) and `dual()`.
-- **Edit-distance search** — `approx()` uses Myers bit-parallel Levenshtein;
-  tolerates typos, substitutions and transpositions (opt-in build flag).
-- **Multi-threaded** and **async** scans for large corpora without UI jank.
-- **Hit highlighting** with correct Unicode (codepoint → UTF-16) offsets.
-- **Unicode / CJK** — diacritic + full simple case folding; CJK matched directly.
-- **Multi-key search** — attach host-computed pinyin / romaji / initials so a
-  CJK item is findable by typing latin.
+- **Search any object** — `FuzzyCorpus<T>` searches a `List<T>`, and each hit
+  carries the original object (`hit.raw`).
+- **One method per match mode** — `fuzzy` (fzf-style, with `! ^ ' $` operators),
+  `substring`, `prefix`, `postfix` and `exact`. `search()` picks the algorithm
+  through `SearchStrategy` (fuzzy / approx / fallback / merge), and `dual()`
+  returns both result lists.
+- **Edit-distance search** — `approx()` uses Myers bit-parallel Levenshtein
+  distance and tolerates typos, substitutions and transpositions.
+- **Multi-threaded** and **async** scans, so large corpora don't freeze the UI.
+- **Hit highlighting** with correct Unicode offsets (codepoint to UTF-16).
+- **Unicode / CJK** — folds diacritics and simple case; CJK is matched directly.
+- **Multi-key search** — attach pinyin / romaji / initials that you compute
+  yourself, so a CJK item can be found by typing Latin letters.
 
 ## Install
 
@@ -38,13 +40,13 @@ environment:
   flutter: ">=3.24.0"
 ```
 
-> **No native platform setup required** — the C sources are compiled and bundled
-> automatically by each platform's SDK on `flutter build`.
+> **No native platform setup required.** Each platform's SDK compiles and bundles
+> the C sources during `flutter build`.
 
 ## Web support
 
 On web, `ffuzzy` uses a WASM build of the same C engine. Call `ffuzzyInit` once
-at app startup — it's a no-op on native, so it's safe to call unconditionally:
+at app startup. It does nothing on native, so you can call it unconditionally:
 
 ```dart
 void main() async {
@@ -58,27 +60,27 @@ void main() async {
 }
 ```
 
-After `ffuzzyInit` returns, the full `FuzzyCorpus` API works identically on all
-platforms.
+After `ffuzzyInit` returns, the whole `FuzzyCorpus` API behaves the same on every
+platform.
 
-> **Web note** — WASM runs synchronously on the main thread. For large corpora,
-> `asyncFuzzy` yields to the event loop via a microtask but the WASM computation
-> still runs on the main thread (no Web Worker). Keep corpora under ~50k items
-> or use `fuzzy` synchronously with `limit` to stay within a frame budget.
+> **Web note** — WASM runs synchronously on the main thread. `asyncFuzzy` yields
+> to the event loop through a microtask, but the WASM computation itself still
+> blocks the main thread (there is no Web Worker). For large corpora, keep them
+> under ~50k items, or call `fuzzy` synchronously with `limit` to stay within a
+> frame.
 
-**Lazy init (corpus created before `ffuzzyInit`):** If a `FuzzyCorpus` is
-constructed before `ffuzzyInit` completes, it operates in *deferred* mode —
-sync search methods return `[]` immediately, while `async*` methods (`asyncFuzzy`,
-`asyncSearch`, `asyncApprox`, `asyncDual`, etc.) automatically await WASM
-initialisation before executing and return real results. All strategies —
-`fuzzy`, `approx`, `fallback`, `merge`, and `dual` — behave consistently in
-both sync and async variants once WASM is ready.
+**Lazy init (corpus created before `ffuzzyInit`):** If a `FuzzyCorpus` is created
+before `ffuzzyInit` completes, it runs in *deferred* mode. Sync search methods
+return `[]` immediately, while `async*` methods (`asyncFuzzy`, `asyncSearch`,
+`asyncApprox`, `asyncDual`, etc.) wait for WASM to initialize and then return
+real results. Once WASM is ready, all strategies (`fuzzy`, `approx`, `fallback`,
+`merge` and `dual`) behave the same in sync and async variants.
 
 **Parameters:**
-- `webUrl` — CDN or self-hosted URL to `ffuzzy.mjs`. No Flutter asset needed.
-- `webAssetsUrl` — local Flutter asset path (e.g. `/assets/ffuzzy.mjs`). Requires
-  declaring the file in `pubspec.yaml` under `assets:`. Offline-capable.
-- Both can be provided; `webAssetsUrl` takes priority.
+- `webUrl` — URL of `ffuzzy.mjs` on a CDN or your own server. No Flutter asset needed.
+- `webAssetsUrl` — path of a local Flutter asset (e.g. `/assets/ffuzzy.mjs`). Declare
+  the file under `assets:` in `pubspec.yaml`. Works offline.
+- If you pass both, `webAssetsUrl` wins.
 
 ## Quick start
 
@@ -98,15 +100,15 @@ final hit = files.prefix('lib/').firstOrNull;   // hit.raw is a File
 ```
 
 > A `FuzzyCorpus` owns native memory and must be used only on the isolate that
-> created it. The mode methods are synchronous on the calling isolate — for a
-> large corpus use the `async*` twins (e.g. [`asyncFuzzy`](#search-modes)) or run
+> created it. The mode methods run synchronously on the calling isolate. For a
+> large corpus, use the `async*` twins (e.g. [`asyncFuzzy`](#search-modes)) or run
 > the corpus on a background isolate so searching doesn't jank the UI.
 
 ## Use cases
 
-Type-as-you-go search over file paths, command palettes, contact/song lists,
-log lines, or any in-memory list where you want fzf-quality ranking at native
-speed — especially large lists (tens of thousands of items) and CJK content.
+Search-as-you-type over file paths, command palettes, contact or song lists, log
+lines, or any in-memory list where you want fzf-quality ranking at native speed.
+It fits large lists (tens of thousands of items) and CJK text best.
 
 ---
 
@@ -120,12 +122,12 @@ Everything is exported from `package:ffuzzy/ffuzzy.dart`.
 Future<void> ffuzzyInit({String? webUrl, String? webAssetsUrl})
 ```
 
-Initialize the WASM engine on **web**. No-op on native. Call once before
-constructing any `FuzzyCorpus`. Idempotent.
+Initializes the WASM engine on **web**. Does nothing on native. Call it once before
+creating any `FuzzyCorpus`; calling it again is safe.
 
 ## `FuzzyCorpus<T>`
 
-A resident corpus of `T` items you build once and search many times.
+Holds `T` items in memory. Build it once, search it many times.
 
 ### Constructors
 
@@ -148,8 +150,8 @@ static Future<FuzzyCorpus<T>>           FuzzyCorpus.buildAsync<T>(items, {requir
 - **`byKey`** — search a `List<Map>` by one field; `hit.raw` is the whole map.
 - **`byKeys`** — search across multiple fields; `hit.matchedKey` is the index
   into `fields` that produced the hit.
-- **`buildAsync`** — builds the corpus on a background isolate (no UI jank for
-  large datasets). On web, falls back to a microtask yield.
+- **`buildAsync`** — builds the corpus on a background isolate, so a large dataset
+  doesn't block the UI. On web it yields through a microtask instead.
 
 ### Building & mutating
 
@@ -167,7 +169,8 @@ static Future<FuzzyCorpus<T>>           FuzzyCorpus.buildAsync<T>(items, {requir
 | `int get length` | Number of items in the corpus. |
 
 > The native corpus is append-only, so `update` / `removeAt` / `removeWhere` /
-> `refresh` rebuild it in O(n) — cheap for occasional edits; batch heavy churn.
+> `refresh` rebuild it in O(n). That is cheap for occasional edits. If you change
+> items often, batch the changes.
 
 ### Search modes
 
@@ -191,12 +194,12 @@ corpus.fuzzyRaws(q)          // List<T> — skips FuzzyHit wrapper, faster
 corpus.asyncFuzzyRaws(q)     // Future<List<T>>
 ```
 
-- **`fuzzy`** parses the query into space-separated terms and fzf-style operators
-  (`!` negate, `^` prefix, `'` substring, `$` suffix). Other modes treat the
-  whole query as one literal atom.
+- **`fuzzy`** splits the query into space-separated terms and understands fzf-style
+  operators (`!` negate, `^` prefix, `'` substring, `$` suffix). Other modes treat
+  the whole query as one literal string.
 - **Overrides** (`{FuzzyCase? caseMatching, FuzzyNorm? normalization, bool? parallel,
   int? threads, int? limit, bool? highlight, FuzzyScoring? scoring}`): each
-  non-null argument overrides the corresponding field of the corpus's
+  non-null argument replaces the matching field of the corpus's
   [`FuzzyOptions`](#fuzzyoptions) for that call only.
 
 #### Unified entry point: `search()`
@@ -226,13 +229,12 @@ List<FuzzyHit<T>> search(String q, {
 List<FuzzyHit<T>> approx(String q, {int? maxDistance, …})
 ```
 
-`maxDistance` auto-scales by query length when omitted (≤2 chars → 0; 3–5 → 1; 6+ → 2).
+`maxDistance` is chosen from the query length when omitted (≤2 chars → 0; 3–5 → 1; 6+ → 2).
 Also: `approxRaws()`, `asyncApprox()`, `asyncApproxRaws()`.
 
 #### Dual result: `dual()`
 
-Runs both algorithms independently in a single corpus scan and returns separate
-buckets:
+Runs both algorithms in one pass over the corpus and returns two separate lists:
 
 ```dart
 FuzzyDualResult<T> result = corpus.dual('iphoen');
@@ -243,15 +245,15 @@ result.approx  // List<FuzzyHit<T>> — edit-distance hits
 Also: `asyncDual()`.
 
 `async*` calls (`asyncFuzzy`, `asyncSearch`, `asyncApprox`, `asyncDual`, …)
-may overlap safely. On web they also serve as the deferred-init path — a
-call made before `ffuzzyInit` completes will await WASM before returning
-results. Mutations while a search is in flight throw [`StateError`](#errors).
+can safely run at the same time. On web, a call made before `ffuzzyInit` finishes
+waits for WASM and then returns results. Changing the corpus while a search is
+running throws [`StateError`](#errors).
 
 ### Lifecycle
 
 | Member | Description |
 |---|---|
-| `void dispose()` | Idempotent; waits for in-flight async work to complete. Safe to call from `State.dispose()`. |
+| `void dispose()` | Safe to call more than once; waits for running async work to finish. Safe to call from `State.dispose()`. |
 | `Future<void> asyncDispose()` | Like `dispose` but awaitable. |
 
 ```dart
@@ -333,8 +335,8 @@ FuzzyKey.kind(String text, FuzzyKeyKind kind)  // recommended
 List<int> fuzzyCodepointToUtf16(String text, List<int> codepointIndices)
 ```
 
-Pass `highlight: true` to populate `FuzzyHit.indices`. Dart strings are UTF-16 —
-convert codepoint positions before building a `TextSpan`:
+Pass `highlight: true` to fill `FuzzyHit.indices`. Dart strings are UTF-16, so
+convert the codepoint positions before building a `TextSpan`:
 
 ```dart
 final hit = corpus.fuzzy('src', highlight: true).first;
@@ -348,7 +350,8 @@ final spans = [
 
 ## Multi-key / CJK transliteration
 
-Attach host-computed alternate keys so a CJK item is findable by typing latin:
+Attach alternate keys that you compute yourself (pinyin, initials, …), so a CJK
+item can be found by typing Latin letters:
 
 ```dart
 corpus.addKey(zhangsan, [
@@ -372,7 +375,7 @@ final corpus = await Isolate.run(() {
 });
 ```
 
-> `FuzzyCorpus` cannot be sent across isolates — build inside the isolate and
+> A `FuzzyCorpus` can't be sent between isolates. Build it inside the isolate and
 > keep it there, or use `buildAsync`.
 
 ## Edit-distance search (typo-tolerant)
@@ -392,24 +395,23 @@ corpus.dual('iphoen')                          // both, separate buckets
 Results are sorted closest-first (`score = −(distance+1)` for edit-only hits;
 seq hits keep their fzf score). `FuzzyHit.indices` is always empty for edit-distance hits.
 
-Both algorithms (subsequence + edit-distance) ship together, always compiled
-in — native and WASM builds no longer have separate variants to opt into
-(prior versions gated edit-distance behind a `FFZ_EDIT_DISTANCE` build flag;
-since 0.6.2 there is exactly one build).
+Both algorithms (subsequence and edit distance) are always compiled in. Before
+0.6.2, edit distance was behind the `FFZ_EDIT_DISTANCE` build flag; now there is
+only one build.
 
 ### Native (Android / iOS / macOS / Linux / Windows)
 
-Nothing to configure — the plugin's CMake build always compiles both engines.
+Nothing to configure. The plugin's CMake build always compiles both algorithms.
 
 ### Web (WASM)
 
 One prebuilt engine module, both algorithms included:
 
 ```dart
-await ffuzzyInit(webUrl: 'https://cdn.jsdelivr.net/npm/@codejoo/ffuzzy@0.8.0/dist/ffuzzy.mjs');
+await ffuzzyInit(webUrl: 'https://cdn.jsdelivr.net/npm/@codejoo/ffuzzy@0.8.1/dist/ffuzzy.mjs');
 ```
 
-Build your own:
+To build your own:
 ```bash
 # In wasm/:
 bash build-engine.sh   # → src/ffz.mjs (WASM inlined as base64, self-contained)
@@ -422,12 +424,12 @@ npm run build          # → dist/ffuzzy.mjs
 
 - **Recoverable**: library/symbol load failure → `FuzzyException`; misuse (use
   after `dispose`, mutate during async search) → `StateError`.
-- **Hard native faults**: not catchable — see [`FuzzyCrash`](#fuzzycrash).
+- **Hard native faults**: not catchable — see [`FuzzyCrash`](#fuzzycrash-native-only).
 
 ### `FuzzyCrash` (native only)
 
-Optional last-gasp handler for non-recoverable native faults. Prints a backtrace
-to stderr before exit and optionally writes it to a breadcrumb file.
+Optional handler for native faults you can't recover from. It prints a backtrace
+to stderr before the process exits, and can also write it to a file.
 
 ```dart
 final report = FuzzyCrash.lastReport();
@@ -439,7 +441,7 @@ FuzzyCrash.install(breadcrumbPath: '${dir.path}/ffuzzy_crash.log');
 
 ## High-frequency & large-corpus search
 
-**Latest query wins** pattern for type-as-you-go:
+To keep only the result of the latest query while the user types:
 
 ```dart
 int _gen = 0;
@@ -451,9 +453,9 @@ Future<void> onQueryChanged(String q) async {
 }
 ```
 
-**Data races** — multiple `…Async` searches may overlap safely (each gets its
-own native matcher scratch). Mutations while a search is in flight throw
-`StateError`; await or `asyncDispose` first.
+**Concurrent searches** — several `async*` searches can run at the same time (each
+gets its own native scratch memory). Changing the corpus while a search is running
+throws `StateError`, so await the search or call `asyncDispose` first.
 
 ## Platforms
 
@@ -462,8 +464,8 @@ own native matcher scratch). Mutations while a search is in flight throw
 | Android / iOS / macOS / Linux / Windows | C via `dart:ffi` | `Isolate.run` (true background thread) |
 | Web | C via WASM (`dart:js_interop`) | Microtask yield (main thread) |
 
-On native, the C sources are compiled and bundled per-platform (NDK / CMake /
-podspec). Consumers need no extra toolchain.
+On native, each platform builds the C sources itself (NDK / CMake / podspec).
+You don't need to install an extra toolchain.
 
 ## Performance
 
@@ -474,15 +476,13 @@ Real-device (Flutter Windows, profile mode, 100k items):
 | Resident corpus memory | 15.25 MB | 16.54 MB |
 | Filter (fuzzy, top-50) | 1.36 ms | 1.65 ms |
 
-The full methodology, differential-test guarantee (6210/6210 byte-identical to
-nucleo), Unicode coverage, and engine design live in
-[`docs/INTERNALS.md`](docs/INTERNALS.md).
+Methodology, the differential test (6210/6210 results byte-identical to nucleo),
+Unicode coverage and engine design are in [`docs/INTERNALS.md`](docs/INTERNALS.md).
 
 ## npm / JavaScript
 
 The same C engine is published as [`@codejoo/ffuzzy`](https://www.npmjs.com/package/@codejoo/ffuzzy)
-for browser and Node projects, with a matching API (both algorithms compiled
-into the one bundle):
+for browsers and Node, with the same API. Both algorithms are in the one bundle:
 
 ```ts
 import { ffuzzyInitialize, FuzzyCorpus } from '@codejoo/ffuzzy';
