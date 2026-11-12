@@ -2,7 +2,7 @@
 
 # xvg
 
-面向 Flutter 的高性能静态与动画 SVG 渲染。
+在 Flutter 里渲染静态和动画 SVG。
 
 ## 目录
 
@@ -20,7 +20,7 @@
 
 ## 在线展示
 
-[icodejoo.github.io/dart-labs/xvg](https://icodejoo.github.io/dart-labs/xvg/) ——
+[icodejoo.github.io/dart-labs/xvg](https://icodejoo.github.io/dart-labs/xvg/)：
 静态展示页（功能导览、SVG 预览与实测性能数据）。另有
 [实验性 Flutter Web demo](https://icodejoo.github.io/dart-labs/xvg/demo/)，
 使用 Rust 编译的 wasm 运行真实 xvg 渲染，并播放 Dart SMIL 动画。
@@ -37,9 +37,9 @@ pub 包仍仅支持 native 平台；未附带 web 预编译产物或自动加载
 * **静态 SVG** 经 Rust（`usvg`）解析为缓存的 `ui.Picture`，再交给 Flutter
   自带的 GPU 管线绘制，不走 CPU 光栅化。
 * **动画 SVG**（SMIL：`<animate>`、`<animateTransform>`、`<animateMotion>`、
-  `<set>`，以及 CSS `@keyframes`）由原创的 Dart 侧引擎驱动：解析一次，之后每帧
-  在纯 Dart 里采样并绘制，每帧都没有数据穿过 Rust FFI 边界。
-* 只用一个组件 `Xvg`，由它自动判断源需要走哪条路径。
+  `<set>`，以及 CSS `@keyframes`）由 xvg 自己的 Dart 侧引擎驱动：解析一次，之后每帧
+  在纯 Dart 里采样并绘制，所以每帧都没有数据穿过 Rust FFI 边界。
+* 只需要一个组件 `Xvg`，它会自己判断每个源走哪条路径。
 
 ## 安装
 
@@ -77,8 +77,8 @@ const svgSource = '''
 Widget quickStart() => const Xvg.string(svgSource, width: 48, height: 48);
 ```
 
-`Xvg` 会检查源中是否含 SMIL 与 CSS `@keyframes` 动画标记，并据此分发到静态或
-动画渲染器——大多数调用方不需要关心自己走的是哪条路径。
+`Xvg` 会检查源中是否含 SMIL 与 CSS `@keyframes` 动画标记，并选择静态或
+动画渲染器。大多数情况下不用关心走的是哪条。
 
 五个入口共用同一组渲染参数：
 
@@ -356,14 +356,14 @@ Widget spinner() => const Xvg.string(
 
 需要了解的行为：
 
-* 检测只是廉价的语法级嗅探，不做语义判断。一个静态 SVG 只要含有 `<set>` 标签或
+* 检测只是简单的文本匹配，不做语义判断。一个静态 SVG 只要含有 `<set>` 标签或
   一条没被引用的 `@keyframes` 规则，仍会被路由到动画引擎（能正确渲染，只是不走
   Rust 路径）。想明确指定路径，请用 `XvgStatic` / `XvgAnimated`。
 * 动画文档默认隐式播放（`autoplay: true`，速率 `1.0`），遵循 `TickerMode`（使用
   同一时钟的控件全部被禁用时暂停；单独 `Offstage` 不暂停）与 `timeDilation`，
   有限文档停在最后一帧（`fill="freeze"` 会保留结束状态）。
-* 想要共享可跳转的控制，用 `controller`；想由自己的 Flutter `AnimationController`
-  驱动，用 `animation`，不要用隐式播放；见[动画播放](#动画播放)。
+* 要共享、可跳转的控制，用 `controller`；要由自己的 Flutter `AnimationController`
+  驱动，用 `animation`。这两种都用来代替隐式播放；见[动画播放](#动画播放)。
 * `onLoaded`、`onEvent`、`quality`、`maxFps`、`autoplay` 以及 controller /
   animation / 各类动画回调只对动画源有意义；静态源会忽略它们，也不挂任何监听器
   或控制器。
@@ -665,8 +665,8 @@ void observe(XvgAnimationController controller) {
 
 ## 动画画质
 
-在动画路径上，`XvgAnimationQuality` 在高并发（例如滚动的大量动画图标网格）下以
-保真度换吞吐——默认开启自适应跳帧；完整的可选开关及各自的代价见其类文档。
+在动画路径上，`XvgAnimationQuality` 可以在大量动画同时运行时（例如滚动的动画图标网格）
+用保真度换速度。默认开启自适应跳帧；各选项及其代价见类文档。
 
 ```dart
 import 'package:flutter/widgets.dart';
@@ -761,7 +761,7 @@ SVG 动画在没有监听者时暂停，遵循 `timeDilation`，有限文档停�
 
 | 符号 | 类别 | 用途 |
 | --- | --- | --- |
-| `Xvg` | 组件 | 分发组件。`Xvg.string` 构造函数；`Xvg.asset`、`Xvg.network`、`Xvg.file`、`Xvg.memory` 静态工厂；`Xvg.ensureInitialized()`。 |
+| `Xvg` | 组件 | 入口组件，负责选渲染器。`Xvg.string` 构造函数；`Xvg.asset`、`Xvg.network`、`Xvg.file`、`Xvg.memory` 静态工厂；`Xvg.ensureInitialized()`。 |
 | `XvgStatic` | 组件 | Rust（`usvg`）静态渲染器。参数：`source`、`pixelSnap`、`width`、`height`、`fit`、`alignment`、`colorFilter`、`theme`、`errorBuilder`。 |
 | `RustXvgPictureCache` | 类 | 进程级 LRU，缓存录制好的静态 picture。`instance`、`maximumSize`（200）、`onParseMiss`、`getOrRender`、`getOrRenderAsync`、`peek`、`clear`、`length`、`approximateBytesUsed`。 |
 | `XvgAnimated` | 组件 | Dart 侧 SMIL / CSS `@keyframes` 渲染器。`XvgAnimated.string`，动画、画质与回调参数同 `Xvg.string`。 |
@@ -792,9 +792,9 @@ SVG 动画在没有监听者时暂停，遵循 `timeDilation`，有限文档停�
 
 ## 设计
 
-静态解析委托给 `usvg`（`resvg` 所基于的同一个 crate），所以静态特性覆盖度跟随一个
-成熟且持续维护的解析器，而不是手写的解析器。渲染（静态与动画皆然）始终走
-Flutter 自己的 GPU 管线；没有任何内容在 CPU 上光栅化。
+静态解析委托给 `usvg`（`resvg` 所基于的同一个 crate），所以静态特性的覆盖范围跟着一个
+成熟、仍在维护的解析器走，不是自己手写的。静态和动画渲染都走
+Flutter 自己的 GPU 管线，没有内容在 CPU 上光栅化。
 
 ## 状态
 

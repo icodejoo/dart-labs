@@ -13,10 +13,10 @@ a pool of twice the capacity. Values: int. Scenarios:
 - `mixed`: 50% hit reads and 50% insertions that evict.
 
 Reads pseudorandomly select among the most recently inserted half-capacity
-keys; this guarantees hits while exercising promotion. Each trace has
+keys; so reads always hit and still move entries to the front. Each trace has
 `20 * capacity` operations and inserts a multiple of the key-pool size,
-allowing repeated traces to remain in steady state. Hit assumptions are
-checked over two repetitions in setup. String creation and trace generation
+so repeated traces stay in steady state. Setup checks the hit assumptions
+over two repetitions. String creation and trace generation
 are excluded from timing; trace iteration, adapter dispatch, and a read checksum
 are included equally. These are throughput microbenchmarks, not allocation,
 latency-percentile, callback, miss-heavy, or heavily pinned workload
@@ -35,8 +35,7 @@ affinity restricted to the CPU's performance cores (this machine mixes
 performance and efficiency cores, and background load otherwise moves runs
 between them); each CSV keeps the faster of the two results per case. The two
 runs agreed within about 3% for xlru. Runtimes are still measured
-sequentially, so differences of a few percent should not be interpreted as
-significant.
+sequentially, so differences of a few percent are not significant.
 
 JavaScript is measured at two dart2js levels: `-O4` is what Flutter web release
 builds use, and `-O1` is the `dart compile js` default. WebAssembly uses

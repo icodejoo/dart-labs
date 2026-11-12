@@ -16,3 +16,11 @@ test/accept/results/
 CLAUDE.md
 .claude/
 .codegraph/
+
+# 验收证据、归档、覆盖率快照和一次性 Python 脚本只服务仓库内部，不随包发布
+/docs/reports/
+/docs/archive/
+/cov/
+/tool/*.py
+/docs/
+/test/accept/bin/

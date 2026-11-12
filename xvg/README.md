@@ -2,7 +2,7 @@
 
 # xvg
 
-High-performance static & animated SVG rendering for Flutter.
+Render static and animated SVG in Flutter.
 
 ## Contents
 
@@ -37,12 +37,12 @@ No COOP/COEP headers are required. Network access follows browser CORS rules;
 file paths are unsupported. Large animated documents parse on the main thread.
 
 * **Static SVG** parses through Rust (`usvg`) into a cached `ui.Picture`, then
-  renders with Flutter's own GPU pipeline — no CPU rasterizer.
-* **Animated SVG** (SMIL — `<animate>`, `<animateTransform>`,
-  `<animateMotion>`, `<set>` — plus CSS `@keyframes`) runs through an original
-  Dart-side engine: parse once, sample and paint every frame in pure Dart, so
-  no per-frame data crosses the Rust FFI boundary.
-* One widget, `Xvg`, auto-detects which path a source needs.
+  renders with Flutter's own GPU pipeline, with no CPU rasterizer.
+* **Animated SVG** (SMIL: `<animate>`, `<animateTransform>`,
+  `<animateMotion>`, `<set>`; plus CSS `@keyframes`) runs through xvg's own
+  Dart-side engine: parse once, then sample and paint every frame in pure Dart,
+  so no per-frame data crosses the Rust FFI boundary.
+* One widget, `Xvg`, picks the path for each source.
 
 ## Install
 
@@ -51,7 +51,7 @@ dependencies:
   xvg: ^0.1.1
 ```
 
-Bring up the native (Rust) backend once, before the first `Xvg` widget is
+Start the native (Rust) backend once, before the first `Xvg` widget is
 built:
 
 ```dart
@@ -81,9 +81,9 @@ const svgSource = '''
 Widget quickStart() => const Xvg.string(svgSource, width: 48, height: 48);
 ```
 
-`Xvg` inspects the source for SMIL and CSS `@keyframes` animation markers and
-dispatches to the static or animated renderer accordingly — most callers never
-need to think about which path they are on.
+`Xvg` checks the source for SMIL and CSS `@keyframes` animation markers and
+picks the static or animated renderer. Most callers never need to know which
+one they got.
 
 Five entries share the same rendering parameters:
 
@@ -97,7 +97,7 @@ Five entries share the same rendering parameters:
 
 ## `Xvg.string` in depth
 
-`Xvg.string` is the primitive: every other entry loads or decodes text and then
+`Xvg.string` is the base entry: every other entry loads or decodes text and then
 renders through it. It is the only entry that is a `const`-constructible widget
 class (the others are static factory methods returning a `Widget`).
 
@@ -368,9 +368,9 @@ Widget spinner() => const Xvg.string(
 );
 ```
 
-Behavior to know:
+What to know:
 
-* Detection is a cheap syntactic sniff, not a semantic check. A static SVG that
+* Detection is a plain text match, not a semantic check. A static SVG that
   merely contains a `<set>` tag or an unused `@keyframes` rule is still routed to
   the animated engine (it renders correctly, just not on the Rust path).
   Use `XvgStatic` / `XvgAnimated` to pick a path explicitly.
@@ -707,10 +707,10 @@ void observe(XvgAnimationController controller) {
 
 ## Animation quality
 
-For the animated path, `XvgAnimationQuality` trades fidelity for throughput
-under high concurrency (e.g. a scrolling grid of many animated icons) —
-adaptive frame-skipping is the default; see its class doc for the full set of
-opt-in/opt-out trade-offs and exactly what each one costs.
+For the animated path, `XvgAnimationQuality` trades some fidelity
+for speed when many animations run at once (for example, a scrolling grid of
+animated icons). Adaptive frame skipping is the default. See the class doc for
+each option and what it costs.
 
 ```dart
 import 'package:flutter/widgets.dart';
@@ -811,7 +811,7 @@ Everything exported by `package:xvg/xvg.dart`:
 
 | Symbol | Kind | Purpose |
 | --- | --- | --- |
-| `Xvg` | widget | Dispatching widget. `Xvg.string` constructor; `Xvg.asset`, `Xvg.network`, `Xvg.file`, `Xvg.memory` static factories; `Xvg.ensureInitialized()`. |
+| `Xvg` | widget | Entry widget that picks the renderer. `Xvg.string` constructor; `Xvg.asset`, `Xvg.network`, `Xvg.file`, `Xvg.memory` static factories; `Xvg.ensureInitialized()`. |
 | `XvgStatic` | widget | Rust (`usvg`) static renderer. Parameters: `source`, `pixelSnap`, `width`, `height`, `fit`, `alignment`, `colorFilter`, `theme`, `errorBuilder`. |
 | `RustXvgPictureCache` | class | Process-wide LRU of recorded static pictures. `instance`, `maximumSize` (200), `onParseMiss`, `getOrRender`, `getOrRenderAsync`, `peek`, `clear`, `length`, `approximateBytesUsed`. |
 | `XvgAnimated` | widget | Dart-side SMIL / CSS `@keyframes` renderer. `XvgAnimated.string` with the animation, quality and callback parameters of `Xvg.string`. |
@@ -844,9 +844,9 @@ Everything exported by `package:xvg/xvg.dart`:
 ## Design
 
 Static parsing is delegated to `usvg` (the same crate `resvg` builds on), so
-static feature coverage tracks a mature, actively-maintained parser rather
-than a hand-rolled one. Rendering — static and animated alike — stays on
-Flutter's own GPU pipeline; nothing is rasterized on the CPU.
+static feature coverage follows a mature, maintained parser instead of a
+hand-written one. Static and animated rendering both stay on Flutter's own GPU
+pipeline; nothing is rasterized on the CPU.
 
 ## Status
 

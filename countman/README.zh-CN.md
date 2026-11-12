@@ -1,36 +1,37 @@
 # countman
 
-**面向 Flutter 的高性能计数器、倒计时与计时动画 —— 由一个共享的 vsync ticker 驱动，而非逐组件的定时器。专为高并发计时场景设计。**
+**Flutter 的计数器、倒计时和正计时组件。所有组件共用一个 vsync ticker，不给每个组件单独配定时器或 `AnimationController`，同屏数量多时开销也很低。**
 
-[English](https://github.com/icodejoo/dart-labs/blob/main/countman/README.md) · **简体中文**
+[English](README.md) | **简体中文**
 
 [![pub.dev](https://img.shields.io/pub/v/countman.svg)](https://pub.dev/packages/countman)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/icodejoo/dart-labs/blob/main/countman/LICENSE)
 [![Demo](https://img.shields.io/badge/demo-live-brightgreen)](https://icodejoo.github.io/dart-labs/countman/)
 
-**[▶ 在线演示](https://icodejoo.github.io/dart-labs/countman/)** —— 计数器、倒计时、正计时与 0.3.x 调度能力交互示例，支持中英切换和亮暗主题。
+**[▶ 在线演示](https://icodejoo.github.io/dart-labs/countman/)**：计数器、倒计时、正计时和 0.3.x 调度器的交互示例，可切换中英文和亮暗主题。
 
 > **从 0.2.x 升级？** 请先看
-> [迁移指南](https://github.com/icodejoo/dart-labs/blob/main/countman/MIGRATION.md)（英文）——
-> 自定义插件、`CountdownOptions` 以及相对/绝对时钟语义都有变化。
+> [迁移指南](https://github.com/icodejoo/dart-labs/blob/main/countman/MIGRATION.md)（英文）。
+> 自定义插件、`CountdownOptions` 和相对/绝对时钟的行为有变化。
 
-- ⚡ **无 `Timer.periodic`，无逐组件 `AnimationController`** —— 一切都由单个 `SchedulerBinding.scheduleFrameCallback` 驱动。
-- 😴 **两次更新之间休眠** —— 秒级倒计时不会每个 vsync 都出一帧；调度器只在有任务到期时才醒来。
-- 🚀 **专为高并发设计** —— 第 100 个活动计数器/计时器与第 1 个开销相同；当没有任何动画时，ticker 会自动进入空闲。
-- 🎨 计数器 · 倒计时 · 计时，每类都提供 文本 / 环形 / 进度条 / 里程表 / 表盘 / 翻牌 渲染器，支持逐组件样式、`ThemeExtension`、控制器与 provider。
+- **没有 `Timer.periodic`，也没有逐组件的 `AnimationController`。** 一个 `SchedulerBinding.scheduleFrameCallback` 驱动全部组件。
+- **两次更新之间休眠。** 秒级倒计时不会每个 vsync 都出一帧，调度器只在有任务到期时才醒来。
+- **开销不随数量增长。** 第 100 个活动的计数器/计时器和第 1 个开销一样；没有动画时 ticker 自动空闲。
+- 计数器、倒计时、计时三类组件，各有 文本 / 环形 / 进度条 / 里程表 / 表盘 / 翻牌 渲染器，支持逐组件样式、`ThemeExtension`、控制器和 provider。
 
 ---
 
 ## 不可见时休眠
 
-组件默认随 `TickerMode(enabled: false)`（包括 Flutter 静音的被覆盖路由）休眠。
-隐藏期间 **onUpdate/onTick 不投递**，完成与阈值仍按真实时刻触发；恢复直接显示
-当前值，Counter 跳到按真实时间推进后的位置（方案 A）。静音不等于暂停：不改变
-runState/isPaused、不触发 onPause/onResume，用户已暂停的任务仍保持暂停。
-CardCountdown 隐藏与恢复时直接落定翻牌，不停在动画半程。
+组件在 `TickerMode(enabled: false)` 下会休眠（Flutter 静音的被覆盖路由也算）。
+隐藏期间收不到 `onUpdate` / `onTick`，完成和阈值回调仍按真实时刻触发。重新显示时
+直接显示当前值，Counter 会跳到按真实时间推进后的位置。静音不等于暂停：不改变
+`runState` / `isPaused`，不触发 `onPause` / `onResume`，用户已暂停的任务仍保持暂停。
+`CardCountdown` 在隐藏和重新显示时会直接翻完，不停在动画中间。
 
-单独使用原生 `Offstage` 时请配套 `TickerMode(enabled: !offstage)`，Offstage 本身不
-会静音 ticker。如需保留原行为，在挂载组件前关闭开关（完全不订阅 TickerMode）：
+单独使用原生 `Offstage` 时，请再包一层 `TickerMode(enabled: !offstage)`，因为
+`Offstage` 本身不会静音 ticker。想保留原来的行为（隐藏时照常更新），在挂载组件前
+关掉开关（这样组件不再订阅 `TickerMode`）：
 
 ```dart
 Countman.muteWhenHidden = false; // 默认 true
@@ -38,9 +39,10 @@ Countman.muteWhenHidden = false; // 默认 true
 
 ## 限帧 fps
 
-`fps` 只限制可见显示更新，以减少 CPU / Raster 开销；完成与阈值按真实时刻
-触发，最后一帧强制落到终值。优先级为实例 > 插件 > 全局，null 逐级回退，最终
-null 跟随 vsync（默认行为不变）。非法值（非有限正数）debug 断言、release 当 null。
+`fps` 只限制可见的显示更新，用来降低 CPU / Raster 开销。完成与阈值回调仍按真实
+时刻触发，最后一帧一定显示终值。优先级为 实例 > 插件 > 全局，值为 null 就找下一级，
+全部为 null 则跟随 vsync（默认行为）。非法值（不是有限正数）在 debug 下断言失败，
+release 下当作 null。
 
 ```dart
 Countman.fps = 30; // 全局，运行时修改从下一帧生效
@@ -51,13 +53,14 @@ CardCountdown(to: Duration(minutes: 5), fps: 30);
 Countman.fps = null; // 恢复全局跟随 vsync
 ```
 
-Counter 与时钟引擎按固定网格推进显示节拍，依据首个 view 的 `display.refreshRate`
-对齐 vsync（无有效值回退 60Hz，添加任务时刷新缓存），跳过错失时隙、不补历史帧。
-以半个 vsync 为容差接受稍早的帧，全局 Timer 在 `allowed - tol` 请求下一帧，
-限帧等待跳过 20ms 连续排帧窗口，避免空轮询帧。目标显示率不超过屏幕刷新率，
-`period <= vsyncPeriod * 1.05` 视为不限帧。显示桶边界、完成与阈值仍取精确时刻，
-不减容差、不提前。静音优先，隐藏任务无视 fps，恢复立即显示当前值。
-CardCountdown 的翻牌进度由共享 Counter 驱动，fps 同样真正降低出帧，时长和曲线保持原语义。
+Counter 与时钟引擎按固定网格推进显示节拍，网格依据第一个 view 的
+`display.refreshRate` 对齐 vsync（取不到有效值时按 60Hz，添加任务时刷新缓存）。
+错过的时隙直接跳过，不补历史帧。引擎以半个 vsync 为容差，接受稍早到的帧；
+全局 Timer 在 `allowed - tol` 时请求下一帧，限帧等待会跳过 20ms 的连续排帧窗口，
+以免出现空轮询帧。目标帧率不会超过屏幕刷新率，`period <= vsyncPeriod * 1.05`
+视为不限帧。显示桶边界、完成与阈值仍取精确时刻，不减容差、不提前。静音优先，
+隐藏的任务不受 fps 影响，重新显示时立即显示当前值。`CardCountdown` 的翻牌进度由
+共享 Counter 驱动，所以 fps 也会真正降低它的出帧，过渡时长和曲线不变。
 
 ## 截图
 
@@ -72,14 +75,14 @@ CardCountdown 的翻牌进度由共享 Counter 驱动，fps 同样真正降低�
 
 ## 为什么选择 countman？
 
-大多数计数器包会给每个组件配一个自己的 `AnimationController`（或一个
-`Timer.periodic`）。屏幕上有 N 个计数器，你就要付出 N 次帧回调
-注册、N 个定时器和 N 套彼此独立、互不感知的动画生命周期。
+大多数计数器包给每个组件配一个自己的 `AnimationController`（或
+`Timer.periodic`）。屏幕上有 N 个计数器，就有 N 次帧回调注册、N 个定时器、
+N 套互不相干的动画生命周期。
 
-**countman** 反其道而行：由一个 `SchedulerBinding.scheduleFrameCallback` 驱动
-每一个实例。每个插件会上报**自己下一次需要运行的时间**：有动画时 ticker 逐帧渲染，
-两次更新之间则**靠一个全局定时器休眠**（一秒一次的倒计时不会让引擎每秒醒 60 次），
-全部空闲时停表。新增第一百个计数器与新增第一个开销相同。
+**countman** 反过来：用一个 `SchedulerBinding.scheduleFrameCallback` 驱动
+所有实例。每个插件上报**自己下一次需要运行的时间**：有动画时 ticker 逐帧渲染，
+两次更新之间**靠一个全局定时器休眠**（一秒一次的倒计时不会让引擎每秒醒 60 次），
+全部空闲时停止。加第一百个计数器和加第一个开销相同。
 
 ```
 Countman (1 scheduleFrameCallback + 1 个休眠定时器)
@@ -88,8 +91,8 @@ Countman (1 scheduleFrameCallback + 1 个休眠定时器)
   └── Elapsed    — 正计时/秒表，按更新时刻唤醒
 ```
 
-每个引擎都是一个 `CountmanPlugin`；你可以为每类注册多个实例，
-以隔离互相独立的「分组」，也可以自己写插件
+每个引擎都是一个 `CountmanPlugin`。每类可以注册多个实例，
+用来隔离互相独立的「分组」；也可以自己写插件
 （见[编写自定义插件](#writing-a-custom-plugin)）。
 
 ---
@@ -121,13 +124,14 @@ import 'package:countman/countman.dart';
 
 - **Raster：8–11 ms** —— RepaintBoundary 让每个计数器处于自己的图层。
 - **Build：~2 ms** —— CustomPainter 路径完全跳过组件实例化。
-- **启动尖峰** 通过 `StartScheduler` 批处理分摊到多帧。
+- **启动尖峰**用 `StartScheduler` 分批，摊到多帧。
 
-**休眠调度器（0.3.0）。** 每个任务只在自己的值跨过下一个 `interval` 边界（或完成、
-或越过阈值）时才被处理。其间调度器只挂一个全局定时器，而不是每个 vsync 都请求一帧；
-因此默认 1 秒间隔的文本倒计时只在每次更新前后出帧。动画（`Counter`、`CardCountdown`
-的翻牌）不限帧时在运动期间仍逐帧运行。所以 `CardCountdown` 的开销主要由过渡类型和时长决定：
-`calendar` 每秒约 90% 的时间在动画，`slide` / `flip` 约 45%，缩短 `duration` 会成比例降低开销。
+**休眠调度器（0.3.0）。** 每个任务只在自己的值跨过下一个 `interval` 边界、完成
+或越过阈值时才会被处理。其余时间调度器只挂一个全局定时器，不再每个 vsync 都请求
+一帧，所以默认 1 秒间隔的文本倒计时只在每次更新前后出帧。动画（`Counter`、
+`CardCountdown` 的翻牌）在运动期间仍然逐帧运行，除非用 fps 限帧。因此
+`CardCountdown` 的开销主要看过渡类型和时长：`calendar` 每秒约 90% 的时间在动画，
+`slide` / `flip` 约 45%，缩短 `duration` 会按比例降低开销。
 
 ### 与其他包的正面对比
 
@@ -151,11 +155,9 @@ CPU = 占**一个**核心的比例，从操作系统进程外部采样；RSS =
 | RSS  avg / peak (MB) | 130.2 / 137.3 | 130.3 / 135.4 |
 | CPU（1 核） | 26.1 % | **10.0 %** |
 
-countman **每一帧 vsync** 都驱动滑动+缩放+透明度过渡（完全
-顺滑、单帧更便宜），因此渲染的帧数多得多、总
-CPU 更高；`slide_countdown` 仅在其每秒一次的滑动突发期间重绘 ——
-CPU 更低，但节奏更突发、单帧更贵。两者均无卡顿，且使用
-相同的内存。
+countman 在**每个 vsync** 都推进滑动+缩放+透明度过渡（更顺滑，单帧更便宜），
+所以出的帧多得多，总 CPU 也更高。`slide_countdown` 只在每秒一次的滑动期间重绘，
+CPU 更低，但节奏更突发，单帧更贵。两者都没有卡顿，内存相同。
 
 **文本模式** —— countman `TextCountdown` 对比 [`stop_watch_timer`](https://pub.dev/packages/stop_watch_timer) `^3.2.2`（通过 `StreamBuilder` 驱动一个 `Text`）：
 
@@ -168,10 +170,10 @@ CPU 更低，但节奏更突发、单帧更贵。两者均无卡顿，且使用
 | RSS  avg / peak (MB) | 113.8 / 116.0 | 113.9 / 116.4 |
 | CPU（1 核） | **12.1 %** | 18.8 % |
 
-对于纯文本倒计时，单一共享 ticker + `markNeedsPaint` 比
+纯文本倒计时下，共享 ticker 加 `markNeedsPaint`，比
 50 个独立的 `stop_watch_timer` 流**少用约 35% 的 CPU**
-（单核 12.1 % vs 18.8 %），且单帧 UI 耗时更稳定；内存
-完全相同。（同样是 0.2.x 调度器下的数据，见上方说明。）
+（单核 12.1 % vs 18.8 %），单帧 UI 耗时也更稳；内存
+相同。（同样是 0.2.x 调度器下的数据，见上方说明。）
 
 > 使用 `example/lib/benchmark_page.dart` 复现：
 > `flutter run --profile -d windows --dart-define=BENCH_LIB=countmanCard`
@@ -181,7 +183,7 @@ CPU 更低，但节奏更突发、单帧更贵。两者均无卡顿，且使用
 
 ## Counter（计数器）
 
-数值插值组件。它们在共享 ticker 上执行 `from → to` 的动画。
+在共享 ticker 上把数值从 `from` 动画到 `to` 的组件。
 所有组件都接受 `from` / `to` / `duration`（默认 1000 ms）/ `curve`
 （默认 `Curves.easeOut`）/ `allowNegative`（默认 `false`，钳制到 ≥ 0）/
 `plugin` / `controller`（[`CounterValueController`](#counters-controller)），外加
@@ -190,7 +192,7 @@ CPU 更低，但节奏更突发、单帧更贵。两者均无卡顿，且使用
 
 ### `TextCounter`
 
-即插即用的文本计数器，可选前缀/后缀。
+文本计数器，可加前缀和后缀。
 
 ```dart
 TextCounter(to: 9999)                                        // "9999"
@@ -242,8 +244,8 @@ BarCounter(to: 100, style: const BarCounterStyle(
 
 ### `OdometerCounter`
 
-机械里程表式的滑动数字，由自包含的 `CustomPainter` 绘制
-（无第三方包）。个位数字连续滚动，更高位在整数进位时跳动。
+机械里程表式的滚动数字，用自带的 `CustomPainter` 绘制
+（不依赖第三方包）。个位数字连续滚动，更高位在整数进位时跳动。
 
 ```dart
 OdometerCounter(
@@ -269,9 +271,9 @@ OdometerCounter(to: 500, bounceOvershoot: 0.35)    // spring overshoot per digit
 
 ### `AnimatedCounter`
 
-功能完整的滚动数字计数器：可组合的过渡、错峰、紧凑记数法、小数、数位分组、
-颜色着色和程序化控制。底层是常驻的 `CustomPainter` —— 每帧零次 widget 构建
-（`AnimatedCounterBuilder` 变体则走 widget 树路径）。
+滚动数字计数器，支持可组合的过渡、错峰、紧凑记数法、小数、数位分组、
+颜色着色和代码控制。底层用常驻的 `CustomPainter`，每帧不构建 widget
+（`AnimatedCounterBuilder` 走 widget 树路径）。
 
 配置分成三个对象，每个字段都可选：
 
@@ -375,9 +377,9 @@ const CounterFormat(thousandSeparator: ',', fractionDigits: 2).format(1234.5); /
 
 ### `AnimatedCounterBuilder`
 
-与 `AnimatedCounter` 同一引擎，但暴露 `digitBuilder` /
-`digitTransitionBuilder`，让你用自己的 widget 渲染每一位数字
-（始终走 widget 树路径 —— 仅留给少量计数器使用）。
+引擎与 `AnimatedCounter` 相同，另外提供 `digitBuilder` /
+`digitTransitionBuilder`，可以用自己的 widget 渲染每一位数字
+（始终走 widget 树路径，只适合少量计数器）。
 
 ```dart
 AnimatedCounterBuilder(
@@ -388,8 +390,8 @@ AnimatedCounterBuilder(
 
 ### `CounterBuilder`
 
-底层驱动。通过 `builder` 暴露原始的动画 `double` —— 用它构建任何东西。
-缓存的 `child` 每帧原样透传。
+底层驱动。`builder` 拿到原始的动画 `double`，想构建什么都行。
+缓存的 `child` 每帧原样传入。
 
 ```dart
 CounterBuilder(
@@ -402,14 +404,14 @@ CounterBuilder(
 ```
 
 `valueTransform` 在值到达 `builder` 之前对其做映射；`onUpdate` 仍然拿到原始值。
-`CounterBuilder.listenable` 则把 `ValueListenable<double>` 交给你，**不会**逐帧重建 ——
-把它接到 `CustomPainter(repaint: …)` 上即可（`CountdownBuilder.listenable` 对 `TimeParts`
+`CounterBuilder.listenable` 改为提供 `ValueListenable<double>`，**不会**逐帧重建，
+可以接到 `CustomPainter(repaint: …)` 上（`CountdownBuilder.listenable` 对 `TimeParts`
 同理）。
 
 ### <a name="counters-controller"></a>`CounterValueController`
 
-计数器家族（`TextCounter`、`RingCounter`、
-`BarCounter`、`OdometerCounter`、`CounterBuilder`）的命令式控制。
+用代码控制计数器家族（`TextCounter`、`RingCounter`、
+`BarCounter`、`OdometerCounter`、`CounterBuilder`）。
 
 ```dart
 final ctrl = CounterValueController();
@@ -453,7 +455,7 @@ ValueListenableBuilder<CountmanRunState>(
 
 ### <a name="animatedcounter-controller"></a>`AnimatedCounterController`
 
-`AnimatedCounter` / `AnimatedCounterBuilder` 的更丰富控制器。
+`AnimatedCounter` / `AnimatedCounterBuilder` 用的控制器，功能更多。
 
 ```dart
 final ctrl = AnimatedCounterController(initialValue: 0);
@@ -479,7 +481,7 @@ ctrl.addStatusListener(listener);
 
 ## Countdown（倒计时）
 
-所有倒计时组件都接受 `to` —— `Duration`、`DateTime`、`int`（自 epoch 起的毫秒）
+所有倒计时组件都接受 `to`，类型可以是 `Duration`、`DateTime`、`int`（自 epoch 起的毫秒）
 **或** ISO-8601 `String`。共有的参数：`plugin`、`precise`、
 `controller`（[`CountdownController`](#countdown-controller)）、`total`、
 `rounding`、`onComplete`、`onTick`、`threshold` + `onThreshold`，以及生命周期
@@ -489,8 +491,8 @@ ctrl.addStatusListener(listener);
 
 | `to` | 锚定的时钟 | 系统时间被修改时 |
 |---|---|---|
-| `Duration`（或 `CountdownOptions.duration`） | 单调钟 | 不受影响 —— "再来 5 分钟"始终是 5 分钟 |
-| `DateTime` / `int` / `String`（或 `CountdownOptions.deadline`） | 墙钟 | 倒计时随之移动 —— "20:00 结束"始终是 20:00 |
+| `Duration`（或 `CountdownOptions.duration`） | 单调钟 | 不受影响："再来 5 分钟"始终是 5 分钟 |
+| `DateTime` / `int` / `String`（或 `CountdownOptions.deadline`） | 墙钟 | 倒计时随之移动："20:00 结束"始终是 20:00 |
 
 "从现在起 N 分钟"用 `Duration`；与真实时刻绑定的（开售时间、拍卖结束）用截止时刻。
 切后台、掉帧都不会造成漂移；默认的 `SystemClock` 还会在应用回到前台时，把设备深睡期间
@@ -498,7 +500,7 @@ ctrl.addStatusListener(listener);
 
 ### `TextCountdown`
 
-即插即用的倒计时文本。`to` 为 `Duration` 时可 `const` 构造。
+倒计时文本。`to` 为 `Duration` 时可 `const` 构造。
 
 ```dart
 TextCountdown(
@@ -539,8 +541,8 @@ RingCountdown(
 
 ### `RingCountdown`
 
-从满到空消耗的圆环（progress = remaining / total）。默认开启前端圆点，
-使慢速倒计时每个 tick 都肉眼可见地移动。
+从满到空消耗的圆环（progress = remaining / total）。默认带一个前端圆点，
+让慢速倒计时每个 tick 都看得出在动。
 
 ```dart
 RingCountdown(
@@ -592,8 +594,8 @@ DialCountdown(
 ### `CardCountdown`
 
 翻牌显示；每个时间单位（H/M/S）是一张卡片，数字变化时播放动画。
-共享 Counter 进度任务驱动常驻 `CustomPainter` ——
-数字变化绝不重建 widget 树。
+由共享的 Counter 进度驱动一个常驻 `CustomPainter`，
+数字变化不会重建 widget 树。
 
 ```dart
 CardCountdown(to: const Duration(hours: 1, minutes: 30))
@@ -666,7 +668,7 @@ ctrl.runState;   // idle / running / paused / completed —— 见"监听 runSta
 
 ## Elapsed（计时）
 
-秒表式计时 —— 一直向上计数，直到被取消，或到达可选的 `limit`。与 Countdown 相同的
+秒表式计时，一直向上计数，直到被取消或到达可选的 `limit`。与 Countdown 共有的参数：
 `plugin` / `precise` / `controller`（[`ElapsedController`](#elapsed-controller)）/
 `onTick` / `threshold` + `onThreshold` / 生命周期回调，外加
 `since`、`initial`、`limit` 与 `onComplete`。
@@ -725,8 +727,8 @@ ctrl.runState;
 
 ## 格式化器（Formatters）
 
-`CountdownFormat` 提供 `String Function(TimeParts)` 格式化器，供所有
-倒计时/计时文本组件使用（通过 `formatter:`）。
+`CountdownFormat` 里是现成的 `String Function(TimeParts)` 格式化器，
+倒计时和计时的文本组件都可以通过 `formatter:` 使用。
 
 | 格式化器 | 示例 | 说明 |
 |---|---|---|
@@ -949,7 +951,7 @@ ElapsedBuilder(
 )
 ```
 
-当你传入了显式的 `plugin` 时，`precise` 会被忽略。
+显式传入 `plugin` 时，`precise` 会被忽略。
 
 ### <a name="animate-once-list-friendly"></a>只播放一次（适合列表）
 
@@ -977,7 +979,7 @@ AnimatedCounter(key: ValueKey(row.id), value: row.amount, animateOnce: true)
 ### 批量启动（`StartScheduler`）
 
 当一大片 `AnimatedCounter` 网格在同一帧启动时，冷启动开销
-可能撑爆帧预算。`StartScheduler` 把启动分摊到多帧。
+可能超出一帧的时间预算。`StartScheduler` 把启动分摊到多帧。
 
 ```dart
 StartScheduler.instance.defaultBatchSize = 5;   // ≤ 5 starts per frame
@@ -1155,14 +1157,14 @@ class Beat extends TaskQueuePlugin<BeatTask> {
 
 ## 贡献（Contributing）
 
-非常欢迎 Issue 和 PR —— bug 报告、功能想法、性能发现、文档，以及为
-[示例应用](https://github.com/icodejoo/dart-labs/tree/main/countman/example)（它驱动着
-[在线演示](https://icodejoo.github.io/dart-labs/)）新增的**演示**，都很有帮助。
+欢迎提 Issue 和 PR：bug 报告、功能想法、性能发现、文档，以及给
+[示例应用](https://github.com/icodejoo/dart-labs/tree/main/countman/example)
+（在线演示由它生成）新增的演示，都很有帮助。
 
-- 🐛 [提交 issue](https://github.com/icodejoo/dart-labs/issues)
-- 🔧 [发送 PR](https://github.com/icodejoo/dart-labs/pulls) —— 提交前请在 `countman/` 下运行
+- [提交 issue](https://github.com/icodejoo/dart-labs/issues)
+- [发送 PR](https://github.com/icodejoo/dart-labs/pulls) —— 提交前请在 `countman/` 下运行
   `dart analyze` 和 `flutter test`。
-- 🎨 想添加演示？在 `example/lib/` 下放一个页面，并在
+- 想添加演示？在 `example/lib/` 下放一个页面，并在
   `example/lib/main.dart` 的首页入口中接入它。
 
 ## 许可证（License）
