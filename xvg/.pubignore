@@ -41,3 +41,4 @@ tool/
 # 仓库根目录（dart-labs 是 monorepo），pub 于是退化成列出该目录下的每一个文件，
 # 而不去查它的 git 忽略规则。`.pubignore` 不受这个退化行为影响。
 build/
+site/

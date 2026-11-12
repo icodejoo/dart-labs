@@ -1,0 +1,37 @@
+name: Deploy xvg site
+
+# xvg 走 Rust FFI，没有 web 构建；这里直接发布 xvg/site 下的纯静态展示页。
+on:
+  push:
+    branches: [main, xvg]
+    paths:
+      - 'xvg/site/**'
+      - '.github/workflows/deploy-xvg.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: gh-pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy xvg static site
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy xvg/ to gh-pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: xvg/site
+          destination_dir: xvg
+          keep_files: true
+
+  update-index:
+    name: Update root index
+    needs: deploy
+    uses: ./.github/workflows/update-root-index.yml
+    secrets: inherit

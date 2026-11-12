@@ -62,7 +62,7 @@ class _AdvancedPageState extends State<AdvancedPage> {
   void _takeSnapshot() {
     final snap = debug(cache);
     if (snap.isEmpty) {
-      setState(() => _debugSnapshot = '(ls is empty — set some keys first)');
+      setState(() => _debugSnapshot = '(cache is empty — set some keys first)');
       return;
     }
     final buf = StringBuffer();
@@ -121,10 +121,10 @@ class _AdvancedPageState extends State<AdvancedPage> {
           const SizedBox(height: 28),
           const Divider(),
           const SizedBox(height: 12),
-          Text('debug() — ls snapshot',
+          Text('debug() — cache snapshot',
               style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 4),
-          Text('Reads all entries in ls with metadata.',
+          Text('Reads all entries in the cache with metadata.',
               style: Theme.of(context).textTheme.bodySmall),
           const SizedBox(height: 12),
           FilledButton(

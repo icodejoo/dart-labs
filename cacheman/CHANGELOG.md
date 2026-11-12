@@ -1,4 +1,13 @@
+## 0.7.1
+
+- Docs only: README install snippet and migration chapter now describe the released 0.7.0 API (`Cacheman.custom`, `AsyncCacheman`, subclass changes); example app gains a `Cacheman.custom` demo and a real README; removed stale "planned" wording.
+
 ## 0.7.0
+
+Highlights: layered storage (synchronous `Cacheman` + abstract `AsyncCacheman`, `Cacheman.custom`
+for custom synchronous backends), structured `CachemanError` reporting, `ValueAdapter`, a
+non-throwing `read`, narrowed `force`, and the shared Hub with `watch`/`flush`/`flushDelay`/
+`purgeOnInit`. See the Breaking list and the README migration chapter before upgrading from 0.6.
 
 **Fixes (full review):**
 
@@ -11,8 +20,6 @@
   correct Enum documentation to explain encoding errors and explicit conversion.
 
 **Breaking:**
-
-Stage 2, planned for 0.7.0.
 
 - `onError` always receives a `CachemanError` subclass; inspect `cause` for the original
   exception. Migrate `error is FormatException` to

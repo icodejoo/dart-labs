@@ -133,7 +133,7 @@ class _TtlPageState extends State<TtlPage> {
             ],
           ),
           const SizedBox(height: 20),
-          Text('ls entries (live countdown)',
+          Text('Cache entries (live countdown)',
               style: Theme.of(context).textTheme.titleSmall),
           const SizedBox(height: 8),
           if (keys.isEmpty)
