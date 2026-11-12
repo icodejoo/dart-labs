@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'client.dart';
 import 'context.dart';
 import 'request.dart';
@@ -35,6 +36,7 @@ abstract class DiomanPluginInstance<R extends DiomanResponse<dynamic>> {
   Future<DiomanResponse<dynamic>> handle(
       DiomanContext<R> ctx, DiomanNext<R> next);
 
-  /// 释放实例资源，客户端逆注册顺序调用。
-  void dispose() {}
+  /// 释放实例资源；客户端逆注册顺序调用并等待异步完成，错误不阻断其余清理。
+  /// 返回同步空值或清理信号，例如 `Future<void> dispose() async { await close(); }`。
+  FutureOr<void> dispose() {}
 }

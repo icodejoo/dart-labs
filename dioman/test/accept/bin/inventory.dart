@@ -78,6 +78,16 @@ void main() {
                         : tkMethod,
                 member,
                 isStatic: member.isStatic);
+            // 继承配置和解码入口单独登记参数，避免只覆盖方法名。
+            if (owner == 'Dioman') {
+              for (final p in member.parameters?.parameters ?? []) {
+                if (member.name.lexeme == 'extend' ||
+                    p.name!.lexeme == 'decode') {
+                  add(owner, '${member.name.lexeme}(${p.name!.lexeme})',
+                      'parameter', p);
+                }
+              }
+            }
           } else if (member is FieldDeclaration) {
             for (final v in member.fields.variables) {
               add(owner, v.name.lexeme, tkField, v, isStatic: member.isStatic);

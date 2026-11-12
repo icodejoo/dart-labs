@@ -1,0 +1,16 @@
+{
+  "cargo build --release --target-dir <scratchpad>/tk-target-r2a --manifest-path E:/workspaces/api-ws-demo/Cargo.toml": "退出 0，release 编译完成；testkit main 源码无改动",
+  "dart analyze": "退出 0，No issues found!",
+  "dart analyze example": "退出 0，No issues found!",
+  "dart test --coverage-path=coverage/local.info --branch-coverage --reporter expanded": "退出 0，5614 项全部通过；I1–I10 与 512 × 10 powerset 全绿",
+  "python tool/pipeline_b5a_coverage.py coverage/local.info --out coverage/r2a-final-audit": "退出 0，全部 34 文件核对；可执行行与分支均 100%",
+  "python tool/round2_r2a_mutations.py": "退出 0，8 项契约变异实际断言失败；SHA256 恢复",
+  "python tool/pipeline_b5a_mutations.py": "退出 0，7 项 powerset 变异击中并恢复；本地原始输出沿用脚本的 coverage/r1-powerset-mutations 目录，入库副本属于本批",
+  "dart run test/accept/bin/inventory.dart": "退出 0，753 → 733 项（新增 27，删除 47）",
+  "dart run test/accept/bin/matrix.dart sync": "退出 0；移除失效 API 行并人工定档，451 行",
+  "dart run test/accept/bin/matrix.dart gates --lcov=coverage/local.info": "退出 0；G0/G1/G2/G3/G5=0，G4=1，等于基线",
+  "dart run test/accept/bin/cli.dart --networks=normal --styles=http,business --jobs=4 --report=coverage/accept/r2a-reviewed-normal.json": "退出 0；918 格全部完成，768 通过 / 0 失败 / 150 跳过",
+  "dart test test/integration/documentation_examples_integration_test.dart --reporter expanded": "退出 0；58 个当前 Dart 单元编译成功，25 个既有历史块保持原登记；新增逐文档数量断言",
+  "codex review --uncommitted": "两轮均退出 0；首轮 1 项成立 P2 已修复，复审无仍成立回归；限制只读本目录，不修改文件、不运行测试或创建子代理",
+  "git diff --check -- .": "退出 0，无空白错误"
+}

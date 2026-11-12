@@ -1,3 +1,12 @@
+## 0.1.2
+
+- Docs: new Chinese README (`README.zh-CN.md`); both READMEs gain a detailed `Xvg.string` guide, a complete API reference (caches, animation controller/events, image providers, `RustLib`) and table of contents. Dartdoc added for `XvgPixelSnap` members.
+- A static showcase page is published at https://icodejoo.github.io/dart-labs/xvg/ (not part of the package).
+
+## 0.1.1
+
+- **Fix:** 0.1.0 was published without `lib/src/rust/` (the generated flutter_rust_bridge Dart bindings): an unanchored `rust/` rule in `.pubignore` also excluded it, so the package did not compile. The rule now only excludes the top-level `rust/` crate. Use 0.1.1.
+
 ## 0.1.0
 
 Initial release.

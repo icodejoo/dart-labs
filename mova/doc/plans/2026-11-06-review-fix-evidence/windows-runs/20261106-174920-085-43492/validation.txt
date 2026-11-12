@@ -1,0 +1,24 @@
+Validation after the complete acceptance run:
+
+dart format --output=none --set-exit-if-changed example/tool/win_lease_verify/verify.dart
+Formatted 1 file (0 changed) in 0.01 seconds.
+
+dart analyze example/tool/win_lease_verify/verify.dart
+Analyzing verify.dart...
+No issues found!
+
+PowerShell AST ParseFile(verify.ps1): no errors.
+git diff --check: exit 0, no output.
+git diff -- lib: exit 0, no output.
+
+Independent result audit parsed WRFV-prefixed lines from the final batch's
+stdout.txt: exactly 12 rows, all PASS, four scenarios with three iterations.
+Final worker manifest: 30 logical workers, 3 expected taskkill exits (code 1),
+27 normal exits (code 0); no missing exit receipt.
+Final launcher stderr.txt: 0 bytes.
+
+Production source SHA256 before/after (unchanged):
+lib/src/core/preview/dir_lease.dart
+4324BC6932442B59AB3DF29F5AF58A88415E39E12B04CCC473C687904A1CD8DF
+lib/src/platform_impl/thumb_dir_impl.dart
+4981A35F657FD8AEEECBC6CD8994EE2563F588F17212DA81E22535A8EC438D8B

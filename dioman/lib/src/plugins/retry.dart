@@ -1,12 +1,15 @@
 import 'dart:async';
 import 'dart:math';
 import '../client.dart';
-import '../constants.dart';
 import '../context.dart';
 import '../options.dart';
 import '../plugin.dart';
 import '../response.dart';
 import '../stages.dart';
+
+/// 三后端均能精确表示的最大退避毫秒数，预留内部微秒换算空间。
+const _diomanMaxDelayMilliseconds =
+    0x1fffffffffffff ~/ Duration.microsecondsPerMillisecond;
 
 /// 返回布尔采用自定义规则；null 回退默认规则。
 typedef DiomanShouldRetry = bool? Function(
@@ -45,7 +48,7 @@ class DiomanRetryOptions {
   /// 允许重试的方法，忽略大小写，优先于自定义规则。
   final List<String>? methods;
 
-  /// 触发重试的逻辑状态表。
+  /// 触发重试的有效状态表。
   final List<int>? statusCodes;
 
   /// 自定义判定；null 回退默认规则，也接收成功响应。
@@ -63,7 +66,7 @@ class DiomanRetryOptions {
   /// 优先遵守 Retry-After。
   final bool? respectRetryAfter;
 
-  /// 接受 Retry-After 的逻辑状态。
+  /// 接受 Retry-After 的有效状态。
   final List<int>? afterStatusCodes;
 
   /// 服务器等待时间上限；不受 delayMax 限制。
@@ -75,17 +78,18 @@ class DiomanRetryOptions {
 
 /// 重发内层管线，每次尝试重新经过熔断与鉴权。
 class DiomanRetry<R extends DiomanResponse<dynamic>> extends DiomanPlugin<R> {
-  /// 创建插件；请求级使用 option 键覆盖，状态由 setup 隔离。
+  /// 默认重试两次，从 300 毫秒起指数退避，普通退避封顶十秒。
+  /// 请求级使用 option 键覆盖，状态由 setup 隔离。
   /// 例如 `DiomanRetry(enabled: false)` 可关闭安装。
   const DiomanRetry(
       {this.enabled = true,
-      this.max = 0,
+      this.max = 2,
       this.methods = defaultMethods,
       this.statusCodes = defaultStatusCodes,
       this.shouldRetry,
       this.delay = defaultDelay,
       this.jitter,
-      this.delayMax,
+      this.delayMax = const Duration(seconds: 10),
       this.respectRetryAfter = true,
       this.afterStatusCodes = defaultAfterStatusCodes,
       this.retryAfterMax = const Duration(seconds: 60),
@@ -101,7 +105,7 @@ class DiomanRetry<R extends DiomanResponse<dynamic>> extends DiomanPlugin<R> {
   /// 允许重试的方法，忽略大小写，优先于自定义规则。
   final List<String> methods;
 
-  /// 触发重试的逻辑状态表。
+  /// 触发重试的有效状态表。
   final List<int> statusCodes;
 
   /// 自定义判定；null 回退默认规则，也接收成功响应。
@@ -119,7 +123,7 @@ class DiomanRetry<R extends DiomanResponse<dynamic>> extends DiomanPlugin<R> {
   /// 优先遵守 Retry-After。
   final bool respectRetryAfter;
 
-  /// 接受 Retry-After 的逻辑状态。
+  /// 接受 Retry-After 的有效状态。
   final List<int> afterStatusCodes;
 
   /// 服务器等待时间上限；不受 delayMax 限制。
@@ -144,13 +148,17 @@ class DiomanRetry<R extends DiomanResponse<dynamic>> extends DiomanPlugin<R> {
   /// 默认接受服务器退避的状态。
   static const defaultAfterStatusCodes = [413, 429, 503];
 
-  /// 默认固定三秒退避。
+  /// 默认从 300 毫秒起指数退避，数值饱和以免时长溢出。
+  /// 最终等待由 delayMax 封顶，例如首两次为 300、600 毫秒。
   static Duration defaultDelay(
           int attempt, int max, DiomanResponse<dynamic> result) =>
-      const Duration(seconds: 3);
+      Duration(
+          milliseconds:
+              min(300 * pow(2.0, attempt - 1), _diomanMaxDelayMilliseconds)
+                  .round());
 
   /// 稳定插件名称。
-  static const pluginName = diomanRetryName;
+  static const pluginName = 'dioman:retry';
 
   /// 请求级选项键。
   static final option = DiomanOptionKey<DiomanRetryOptions>(pluginName);
@@ -165,8 +173,9 @@ class DiomanRetry<R extends DiomanResponse<dynamic>> extends DiomanPlugin<R> {
 
   /// 预合并配置并建立客户端独立实例。
   @override
-  DiomanPluginInstance<R> setup(Dioman<R> client) =>
-      _Retry<R>(DiomanRetryOptions(
+  DiomanPluginInstance<R> setup(Dioman<R> client) => _Retry<R>(
+      this,
+      DiomanRetryOptions(
           max: max,
           methods: methods,
           statusCodes: statusCodes,
@@ -200,7 +209,10 @@ DiomanRetryOptions _merge(DiomanRetryOptions a, DiomanRetryOptions b) =>
 class _Retry<R extends DiomanResponse<dynamic>>
     extends DiomanPluginInstance<R> {
   /// 保存预合并配置。
-  _Retry(this.base);
+  _Retry(this.config, this.base);
+
+  /// 插件配置。
+  final DiomanRetry<R> config;
 
   /// 预合并配置。
   final DiomanRetryOptions base;
@@ -210,12 +222,12 @@ class _Retry<R extends DiomanResponse<dynamic>>
 
   /// 不接受重试的失败类别。
   static const _veto = {
-    DiomanKind.cancel,
-    DiomanKind.auth,
-    DiomanKind.internal,
-    DiomanKind.parse,
-    DiomanKind.breaker,
-    DiomanKind.offline
+    DiomanFailureKind.cancel,
+    DiomanFailureKind.auth,
+    DiomanFailureKind.internal,
+    DiomanFailureKind.parse,
+    DiomanFailureKind.breaker,
+    DiomanFailureKind.offline
   };
 
   /// RFC1123 日期模式。
@@ -245,23 +257,25 @@ class _Retry<R extends DiomanResponse<dynamic>>
           ? cap
           : value;
 
-  /// 严格按类别、自定义、网络、逻辑状态的顺序判定。
-  bool _retry(DiomanRetryOptions o, DiomanResponse<dynamic> r, int attempt) {
-    if (_veto.contains(r.kind)) return false;
+  /// 严格按类别、自定义、网络、有效状态的顺序判定。
+  bool _retry(DiomanContext<R> ctx, DiomanRetryOptions o,
+      DiomanResponse<dynamic> r, int attempt) {
+    if (_veto.contains(failureOf(r)?.kind)) return false;
     final custom = o.shouldRetry?.call(r, attempt);
     if (custom != null) return custom;
-    return r.kind == DiomanKind.network ||
-        r.kind == DiomanKind.timeout ||
-        o.statusCodes!.contains(r.status);
+    return failureOf(r)?.kind == DiomanFailureKind.network ||
+        failureOf(r)?.kind == DiomanFailureKind.timeout ||
+        o.statusCodes!.contains(ctx.statusOf(r));
   }
 
   /// 解析服务器秒数或 HTTP 日期；无效值回退普通退避。
   Duration? _after(
       DiomanContext<R> ctx, DiomanRetryOptions o, DiomanResponse<dynamic> r) {
-    if (!o.respectRetryAfter! || !o.afterStatusCodes!.contains(r.status)) {
+    if (!o.respectRetryAfter! ||
+        !o.afterStatusCodes!.contains(ctx.statusOf(r))) {
       return null;
     }
-    final raw = r.raw?.headers.value('retry-after')?.trim();
+    final raw = DiomanResponseInternal.retryAfter(r)?.trim();
     if (raw == null) return null;
     final seconds = raw.isEmpty ? 0 : num.tryParse(raw);
     if (seconds != null && seconds.isFinite) {
@@ -304,6 +318,12 @@ class _Retry<R extends DiomanResponse<dynamic>>
         merge: _merge,
         shorthand: (v) => v is int ? DiomanRetryOptions(max: v) : null);
     if (o == null || o.enabled == false) return next();
+    if (ctx.client.debugEnabled &&
+        o.jitter != null &&
+        o.jitter is! bool &&
+        o.jitter is! DiomanJitter) {
+      throw ArgumentError.value(o.jitter, 'jitter');
+    }
     ctx.markReplayable();
     if (!o.methods!
         .map((m) => m.toUpperCase())
@@ -312,10 +332,10 @@ class _Retry<R extends DiomanResponse<dynamic>>
     }
     var r = await next();
     var cancelled = ctx.cancelled();
-    if (r.kind == DiomanKind.internal) return r;
+    if (failureOf(r)?.kind == DiomanFailureKind.internal) return r;
     if (cancelled != null) return cancelled;
     for (var attempt = 1;
-        attempt <= o.max! && _retry(o, r, attempt);
+        attempt <= o.max! && _retry(ctx, o, r, attempt);
         attempt++) {
       if (!ctx.canReplay()) return r;
       final after = _after(ctx, o, r);
@@ -334,7 +354,7 @@ class _Retry<R extends DiomanResponse<dynamic>>
       if (cancelled != null) return cancelled;
       r = await next();
       cancelled = ctx.cancelled();
-      if (r.kind == DiomanKind.internal) return r;
+      if (failureOf(r)?.kind == DiomanFailureKind.internal) return r;
       if (cancelled != null) return cancelled;
     }
     return r;

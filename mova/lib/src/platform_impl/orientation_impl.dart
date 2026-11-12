@@ -62,7 +62,9 @@ List<DeviceOrientation> resolveOrientations(
     case MovaOrientation.portrait:
       return _portrait;
     case MovaOrientation.auto:
-      return fullscreen ? preferredOrientationsFor(width, height) : DeviceOrientation.values;
+      return fullscreen
+          ? preferredOrientationsFor(width, height)
+          : DeviceOrientation.values;
   }
 }
 
@@ -72,14 +74,23 @@ List<DeviceOrientation> resolveOrientations(
 /// 基于 [SystemChrome] 实现的 [MovaOrientationPort]，驱动首选设备方向与沉浸式
 /// 系统 UI 模式。
 class MovaSystemChromeOrientationPort implements MovaOrientationPort {
+  /// Creates a port; [config] declares the host orientations and system bars.
+  ///
   /// 创建方向端口；[config] 声明宿主离开全屏后使用的方向与系统栏。
   ///
   /// 示例：`MovaSystemChromeOrientationPort(config: MovaOrientationConfig())`。
-  const MovaSystemChromeOrientationPort({this.config = const MovaOrientationConfig()});
+  const MovaSystemChromeOrientationPort({
+    this.config = const MovaOrientationConfig(),
+  });
 
+  /// The host restoration settings, e.g. `port.config.allowedOrientations`.
+  ///
   /// 宿主的还原配置；示例：`port.config.allowedOrientations`。
   final MovaOrientationConfig config;
 
+  /// Applies the orientation override and restores host system bars on exit.
+  ///
+  /// 应用强制方向，并在退出全屏时还原宿主系统栏。
   @override
   Future<void> apply({
     required bool fullscreen,
@@ -92,25 +103,44 @@ class MovaSystemChromeOrientationPort implements MovaOrientationPort {
       return reset();
     }
     await SystemChrome.setPreferredOrientations(
-      resolveOrientations(orientation, fullscreen: fullscreen, width: width, height: height),
+      resolveOrientations(
+        orientation,
+        fullscreen: fullscreen,
+        width: width,
+        height: height,
+      ),
     );
     await SystemChrome.setEnabledSystemUIMode(
-      immersive ? SystemUiMode.immersiveSticky : SystemUiMode.edgeToEdge,
+      immersive
+          ? SystemUiMode.immersiveSticky
+          : (fullscreen ? SystemUiMode.edgeToEdge : config.systemUiMode),
+      overlays: config.systemUiOverlays,
     );
   }
 
+  /// Restores the host orientations and system bars.
+  ///
+  /// 还原宿主方向和系统栏。
   @override
   Future<void> reset() async {
     await SystemChrome.setPreferredOrientations(config.allowedOrientations);
-    await SystemChrome.setEnabledSystemUIMode(config.systemUiMode, overlays: config.systemUiOverlays);
+    await SystemChrome.setEnabledSystemUIMode(
+      config.systemUiMode,
+      overlays: config.systemUiOverlays,
+    );
   }
 }
 
+/// Host settings restored after fullscreen; defaults to all orientations and edge-to-edge.
+///
 /// 宿主声明的全屏离场配置；未声明时允许全部方向并使用 edge-to-edge。
 ///
 /// 示例：`createMovaEngine(orientationConfig: MovaOrientationConfig(
 ///   allowedOrientations: [DeviceOrientation.portraitUp]))`。
 class MovaOrientationConfig {
+  /// Creates settings with [allowedOrientations], [systemUiMode], and manual
+  /// [systemUiOverlays]; see the example below.
+  ///
   /// 创建配置；[allowedOrientations] 为宿主允许方向，[systemUiMode] 为系统栏模式，
   /// [systemUiOverlays] 在 manual 模式下指定可见系统栏，返回不可变配置引用。
   ///
@@ -122,12 +152,18 @@ class MovaOrientationConfig {
     this.systemUiOverlays = SystemUiOverlay.values,
   });
 
+  /// Allowed orientations after exit, e.g. `[DeviceOrientation.portraitUp]`.
+  ///
   /// 离场后允许的方向；示例：`[DeviceOrientation.portraitUp]`。
   final List<DeviceOrientation> allowedOrientations;
 
+  /// System UI mode after exit, e.g. `SystemUiMode.manual`.
+  ///
   /// 离场后的系统栏模式；示例：`SystemUiMode.manual`。
   final SystemUiMode systemUiMode;
 
+  /// Visible bars in manual mode, e.g. `[SystemUiOverlay.top]`.
+  ///
   /// manual 模式下可见的系统栏；示例：`[SystemUiOverlay.top]`。
   final List<SystemUiOverlay> systemUiOverlays;
 }

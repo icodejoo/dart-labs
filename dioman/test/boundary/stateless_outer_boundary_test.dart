@@ -1,4 +1,5 @@
-import '../support/b2_constants.dart';
+import '../support/response_contract.dart';
+import '../support/request_constants.dart';
 import 'dart:async';
 import 'package:dioman/dioman.dart';
 import 'package:test/test.dart';
@@ -111,7 +112,7 @@ void main() {
       api.dispose();
       api.dispose();
       expect(control.activeCount, 0);
-      expect((await pending).kind, DiomanKind.cancel);
+      expect(outcomeOf((await pending)), diomanTestCancel);
       gate.complete();
       clock.elapse(outerTick * 2);
       expect(events, delayed ? isEmpty : [true, false]);
@@ -181,7 +182,7 @@ void main() {
   test('[DiomanNotify] internal 优先于取消且 loading finally 仍完成', () async {
     final events = <bool>[];
     Result? notified;
-    final bug = StateError('internal');
+    final bug = StateError(diomanTestInternal);
     final api = testClient(plugins: [
       DiomanLoading(onChanged: events.add),
       DiomanNotify(notify: (_, r) => notified = r),

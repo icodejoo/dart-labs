@@ -1,0 +1,27 @@
+00:00 +0: loading test/boundary/internal_callback_boundary_test.dart
+00:00 +0: [DiomanContext.statusOf][INV-pipeline-internals] 回调抛出任意 DioException 仍按程序错误原栈抛出 mapper=false
+00:00 +0 -1: [DiomanContext.statusOf][INV-pipeline-internals] 回调抛出任意 DioException 仍按程序错误原栈抛出 mapper=false [E]
+  Expected: same instance as DioException:<DioException [connection timeout]: null
+            Error: Bad state: cause>
+    Actual: TestFailure:<必须抛出程序异常>
+  
+  package:matcher                                           expect
+  test\boundary\internal_callback_boundary_test.dart 30:11  main.<fn>
+  
+00:00 +0 -1: [DiomanContext.statusOf][INV-pipeline-internals] 回调抛出任意 DioException 仍按程序错误原栈抛出 mapper=true
+00:00 +0 -2: [DiomanContext.statusOf][INV-pipeline-internals] 回调抛出任意 DioException 仍按程序错误原栈抛出 mapper=true [E]
+  Expected: same instance as DioException:<DioException [connection timeout]: null
+            Error: Bad state: cause>
+    Actual: TestFailure:<必须抛出程序异常>
+  
+  package:matcher                                           expect
+  test\boundary\internal_callback_boundary_test.dart 30:11  main.<fn>
+  
+00:00 +0 -2: Some tests failed.
+
+Failing tests:
+  test/boundary/internal_callback_boundary_test.dart: [DiomanContext.statusOf][INV-pipeline-internals] 回调抛出任意 DioException 仍按程序错误原栈抛出 mapper=false
+  test/boundary/internal_callback_boundary_test.dart: [DiomanContext.statusOf][INV-pipeline-internals] 回调抛出任意 DioException 仍按程序错误原栈抛出 mapper=true
+
+Consider enabling the flag chain-stack-traces to receive more detailed exceptions.
+For example, 'dart test --chain-stack-traces'.

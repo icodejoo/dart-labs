@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'cache.dart';
+import 'dir_lease.dart';
 import 'dir_provider.dart';
 
 /// File-name suffix used for every cached thumbnail.
@@ -118,9 +119,16 @@ class MovaDiskThumbCache implements MovaThumbCache {
     _indexed = true;
   }
 
-  /// 按内存索引删除 [d] 中的最旧条目，直到满足预算。
+  /// Sums encoded bytes from the current index. / 汇总当前索引中的编码字节数。
+  int get _indexedBytes =>
+      _index.values.fold<int>(0, (sum, entry) => sum + entry.size);
+
+  /// Evicts oldest entries only when the byte budget is exceeded.
+  ///
+  /// 按内存索引删除 [d] 中的最旧条目，直到满足预算；未超预算时跳过排序。
   Future<void> _evict(Directory d) async {
-    var total = _index.values.fold<int>(0, (sum, entry) => sum + entry.size);
+    var total = _indexedBytes;
+    if (total <= maxBytes) return;
     final keys = _index.keys.toList()
       ..sort((a, b) => _index[a]!.touched.compareTo(_index[b]!.touched));
     for (final key in keys) {
@@ -141,7 +149,7 @@ class MovaDiskThumbCache implements MovaThumbCache {
       final d = await _dir();
       if (d == null) return 0;
       await _loadIndex(d);
-      return _index.values.fold<int>(0, (sum, entry) => sum + entry.size);
+      return _indexedBytes;
     } on FileSystemException {
       return 0;
     }
@@ -219,5 +227,12 @@ class MovaDiskThumbCache implements MovaThumbCache {
   });
 
   @override
-  Future<void> dispose() => _queue;
+  Future<void> dispose() async {
+    await _queue;
+    // Only leased providers opt into cache-owned teardown; ordinary directory
+    // resolvers retain their contract without a new port requirement.
+    //
+    // 只有租约 provider 选择由缓存负责销毁；普通解析器契约不变，端口不加新要求。
+    if (dir case final MovaThumbDirLease lease) await lease.dispose();
+  }
 }

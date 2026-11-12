@@ -1,3 +1,5 @@
+import 'package:dioman/src/response.dart' show DiomanResponseInternal;
+import '../support/response_contract.dart';
 // ignore_for_file: avoid_relative_lib_imports
 import 'dart:async';
 import 'package:dio/dio.dart';
@@ -8,6 +10,9 @@ import '../accept/lib/common.dart';
 import '../accept/lib/runner.dart';
 import '../support/fake_network.dart';
 import '../support/helpers.dart' show flush;
+
+/// 请求超时字段；含义由场景声明的整体预算能力区分。
+const _requestTimeoutMs = 'timeout_ms';
 
 /// B7 共用字面量。
 const _b7Steps = 'steps';
@@ -28,9 +33,6 @@ const _b7BadJson = 'bad_json';
 const _b7Literal0 = 'id';
 
 /// B7 共用字面量。
-const _b7Literal1 = 'total-budget';
-
-/// B7 共用字面量。
 const _b7Literal2 = 'networks';
 
 /// B7 共用字面量。
@@ -43,16 +45,16 @@ const _b7Literal4 = 'reasons';
 const _b7Literal5 = 'business:503';
 
 /// B7 共用字面量。
-const _b7Literal6 = 'network';
+const _b7Literal6 = diomanTestNetwork;
 
 /// B7 共用字面量。
-const _b7Literal7 = 'parse';
+const _b7Literal7 = diomanTestParse;
 
 /// B7 共用字面量。
-const _b7Literal8 = 'offline';
+const _b7Literal8 = diomanTestOffline;
 
 /// B7 共用字面量。
-const _b7Literal9 = 'auth';
+const _b7Literal9 = diomanTestAuth;
 
 /// B7 共用字面量。
 const _b7Literal10 = 'key';
@@ -143,9 +145,7 @@ void main() {
   test('[client.classify] B8 业务编号读取原始 code，不读取 status 或 data', () {
     final r = DiomanResponse<dynamic>(
         ok: false,
-        kind: DiomanKind.biz,
         status: 200,
-        httpStatus: 200,
         code: 5001,
         request: DiomanRequest(RequestOptions()),
         data: {'code': 401});
@@ -268,47 +268,76 @@ void main() {
       }
     }
   });
-  test('[ScenarioRun.execute] total_ms 缺能力时跳过，不访问服务也不补计时器', () async {
-    for (final declared in [true, false]) {
-      final result = await ScenarioRun({
-        _b7Literal0: _b7Literal1,
-        _literalRequires: [if (declared) timeoutTotalCapability],
-        _b7Literal2: [_literalNormal],
-        _b7Literal3: <String, Object?>{},
-        _literalClient: {
-          _literalPlugins: {
-            _literalTimeout: {'total_ms': 10}
-          }
+  test('[ScenarioClient] total_ms 与请求 timeout_ms 映射原生截止时间', () async {
+    final config = {
+      _literalClient: {
+        _literalPlugins: {
+          _literalTimeout: {'total_ms': 10}
         }
-      }, _literalNormal, _literalHttp, _b7Literal1)
-          .execute();
-      expect(result['status'], '跳过');
-      expect(result[_b7Literal4], ['skipped: missing $timeoutTotalCapability']);
+      }
+    };
+    expect(missingCapabilities(config), isEmpty);
+    expect(supportedCapabilities, contains(timeoutTotalCapability));
+    final client = ScenarioClient(
+        config, _literalGuard, _literalHttpsGuardTest, _literalHttp,
+        transport: FakeNetwork());
+    try {
+      expect(client.api.deadline, const Duration(milliseconds: 10));
+      final call = client.call({_requestTimeoutMs: 20});
+      expect(call.deadline, const Duration(milliseconds: 20));
+      expect(call.receiveTimeout, isNull);
+      expect(client.call({}).deadline, isNull);
+    } finally {
+      await client.dispose();
     }
   });
+  for (final total in [false, true]) {
+    test('[ScenarioClient] timeout_ms 单独声明整体预算=$total', () async {
+      final client = ScenarioClient({
+        _literalRequires: [if (total) timeoutTotalCapability],
+        _literalClient: {_literalPlugins: <String, dynamic>{}}
+      }, _literalGuard, _literalHttpsGuardTest, _literalHttp,
+          transport: FakeNetwork());
+      try {
+        final call = client.call({_requestTimeoutMs: 500});
+        const timeout = Duration(milliseconds: 500);
+        expect(client.api.deadline, isNull);
+        expect(call.deadline, total ? timeout : null);
+        expect(call.receiveTimeout, total ? null : timeout);
+      } finally {
+        await client.dispose();
+      }
+    });
+  }
   test('[client.classify] 归类只读取 kind reason status code，原始数据不参与判断', () {
     final request = DiomanRequest(RequestOptions(path: '/classification'));
     for (final entry in {
-      DiomanKind.biz: _b7Literal5,
-      DiomanKind.http: 'http:503',
-      DiomanKind.cancel: 'canceled',
-      DiomanKind.timeout: _literalTimeout,
-      DiomanKind.network: _b7Literal6,
-      DiomanKind.parse: _b7Literal7,
-      DiomanKind.breaker: 'breaker_open',
-      DiomanKind.offline: _b7Literal8,
-      DiomanKind.auth: _literalDenied,
+      diomanTestBiz: _b7Literal5,
+      diomanTestHttp: 'http:503',
+      diomanTestCancel: 'canceled',
+      diomanTestTimeout: _literalTimeout,
+      diomanTestNetwork: _b7Literal6,
+      diomanTestParse: _b7Literal7,
+      diomanTestBreaker: 'breaker_open',
+      diomanTestOffline: _b7Literal8,
+      diomanTestAuth: _literalDenied,
     }.entries) {
       final response = DiomanResponse<Object?>(
           ok: false,
-          kind: entry.key,
           status: 503,
           code: 503,
-          httpStatus: 200,
           request: request,
-          reason: _literalDenied,
           data: {_literalCode: 0});
-      expect(classify(response), entry.value);
+      if (entry.key != diomanTestBiz && entry.key != diomanTestHttp) {
+        DiomanResponseInternal.restore(
+            response, DiomanFailureKind.values.byName(entry.key),
+            reason: _literalDenied);
+      }
+      final result = entry.key == diomanTestBiz
+          ? DiomanResponse<Object?>(
+              ok: false, status: 200, code: 503, request: request)
+          : response;
+      expect(classify(result), entry.value);
     }
   });
   test('[common.missingCapabilities] mock 在链内，raw-business-code 未声明', () {
@@ -351,7 +380,7 @@ void main() {
     try {
       final result = await client.api.send<dynamic>(_literalGET, _literalGuard1,
           call: client.call({_b7Literal9: true}));
-      expect(result.reason, 'expired',
+      expect(failureOf(result)?.reason, 'expired',
           reason:
               '$result sends=${network.sends.map((s) => s.options.path).toList()}');
       expect(client.refreshCount, 0);
@@ -389,7 +418,7 @@ void main() {
     try {
       final result =
           await client.api.send<dynamic>(_literalGET, _literalGuard1);
-      expect(result.kind, DiomanKind.offline);
+      expect(outcomeOf(result), diomanTestOffline);
       expect(client.api.pending, 0);
       expect(network.sends, isEmpty);
     } finally {

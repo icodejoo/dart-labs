@@ -1,7 +1,6 @@
 import 'package:dio/dio.dart';
 import '../client.dart';
 import '../config.dart';
-import '../constants.dart';
 import '../plugin.dart';
 import '../response.dart';
 
@@ -41,7 +40,7 @@ class DiomanEnvs<R extends DiomanResponse<dynamic>> extends DiomanPlugin<R> {
   final DiomanEnvsOptions config;
 
   /// 稳定插件名称。
-  static const pluginName = diomanEnvsName;
+  static const pluginName = 'dioman:envs';
 
   /// 返回稳定名称。
   @override

@@ -1,0 +1,29 @@
+{
+  "planned": 918,
+  "executed": 918,
+  "interrupted": false,
+  "remaining": 0,
+  "counts": {
+    "通过": 768,
+    "跳过": 150
+  },
+  "by_style": {
+    "http": {
+      "通过": 401,
+      "跳过": 58
+    },
+    "business": {
+      "通过": 367,
+      "跳过": 92
+    }
+  },
+  "skip_reasons": {
+    "不适用：场景未声明此网络或风格；不推断未定义的正确预期": 90,
+    "skipped: missing raw-business-code": 36,
+    "skipped: missing timeout-total": 24
+  },
+  "r4_skip_count": 150,
+  "skip_count": 150,
+  "skip_differences": {},
+  "failures": []
+}

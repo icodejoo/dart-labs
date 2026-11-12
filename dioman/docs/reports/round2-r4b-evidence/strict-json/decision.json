@@ -1,0 +1,290 @@
+{
+  "keep": false,
+  "target": "strict-json",
+  "improvementMicros": 0.7031008921199889,
+  "improvementPercent": 89.39709040314948,
+  "regressionsPercent": {
+    "S1": -1.9979491147873785,
+    "S2": 5.324548059290213,
+    "S3": 6.451063150012515,
+    "S4": -6.565590661345022,
+    "S5": -9.426321914424562,
+    "S6": -2.0270288297068895
+  },
+  "stable": false,
+  "pipeline": {
+    "A": {
+      "S1": {
+        "selected": {
+          "scenario": "S1",
+          "operations": 66029,
+          "requestsPerOperation": 1,
+          "elapsedSeconds": 2.0000245,
+          "opsPerSecond": 33014.09557732918,
+          "meanMicros": 29.974964030956098,
+          "p99Micros": 91.5,
+          "sends": 66029
+        },
+        "selectedRound": 1,
+        "spreadPercent": 18.801002442627702,
+        "means": [
+          29.974964030956098,
+          32.701064111037674,
+          27.522138307046095
+        ]
+      },
+      "S2": {
+        "selected": {
+          "scenario": "S2",
+          "operations": 54859,
+          "requestsPerOperation": 1,
+          "elapsedSeconds": 2.0000239,
+          "opsPerSecond": 27429.172221391953,
+          "meanMicros": 36.12375362292423,
+          "p99Micros": 105.60000000000001,
+          "sends": 54859
+        },
+        "selectedRound": 3,
+        "spreadPercent": 5.055608761876562,
+        "means": [
+          36.204952050415564,
+          34.44348136041174,
+          36.12375362292423
+        ]
+      },
+      "S3": {
+        "selected": {
+          "scenario": "S3",
+          "operations": 17655,
+          "requestsPerOperation": 1,
+          "elapsedSeconds": 2.0002289,
+          "opsPerSecond": 8826.489808241447,
+          "meanMicros": 112.96761823845937,
+          "p99Micros": 302.0,
+          "sends": 17655
+        },
+        "selectedRound": 3,
+        "spreadPercent": 7.781260476875196,
+        "means": [
+          120.08712668593449,
+          111.41376459415676,
+          112.96761823845937
+        ]
+      },
+      "S4": {
+        "selected": {
+          "scenario": "S4",
+          "operations": 59038,
+          "requestsPerOperation": 1,
+          "elapsedSeconds": 2.0000138,
+          "opsPerSecond": 29518.79632030539,
+          "meanMicros": 33.70007452826993,
+          "p99Micros": 132.20000000000002,
+          "sends": 0
+        },
+        "selectedRound": 3,
+        "spreadPercent": 37.54322720228333,
+        "means": [
+          29.099353602714288,
+          40.02579905461129,
+          33.70007452826993
+        ]
+      },
+      "S5": {
+        "selected": {
+          "scenario": "S5",
+          "operations": 1807,
+          "requestsPerOperation": 100,
+          "elapsedSeconds": 2.000611,
+          "opsPerSecond": 903.2240650481278,
+          "meanMicros": 1106.6323187603764,
+          "p99Micros": 2295.4,
+          "sends": 1807
+        },
+        "selectedRound": 2,
+        "spreadPercent": 39.21185752427954,
+        "means": [
+          985.7595660749507,
+          1106.6323187603764,
+          1372.1083733699384
+        ]
+      },
+      "S6": {
+        "selected": {
+          "scenario": "S6",
+          "operations": 48242,
+          "requestsPerOperation": 1,
+          "elapsedSeconds": 2.0000162,
+          "opsPerSecond": 24120.804621482566,
+          "meanMicros": 41.198799801003275,
+          "p99Micros": 115.2,
+          "sends": 48242
+        },
+        "selectedRound": 2,
+        "spreadPercent": 10.795549122748316,
+        "means": [
+          40.9532987184242,
+          41.198799801003275,
+          45.3790549024084
+        ]
+      }
+    },
+    "B": {
+      "S1": {
+        "selected": {
+          "scenario": "S1",
+          "operations": 67369,
+          "requestsPerOperation": 1,
+          "elapsedSeconds": 2.0000153,
+          "opsPerSecond": 33684.24231554629,
+          "meanMicros": 29.376079502441776,
+          "p99Micros": 88.2,
+          "sends": 67369
+        },
+        "selectedRound": 2,
+        "spreadPercent": 28.95628468359577,
+        "means": [
+          26.91085520054385,
+          29.376079502441776,
+          34.72759007626896
+        ]
+      },
+      "S2": {
+        "selected": {
+          "scenario": "S2",
+          "operations": 52079,
+          "requestsPerOperation": 1,
+          "elapsedSeconds": 2.0000308,
+          "opsPerSecond": 26039.098997875433,
+          "meanMicros": 38.04718024539642,
+          "p99Micros": 130.8,
+          "sends": 52079
+        },
+        "selectedRound": 2,
+        "spreadPercent": 6.235997435761909,
+        "means": [
+          36.23571663740123,
+          38.04718024539642,
+          38.48972834324356
+        ]
+      },
+      "S3": {
+        "selected": {
+          "scenario": "S3",
+          "operations": 16585,
+          "requestsPerOperation": 1,
+          "elapsedSeconds": 2.0000276,
+          "opsPerSecond": 8292.385565079201,
+          "meanMicros": 120.25523063008744,
+          "p99Micros": 385.8,
+          "sends": 16585
+        },
+        "selectedRound": 3,
+        "spreadPercent": 24.928810339731335,
+        "means": [
+          106.6469361565608,
+          133.2488042752171,
+          120.25523063008744
+        ]
+      },
+      "S4": {
+        "selected": {
+          "scenario": "S4",
+          "operations": 63194,
+          "requestsPerOperation": 1,
+          "elapsedSeconds": 2.0000279,
+          "opsPerSecond": 31596.55922799877,
+          "meanMicros": 31.487465582175528,
+          "p99Micros": 114.10000000000001,
+          "sends": 0
+        },
+        "selectedRound": 2,
+        "spreadPercent": 34.41230488080029,
+        "means": [
+          31.21060843656892,
+          31.487465582175528,
+          41.94628825562769
+        ]
+      },
+      "S5": {
+        "selected": {
+          "scenario": "S5",
+          "operations": 1995,
+          "requestsPerOperation": 100,
+          "elapsedSeconds": 2.0005731,
+          "opsPerSecond": 997.2142482571619,
+          "meanMicros": 1002.3175939849624,
+          "p99Micros": 1690.2,
+          "sends": 1995
+        },
+        "selectedRound": 1,
+        "spreadPercent": 29.769347111511713,
+        "means": [
+          1002.3175939849624,
+          929.7001394700139,
+          1206.4602293301148
+        ]
+      },
+      "S6": {
+        "selected": {
+          "scenario": "S6",
+          "operations": 49232,
+          "requestsPerOperation": 1,
+          "elapsedSeconds": 2.0000662,
+          "opsPerSecond": 24615.18523736864,
+          "meanMicros": 40.363688251543714,
+          "p99Micros": 98.4,
+          "sends": 49232
+        },
+        "selectedRound": 2,
+        "spreadPercent": 20.694481942584652,
+        "means": [
+          39.92214726020521,
+          40.363688251543714,
+          48.15772828615743
+        ]
+      }
+    }
+  },
+  "targetMetrics": {
+    "A": {
+      "strict-json": {
+        "selected": {
+          "scenario": "strict-json",
+          "operations": 2543100,
+          "elapsedSeconds": 2.0001276,
+          "meanMicros": 0.786491919311077
+        },
+        "selectedRound": 2,
+        "spreadPercent": 8.995000800416797,
+        "means": [
+          0.8232400806717155,
+          0.786491919311077,
+          0.7553007703345669
+        ]
+      }
+    },
+    "B": {
+      "strict-json": {
+        "selected": {
+          "scenario": "strict-json",
+          "operations": 23985800,
+          "elapsedSeconds": 2.0002005,
+          "meanMicros": 0.08339102719108805
+        },
+        "selectedRound": 3,
+        "spreadPercent": 1.7221900982630434,
+        "means": [
+          0.08450123574666558,
+          0.08307060206336285,
+          0.08339102719108805
+        ]
+      }
+    }
+  },
+  "reason": "\u672a\u6ee1\u8db3\u5168\u90e8\u4e8b\u524d\u9608\u503c",
+  "finalSha256": {
+    "lib\\src\\request.dart": "0129cbde151298238c61083ba4b66babfa2a9039eeceab2e8ac76f36f07e4d99",
+    "lib\\src\\response.dart": "02ef227e056de3e1e7a4e2fcdcaab1b906831d47c85905cd96a007be396f5cdb"
+  }
+}

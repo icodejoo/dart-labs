@@ -290,7 +290,12 @@ class _MovaViewState extends State<MovaView> {
               return engine.loadQualities();
             }
           })
-          .catchError((Object e, StackTrace s) => _reportOpenError(e, s)),
+          .catchError((Object e, StackTrace s) {
+            if (!mounted || gen != _loadGen || !identical(_engine, engine)) {
+              return;
+            }
+            _reportOpenError(e, s);
+          }),
     );
   }
 

@@ -173,6 +173,42 @@ class _ConditionsPageState extends State<ConditionsPage> {
           ),
           pageSection(
             context,
+            'gate — business eligibility (OverlayVerdict)',
+            [
+              demoButton('btn-cond-gate', 'open with gate (waitUntil +3s)', () {
+                // retryAt 必须取自 manager 的时钟，而不是 DateTime.now()。
+                final retryAt = om.clock.now().add(const Duration(seconds: 3));
+                openCard(
+                  'cond-gate',
+                  text: 'GATE',
+                  gate: (ctx) {
+                    if (ctx['gateDeclined'] == true) {
+                      return const OverlayVerdict.drop();
+                    }
+                    if (ctx['gateReady'] == true) {
+                      return const OverlayVerdict.pass();
+                    }
+                    return OverlayVerdict.waitUntil(retryAt);
+                  },
+                  hint: 'gate: pass / waitUntil(+3s) / drop (ends as gated)',
+                );
+              }),
+              demoButton('btn-cond-gate-ready', 'setContext gateReady: true',
+                  () {
+                om.setContext({'gateReady': true, 'gateDeclined': false});
+              }),
+              demoButton('btn-cond-gate-drop', 'setContext gateDeclined: true',
+                  () {
+                om.setContext({'gateDeclined': true, 'gateReady': false});
+              }),
+            ],
+            subtitle:
+                'gate runs after route/auth/when pass, before activation. waitUntil retries '
+                'by itself at the deadline or earlier on setContext; ready lets it pass at once; '
+                'declined drops it with OverlayEndReason.gated.',
+          ),
+          pageSection(
+            context,
             'dismissWhenUnmet: false — stay shown even if condition breaks',
             [
               demoButton(

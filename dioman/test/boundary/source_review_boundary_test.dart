@@ -1,8 +1,9 @@
+import '../support/response_contract.dart';
 import 'package:dioman/src/diagnostics.dart';
 import 'dart:async';
 import 'package:dioman/dioman.dart';
 import 'package:test/test.dart';
-import '../support/b4_helpers.dart';
+import '../support/source_test_helpers.dart';
 import '../support/fake_clock.dart';
 import '../support/fake_network.dart';
 import '../support/helpers.dart';
@@ -43,20 +44,20 @@ void main() {
           await api.send<Object?>(b4Get, b4Path, call: b4Call(cache: true));
       expect([
         second.ok,
-        second.kind,
-        second.httpStatus,
+        outcomeOf(second),
+        second.status,
         second.status,
         second.code,
-        second.reason,
+        failureOf(second)?.reason,
         second.message,
         second.data
       ], [
         first.ok,
-        first.kind,
-        first.httpStatus,
+        outcomeOf(first),
+        first.status,
         first.status,
         first.code,
-        first.reason,
+        failureOf(first)?.reason,
         first.message,
         first.data
       ]);
@@ -83,7 +84,10 @@ void main() {
     await b4Turn();
     api.eject(DiomanOffline.pluginName);
     gate.complete();
-    expect((await pending).reason, b4LiteralDisposed);
+    await b4Turn();
+    expect(offline.pending, 0,
+        reason: '已卸载的实例必须拒绝晚到入队，不能依靠测试总超时取证');
+    expect(failureOf((await pending))?.reason, b4LiteralDisposed);
     expect(offline.pending, 0);
     expect(net.sends, isEmpty);
   });

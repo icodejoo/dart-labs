@@ -1,6 +1,11 @@
 import '../events/events.dart';
 import 'report.dart';
 
+/// Shared translated-event parameter keys. / 共用的事件转换参数键。
+const _fromKey = 'from';
+const _toKey = 'to';
+const _valueKey = 'value';
+
 /// Pure mapping from a [MovaEvent] to its [MovaReportEvent], or `null` when
 /// [event] isn't in the reportable whitelist.
 ///
@@ -34,12 +39,29 @@ import 'report.dart';
 /// [MovaReady]（与 [MovaSourceChange] 几乎同时触发，信息冗余）、
 /// [MovaCutoverChange]（无缝切换的内部实现细节）、[MovaPreviewBlock]/
 /// [MovaSttBlock]（内部拒绝诊断，非业务分析事件）。
-MovaReportEvent? translateMovaEvent(MovaEvent event, {DateTime Function() now = DateTime.now}) {
+MovaReportEvent? translateMovaEvent(
+  MovaEvent event, {
+  DateTime Function() now = DateTime.now,
+}) {
+  /// Builds the common envelope after event-specific fields are evaluated.
+  ///
+  /// 在事件字段求值后构造共用的上报外壳。
+  MovaReportEvent report(
+    MovaReportName name, {
+    Map<String, dynamic> params = const {},
+    MovaReportPriority priority = MovaReportPriority.batched,
+  }) => MovaReportEvent(
+    kind: MovaReportKind.event,
+    name: name,
+    params: params,
+    priority: priority,
+    at: now(),
+  );
+
   switch (event) {
     case MovaPlayFailure(:final fail, :final action):
-      return MovaReportEvent(
-        kind: MovaReportKind.event,
-        name: MovaReportName.playFailure,
+      return report(
+        MovaReportName.playFailure,
         params: {
           'action': action.name,
           'kind': fail.kind.name,
@@ -47,72 +69,46 @@ MovaReportEvent? translateMovaEvent(MovaEvent event, {DateTime Function() now = 
           'sourceIndex': fail.sourceIndex,
         },
         priority: MovaReportPriority.immediate,
-        at: now(),
       );
     case MovaFailover(:final from, :final to):
-      return MovaReportEvent(
-        kind: MovaReportKind.event,
-        name: MovaReportName.failover,
-        params: {'from': from, 'to': to},
+      return report(
+        MovaReportName.failover,
+        params: {_fromKey: from, _toKey: to},
         priority: MovaReportPriority.immediate,
-        at: now(),
       );
     case MovaRecovered(:final attempts):
-      return MovaReportEvent(
-        kind: MovaReportKind.event,
-        name: MovaReportName.recovered,
+      return report(
+        MovaReportName.recovered,
         params: {'attempts': attempts},
         priority: MovaReportPriority.immediate,
-        at: now(),
       );
     case MovaSourceChange():
-      return MovaReportEvent(
-        kind: MovaReportKind.event,
-        name: MovaReportName.sourceChange,
+      return report(
+        MovaReportName.sourceChange,
         params: {'uri': event.source.uri},
-        priority: MovaReportPriority.batched,
-        at: now(),
       );
     case MovaPlay():
-      return MovaReportEvent(
-        kind: MovaReportKind.event,
-        name: MovaReportName.play,
-        priority: MovaReportPriority.batched,
-        at: now(),
-      );
+      return report(MovaReportName.play);
     case MovaPause():
-      return MovaReportEvent(
-        kind: MovaReportKind.event,
-        name: MovaReportName.pause,
-        priority: MovaReportPriority.batched,
-        at: now(),
-      );
+      return report(MovaReportName.pause);
     case MovaSeek():
-      return MovaReportEvent(
-        kind: MovaReportKind.event,
-        name: MovaReportName.seek,
+      return report(
+        MovaReportName.seek,
         params: {'targetMs': event.target.inMilliseconds},
-        priority: MovaReportPriority.batched,
-        at: now(),
       );
     case MovaSeeked():
-      return MovaReportEvent(
-        kind: MovaReportKind.event,
-        name: MovaReportName.seeked,
+      return report(
+        MovaReportName.seeked,
         params: {'positionMs': event.position.inMilliseconds},
-        priority: MovaReportPriority.batched,
-        at: now(),
       );
     // Playback completion is business-critical (e.g. drives "did the user
     // finish this content" funnels) — hint immediate delivery.
     //
     // 播放完成是业务关键事件（例如驱动"用户是否看完"漏斗分析）——提示立即发送。
     case MovaDone():
-      return MovaReportEvent(
-        kind: MovaReportKind.event,
-        name: MovaReportName.done,
+      return report(
+        MovaReportName.done,
         priority: MovaReportPriority.immediate,
-        at: now(),
       );
     // Errors are handled entirely by MovaQoeCollector (Task 8): fatal/code
     // classification needs "has the first frame landed yet" session state
@@ -125,52 +121,26 @@ MovaReportEvent? translateMovaEvent(MovaEvent event, {DateTime Function() now = 
     case MovaErrorEvent():
       return null;
     case MovaQualityChange():
-      return MovaReportEvent(
-        kind: MovaReportKind.event,
-        name: MovaReportName.qualityChange,
+      return report(
+        MovaReportName.qualityChange,
         params: {'quality': event.quality.label},
-        priority: MovaReportPriority.batched,
-        at: now(),
       );
     case MovaAbrDownShift():
-      return MovaReportEvent(
-        kind: MovaReportKind.event,
-        name: MovaReportName.abrDownShift,
-        params: {'from': event.from.label, 'to': event.to.label},
-        priority: MovaReportPriority.batched,
-        at: now(),
+      return report(
+        MovaReportName.abrDownShift,
+        params: {_fromKey: event.from.label, _toKey: event.to.label},
       );
     case MovaFullScreenChange():
-      return MovaReportEvent(
-        kind: MovaReportKind.event,
-        name: MovaReportName.fullScreenChange,
-        params: {'value': event.value},
-        priority: MovaReportPriority.batched,
-        at: now(),
+      return report(
+        MovaReportName.fullScreenChange,
+        params: {_valueKey: event.value},
       );
     case MovaPipChange():
-      return MovaReportEvent(
-        kind: MovaReportKind.event,
-        name: MovaReportName.pipChange,
-        params: {'value': event.value},
-        priority: MovaReportPriority.batched,
-        at: now(),
-      );
+      return report(MovaReportName.pipChange, params: {_valueKey: event.value});
     case MovaMiniChange():
-      return MovaReportEvent(
-        kind: MovaReportKind.event,
-        name: MovaReportName.miniChange,
-        params: {'mini': event.mini},
-        priority: MovaReportPriority.batched,
-        at: now(),
-      );
+      return report(MovaReportName.miniChange, params: {'mini': event.mini});
     case MovaLiveEdgeReach():
-      return MovaReportEvent(
-        kind: MovaReportKind.event,
-        name: MovaReportName.liveEdgeReach,
-        priority: MovaReportPriority.batched,
-        at: now(),
-      );
+      return report(MovaReportName.liveEdgeReach);
     default:
       return null;
   }

@@ -1,0 +1,70 @@
+{
+  "strict-json": {
+    "before": {
+      "samples": [
+        {
+          "scenario": "strict-json",
+          "operations": 1085000,
+          "elapsedSeconds": 2.0004986,
+          "meanMicros": 1.843777511520737
+        },
+        {
+          "scenario": "strict-json",
+          "operations": 1555900,
+          "elapsedSeconds": 2.0006909,
+          "meanMicros": 1.2858737065364096
+        },
+        {
+          "scenario": "strict-json",
+          "operations": 2528700,
+          "elapsedSeconds": 2.0001406,
+          "meanMicros": 0.7909758373867994
+        }
+      ],
+      "median": {
+        "scenario": "strict-json",
+        "operations": 1555900,
+        "elapsedSeconds": 2.0006909,
+        "meanMicros": 1.2858737065364096
+      },
+      "selectedRound": 2,
+      "spreadPercent": 133.10162262505392,
+      "stable": false
+    },
+    "after": {
+      "samples": [
+        {
+          "scenario": "strict-json",
+          "operations": 26048300,
+          "elapsedSeconds": 2.0000992,
+          "meanMicros": 0.07678425079563735
+        },
+        {
+          "scenario": "strict-json",
+          "operations": 23930000,
+          "elapsedSeconds": 2.0005334,
+          "meanMicros": 0.08359938988717092
+        },
+        {
+          "scenario": "strict-json",
+          "operations": 21381700,
+          "elapsedSeconds": 2.0000633,
+          "meanMicros": 0.09354089244540892
+        }
+      ],
+      "median": {
+        "scenario": "strict-json",
+        "operations": 23930000,
+        "elapsedSeconds": 2.0005334,
+        "meanMicros": 0.08359938988717092
+      },
+      "selectedRound": 2,
+      "spreadPercent": 21.823019012544222,
+      "stable": false
+    },
+    "improvementMicros": 1.2022743166492387,
+    "improvementPercent": 93.49863136152369,
+    "targetThresholdMet": true,
+    "regressionThresholdMet": true
+  }
+}

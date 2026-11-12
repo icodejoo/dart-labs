@@ -1,5 +1,4 @@
 import '../client.dart';
-import '../constants.dart';
 import '../context.dart';
 import '../options.dart';
 import '../plugin.dart';
@@ -28,20 +27,21 @@ class DiomanNotify<R extends DiomanResponse<dynamic>> extends DiomanPlugin<R> {
   final bool enabled;
 
   /// 稳定名称。
-  static const pluginName = diomanNotifyName;
+  static const pluginName = 'dioman:notify';
 
   /// 请求级只接受 bool；false 关闭。
   static final option = DiomanOptionKey<bool>(pluginName);
 
   /// 默认忽略成功、取消、静默请求，否则取消息或 kind/status。
-  static String defaultStringify(
-          DiomanResponse<dynamic> r, DiomanContext ctx) =>
-      r.ok ||
-              r.kind == DiomanKind.cancel ||
-              r.kind == DiomanKind.internal ||
-              ctx.request.silent
-          ? ''
-          : (r.message.isEmpty ? '${r.kind.name} ${r.status}' : r.message);
+  static String defaultStringify(DiomanResponse<dynamic> r, DiomanContext ctx) => r
+              .ok ||
+          failureOf(r)?.kind == DiomanFailureKind.cancel ||
+          failureOf(r)?.kind == DiomanFailureKind.internal ||
+          ctx.request.silent
+      ? ''
+      : (r.message.isEmpty
+          ? '${failureOf(r)?.kind.name == null ? '' : '${failureOf(r)!.kind.name} '}http ${r.status}'
+          : r.message);
 
   /// 返回稳定名称。
   @override
@@ -77,7 +77,8 @@ class _Notify<R extends DiomanResponse<dynamic>>
     final cancelled = ctx.cancelled();
     if (on == null) return r;
     // internal 优先，取消不掩盖程序错误。
-    final result = r.kind == DiomanKind.internal ? r : cancelled ?? r;
+    final result =
+        failureOf(r)?.kind == DiomanFailureKind.internal ? r : cancelled ?? r;
     try {
       final text = config.stringify(result, ctx);
       if (text.isNotEmpty) config.notify(text, result);

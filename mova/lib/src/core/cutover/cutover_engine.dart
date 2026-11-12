@@ -31,21 +31,6 @@ import 'retirable.dart';
 import 'trigger.dart';
 import 'warm.dart';
 
-/// Chooses a safe fallback when player mute is unavailable or cannot restore.
-///
-/// 播放器静音不可用或无法还原时，选择安全降级。
-class _WarmMuteFailurePolicy {
-  /// Creates the default policy.
-  ///
-  /// 创建默认策略。
-  const _WarmMuteFailurePolicy();
-
-  /// Allows audible warming, but rejects a hand-off that would remain muted.
-  ///
-  /// 允许有声预热，但拒绝仍被预热静音的引擎接管。
-  bool giveUp({required bool releasing}) => releasing;
-}
-
 /// Owns warm-up resources and records failures through hand-off.
 ///
 /// 持有预热资源，并在整个提交窗口记录失败。
@@ -233,6 +218,16 @@ class MovaCutoverEngine
   /// 最近一次显式请求的倍速，换指前补写到影子。
   double? _requestedRate;
 
+  /// Tracks view commands until their asynchronous setters finish.
+  ///
+  /// 跟踪视图命令，直到异步设置完成。
+  int _viewRevision = 0;
+
+  /// Keeps hand-off from overtaking an unfinished view command.
+  ///
+  /// 阻止换指越过尚未完成的视图命令。
+  final Set<Future<void>> _pendingViews = {};
+
   /// 打开、重载、一次性切换和销毁共用的操作代际。
   int _op = 0;
 
@@ -276,7 +271,9 @@ class MovaCutoverEngine
         }
         ..onHud = () {
           if (!_disposed) {
-            _uiState.emit(uiState.copyWith(hud: MovaHud.none, clearHudText: true));
+            _uiState.emit(
+              uiState.copyWith(hud: MovaHud.none, clearHudText: true),
+            );
           }
         };
     }
@@ -287,7 +284,9 @@ class MovaCutoverEngine
   @override
   bool get uiReady {
     final active = _active;
-    return !_disposed && active is MovaUiBridge && (active as MovaUiBridge).uiReady;
+    return !_disposed &&
+        active is MovaUiBridge &&
+        (active as MovaUiBridge).uiReady;
   }
 
   /// 包内：视图连接固定在代理上，换指时无需迁移。
@@ -301,8 +300,8 @@ class MovaCutoverEngine
       StreamController<MovaEvent>.broadcast(sync: true);
 
   /// 状态与事件同一次投递携带相同纪元；重入通知排在本次通知之后。
-  final Queue<({MovaState state, MovaEvent? event, int epoch, int op})> _deliveries =
-      Queue();
+  final Queue<({MovaState state, MovaEvent? event, int epoch, int op})>
+  _deliveries = Queue();
   bool _delivering = false;
   ({MovaApi engine, bool playing})? _handoff;
 
@@ -474,15 +473,21 @@ class MovaCutoverEngine
   /// Shared by [dispose], [_commitNow] and [abandon] — every path that ends
   /// a warm-up must tear these down the same way, or a stale subscription
   /// keeps firing against a shadow that path is about to drop or dispose.
+  /// [keepEvents] retains fatal-error observation until promotion.
   ///
   /// 取消 [_startWarm] 里建立的影子观测订阅。供 [dispose]、[_commitNow]、
   /// [abandon] 共用——每条结束预热的路径都必须以同样的方式拆掉它们，否则一个
   /// 陈旧订阅会继续对着即将被丢弃或释放的影子触发。
-  Future<void> _detachShadow(_WarmSlot slot) async {
-    final subscriptions = [slot.stateSub, slot.progressSub, slot.eventSub];
+  /// [keepEvents] 会把终结错误观察保留到换指前。
+  Future<void> _detachShadow(_WarmSlot slot, {bool keepEvents = false}) async {
+    final subscriptions = [
+      slot.stateSub,
+      slot.progressSub,
+      if (!keepEvents) slot.eventSub,
+    ];
     slot.stateSub = null;
     slot.progressSub = null;
-    slot.eventSub = null;
+    if (!keepEvents) slot.eventSub = null;
     await Future.wait(
       subscriptions.whereType<StreamSubscription<dynamic>>().map(
         (s) => s.cancel(),
@@ -550,10 +555,16 @@ class MovaCutoverEngine
     final epoch = _epoch;
     if (active is! MovaFrameCapture) return null;
     try {
-      final image = await (active as MovaFrameCapture).screenshot()
-          .timeout(const Duration(seconds: 3));
-      return !_disposed && identical(active, _active) && epoch == _epoch &&
-          image != null && image.isNotEmpty ? image : null;
+      final image = await (active as MovaFrameCapture).screenshot().timeout(
+        const Duration(seconds: 3),
+      );
+      return !_disposed &&
+              identical(active, _active) &&
+              epoch == _epoch &&
+              image != null &&
+              image.isNotEmpty
+          ? image
+          : null;
     } on Object {
       return null;
     }
@@ -644,12 +655,11 @@ class MovaCutoverEngine
       _disposed ? Future<void>.value() : _active.seekBy(delta);
 
   @override
-  Future<void> setVolume(double v) =>
-      _disposed ? Future<void>.value() : _active.setVolume(v);
+  Future<void> setVolume(double v) => _setView(() => _active.setVolume(v));
 
   @override
   Future<void> setBrightness(double v) =>
-      _disposed ? Future<void>.value() : _active.setBrightness(v);
+      _setView(() => _active.setBrightness(v));
 
   @override
   Future<void> setRate(double r) async {
@@ -667,28 +677,40 @@ class MovaCutoverEngine
   }
 
   @override
-  Future<void> setFit(MovaFit f) =>
-      _disposed ? Future<void>.value() : _active.setFit(f);
+  Future<void> setFit(MovaFit f) => _setView(() => _active.setFit(f));
 
   @override
-  Future<void> setZoom(double z) =>
-      _disposed ? Future<void>.value() : _active.setZoom(z);
+  Future<void> setZoom(double z) => _setView(() => _active.setZoom(z));
 
   @override
-  Future<void> setLocked(bool v) =>
-      _disposed ? Future<void>.value() : _active.setLocked(v);
+  Future<void> setLocked(bool v) => _setView(() => _active.setLocked(v));
 
   @override
   Future<void> setFullscreen(bool v) =>
-      _disposed ? Future<void>.value() : _active.setFullscreen(v);
+      _setView(() => _active.setFullscreen(v));
 
   @override
-  Future<void> setMini(bool v) =>
-      _disposed ? Future<void>.value() : _active.setMini(v);
+  Future<void> setMini(bool v) => _setView(() => _active.setMini(v));
 
   @override
   Future<void> setOrientation(MovaOrientation o) =>
-      _disposed ? Future<void>.value() : _active.setOrientation(o);
+      _setView(() => _active.setOrientation(o));
+
+  /// Marks both edges so hand-off rechecks commands completing during awaits.
+  ///
+  /// 标记开始与完成，使换指能复查等待期间完成的命令。
+  Future<void> _setView(Future<void> Function() apply) async {
+    if (_disposed) return;
+    _viewRevision++;
+    final pending = Future<void>.sync(apply);
+    _pendingViews.add(pending);
+    try {
+      await pending;
+    } finally {
+      _pendingViews.remove(pending);
+      _viewRevision++;
+    }
+  }
 
   @override
   Future<void> loadQualities() =>
@@ -785,13 +807,14 @@ class MovaCutoverEngine
       try {
         await _active.dispose();
       } finally {
-        await Future.wait([
-          _state.close(),
-          _uiState.close(),
-          _progress.close(),
-          _events.close(),
-          _cutoverPhases.close(),
-        ]);
+        // Paused public listeners must not hold native teardown open.
+        //
+        // 暂停的公共订阅不能阻塞原生资源销毁。
+        unawaited(_state.close());
+        unawaited(_uiState.close());
+        unawaited(_progress.close());
+        unawaited(_events.close());
+        unawaited(_cutoverPhases.close());
       }
     }
   }
@@ -804,6 +827,13 @@ class MovaCutoverEngine
 
   @override
   Stream<MovaCutoverPhase> get cutoverPhases => _cutoverPhases.stream;
+
+  /// Whether a live ticket owns the warm slot or a claimed commit.
+  ///
+  /// 当前预热槽或已认领提交是否仍归有效凭据所有。
+  bool get hasOwnedWarm =>
+      _slot.ticket?.cancelled == false ||
+      _committingSlot?.ticket?.cancelled == false;
 
   @override
   Future<void> prepare(
@@ -870,12 +900,15 @@ class MovaCutoverEngine
 
   /// 只提交 [ticket] 的槽，[waitForReady] 控制等待；返回已提交、未就绪或被取代。
   /// 示例：`await engine.commitOwned(ticket, waitForReady: true);`。
+  /// Checks ticket ownership before and after committing its slot.
   @override
   Future<MovaWarmCommit> commitOwned(
     MovaWarmTicket ticket, {
     bool waitForReady = false,
   }) async {
-    if (_disposed || ticket.cancelled || ticket.operation != _op) return MovaWarmCommit.superseded;
+    if (_disposed || ticket.cancelled || ticket.operation != _op) {
+      return MovaWarmCommit.superseded;
+    }
     final slot = ticket.slot;
     if (slot is! _WarmSlot) return MovaWarmCommit.notReady;
     final ok = await _commitSlot(
@@ -883,12 +916,16 @@ class MovaCutoverEngine
       ticket.operation,
       waitForReady: waitForReady,
     );
-    if (_disposed || ticket.cancelled || ticket.operation != _op) return MovaWarmCommit.superseded;
-    if (ok) return MovaWarmCommit.committed;
-    return _disposed || ticket.cancelled || ticket.operation != _op
-        ? MovaWarmCommit.superseded
-        : MovaWarmCommit.notReady;
+    if (_disposed || ticket.cancelled || ticket.operation != _op) {
+      return MovaWarmCommit.superseded;
+    }
+    return ok ? MovaWarmCommit.committed : MovaWarmCommit.notReady;
   }
+
+  /// Records the disabled-warming warning once in debug builds.
+  ///
+  /// debug 构建中仅提示一次预热未开启。
+  bool _warnedDisabled = false;
 
   /// Shared shadow-creation path for [prepare] and [cutoverTo]; [plan] is
   /// injected so [cutoverTo] can force eager warming regardless of the
@@ -897,8 +934,6 @@ class MovaCutoverEngine
   /// [prepare]、[cutoverTo] 共用的影子创建路径；[plan] 由调用方注入，使
   /// [cutoverTo] 能无视已配置的触发策略、强制立即预热，也使广告方向的预热能停在
   /// 第 0 帧。
-  bool _warnedDisabled = false;
-
   Future<_WarmSlot?> _startWarm(
     MovaSource source, {
     required Duration at,
@@ -924,11 +959,17 @@ class MovaCutoverEngine
     final trigger = plan.trigger ?? _config.effectiveTrigger;
     if (!trigger.shouldWarm(cue)) return null;
     if (_slot.engine != null) {
-      // A shadow for the same source is already warming; a different source
-      // means the old shadow is stale and must go before the new one starts.
+      // Reuse only the same source, target and warm-up settings.
       //
-      // 同一源的影子已在预热则沿用；源不同说明旧影子已过期，须先放弃再新建。
-      if (_slot.source?.sameAs(source) ?? false) return _slot;
+      // 只有源、目标位置和预热设置都相同才沿用影子。
+      if ((_slot.source?.sameAs(source) ?? false) &&
+          _slot.at == at &&
+          _slot.plan.rate == plan.rate &&
+          _slot.plan.pauseWhenReady == plan.pauseWhenReady &&
+          _slot.plan.policy == plan.policy &&
+          _slot.plan.trigger == plan.trigger) {
+        return _slot;
+      }
       await _abandonWarm(reason: MovaCutoverEndReason.superseded);
       if (_disposed || op != _op || _slot.engine != null) return null;
     }
@@ -944,7 +985,6 @@ class MovaCutoverEngine
     slot.source = source;
     slot.at = at;
     slot.plan = plan;
-    slot.heldAtTarget = false;
     slot.live = source.type == MovaStreamType.live;
     // An injected policy is the *same instance* on every warm-up, so it must
     // be reset before use — otherwise the second warm-up inherits the first
@@ -954,7 +994,6 @@ class MovaCutoverEngine
     // 预热会继承第一次的连续 tick 计数，一次侥幸的 tick 就能把切换提交出去。
     slot.policy = (plan.policy ?? _config.newReadyPolicy())..reset();
     slot.clock = Stopwatch()..start();
-    _cancelReadyTimer(slot);
     final policy = slot.policy;
     final timeout = policy is MovaBufferWarm
         ? policy.timeout
@@ -1027,7 +1066,6 @@ class MovaCutoverEngine
 
       if (_disposed || !identical(_slot, slot)) return null;
 
-      slot.buffering = false;
       slot.stateSub = shadow.states.listen((s) => slot.buffering = s.buffering);
       slot.progressSub = shadow.progress.listen(
         (p) => _evaluate(slot, p.position, p.buffer),
@@ -1093,7 +1131,7 @@ class MovaCutoverEngine
         }
         slot.ready = true;
         _cancelReadyTimer(slot);
-        if (_phase != MovaCutoverPhase.ready) _setPhase(MovaCutoverPhase.ready);
+        _setPhase(MovaCutoverPhase.ready);
         final c = slot.readyCompleter;
         if (c != null) {
           slot.readyCompleter = null;
@@ -1161,7 +1199,10 @@ class MovaCutoverEngine
   Future<bool> _commitNow(_WarmSlot slot, int op) async {
     final shadow = slot.engine!;
     final old = _active;
-    var appliedRateRevision = _rateRevision;
+    final initialRateRevision = _rateRevision;
+    var appliedRateRevision = initialRateRevision;
+    var appliedViewRevision = _viewRevision;
+    var appliedKeepAlive = false;
     // 在内部暂停前保存用户意图；自然播完的 playing 不能代表续播意愿。
     _intentSnapshot ??= old.state.playbackIntent;
 
@@ -1196,8 +1237,11 @@ class MovaCutoverEngine
       await _releaseSlot(slot);
       if (_handoff == handoff) _handoff = null;
       if (!_disposed && identical(_active, old)) _publish(snapshot: old.state);
-      if (!_disposed && !slot.cancelled && op == _op &&
-          identical(_active, old) && _slot.engine == null) {
+      if (!_disposed &&
+          !slot.cancelled &&
+          op == _op &&
+          identical(_active, old) &&
+          _slot.engine == null) {
         _setPhase(MovaCutoverPhase.idle, reason: endReason);
       }
       if (detached && !_disposed && identical(_active, old)) _attach(old);
@@ -1211,6 +1255,7 @@ class MovaCutoverEngine
       if (!current()) return await bail();
       if (_keepAliveWanted && wantPlay() && shadow is MovaKeepAlive) {
         await (shadow as MovaKeepAlive).setKeepAlive(true);
+        appliedKeepAlive = true;
         if (!current()) return await bail();
       }
       await _inheritViewSettings(
@@ -1239,14 +1284,38 @@ class MovaCutoverEngine
       detached = true;
       await _detach();
       if (!current()) return await bail();
-      await _detachShadow(slot);
+      await _detachShadow(slot, keepEvents: true);
       if (!current()) return await bail();
-      // Reconcile late rate and playback commands together; each await may
-      // admit another command before ownership moves to the shadow.
+      // Reconcile late rate, view, keep-alive and playback commands together;
+      // each await may admit another command before the shadow takes ownership.
       //
-      // 一并协调后到的倍速和播放命令；每次等待都可能在换指前收到新命令。
+      // 一并协调后到的倍速、视图、待机和播放命令；每次等待都可能在换指前收到新命令。
       while (true) {
         final playCommand = movaPlaybackCommand(this);
+        final keepAlive = _keepAliveWanted && wantPlay();
+        if (appliedKeepAlive != keepAlive && shadow is MovaKeepAlive) {
+          await (shadow as MovaKeepAlive).setKeepAlive(keepAlive);
+          appliedKeepAlive = keepAlive;
+          if (!current()) return await bail();
+        }
+        if (appliedViewRevision != _viewRevision || _pendingViews.isNotEmpty) {
+          await Future.wait(
+            _pendingViews.toList().map(
+              (pending) => pending.catchError((Object _) {}),
+            ),
+          );
+          if (!current()) return await bail();
+          appliedViewRevision = _viewRevision;
+          await _inheritViewSettings(
+            old.state,
+            shadow,
+            rate: _rateRevision != initialRateRevision
+                ? _requestedRate
+                : slot.plan.rate,
+            current: current,
+          );
+          if (!current()) return await bail();
+        }
         if (wantPlay()) {
           await shadow.play();
         } else {
@@ -1264,8 +1333,19 @@ class MovaCutoverEngine
           }
           if (!current()) return await bail();
         }
-        if (playCommand == movaPlaybackCommand(this)) break;
+        if (playCommand == movaPlaybackCommand(this) &&
+            keepAlive == (_keepAliveWanted && wantPlay()) &&
+            appliedViewRevision == _viewRevision &&
+            _pendingViews.isEmpty) {
+          break;
+        }
       }
+      // Keep fatal-error observation alive until the synchronous pointer move.
+      //
+      // 直到同步换指前都保留终结错误观察。
+      final eventSub = slot.eventSub;
+      slot.eventSub = null;
+      unawaited(eventSub?.cancel());
       _intentSnapshot = null;
       _handoff = null;
       _active = shadow;
@@ -1273,7 +1353,11 @@ class MovaCutoverEngine
       MovaBrightnessLease.transfer(old, shadow);
       _epoch++;
       _attach(shadow);
-      bool promotedCurrent() => !_disposed && !slot.cancelled && op == _op && identical(_active, shadow);
+      bool promotedCurrent() =>
+          !_disposed &&
+          !slot.cancelled &&
+          op == _op &&
+          identical(_active, shadow);
       for (final event in [
         slot.lastSource,
         slot.lastReady,
@@ -1355,14 +1439,18 @@ class MovaCutoverEngine
 
   /// Applies local mute; policy allows unavailable acquisition, reports failed
   /// restoration and gives up rather than activating a permanently muted player.
+  /// Chooses a safe fallback when player mute is unavailable or cannot restore.
+  /// Allows audible warming, but rejects a hand-off that would remain muted.
   ///
   /// 应用局部静音；策略允许获取不可用，恢复失败则上报并放弃，避免激活永久静音的播放器。
+  /// 播放器静音不可用或无法还原时，选择安全降级。
+  /// 允许有声预热，但拒绝仍被预热静音的引擎接管。
   Future<bool> _setWarmMute(_WarmSlot slot, bool on, {int? op}) async {
     final shadow = slot.engine!;
     final ok = await (shadow as MovaPlayerMute).setWarmMute(on);
     if (on) {
       if (ok && !_disposed && identical(_slot, slot)) slot.muteOwner = shadow;
-      return !const _WarmMuteFailurePolicy().giveUp(releasing: false);
+      return true;
     }
     if (!identical(slot.muteOwner, shadow)) return true;
     if (ok) {
@@ -1376,7 +1464,7 @@ class MovaCutoverEngine
         ),
       );
     }
-    return !const _WarmMuteFailurePolicy().giveUp(releasing: true);
+    return false;
   }
 
   /// 释放指定槽的订阅与引擎；引擎同步取走以保证恰好释放一次。
@@ -1399,9 +1487,12 @@ class MovaCutoverEngine
     }
   }
 
-  /// 显式放弃同时清除事务意图。
+  /// Cancels a claimed commit as well as the current warm-up and intent.
+  ///
+  /// 显式放弃同时取消已认领提交、当前预热与事务意图。
   @override
   Future<void> abandon() {
+    _committingSlot?.cancelled = true;
     _intentSnapshot = null;
     return _abandonWarm();
   }

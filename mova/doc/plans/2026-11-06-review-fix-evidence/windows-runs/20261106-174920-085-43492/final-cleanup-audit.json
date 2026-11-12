@@ -1,0 +1,27 @@
+{
+  "Time": "2026-11-06T17:52:57.9309959+08:00",
+  "OwnedDartProcessesRemaining": 0,
+  "TemporaryDirectories": [
+    {
+      "Path": "C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_3146ec90",
+      "Exists": false
+    },
+    {
+      "Path": "C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999",
+      "Exists": false
+    },
+    {
+      "Path": "C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_launcher_ee0d8746f6e940c39cc48261056c1478",
+      "Exists": false
+    }
+  ],
+  "RemainingUnrelatedDartPids": [
+    30020,
+    15016,
+    39164,
+    11564,
+    39948,
+    33976
+  ],
+  "AllWorkerExitReceiptsPresent": true
+}

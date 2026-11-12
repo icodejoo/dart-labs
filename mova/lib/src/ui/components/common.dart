@@ -277,6 +277,8 @@ Future<void> showMovaOptionSheet(
   List<MovaSheetItem> items,
 ) {
   final checkIcon = MovaPlayerStyle.iconsOf(context).check;
+  final textStyle = TextStyle(color: Color(theme.textColor));
+  final iconColor = Color(theme.iconColor);
   return showModalBottomSheet<void>(
     context: context,
     backgroundColor: Color(theme.sheetBackgroundColor),
@@ -287,12 +289,9 @@ Future<void> showMovaOptionSheet(
           children: [
             for (final item in items)
               ListTile(
-                title: Text(
-                  item.label,
-                  style: TextStyle(color: Color(theme.textColor)),
-                ),
+                title: Text(item.label, style: textStyle),
                 trailing: item.checked
-                    ? Icon(checkIcon, color: Color(theme.iconColor))
+                    ? Icon(checkIcon, color: iconColor)
                     : null,
                 onTap: () {
                   Navigator.of(ctx).pop();

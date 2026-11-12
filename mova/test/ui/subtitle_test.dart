@@ -26,6 +26,38 @@ class _RefusingApi extends FakeMovaApi {
 }
 
 void main() {
+  testWidgets('turning subtitles off hides a paused cue without progress', (t) async {
+    final api = FakeMovaApi();
+    api.stt.languages = ['zh'];
+    await api.stt.start();
+    final overlay = MovaSubtitleOverlayComponent();
+    final button = MovaSubtitleButtonComponent();
+    await t.pumpWidget(MaterialApp(home: Builder(builder: (context) {
+      return Stack(children: [
+        overlay.build(context, api, []),
+        Align(alignment: Alignment.topRight, child: button.build(context, api, [])),
+      ]);
+    })));
+    api.stt.push(const MovaSttCue(
+      text: 'paused cue', start: Duration.zero, end: Duration(seconds: 5),
+    ));
+    await t.pump();
+    await t.pump();
+    expect(find.text('paused cue'), findsOneWidget);
+    await t.tap(find.byIcon(Icons.subtitles_rounded));
+    await t.pumpAndSettle();
+    await t.tap(find.text(api.options.strings.subtitleOff));
+    await t.pumpAndSettle();
+    expect(api.stt.current, isNotNull);
+    expect(find.text('paused cue'), findsNothing);
+    await t.tap(find.byIcon(Icons.subtitles_off_rounded));
+    await t.pumpAndSettle();
+    await t.tap(find.text('zh'));
+    await t.pumpAndSettle();
+    expect(find.text('paused cue'), findsOneWidget);
+    await t.pumpWidget(const SizedBox());
+    await api.dispose();
+  });
   testWidgets('subtitle button reflects a service started before mounting', (t) async {
     final api = FakeMovaApi();
     api.stt.languages = ['zh'];

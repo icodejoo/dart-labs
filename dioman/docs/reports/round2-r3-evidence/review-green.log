@@ -1,0 +1,18 @@
+00:00 +0: loading test/boundary/native_slot_boundary_test.dart
+00:00 +0: [DiomanCall.raw][DiomanCall.new(raw)][DiomanResponse.raw][DiomanResponse.error] 自身成功与失败 raw=false status=200
+00:00 +1: [DiomanCall.raw][DiomanCall.new(raw)][DiomanResponse.raw][DiomanResponse.error] 自身成功与失败 raw=false status=503
+00:00 +2: [DiomanCall.raw][DiomanCall.new(raw)][DiomanResponse.raw][DiomanResponse.error] 自身成功与失败 raw=true status=200
+00:00 +3: [DiomanCall.raw][DiomanCall.new(raw)][DiomanResponse.raw][DiomanResponse.error] 自身成功与失败 raw=true status=503
+00:00 +4: [DiomanResponse.error][DiomanCall.raw] 网络失败按需附自身异常
+00:00 +5: [Dioman.send][Dioman.reject][DiomanFailure.error][DiomanFailure.errorStack] I11 return 落定清空并拒绝迟到写入
+00:00 +6: [Dioman.send][Dioman.reject][DiomanFailure.error][DiomanFailure.errorStack] I11 throw 落定清空并拒绝迟到写入
+00:00 +7: [Dioman.send][Dioman.reject][DiomanFailure.error][DiomanFailure.errorStack] I11 reject 落定清空并拒绝迟到写入
+00:00 +8: [Dioman.send][Dioman.reject][DiomanFailure.error][DiomanFailure.errorStack] I11 internal 落定清空并拒绝迟到写入
+00:00 +9: [DiomanContext.native][DiomanCall.raw] 重试成功清空上次异常
+00:00 +10: [DiomanNext][DiomanContext.native] 已传输后短路立即解除原生视图 cancelled=false
+00:00 +11: [DiomanNext][DiomanContext.native] 已传输后短路立即解除原生视图 cancelled=true
+00:00 +12: [DiomanRetry.respectRetryAfter][DiomanResponseFactory.normalize] 多值头不把正常协议结果改为 internal status=200 error=false
+00:00 +13: [DiomanRetry.respectRetryAfter][DiomanResponseFactory.normalize] 多值头不把正常协议结果改为 internal status=200 error=true
+00:00 +14: [DiomanRetry.respectRetryAfter][DiomanResponseFactory.normalize] 多值头不把正常协议结果改为 internal status=503 error=false
+00:00 +15: [DiomanRetry.respectRetryAfter][DiomanResponseFactory.normalize] 多值头不把正常协议结果改为 internal status=503 error=true
+00:00 +16: All tests passed!

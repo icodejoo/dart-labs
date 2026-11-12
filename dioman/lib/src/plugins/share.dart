@@ -1,23 +1,15 @@
 import 'dart:async';
 import 'package:dio/dio.dart';
 import '../client.dart';
-import '../constants.dart';
 import '../context.dart';
 import '../options.dart';
 import '../plugin.dart';
 import '../request.dart';
 import '../response.dart';
 import '../stages.dart';
-import 'source.dart';
+import 'mock.dart';
 
 part 'share_internal.dart';
-
-/// 共享传输关闭阶段超时，订阅者自行限时。
-RequestPatch _transportPatch(CancelToken? token) => RequestPatch(
-    cancelToken: token,
-    connectTimeout: Duration.zero,
-    receiveTimeout: Duration.zero,
-    sendTimeout: Duration.zero);
 
 /// 同 key 并发结果归属策略；关闭使用请求级 false。
 enum DiomanSharePolicy {
@@ -83,7 +75,7 @@ class DiomanShare<R extends DiomanResponse<dynamic>> extends DiomanPlugin<R> {
   final bool enabled;
 
   /// 稳定名称。
-  static const pluginName = diomanShareName;
+  static const pluginName = 'dioman:share';
 
   /// 请求级 bool、策略枚举或配置键。
   static final option = DiomanOptionKey<DiomanShareOptions>(pluginName);
@@ -121,7 +113,11 @@ class _Shared {
   final token = CancelToken();
 
   /// 共享传输使用独立令牌并关闭 Dio 阶段超时，由订阅者各自限时。
-  RequestPatch get transportPatch => _transportPatch(token);
+  RequestPatch get transportPatch => RequestPatch(
+      cancelToken: token,
+      connectTimeout: Duration.zero,
+      receiveTimeout: Duration.zero,
+      sendTimeout: Duration.zero);
 
   /// 订阅者数。
   int subscribers = 0;
@@ -197,7 +193,7 @@ class _Share<R extends DiomanResponse<dynamic>> extends DiomanPluginInstance<R>
         for (var i = 0;
             i < o.retries! &&
                 !r.ok &&
-                r.kind != DiomanKind.internal &&
+                failureOf(r)?.kind != DiomanFailureKind.internal &&
                 shared.canReplay() &&
                 !shared.isCancelled;
             i++) {
@@ -210,12 +206,8 @@ class _Share<R extends DiomanResponse<dynamic>> extends DiomanPluginInstance<R>
       }
       finish(table, key, entry, r);
     } catch (error, stack) {
-      finish(
-          table,
-          key,
-          entry,
-          ctx.fail(DiomanFailure(
-              kind: DiomanKind.internal, error: error, errorStack: stack)));
+      finish(table, key, entry,
+          ctx.factory.internalError(ctx.request, error, stack));
     } finally {
       ctx.state.release();
     }
@@ -232,7 +224,11 @@ class _Share<R extends DiomanResponse<dynamic>> extends DiomanPluginInstance<R>
       int sequence) async {
     ctx.state.retain();
     try {
-      final r = await next(_transportPatch(entry.competitors[sequence]));
+      final r = await next(RequestPatch(
+          cancelToken: entry.competitors[sequence],
+          connectTimeout: Duration.zero,
+          receiveTimeout: Duration.zero,
+          sendTimeout: Duration.zero));
       if (ctx.cancelled() != null) {
         entry.candidates.remove(sequence);
       } else if (entry.candidates.containsKey(sequence)) {
@@ -296,9 +292,8 @@ class _Share<R extends DiomanResponse<dynamic>> extends DiomanPluginInstance<R>
     if (key == null) return next();
     final table = tables[o.policy]!;
     final existing = table[key];
-    final entry = existing ??
-        (table[key] =
-            _Shared(ctx.fail(const DiomanFailure(kind: DiomanKind.cancel))));
+    final entry =
+        existing ?? (table[key] = _Shared(ctx.fail(DiomanFailureKind.cancel)));
     final shared = o.policy == DiomanSharePolicy.start ||
         o.policy == DiomanSharePolicy.retry;
     entry.subscribers++;
@@ -322,9 +317,7 @@ class _Share<R extends DiomanResponse<dynamic>> extends DiomanPluginInstance<R>
         entry.candidates.remove(sequence);
         settle(o, table, key, entry);
       }
-      return ctx.cancelled() ??
-          r ??
-          ctx.fail(const DiomanFailure(kind: DiomanKind.timeout));
+      return ctx.cancelled() ?? r ?? ctx.fail(DiomanFailureKind.timeout);
     } finally {
       if (!shared) entry.competitors[sequence]?.cancel();
       if (--entry.subscribers == 0) {

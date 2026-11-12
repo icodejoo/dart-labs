@@ -1,0 +1,90 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+
+import 'lease_under_test.dart';
+
+/// Emits a flushed protocol event with the real VM PID.
+///
+/// 输出带真实虚拟机 PID 的已刷新协议事件。
+Future<void> emit(String event, Map<String, Object?> fields) async {
+  stdout.writeln(jsonEncode({'event': event, 'pid': pid, ...fields}));
+  await stdout.flush();
+}
+
+/// Attempts a real nonblocking lock and always closes its own handle.
+///
+/// 尝试真实非阻塞锁，始终关闭自己打开的句柄。
+Future<bool> probe(String path) async {
+  final handle = await File(path).open(mode: FileMode.append);
+  try {
+    await handle.lock(FileLock.exclusive);
+    return true;
+  } on FileSystemException {
+    return false;
+  } finally {
+    await handle.close();
+  }
+}
+
+/// Holds an unchanged production provider until an explicit pipe command.
+///
+/// 持有正文未改的生产 provider，直到收到明确的管道命令。
+Future<void> main(List<String> arguments) async {
+  final config = jsonDecode(arguments.single) as Map<String, dynamic>;
+  final id = config['id'] as String;
+  final root = Directory(config['root'] as String);
+  final marker = 'token_$id.txt';
+  final token = '$id:$pid:${DateTime.now().microsecondsSinceEpoch}';
+  final provider = MovaTempThumbDirProvider.forTesting(
+    folderName: root.uri.pathSegments.where((s) => s.isNotEmpty).last,
+    temporaryDirectory: () async => root.parent,
+  );
+  String? directory;
+  var released = false;
+  try {
+    await emit('ARMED', {'id': id, 'root': root.path});
+    await for (final line in stdin.transform(utf8.decoder).transform(const LineSplitter())) {
+      final command = jsonDecode(line) as Map<String, dynamic>;
+      switch (command['command']) {
+        case 'go':
+          if (config['gate'] == true) {
+            final acquired = await probe('${root.path}/.scan');
+            await emit('GATE_PROBE', {'id': id, 'acquired': acquired});
+            if (acquired) throw StateError('Expected parent scan gate contention');
+          }
+          if (config['probeAfterKill'] != null) {
+            final acquired = await probe('${config['probeAfterKill']}/.lease');
+            await emit('DEAD_OWNER_PROBE', {'id': id, 'acquired': acquired});
+            if (!acquired) throw StateError('Killed owner lease still locked');
+          }
+          await emit('RESOLVE_BEGIN', {'id': id});
+          directory = await provider.resolve();
+          await File('$directory/$marker').writeAsString(token, flush: true);
+          await emit('READY', {
+            'id': id, 'directory': directory, 'marker': marker, 'token': token,
+          });
+        case 'check':
+          final read = await File('$directory/$marker').readAsString();
+          if (read != token) throw StateError('Owned token changed or removed');
+          await emit('CHECKED', {
+            'id': id, 'directory': directory, 'token': read, 'request': command['request'],
+          });
+        case 'stop':
+          await provider.dispose();
+          released = true;
+          await emit('RELEASED', {'id': id, 'directory': directory});
+          return;
+        default:
+          throw StateError('Unknown command: $command');
+      }
+    }
+    throw StateError('Unexpected parent stdin EOF');
+  } catch (error, stack) {
+    stderr.writeln('$error\n$stack');
+    await emit('ERROR', {'id': id, 'directory': directory, 'error': '$error'});
+    exitCode = 1;
+  } finally {
+    if (!released) await provider.dispose();
+  }
+}

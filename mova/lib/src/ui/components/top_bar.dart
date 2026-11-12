@@ -1,5 +1,6 @@
 import '../../core/options/strings.dart';
 import '../style/style.dart';
+import '../../core/events/events.dart';
 
 import 'package:flutter/foundation.dart'
     show TargetPlatform, defaultTargetPlatform;
@@ -211,6 +212,9 @@ class MovaQualityButtonComponent extends MovaComponent {
   @override
   MovaSlot get slot => MovaSlot.top;
 
+  /// Builds quality controls with one caption for text and semantics.
+  ///
+  /// 构建清晰度控件，文字与语义共用一次格式化的说明。
   @override
   Widget build(BuildContext context, MovaApi api, List<Widget> children) {
     final theme = MovaPlayerStyle.themeOf(context);
@@ -221,21 +225,17 @@ class MovaQualityButtonComponent extends MovaComponent {
         return MovaSelect<MovaQuality?>(
           selector: (s) => s.currentQuality,
           builder: (context, current) {
+            final strings = MovaPlayerStyle.stringsOf(context);
+            final caption = current == null
+                ? null
+                : _qualityLabel(current, strings);
             return MovaIconButton(
               label: current == null || current.label.isEmpty
-                  ? MovaPlayerStyle.stringsOf(context).quality
-                  : MovaPlayerStyle.stringsOf(context).labelWithValue(
-                      MovaPlayerStyle.stringsOf(context).quality,
-                      _qualityLabel(
-                        current,
-                        MovaPlayerStyle.stringsOf(context),
-                      ),
-                    ),
+                  ? strings.quality
+                  : strings.labelWithValue(strings.quality, caption!),
               icon: MovaPlayerStyle.iconsOf(context).quality,
               theme: theme,
-              caption: current == null
-                  ? null
-                  : _qualityLabel(current, MovaPlayerStyle.stringsOf(context)),
+              caption: caption,
               onPressed: () =>
                   _showQualityMenu(context, api, qualities, current, theme),
             );
@@ -255,21 +255,40 @@ class MovaQualityButtonComponent extends MovaComponent {
   /// - [qualities]: the selectable quality list / 可选清晰度列表
   /// - [current]: the currently active quality, if any / 当前生效的清晰度（若有）
   /// - [theme]: theme used to style the sheet's text / 用于弹层文字样式的主题
-  void _showQualityMenu(
+  Future<void> _showQualityMenu(
     BuildContext context,
     MovaApi api,
     List<MovaQuality> qualities,
     MovaQuality? current,
     MovaTheme theme,
-  ) {
-    showMovaOptionSheet(context, theme, [
-      for (final q in qualities)
-        MovaSheetItem(
-          label: _qualityLabel(q, MovaPlayerStyle.stringsOf(context)),
-          checked: current?.uri == q.uri && current?.isAuto == q.isAuto,
-          onSelected: () => api.switchQuality(q),
-        ),
-    ]);
+  ) async {
+    var sourceChanged = false;
+    final subscription = api.events.listen((event) {
+      if (event is MovaSourceChange) sourceChanged = true;
+    });
+    try {
+      final strings = MovaPlayerStyle.stringsOf(context);
+      await showMovaOptionSheet(context, theme, [
+        for (final q in qualities)
+          MovaSheetItem(
+            label: _qualityLabel(q, strings),
+            checked: current?.uri == q.uri && current?.isAuto == q.isAuto,
+            onSelected: () {
+              // A sheet can outlive its source or its player.
+              //
+              // 弹层可能在换源或播放器卸载之后仍然存在。
+              if (!context.mounted ||
+                  sourceChanged ||
+                  !identical(api.state.qualities, qualities)) {
+                return;
+              }
+              api.switchQuality(q);
+            },
+          ),
+      ]);
+    } finally {
+      await subscription.cancel();
+    }
   }
 }
 
@@ -295,20 +314,22 @@ class MovaFitButtonComponent extends MovaComponent {
   @override
   MovaSlot get slot => MovaSlot.top;
 
+  /// Builds fit controls with one resolved label for the current mode.
+  ///
+  /// 构建填充控件，为当前模式复用一次解析的名称。
   @override
   Widget build(BuildContext context, MovaApi api, List<Widget> children) {
     final theme = MovaPlayerStyle.themeOf(context);
     return MovaSelect<MovaFit>(
       selector: (s) => s.fit,
       builder: (context, fit) {
+        final strings = MovaPlayerStyle.stringsOf(context);
+        final caption = strings.fitLabel(fit);
         return MovaIconButton(
-          label: MovaPlayerStyle.stringsOf(context).labelWithValue(
-            MovaPlayerStyle.stringsOf(context).aspectRatio,
-            MovaPlayerStyle.stringsOf(context).fitLabel(fit),
-          ),
+          label: strings.labelWithValue(strings.aspectRatio, caption),
           icon: MovaPlayerStyle.iconsOf(context).aspectRatio,
           theme: theme,
-          caption: MovaPlayerStyle.stringsOf(context).fitLabel(fit),
+          caption: caption,
           onPressed: () => api.setFit(fit.next),
         );
       },

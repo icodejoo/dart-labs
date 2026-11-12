@@ -1,0 +1,10 @@
+{
+  "keep": false,
+  "stable": false,
+  "targetThresholdMet": true,
+  "otherRegressionWithin3Percent": false,
+  "final_sha256": {
+    "lib/src/request.dart": "0129cbde151298238c61083ba4b66babfa2a9039eeceab2e8ac76f36f07e4d99",
+    "lib/src/response.dart": "02ef227e056de3e1e7a4e2fcdcaab1b906831d47c85905cd96a007be396f5cdb"
+  }
+}

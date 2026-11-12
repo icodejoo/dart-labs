@@ -8,10 +8,22 @@ import '../../core/api.dart';
 import '../../core/options/theme.dart';
 import '../../core/state/progress.dart';
 import '../../core/stt/cue.dart';
+import '../../core/stt/api.dart';
 import '../scope/video_rect_scope.dart';
 import '../slots/component.dart';
 import '../slots/slot.dart';
 import 'common.dart';
+
+/// Shares the picker visibility choice across overlays of the same service.
+///
+/// 在同一字幕服务的叠加层之间共享选择器的显隐选择。
+final _subtitleChoices = Expando<ValueNotifier<bool>>();
+
+/// Returns the UI visibility signal for [stt], initially visible.
+///
+/// 返回 [stt] 的 UI 显隐信号，初始允许显示。
+ValueNotifier<bool> _subtitleChoice(MovaSttApi stt) =>
+    _subtitleChoices[stt] ??= ValueNotifier(true);
 
 /// STT subtitle overlay: renders the cue covering the current playback
 /// position, or nothing when none does.
@@ -117,6 +129,17 @@ class _SubtitleOverlayState extends State<_SubtitleOverlay> {
 
   @override
   Widget build(BuildContext context) {
+    return ValueListenableBuilder<bool>(
+      valueListenable: _subtitleChoice(widget.api.stt),
+      builder: (context, visible, _) =>
+          visible ? _buildCue(context) : const SizedBox.shrink(),
+    );
+  }
+
+  /// Builds the retained cue while subtitles are enabled in the picker.
+  ///
+  /// 在选择器允许显示字幕时构建保留的字幕。
+  Widget _buildCue(BuildContext context) {
     final cue = _cue;
     if (cue == null) return const SizedBox.shrink();
     final theme = MovaPlayerStyle.themeOf(context);
@@ -295,6 +318,7 @@ class _SubtitleButtonState extends State<_SubtitleButton> {
         checked: _on,
         onSelected: () async {
           await stt.start();
+          _subtitleChoice(stt).value = stt.isRunning;
           if (mounted) setState(() {});
         },
       ),
@@ -303,6 +327,7 @@ class _SubtitleButtonState extends State<_SubtitleButton> {
         checked: !_on,
         onSelected: () async {
           await stt.stop();
+          _subtitleChoice(stt).value = false;
           if (mounted) setState(() {});
         },
       ),

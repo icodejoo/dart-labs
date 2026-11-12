@@ -1,0 +1,137 @@
+[
+  {
+    "mutation": "slot-not-cleared",
+    "source": "lib/src/context_state.dart",
+    "test": "test/boundary/native_slot_boundary_test.dart",
+    "failures": 4,
+    "seconds": 3.157,
+    "before_sha256": "2a10528344f8816651b68eb09d3ab1e6e71de4be72c316f5cdc2e35bbcaa4ad7",
+    "restored_sha256": "2a10528344f8816651b68eb09d3ab1e6e71de4be72c316f5cdc2e35bbcaa4ad7"
+  },
+  {
+    "mutation": "slot-late-write",
+    "source": "lib/src/context_internal.dart",
+    "test": "test/boundary/native_slot_boundary_test.dart",
+    "failures": 4,
+    "seconds": 3.025,
+    "before_sha256": "e73019b08ac27156a140448c06c8e07ecc077b4592b70979b0e1920ee7803a12",
+    "restored_sha256": "e73019b08ac27156a140448c06c8e07ecc077b4592b70979b0e1920ee7803a12"
+  },
+  {
+    "mutation": "slot-late-result",
+    "source": "lib/src/context_internal.dart",
+    "test": "test/boundary/native_slot_boundary_test.dart",
+    "failures": 4,
+    "seconds": 3.159,
+    "before_sha256": "e73019b08ac27156a140448c06c8e07ecc077b4592b70979b0e1920ee7803a12",
+    "restored_sha256": "e73019b08ac27156a140448c06c8e07ecc077b4592b70979b0e1920ee7803a12"
+  },
+  {
+    "mutation": "slot-identity-match",
+    "source": "lib/src/context.dart",
+    "test": "test/unit/native_slot_test.dart",
+    "failures": 1,
+    "seconds": 2.553,
+    "before_sha256": "4c25dfc206ce85f75d86a828f0e3293b4a44dd8ab33623310ad85475a2e57abd",
+    "restored_sha256": "4c25dfc206ce85f75d86a828f0e3293b4a44dd8ab33623310ad85475a2e57abd"
+  },
+  {
+    "mutation": "cache-old-request",
+    "source": "lib/src/plugins/cache.dart",
+    "test": "test/rule/cache_snapshot_rule_test.dart",
+    "failures": 1,
+    "seconds": 3.246,
+    "before_sha256": "5474226e3038eb46348aa9327198dbea364032831c644a0f0a9daab8b4e513ce",
+    "restored_sha256": "5474226e3038eb46348aa9327198dbea364032831c644a0f0a9daab8b4e513ce"
+  },
+  {
+    "mutation": "next-cancel-keeps-native",
+    "source": "lib/src/pipeline.dart",
+    "test": "test/boundary/native_slot_boundary_test.dart",
+    "failures": 1,
+    "seconds": 2.744,
+    "before_sha256": "3226def07718519fca548226426c44168d8cdb739b0c56987ca432ca5fef198b",
+    "restored_sha256": "3226def07718519fca548226426c44168d8cdb739b0c56987ca432ca5fef198b"
+  },
+  {
+    "mutation": "next-patch-keeps-native",
+    "source": "lib/src/pipeline.dart",
+    "test": "test/boundary/native_slot_boundary_test.dart",
+    "failures": 1,
+    "seconds": 3.547,
+    "before_sha256": "3226def07718519fca548226426c44168d8cdb739b0c56987ca432ca5fef198b",
+    "restored_sha256": "3226def07718519fca548226426c44168d8cdb739b0c56987ca432ca5fef198b"
+  },
+  {
+    "mutation": "retry-after-multiple-values",
+    "source": "lib/src/response.dart",
+    "test": "test/boundary/native_slot_boundary_test.dart",
+    "failures": 4,
+    "seconds": 3.291,
+    "before_sha256": "02ef227e056de3e1e7a4e2fcdcaab1b906831d47c85905cd96a007be396f5cdb",
+    "restored_sha256": "02ef227e056de3e1e7a4e2fcdcaab1b906831d47c85905cd96a007be396f5cdb"
+  },
+  {
+    "mutation": "cache-restore-internal",
+    "source": "lib/src/plugins/cache.dart",
+    "test": "test/rule/cache_snapshot_rule_test.dart",
+    "failures": 1,
+    "seconds": 3.131,
+    "before_sha256": "5474226e3038eb46348aa9327198dbea364032831c644a0f0a9daab8b4e513ce",
+    "restored_sha256": "5474226e3038eb46348aa9327198dbea364032831c644a0f0a9daab8b4e513ce"
+  },
+  {
+    "mutation": "cache-clone-internal",
+    "source": "lib/src/plugins/cache.dart",
+    "test": "test/rule/cache_snapshot_rule_test.dart",
+    "failures": 1,
+    "seconds": 3.111,
+    "before_sha256": "5474226e3038eb46348aa9327198dbea364032831c644a0f0a9daab8b4e513ce",
+    "restored_sha256": "5474226e3038eb46348aa9327198dbea364032831c644a0f0a9daab8b4e513ce"
+  },
+  {
+    "mutation": "cache-retry-after",
+    "source": "lib/src/plugins/cache.dart",
+    "test": "test/rule/cache_snapshot_rule_test.dart",
+    "failures": 1,
+    "seconds": 3.14,
+    "before_sha256": "5474226e3038eb46348aa9327198dbea364032831c644a0f0a9daab8b4e513ce",
+    "restored_sha256": "5474226e3038eb46348aa9327198dbea364032831c644a0f0a9daab8b4e513ce"
+  },
+  {
+    "mutation": "mock-retry-after",
+    "source": "lib/src/response.dart",
+    "test": "test/combo/native_share_retry_combo_test.dart",
+    "failures": 1,
+    "seconds": 2.759,
+    "before_sha256": "02ef227e056de3e1e7a4e2fcdcaab1b906831d47c85905cd96a007be396f5cdb",
+    "restored_sha256": "02ef227e056de3e1e7a4e2fcdcaab1b906831d47c85905cd96a007be396f5cdb"
+  },
+  {
+    "mutation": "cache-null-code",
+    "source": "lib/src/plugins/cache.dart",
+    "test": "test/rule/cache_snapshot_rule_test.dart",
+    "failures": 3,
+    "seconds": 2.87,
+    "before_sha256": "5474226e3038eb46348aa9327198dbea364032831c644a0f0a9daab8b4e513ce",
+    "restored_sha256": "5474226e3038eb46348aa9327198dbea364032831c644a0f0a9daab8b4e513ce"
+  },
+  {
+    "mutation": "reject-native-closed-early",
+    "source": "lib/src/client.dart",
+    "test": "test/boundary/native_slot_boundary_test.dart",
+    "failures": 1,
+    "seconds": 3.013,
+    "before_sha256": "8f121e570907cf8ff368e7c486a1c59aecf610806b36a2abcfc410a1789ff1df",
+    "restored_sha256": "8f121e570907cf8ff368e7c486a1c59aecf610806b36a2abcfc410a1789ff1df"
+  },
+  {
+    "mutation": "retry-reads-raw",
+    "source": "lib/src/plugins/retry.dart",
+    "test": "test/boundary/retry_boundary_test.dart",
+    "failures": 1,
+    "seconds": 2.688,
+    "before_sha256": "376bd34b6eddcadd37422700418e82ac30d8bd4e83189e0ca4acf54b0ce9c99a",
+    "restored_sha256": "376bd34b6eddcadd37422700418e82ac30d8bd4e83189e0ca4acf54b0ce9c99a"
+  }
+]

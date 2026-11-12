@@ -1,0 +1,61 @@
+RFV measurement design (written before device acceptance)
+
+Device: adb -s 7NQBB23606003715, STG-AL00, Android 12.
+Gate: dumpsys window must contain isKeyguardShowing=false and no true entries.
+Page: example/lib/main_review_fix_verify.dart, separate MaterialApp page.
+Build: release, android-arm64, compile-time PHASE=1 or PHASE=2.
+Only this device is addressed; no delegation, commit, stash, reset, or lib/ edits.
+
+V1 observations:
+1. Default provider.resolve(), actual .lease existence, random marker bytes,
+   absolute directory A, and sorted engine_* listing. Persist identity and list
+   with flush=true. Hold a strong provider reference and do not dispose.
+2. After READY_FORCE_STOP, host issues am force-stop and verifies pidof is empty.
+3. Install phase 2 with adb install -r, start a fresh process. Compare actual
+   resolved path and marker token with persisted phase 1 values. Directory
+   count must equal phase 1 count.
+4. Resolve second default provider in the same process. B != A, A marker stays
+   intact, and directory count grows by exactly one.
+5. Create engine_old and engine_fresh without .lease. Apply File.setLastModified
+   to the directories, setting old to now-8 days. Verify stat age and missing
+   lease files before scanning. Resolve third default provider; old must be
+   absent, fresh must remain and be adopted, and A/B must remain.
+6. Dispose phase 2 providers only after observations; delete paths used by this
+   run and the state file. Repeat the full phase 1 -> force-stop -> phase 2
+   sequence three times.
+
+Pilot correction before the final three cycles: Android Dart File(directory)
+.setLastModified rejects directories with EISDIR (errno=21). The pilot logs
+are retained under pilot-file-mtime-error and are not complete acceptance.
+The final harness still attempts this API and records the exact error; it then
+uses File.setLastModified on a temporary stamp file, reads that real mtime,
+removes the stamp and applies the same time to the directory using libc.utime.
+Directory.stat, not the intended input time, must establish age >= eight days
+(allowing two seconds for filesystem timestamp precision). No clock/provider/
+mtime seam is injected into the production provider.
+
+V2 observations:
+1. Python wave module generates exactly 8 seconds of signed 16-bit PCM:
+   stereo44100 (left 440Hz/right 997Hz), mono48000 (440Hz).
+   Reopen with wave and print channels/rate/sample width/frame count/duration.
+2. python -m http.server on localhost:18764, adb reverse tcp:18764 tcp:18764.
+   Unique URI query parameter for every extract call prevents reuse of a URL.
+3. MovaAudioExtractor() with no constructor injection. Run each source three
+   times in cycle 1, phase 2. Its own completion and disposal precede reading
+   the returned file. Parse actual RIFF fmt/data chunks, not a fixed 44-byte
+   assumption. Read channels/sampleRate/bitsPerSample and actual dataBytes.
+   seconds = dataBytes / blockAlign / sampleRate.
+4. PASS only if sampleRate == 16000, channels == 1, abs(seconds-8) < 0.5.
+   Record bitsPerSample and output path without assuming a target bit depth.
+   A null result, exception, invalid/truncated WAV, or guard timeout is FAIL.
+5. The 25-second outer guard bounds the harness only; elapsed wall time never
+   supplies a pass verdict. No seeks or inferred playback duration are used.
+6. On failure, separately repeat native property calls and record original
+   exceptions/log messages/readback. This diagnostic is not a default extractor
+   acceptance result and does not replace any failed result.
+
+Evidence: print() records prefixed RFV, captured from logcat --pid for each
+actual app process. Host monotonic deadlines only bound waiting for explicit
+READY_FORCE_STOP/DONE events; they never provide product correctness evidence.
+Cleanup: force-stop application, terminate/wait HTTP child, remove verified
+host temp directory, adb reverse --remove-all. Retain text evidence/source only.

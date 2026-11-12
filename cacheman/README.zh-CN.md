@@ -7,14 +7,17 @@
 一个轻量、类型安全的封装，包住 [`get_storage`](https://pub.dev/packages/get_storage)（持久层），对外一套统一 API：TTL 与绝对过期、滑动续期、命名空间、可插拔序列化、可选 codec 钩子、键绑定的快捷访问器。姊妹 TS 项目 `@codejoo/storage` 的 Dart/Flutter 版本。
 
 `Cacheman` 只需 `await cache.ensureInitialized()` 一次之后全同步——原因见 `Cacheman` 的类文档。
+大值或其他存储引擎，可与自己实现的 `AsyncCacheman` 子类并行使用（见[分层存储](#分层存储--自定义底层)）。
 
 ## 安装
 
 ```yaml
 dependencies:
-  cacheman:
-    path: ../cacheman # 或发布后改用 git/pub 依赖
+  cacheman: ^0.7.1
 ```
+
+或使用本地副本：`cacheman: {path: ../cacheman}`。0.7.0 含破坏性变更，从 0.6 升级请先看
+[从 0.6 迁移到 0.7.0](#从-06-迁移到-070)。
 
 ## 快速上手
 
@@ -37,6 +40,11 @@ cache.setNamespace('alice');        // 原地按账号隔离
 ### `Cacheman({container, path, options})`
 
 构造一个 `Cacheman`（持久层，`get_storage` 支撑），全部读写接口直接挂在上面——不再有 `.ls` 这层间接。同步——任何读写前需先调用并 `await` 一次 `ensureInitialized()`。
+
+### `Cacheman.custom({options})` / `AsyncCacheman({options})`
+
+`Cacheman.custom` 供自带存储原语（不用 `get_storage`）的同步子类使用；`AsyncCacheman` 是面向
+异步后端的抽象类（全部 CRUD 返回 `Future`）。二者详见[分层存储](#分层存储--自定义底层)。
 
 ### `cache.ensureInitialized()`
 
@@ -175,7 +183,7 @@ token.value = 'abc123';
 
 ### `debug(cache)`
 
-某个引擎全部管辖条目的解密快照，`{ "namespace:key": value }`——见 `lib/src/debug.dart`。
+本实例全部管辖条目的解密快照，`{ "namespace:key": value }`——见 `lib/src/debug.dart`。
 
 ### `Jsonx`
 
@@ -266,6 +274,8 @@ final profile = cache.readWith<Profile>('profile', adapter: profiles);
   序列化/值 codec/adapter 失败请修复转换，不再依赖重试。
 - 删除 CacheOptions 的构造/导入；ttl/expireAt 直接传给 write/writeAll。
 - key(index) 循环为 O(n²)，改为一次 keys() 后遍历；弃用方法仍可调用。
+- 只转发构造参数的子类无需改动；自带存储原语的同步子类请用 `super.custom(...)`；异步后端继承
+  新增的 `AsyncCacheman`（见分层存储）。
 - 无 namespace/enckey 时 erase 仍清整个后端（含外部键）；有作用域则保护归属。
   read 返回类型仍为可空类型。
 
@@ -479,7 +489,7 @@ CRUD 逐键调用原语并传对应逻辑键。内部懒删除/续期分别使�
 AsyncCacheman 的 `ensureInitialized`、`read<T>`/`readAll`、`write`/`writeAll`、`remove`/`removeAll`、
 `erase`、`keys()`、`length()`、`purge()`、`setNamespace()` 全部须 await；
 `namespace` 与 `storageKey()` 保持同步（不访问后端）。TTL/expireAt 和默认值与 Cacheman 一致。
-本阶段不提供异步 `key(index)`、`fast`/`lazy`/`batchFast`、`debug()`。
+0.7.0 不提供异步 `key(index)`、`fast`/`lazy`/`batchFast`、`debug()`。
 异步枚举每次调用 `keysRaw` 并过滤归属，不缓存自有键集合。与 Cacheman 一样，过期项在读取/清理前
 仍计入枚举与数量。
 
@@ -495,12 +505,15 @@ AsyncCacheman 的 `ensureInitialized`、`read<T>`/`readAll`、`write`/`writeAll`
 
 ## 示例
 
-一份完整可运行的 app，把上面每个特性（持久层、ttl、滑动过期、命名空间、批量操作、
-`fast`/`lazy`/`batchFast`、`debug()`、`codeable`/`enckey`、`Jsonx`、`raw`/`readonly`、同步/异步并行缓存）都走一遍，
-见 [`example/`](./example/)：
+[`example/`](./example/) 是一个可运行的 Flutter app，各页覆盖：基础读写、ttl/过期、批量操作与
+`fast`/`lazy`/`batchFast`、命名空间、`debug()` 与 `Jsonx`、分层存储（同步 `Cacheman` + `AsyncCacheman`
+子类 + `Cacheman.custom` 子类）、共享 Hub（`watch`、`flushDelay`、`flush`、`purgeOnInit`），以及
+`ValueAdapter` 与 `CachemanError` 上报。`sliding`、`codeable`/`enckey`、`raw`/`readonly` 在
+`CachemanOptions` 中有文档，但示例未演示。
 
 ```bash
-flutter run example/lib/main.dart
+cd example
+flutter run -d chrome   # 或其他 Flutter 设备
 ```
 
 ## 跟 `@codejoo/storage`（TS 姊妹项目）的差异

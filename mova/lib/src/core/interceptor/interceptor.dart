@@ -60,10 +60,11 @@ class MovaHookChain {
   /// 将 [target] 依次交给每个拦截器的 `beforeSeek` 改写；任一返回 null 即立即
   /// 取消并停止遍历。
   Future<Duration?> beforeSeek(Duration target) async {
-    Duration? current = target;
+    var current = target;
     for (final i in interceptors) {
-      current = await i.beforeSeek(current!);
-      if (current == null) return null;
+      final next = await i.beforeSeek(current);
+      if (next == null) return null;
+      current = next;
     }
     return current;
   }

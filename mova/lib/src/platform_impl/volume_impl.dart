@@ -1,6 +1,9 @@
 import '../../mova_platform_interface.dart';
 import '../core/platform/ports.dart';
 
+/// Full system media volume, in percent. / 系统媒体满音量的百分比。
+const double _maxVolume = 100;
+
 /// A [MovaVolumePort] backed by the native `mova` method channel, driving
 /// the real system media volume (`[0, 100]`).
 ///
@@ -17,14 +20,20 @@ import '../core/platform/ports.dart';
 /// null/false，本端口退化为尽力而为的空操作（回报 100）。因此 `createMovaEngine`
 /// 只在 Android 上接入它，iOS/桌面保持播放器音量路径——见 `wiring.dart`。
 class MovaSystemVolumePort implements MovaVolumePort {
+  /// Reads system volume, falling back to full volume.
+  ///
+  /// 读取系统音量，缺省时返回满音量。
   @override
   Future<double> get() async {
     final v = await MovaPlatform.instance.getSystemVolume();
-    return v ?? 100;
+    return v ?? _maxVolume;
   }
 
+  /// Clamps the requested percent before forwarding it to the platform.
+  ///
+  /// 将请求百分比限制在有效范围后转发至平台。
   @override
   Future<void> set(double percent) async {
-    await MovaPlatform.instance.setSystemVolume(percent.clamp(0, 100));
+    await MovaPlatform.instance.setSystemVolume(percent.clamp(0, _maxVolume));
   }
 }
