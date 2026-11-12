@@ -4,9 +4,9 @@
 
 [![pub](https://img.shields.io/pub/v/flutter_stompsocket.svg)](https://pub.dev/packages/flutter_stompsocket)
 
-对 [`stomp_dart_client`](https://pub.dev/packages/stomp_dart_client) 的**生产级二次封装**，补齐它不提供的“产品层”能力。核心是一个类 `Stompsocket`。
+在 [`stomp_dart_client`](https://pub.dev/packages/stomp_dart_client) 外面包了一层，补上它缺的几块：恢复订阅、离线缓冲、消息确认和 token 刷新。入口只有一个类 `Stompsocket`。
 
-> 关键认知：底层库**只重连传输、不恢复订阅**。本封装在连接建立后自动重放本地订阅，并在此之上提供函数队列共享解析、三种取消、离线发送缓冲、自动/手动确认、token 刷新、连接状态可观测等能力。
+> `stomp_dart_client` **只负责重连传输，不会恢复订阅**。这个封装会在每次（重）连之后自动重新订阅。另外，同一条消息只解析一次就能分给多个回调，有三种取消订阅的方式，离线时发送的消息会先缓存，确认可以自动也可以手动，支持刷新 token，还能观察连接状态。
 
 - [特性](#特性)
 - [安装](#安装)
@@ -23,16 +23,16 @@
 
 ## 特性
 
-- **函数队列共享解析**：相同 `id` 的多个回调共用**一份**解析后的数据（只解析一次再分发），不重复向服务端 SUBSCRIBE。
-- **三种取消**：句柄 `.unsubscribe()`（引用计数）、`unsubscribe(id:/destination:)`、`clear()`。
-- **断线后自动重新订阅**：连接建立/重连后自动重放本地订阅。
-- **离线发送缓冲**：未连接时 `send()` 入缓冲，连上后按序补发。
-- **确认模式** `AckMode { auto, smart, manual }`。
-- **可注入二进制解码器**：大包自动走后台 isolate（`compute`）。
-- **token 刷新**：`beforeConnect` 每次（重）连前返回新的 CONNECT 头。
+- **函数队列共享解析**：相同 `id` 的多个回调共用**一份**解析结果（只解析一次，再分给每个回调），也不会重复发 `SUBSCRIBE`。
+- **三种取消**：句柄的 `.unsubscribe()`（引用计数）、`unsubscribe(id:/destination:)`、`clear()`。
+- **断线后自动重新订阅**：每次（重）连成功后，重放本地订阅。
+- **离线发送缓冲**：未连接时 `send()` 先把消息存起来，连上后按顺序发出。
+- **确认模式**：`AckMode { auto, smart, manual }`。
+- **可注入二进制解码器**：大包放到后台 isolate（`compute`）里解码。
+- **token 刷新**：每次（重）连前，`beforeConnect` 返回新的 CONNECT 头。
 - **连接状态可观测**：`state` / `stateListenable`（`ValueListenable`）/ `onStateChanged`。
-- **回前台强制重连**：`resumeOnForeground` 借 `AppLifecycleListener` 规避 App 后台挂起导致的心跳失联。
-- **`copyWith`** 与底层原生参数透传。
+- **回前台强制重连**：开启 `resumeOnForeground` 后，用 `AppLifecycleListener` 在 App 回到前台时重连，避免 App 在后台被挂起、心跳断了就一直连不上。
+- **`copyWith`**，底层库的原生参数也都能传。
 
 ## 安装
 
@@ -49,17 +49,17 @@ import 'package:flutter_stompsocket/flutter_stompsocket.dart';
 final ws = Stompsocket(
   url: 'wss://example.com/ws',
   beforeConnect: () async => {'Authorization': 'Bearer ${await getToken()}'},
-  onConnected: (_) => resyncSnapshot(), // 每次（重）连成功后重拉快照
+  onConnected: (_) => resyncSnapshot(), // 每次（重）连成功后重新拉一份快照
 );
 
 ws.activate();
 
 final sub = ws.subscribe('/topic/quote', (json, ack) => render(json));
 
-ws.send('/app/order', body: {'sku': 'A', 'qty': 2}); // Map 自动 JSON 编码
+ws.send('/app/order', body: {'sku': 'A', 'qty': 2}); // Map 会自动编码成 JSON
 
-sub.unsubscribe(); // 取消这一次回调
-ws.dispose();      // 可逆停止
+sub.unsubscribe(); // 取消这个回调
+ws.dispose();      // 停止连接，之后还能再 activate
 ```
 
 ## API 详解
@@ -74,65 +74,65 @@ ws.dispose();      // 可逆停止
 |---|---|---|---|
 | `url` | `String` | **必填** | WebSocket 地址（`ws://` 或 `wss://`）。 |
 | `connectHeaders` | `Map<String,String>?` | `null` | 静态 CONNECT 头（鉴权等）。 |
-| `beforeConnect` | `Future<Map<String,String>?> Function()?` | `null` | 每次（重）连前调用；返回非空则覆盖 CONNECT 头，用于**异步 token 刷新**。内部吞异常，失败由重连兜底。 |
-| `webSocketConnectHeaders` | `Map<String,dynamic>?` | `null` | WebSocket **握手**阶段的 HTTP 头（Cookie/Origin 等，与 CONNECT 头是两层）。 |
-| `heartbeatIncoming` | `Duration` | `5s` | 入向心跳。 |
-| `heartbeatOutgoing` | `Duration` | `5s` | 出向心跳。 |
+| `beforeConnect` | `Future<Map<String,String>?> Function()?` | `null` | 每次（重）连前调用。返回非空就替换 CONNECT 头，用来**异步刷新 token**。异常会被吞掉；这次连接失败了，由重连逻辑重试。 |
+| `webSocketConnectHeaders` | `Map<String,dynamic>?` | `null` | WebSocket **握手**时带的 HTTP 头（Cookie、Origin 等），和 CONNECT 头不是一层。 |
+| `heartbeatIncoming` | `Duration` | `5s` | 接收心跳间隔。 |
+| `heartbeatOutgoing` | `Duration` | `5s` | 发送心跳间隔。 |
 | `pingInterval` | `Duration?` | `null` | 底层 WebSocket ping 间隔。 |
-| `connectionTimeout` | `Duration` | `Duration.zero` | 连接超时（0=不超时；生产建议设值）。 |
+| `connectionTimeout` | `Duration` | `Duration.zero` | 连接超时（0 表示不超时；生产环境建议设一个值）。 |
 | `useSockJS` | `bool` | `false` | 使用 SockJS 传输（Spring SockJS 端点）。 |
 
 #### 重连
 
 | 参数 | 类型 | 默认 | 说明 |
 |---|---|---|---|
-| `reconnectDelay` | `Duration` | `5s` | 固定间隔自动重连；`>0` 无限重试，`Duration.zero` 关闭自动重连。 |
-| `resumeOnForeground` | `bool` | `true` | 为 true 时，App 回前台（`AppLifecycleState.resumed`）若未连接则立即重连（需已初始化 `WidgetsBinding`）。 |
+| `reconnectDelay` | `Duration` | `5s` | 两次重连之间的固定间隔。`>0` 会一直重试，`Duration.zero` 关闭自动重连。 |
+| `resumeOnForeground` | `bool` | `true` | App 回到前台（`AppLifecycleState.resumed`）时，如果没连上就立即重连。需要已初始化 `WidgetsBinding`；在没有它的纯 Dart 环境里请设为 `false`。 |
 
 #### 消息解析
 
 | 参数 | 类型 | 默认 | 说明 |
 |---|---|---|---|
-| `binaryDecoder` | `ParsedMessage Function(Uint8List)?` | `null` | 二进制帧解码器；可返回任意值（含 null），失败请抛异常。大包经 `compute` 到后台 isolate，故**必须是顶层/静态函数**。未提供时二进制消息按解析失败处理。 |
+| `binaryDecoder` | `ParsedMessage Function(Uint8List)?` | `null` | 二进制帧的解码器。可以返回任意值（包括 null），解码失败就抛异常。大包会经 `compute` 放到后台 isolate，所以它**必须是顶层函数或静态方法**。不传的话，二进制消息一律算解析失败。 |
 
-> 文本消息默认 `jsonDecode`，可返回任意 JSON 值（含 null）；非合法 JSON 原样传回文本。显式 `application/octet-stream` 走二进制解码器，其余二进制 body 先严格探测 UTF-8，失败才走解码器。大包使用 `compute`（文本阈值为 32K UTF-16 代码单元，二进制为 32KB）；Flutter Web 上仍在当前事件循环执行。
+> 文本消息用 `jsonDecode` 解析，任何 JSON 值（包括 null）都会交给回调；不是合法 JSON 的，原样把文本交给回调。显式标了 `application/octet-stream` 的帧，直接用 `binaryDecoder`；其他二进制 body 先按严格 UTF-8 试一遍，不行才交给解码器。大包用 `compute`（文本超过 32K 个 UTF-16 代码单元、二进制超过 32KB 时）。Flutter Web 上 `compute` 仍然在当前事件循环里执行。
 
 #### 发送缓冲
 
 | 参数 | 类型 | 默认 | 说明 |
 |---|---|---|---|
-| `queueWhileDisconnected` | `bool` | `true` | 未连接时是否缓冲出站消息，连上后按序补发。 |
-| `maxQueuedMessages` | `int` | `100` | 出站缓冲上限，超出丢最旧；≤0 不缓冲。 |
+| `queueWhileDisconnected` | `bool` | `true` | 未连接时是否缓存要发的消息，连上后按顺序发出。 |
+| `maxQueuedMessages` | `int` | `100` | 发送缓冲的上限，超出就丢掉最旧的；≤0 表示不缓冲。 |
 
 #### 日志
 
 | 参数 | 类型 | 默认 | 说明 |
 |---|---|---|---|
-| `debug` | `bool` | `false` | 日志主开关；关闭时完全静默。 |
-| `onLog` | `void Function(String, {Object? error, StackTrace? stackTrace})?` | `null` | 自定义日志输出；未提供且 `debug=true` 时回退 `dart:developer`。 |
+| `debug` | `bool` | `false` | 日志总开关；关掉后什么都不输出。 |
+| `onLog` | `void Function(String, {Object? error, StackTrace? stackTrace})?` | `null` | 自定义日志输出。没传且 `debug=true` 时，日志走 `dart:developer`。 |
 
 #### 回调
 
 | 参数 | 类型 | 说明 |
 |---|---|---|
-| `onParseFailure` | `void Function(StompFrame, String)?` | 二进制解析失败监控；回调抛异常不影响 ACK/NACK 策略。 |
-| `onConnected` | `void Function(StompFrame)?` | 每次（重）连成功、**重放订阅之后**触发（重拉快照的好时机）。 |
-| `onDisconnected` | `void Function(StompFrame)?` | STOMP DISCONNECT 后触发。 |
-| `onStateChanged` | `void Function(StompConnectionState)?` | 连接状态每次变化触发。 |
+| `onParseFailure` | `void Function(StompFrame, String)?` | 二进制消息解析失败时调用。这里抛异常不影响 ACK/NACK 的处理。 |
+| `onConnected` | `void Function(StompFrame)?` | 每次（重）连成功后调用，**此时订阅已经重放完**。适合在这里重新拉快照。 |
+| `onDisconnected` | `void Function(StompFrame)?` | STOMP DISCONNECT 之后调用。 |
+| `onStateChanged` | `void Function(StompConnectionState)?` | 连接状态每次变化都会调用。 |
 | `onStompError` | `void Function(StompFrame)?` | 服务端 ERROR 帧（鉴权失败、目的地非法等）。 |
 | `onWebSocketError` | `void Function(dynamic)?` | WebSocket 层错误。 |
 | `onWebSocketDone` | `void Function()?` | WebSocket 关闭。 |
-| `onDebugMessage` | `void Function(String)?` | 原样透传底层帧级流水。 |
-| `onUnhandledFrame` / `onUnhandledMessage` / `onUnhandledReceipt` | `StompFrameCallback?` | 未匹配任何订阅/回执的帧。 |
+| `onDebugMessage` | `void Function(String)?` | 底层库的原始帧级日志。 |
+| `onUnhandledFrame` / `onUnhandledMessage` / `onUnhandledReceipt` | `StompFrameCallback?` | 没有匹配到任何订阅或回执的帧。 |
 
 ### 生命周期方法
 
 | 方法 | 说明 |
 |---|---|
-| `void activate()` | 启动（或 dispose 后重启）连接。 |
-| `void dispose({bool keepSubscriptions = false})` | 可逆停止；dispose 后仍可再次 `activate`。`keepSubscriptions=true` 保留订阅，重连后自动恢复（pause/resume）。 |
-| `void forceReconnect()` | 立即重连（跳过 `reconnectDelay`），仅在“期望连接但当前未连接”时生效。可在网络恢复时手动调。 |
-| `Stompsocket copyWith({ ... })` | 复制新实例：提供的参数覆盖、未提供的继承（全部构造参数）。返回**全新未连接**实例，需自行 `activate`。 |
+| `void activate()` | 启动连接（或在 `dispose` 之后重新启动）。 |
+| `void dispose({bool keepSubscriptions = false})` | 停止连接，之后还能再 `activate`。`keepSubscriptions=true` 会保留订阅，重连后自动恢复（用于暂停/恢复）。 |
+| `void forceReconnect()` | 立即重连，不等 `reconnectDelay`。只在“想连着、但现在没连上”时才起作用。网络恢复时可以手动调用。 |
+| `Stompsocket copyWith({ ... })` | 复制出一个新实例：传了的参数覆盖原值，没传的沿用（所有构造参数都适用）。新实例是**全新的、未连接**的，需要自己调用 `activate()`。 |
 | `bool get connected` | 是否已连接。 |
 
 ### 订阅与取消
@@ -150,15 +150,15 @@ StompSubscription subscribe(
 
 | 参数 | 说明 |
 |---|---|
-| `id` | 传相同 id → 回调加入同一订阅队列，多回调共用一份解析数据、不重复 SUBSCRIBE；不传 → 按 `(destination, ack, onParseError, ordered)` 归并。显式 id 的目的地和选项由首次注册确定。 |
-| `ordered` | `true`（默认）严格按到达顺序分发（即使大包异步解析也不乱序）；`false` 解析完即分发，吞吐更高但可能乱序。仅首次订阅该 id 时生效。 |
+| `id` | 传相同的 id：回调加入同一个订阅队列，共用一份解析结果，不重复发 SUBSCRIBE。不传：`(destination, ack, onParseError, ordered)` 都相同的订阅会合并。显式 id 的目的地和这些选项，以第一次注册为准。 |
+| `ordered` | `true`（默认）严格按到达顺序分发，大包异步解析时也不会乱序。`false` 解析完就分发：吞吐更高，但可能乱序。只在这个 id 第一次订阅时生效。 |
 | `ack` | 见[确认](#确认acknack)。 |
-| `onParseError` | 解析失败时 `nack`（默认，重投）或 `ack`（丢弃）。 |
+| `onParseError` | 解析失败时怎么处理：`nack`（默认，服务端会重发）或 `ack`（丢掉这条消息）。 |
 
-返回 `StompSubscription { String id; void unsubscribe(); }`——`unsubscribe()` 引用计数取消（该 id 最后一个回调取消时才 UNSUBSCRIBE），幂等。
+返回 `StompSubscription { String id; void unsubscribe(); }`。`unsubscribe()` 按引用计数取消（这个 id 的最后一个回调取消时，才发 UNSUBSCRIBE），重复调用也没问题。
 
 ```dart
-int unsubscribe({String? id, String? destination}); // 按 id 单个 / 按 topic 批量，返回取消数
+int unsubscribe({String? id, String? destination}); // 按 id 取消一个 / 按 topic 批量取消，返回取消的数量
 void clear();                                        // 取消全部
 ```
 
@@ -168,7 +168,7 @@ void clear();                                        // 取消全部
 void send(String destination, {Object? body, Map<String,String>? headers});
 ```
 
-`body` 支持 `String`（原样）、`Map`/`List`（自动 JSON 编码 + `content-type: application/json`）、`Uint8List`（二进制）、`null`（无 body）。未连接时按 `queueWhileDisconnected` 缓冲。
+`body` 可以是 `String`（原样发送）、`Map`/`List`（自动编码成 JSON，并加上 `content-type: application/json`）、`Uint8List`（二进制）或 `null`（没有 body）。未连接时，按 `queueWhileDisconnected` 决定是否缓存。
 
 ### 连接状态观测
 
@@ -190,32 +190,32 @@ ValueListenableBuilder<StompConnectionState>(
 
 | 值 | STOMP | 行为 |
 |---|---|---|
-| `auto`（默认） | `ack:auto` | 服务端自动确认，本封装**不发**任何 ACK/NACK。 |
-| `smart` | `ack:client-individual` | 按处理结果**自动** ACK（回调全成功）/ NACK（任一抛异常）。解析失败按 `onParseError`。 |
-| `manual` | `ack:client-individual` | **成功投递的消息不自动应答**，回调第二参给 `AckControl` 手动 ack/nack。 |
+| `auto`（默认） | `ack:auto` | 服务端自动确认，封装**不会**发任何 ACK/NACK。 |
+| `smart` | `ack:client-individual` | 所有回调都成功就自动发 ACK，任何一个抛异常就发 NACK。解析失败按 `onParseError` 处理。 |
+| `manual` | `ack:client-individual` | **成功投递的消息不会自动确认**，回调的第二个参数是 `AckControl`，由你自己调用 ack/nack。 |
 
-回调签名：`typedef JsonCallback = void Function(ParsedMessage json, AckControl ack);`（第二参在非 manual 下为 no-op，可写 `(json, _) {}`）。
+回调签名：`typedef JsonCallback = void Function(ParsedMessage json, AckControl ack);`。不是 `manual` 时，第二个参数什么都不做，可以写 `(json, _) {}`。
 
-**手动确认（可在回调外调用）**：`AckControl` 可存起来，异步完成后再 ack：
+**手动确认（可以在回调外调用）**：把 `AckControl` 存起来，等异步处理完再 ack：
 
 ```dart
 final pending = <String, AckControl>{};
 
 ws.subscribe('/queue/tasks', (json, ack) {
-  pending[json['taskId']] = ack; // 存起来
+  pending[json['taskId']] = ack; // 先存起来
 }, ack: AckMode.manual);
 
-// 别处、异步完成后：
+// 在别处，异步处理完成后：
 void onTaskDone(String taskId) {
   pending.remove(taskId)?.ack();  // 外部 ack
 }
 ```
 
-订阅回调是同步 `void`，smart 不等待异步任务；异步处理请用 manual。真正没有 body 的消息跳过回调，smart/manual 自动确认；JSON null 会正常投递。共享订阅的 manual 回调共用同一幂等句柄，以首次 ack/nack 为准。
+回调是同步的 `void`，smart 模式不会等异步任务；需要异步处理就用 manual。完全没有 body 的消息会跳过回调，并在 smart/manual 模式下自动确认；body 是 JSON null 的消息会正常投递给回调。共享订阅里的 manual 回调拿到的是同一个句柄，重复调用没有副作用，以第一次 ack/nack 为准。
 
-`dispose` 保留离线发送缓冲供再次 `activate` 补发；独立会话请新建实例。停止或断开前尚未完成的解析结果会被丢弃。`copyWith` 的 null 表示继承，不能用 null 清空可空配置。
+`dispose` 会保留还没发出的离线消息，下次 `activate` 时补发。想要一个独立的会话，就新建实例。会话停止或断开时还没解析完的消息，结果会被丢弃。`copyWith` 里 null 表示沿用原值，所以不能用 null 把可空参数清掉。
 
-`AckControl` 绑定“会话代次”，**重连后旧句柄自动失效（no-op）**，重复调用幂等。
+`AckControl` 属于某一次会话（“会话代次”）。**重连之后，旧的句柄失效，调用不会有任何效果**；重复调用也没问题。
 
 ### 枚举与类型
 
@@ -230,9 +230,9 @@ void onTaskDone(String taskId) {
 
 ## 行为与语义说明
 
-- **重连不会内存膨胀**：`_subscriptions` 以 id 为键，重连只重放不新增；出站缓冲有上限；manual 的 `AckControl` 由调用方持有、本封装不留存。
-- **有序分发**：`ordered:true` 用每订阅一条串行链保证顺序，代价是大包异步解析会短暂阻塞其后消息；顺序无关且要低延迟时用 `ordered:false`。
-- **重连 vs 重订阅**：传输重连由 `reconnectDelay` 交给底层库；重连后重新订阅由本封装完成，并在 `onConnected` 前就绪。业务可在 `onConnected` 里重拉快照补齐后台期间遗漏。
+- **重连不会让内存越涨越多**：`_subscriptions` 以 id 为键，重连时只重放，不新增；发送缓冲有上限；`manual` 的 `AckControl` 由调用方持有，封装自己不保留。
+- **有序分发**：`ordered:true` 给每个订阅用一条串行链来保证顺序。代价是大包异步解析时，会让排在后面的消息稍微等一会儿。顺序无所谓、又要低延迟时，用 `ordered:false`。
+- **重连和重新订阅**：传输层重连由底层库按 `reconnectDelay` 负责；重新订阅由本封装完成，并且在 `onConnected` 触发之前就绪。可以在 `onConnected` 里重新拉快照，补上 App 在后台时漏掉的消息。
 
 ## License
 

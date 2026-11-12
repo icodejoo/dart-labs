@@ -6,7 +6,6 @@
 // 路径（原创 Dart 侧 SMIL 引擎）或静态路径（Rust usvg → ui.Picture）。
 
 import 'dart:convert';
-import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/widgets.dart';
@@ -20,6 +19,8 @@ import 'animation/xvg_animation_quality.dart';
 import 'pixel_snap_layer.dart';
 import 'rust/frb_generated.dart';
 import 'rust_static_svg.dart';
+import 'platform_file.dart'
+    if (dart.library.js_interop) 'platform_file_web.dart';
 import 'svg_source_loader.dart';
 
 /// Default implicit playback speed. / 默认隐式播放速率。

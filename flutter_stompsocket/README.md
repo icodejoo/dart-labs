@@ -4,9 +4,9 @@
 
 > 中文文档：[README.zh-CN.md](./README.zh-CN.md)
 
-A **production-ready** wrapper over [`stomp_dart_client`](https://pub.dev/packages/stomp_dart_client) that adds the "product" layer it doesn't provide. The single entry class is `Stompsocket`.
+A wrapper around [`stomp_dart_client`](https://pub.dev/packages/stomp_dart_client) that adds what the library leaves out: subscription restore, offline buffering, ack handling and token refresh. The only entry class is `Stompsocket`.
 
-> Key insight: the underlying library **reconnects the transport but does not restore subscriptions**. This wrapper re-subscribes automatically after each (re)connect, and adds shared-parse callback queues, three ways to unsubscribe, offline send buffering, auto/manual ack, token refresh, and observable connection state.
+> `stomp_dart_client` **reconnects the transport but does not restore subscriptions**. This wrapper re-subscribes after every (re)connect. It also parses a message once for several callbacks, gives you three ways to unsubscribe, buffers sends while offline, supports auto and manual ack, refreshes tokens, and exposes the connection state.
 
 - [Features](#features)
 - [Install](#install)
@@ -23,16 +23,16 @@ A **production-ready** wrapper over [`stomp_dart_client`](https://pub.dev/packag
 
 ## Features
 
-- **Shared-parse callback queue** — multiple callbacks under the same `id` share **one** parsed payload (parsed once, dispatched to all); no duplicate `SUBSCRIBE`.
-- **Three ways to unsubscribe** — the handle's `.unsubscribe()` (ref-counted), `unsubscribe(id:/destination:)`, and `clear()`.
-- **Auto re-subscribe on reconnect** — replays local subscriptions once (re)connected.
-- **Offline send buffering** — `send()` while disconnected buffers and flushes on connect.
+- **Shared-parse callback queue** — callbacks with the same `id` share **one** parsed payload (parsed once, then passed to all of them) and send no duplicate `SUBSCRIBE`.
+- **Three ways to unsubscribe** — the handle's `.unsubscribe()` (ref-counted), `unsubscribe(id:/destination:)` and `clear()`.
+- **Auto re-subscribe on reconnect** — local subscriptions are replayed after each (re)connect.
+- **Offline send buffering** — `send()` while disconnected queues the message and sends it once connected.
 - **Ack modes** `AckMode { auto, smart, manual }`.
-- **Injectable binary decoder** — large payloads run on a background isolate (`compute`).
-- **Token refresh** — async `beforeConnect` returns fresh CONNECT headers on every (re)connect.
+- **Injectable binary decoder** — large payloads are decoded on a background isolate (`compute`).
+- **Token refresh** — the async `beforeConnect` returns fresh CONNECT headers on every (re)connect.
 - **Observable connection state** — `state` / `stateListenable` (a `ValueListenable`) / `onStateChanged`.
-- **Foreground-resume reconnect** — `resumeOnForeground` uses `AppLifecycleListener` to sidestep heartbeat loss after the app is backgrounded.
-- **`copyWith`** and full passthrough of native options.
+- **Foreground-resume reconnect** — with `resumeOnForeground`, an `AppLifecycleListener` reconnects when the app returns to the foreground, so a backgrounded app does not stay cut off after a lost heartbeat.
+- **`copyWith`**, and all native options are passed through.
 
 ## Install
 
@@ -49,14 +49,14 @@ import 'package:flutter_stompsocket/flutter_stompsocket.dart';
 final ws = Stompsocket(
   url: 'wss://example.com/ws',
   beforeConnect: () async => {'Authorization': 'Bearer ${await getToken()}'},
-  onConnected: (_) => resyncSnapshot(), // re-fetch a snapshot after any (re)connect
+  onConnected: (_) => resyncSnapshot(), // fetch a fresh snapshot after any (re)connect
 );
 
 ws.activate();
 
 final sub = ws.subscribe('/topic/quote', (json, ack) => render(json));
 
-ws.send('/app/order', body: {'sku': 'A', 'qty': 2}); // Map is auto JSON-encoded
+ws.send('/app/order', body: {'sku': 'A', 'qty': 2}); // a Map is JSON-encoded for you
 
 sub.unsubscribe(); // cancel this callback
 ws.dispose();      // reversible stop
@@ -74,8 +74,8 @@ ws.dispose();      // reversible stop
 |---|---|---|---|
 | `url` | `String` | **required** | WebSocket URL (`ws://` or `wss://`). |
 | `connectHeaders` | `Map<String,String>?` | `null` | Static CONNECT headers (auth, etc.). |
-| `beforeConnect` | `Future<Map<String,String>?> Function()?` | `null` | Called before every (re)connect; a non-null return overrides CONNECT headers — use for **async token refresh**. Exceptions are swallowed (a failed connect is covered by reconnect). |
-| `webSocketConnectHeaders` | `Map<String,dynamic>?` | `null` | HTTP headers for the WebSocket **handshake** (cookies/origin — a different layer than CONNECT headers). |
+| `beforeConnect` | `Future<Map<String,String>?> Function()?` | `null` | Called before every (re)connect. A non-null return replaces the CONNECT headers, so use it for **async token refresh**. Exceptions are swallowed; a failed connect is retried by the reconnect logic. |
+| `webSocketConnectHeaders` | `Map<String,dynamic>?` | `null` | HTTP headers for the WebSocket **handshake** (cookies, origin). This is a different layer from the CONNECT headers. |
 | `heartbeatIncoming` | `Duration` | `5s` | Incoming heartbeat. |
 | `heartbeatOutgoing` | `Duration` | `5s` | Outgoing heartbeat. |
 | `pingInterval` | `Duration?` | `null` | Underlying WebSocket ping interval. |
@@ -86,53 +86,53 @@ ws.dispose();      // reversible stop
 
 | Option | Type | Default | Description |
 |---|---|---|---|
-| `reconnectDelay` | `Duration` | `5s` | Fixed-interval auto-reconnect; `>0` retries forever, `Duration.zero` disables it. |
-| `resumeOnForeground` | `bool` | `true` | When true, reconnect immediately on `AppLifecycleState.resumed` if disconnected (requires an initialized `WidgetsBinding`; set to `false` for plain-Dart contexts without one). |
+| `reconnectDelay` | `Duration` | `5s` | Fixed delay between reconnect attempts. `>0` retries forever; `Duration.zero` turns auto-reconnect off. |
+| `resumeOnForeground` | `bool` | `true` | Reconnect immediately on `AppLifecycleState.resumed` if disconnected. Needs an initialized `WidgetsBinding`; set it to `false` in plain Dart without one. |
 
 #### Parsing
 
 | Option | Type | Default | Description |
 |---|---|---|---|
-| `binaryDecoder` | `ParsedMessage Function(Uint8List)?` | `null` | Decoder for binary frames; return any value (including null), throw on failure. Large payloads run via `compute` on a background isolate, so it **must be a top-level/static function**. If omitted, binary messages are treated as parse failures. |
+| `binaryDecoder` | `ParsedMessage Function(Uint8List)?` | `null` | Decoder for binary frames. It can return any value (including null) and should throw on failure. Large payloads run through `compute` on a background isolate, so it **must be a top-level or static function**. Without it, binary messages count as parse failures. |
 
-> Text messages use `jsonDecode` and deliver any JSON value (including null); invalid JSON is delivered as the original text. Explicit `application/octet-stream` uses `binaryDecoder`; otherwise binary bodies are probed with strict UTF-8 before falling back to that decoder. Large payloads use `compute` (text threshold: 32K UTF-16 code units; binary: 32KB). On Flutter Web, `compute` runs on the current event loop.
+> Text messages go through `jsonDecode`, and any JSON value (including null) is delivered. Invalid JSON is delivered as the original text. A frame with `application/octet-stream` always uses `binaryDecoder`. Other binary bodies are first tried as strict UTF-8, and only then passed to the decoder. Large payloads use `compute` (text threshold: 32K UTF-16 code units; binary: 32KB). On Flutter Web, `compute` runs on the current event loop.
 
 #### Send buffer
 
 | Option | Type | Default | Description |
 |---|---|---|---|
 | `queueWhileDisconnected` | `bool` | `true` | Buffer outgoing messages while disconnected and flush on connect. |
-| `maxQueuedMessages` | `int` | `100` | Outbox cap; oldest dropped when exceeded; values ≤ 0 disable buffering. |
+| `maxQueuedMessages` | `int` | `100` | Outbox size limit. The oldest message is dropped when it is exceeded; a value ≤ 0 turns buffering off. |
 
 #### Logging
 
 | Option | Type | Default | Description |
 |---|---|---|---|
-| `debug` | `bool` | `false` | Master log switch; fully silent when off. |
-| `onLog` | `void Function(String, {Object? error, StackTrace? stackTrace})?` | `null` | Custom log sink; falls back to `dart:developer` when omitted and `debug=true`. |
+| `debug` | `bool` | `false` | Master log switch. Nothing is logged when it is off. |
+| `onLog` | `void Function(String, {Object? error, StackTrace? stackTrace})?` | `null` | Custom log sink. If omitted and `debug=true`, logs go to `dart:developer`. |
 
 #### Callbacks
 
 | Option | Type | Description |
 |---|---|---|
-| `onParseFailure` | `void Function(StompFrame, String)?` | Binary parse failure monitoring; exceptions do not interrupt ACK/NACK policy. |
-| `onConnected` | `void Function(StompFrame)?` | Fired after each (re)connect, **after subscriptions are replayed** (good place to re-fetch a snapshot). |
-| `onDisconnected` | `void Function(StompFrame)?` | Fired after STOMP DISCONNECT. |
-| `onStateChanged` | `void Function(StompConnectionState)?` | Fired on every state change. |
+| `onParseFailure` | `void Function(StompFrame, String)?` | Called when a binary message fails to parse. An exception thrown here does not change the ACK/NACK behavior. |
+| `onConnected` | `void Function(StompFrame)?` | Called after each (re)connect, **after subscriptions are replayed**. A good place to re-fetch a snapshot. |
+| `onDisconnected` | `void Function(StompFrame)?` | Called after a STOMP DISCONNECT. |
+| `onStateChanged` | `void Function(StompConnectionState)?` | Called on every state change. |
 | `onStompError` | `void Function(StompFrame)?` | Server ERROR frame (auth failure, bad destination, ...). |
 | `onWebSocketError` | `void Function(dynamic)?` | WebSocket-level error. |
 | `onWebSocketDone` | `void Function()?` | WebSocket closed. |
-| `onDebugMessage` | `void Function(String)?` | Raw frame-level trace passthrough. |
-| `onUnhandledFrame` / `onUnhandledMessage` / `onUnhandledReceipt` | `StompFrameCallback?` | Frames matching no subscription/receipt. |
+| `onDebugMessage` | `void Function(String)?` | Raw frame-level trace from the underlying library. |
+| `onUnhandledFrame` / `onUnhandledMessage` / `onUnhandledReceipt` | `StompFrameCallback?` | Frames that match no subscription or receipt. |
 
 ### Lifecycle methods
 
 | Method | Description |
 |---|---|
-| `void activate()` | Start (or restart after `dispose`) the connection. |
-| `void dispose({bool keepSubscriptions = false})` | Reversible stop; you can `activate()` again afterwards. `keepSubscriptions=true` keeps subscriptions and auto-restores them on reconnect (pause/resume). |
-| `void forceReconnect()` | Reconnect now (skip `reconnectDelay`); only acts when "want-connected but currently disconnected". Call it on network recovery. |
-| `Stompsocket copyWith({ ... })` | Copy into a new instance: provided args override, others are inherited (all constructor args). Returns a **fresh, unconnected** instance — call `activate()` yourself. |
+| `void activate()` | Starts the connection (or restarts it after `dispose`). |
+| `void dispose({bool keepSubscriptions = false})` | Stops the connection; you can call `activate()` again later. With `keepSubscriptions=true`, subscriptions are kept and restored on reconnect (pause/resume). |
+| `void forceReconnect()` | Reconnects now, skipping `reconnectDelay`. It only acts when you want to be connected but currently are not. Call it when the network comes back. |
+| `Stompsocket copyWith({ ... })` | Creates a new instance: arguments you pass override the current ones, the rest are inherited (all constructor arguments). The new instance is **fresh and not connected**, so call `activate()` yourself. |
 | `bool get connected` | Whether connected. |
 
 ### Subscribe & unsubscribe
@@ -150,15 +150,15 @@ StompSubscription subscribe(
 
 | Option | Description |
 |---|---|
-| `id` | Same id → callback joins that subscription's queue, callbacks share one parsed payload, no duplicate SUBSCRIBE; omit → merge by `(destination, ack, onParseError, ordered)`. For an explicit id, the first registration fixes these options and destination. |
-| `ordered` | `true` (default) dispatches strictly in arrival order (even when a large message is parsed asynchronously); `false` dispatches as soon as parsed — higher throughput, possible reordering. Only applied on the first subscribe of that id. |
+| `id` | Same id: the callback joins that subscription's queue, callbacks share one parsed payload, and no duplicate SUBSCRIBE is sent. Omitted: subscriptions with the same `(destination, ack, onParseError, ordered)` are merged. For an explicit id, the first registration fixes the destination and these options. |
+| `ordered` | `true` (default) delivers strictly in arrival order, even when a large message is parsed asynchronously. `false` delivers as soon as a message is parsed: higher throughput, but messages may be reordered. Only the first subscribe of an id applies it. |
 | `ack` | See [Acknowledgement](#acknowledgement-acknack). |
-| `onParseError` | On parse failure: `nack` (default, redeliver) or `ack` (drop). |
+| `onParseError` | What to do when parsing fails: `nack` (default, the server redelivers) or `ack` (drop the message). |
 
-Returns `StompSubscription { String id; void unsubscribe(); }` — `unsubscribe()` is ref-counted (UNSUBSCRIBE only when the last callback for that id is cancelled) and idempotent.
+Returns `StompSubscription { String id; void unsubscribe(); }`. `unsubscribe()` is ref-counted (UNSUBSCRIBE is sent only when the last callback for that id is cancelled) and safe to call twice.
 
 ```dart
-int unsubscribe({String? id, String? destination}); // by id / by topic; returns count cancelled
+int unsubscribe({String? id, String? destination}); // by id / by topic; returns how many were cancelled
 void clear();                                        // cancel all
 ```
 
@@ -168,7 +168,7 @@ void clear();                                        // cancel all
 void send(String destination, {Object? body, Map<String,String>? headers});
 ```
 
-`body` accepts `String` (as-is), `Map`/`List` (auto JSON-encoded + `content-type: application/json`), `Uint8List` (binary), or `null`. Buffered while disconnected per `queueWhileDisconnected`.
+`body` can be a `String` (sent as is), a `Map`/`List` (JSON-encoded, with `content-type: application/json`), a `Uint8List` (binary) or `null`. While disconnected, messages are buffered according to `queueWhileDisconnected`.
 
 ### Connection state
 
@@ -190,32 +190,32 @@ ValueListenableBuilder<StompConnectionState>(
 
 | Value | STOMP | Behavior |
 |---|---|---|
-| `auto` (default) | `ack:auto` | Server auto-acks; the wrapper sends **no** ACK/NACK. |
-| `smart` | `ack:client-individual` | **Auto** ACK (all callbacks succeed) / NACK (any throws). Parse failure follows `onParseError`. |
-| `manual` | `ack:client-individual` | **No auto ack for delivered payloads**; the callback's 2nd arg is an `AckControl` for manual ack/nack. |
+| `auto` (default) | `ack:auto` | The server acks for you; the wrapper sends **no** ACK/NACK. |
+| `smart` | `ack:client-individual` | ACK is sent automatically when all callbacks succeed, NACK when any of them throws. A parse failure follows `onParseError`. |
+| `manual` | `ack:client-individual` | **Delivered messages are not acked automatically.** The callback's 2nd argument is an `AckControl` for calling ack/nack yourself. |
 
-Callback signature: `typedef JsonCallback = void Function(ParsedMessage json, AckControl ack);` (the 2nd arg is a no-op outside `manual`; write `(json, _) {}`).
+Callback signature: `typedef JsonCallback = void Function(ParsedMessage json, AckControl ack);`. Outside `manual`, the 2nd argument does nothing; write `(json, _) {}`.
 
-**Manual ack (callable outside the callback)** — store the `AckControl` and ack later:
+**Manual ack (can be called outside the callback)**: keep the `AckControl` and ack after the async work finishes:
 
 ```dart
 final pending = <String, AckControl>{};
 
 ws.subscribe('/queue/tasks', (json, ack) {
-  pending[json['taskId']] = ack; // stash it
+  pending[json['taskId']] = ack; // keep it for later
 }, ack: AckMode.manual);
 
-// elsewhere, after async work:
+// elsewhere, once the async work is done:
 void onTaskDone(String taskId) {
   pending.remove(taskId)?.ack();  // ack from outside
 }
 ```
 
-Callbacks are synchronous (`void`): smart mode does not await async work. Use manual mode for async completion. A genuinely absent body is skipped and confirmed in smart/manual mode; JSON null is delivered. Shared manual callbacks receive the same idempotent control; the first ack/nack wins.
+Callbacks are synchronous (`void`), so smart mode does not wait for async work; use manual mode when you need that. A message that has no body at all is skipped, and in smart/manual mode it is acked for you. A JSON null body is delivered normally. Shared manual callbacks get the same idempotent control, and the first ack/nack wins.
 
-`dispose` retains buffered outgoing messages for a later `activate`; use a fresh instance for an independent session. Pending parsing from a stopped/disconnected session is discarded. `copyWith` uses null to inherit, so nullable options cannot be cleared with null.
+`dispose` keeps the buffered outgoing messages, and a later `activate` sends them. For an independent session, create a new instance. Parse results still pending when a session stops or disconnects are discarded. `copyWith` treats null as "inherit", so you cannot clear a nullable option by passing null.
 
-`AckControl` is bound to a "session generation": **stale after reconnect (no-op)**, idempotent.
+An `AckControl` belongs to one session ("session generation"). **After a reconnect it is stale and does nothing.** Calling it more than once is safe.
 
 ### Types & enums
 
@@ -230,9 +230,9 @@ Callbacks are synchronous (`void`): smart mode does not await async work. Use ma
 
 ## Behavior notes
 
-- **No memory growth across reconnects**: `_subscriptions` is keyed by id and only replayed (not re-added) on reconnect; the outbox is capped; `manual` `AckControl`s are held by the caller, not the wrapper.
-- **Ordered dispatch**: `ordered:true` uses a per-subscription serial chain to preserve order — the cost is that a large async parse briefly blocks the messages behind it; use `ordered:false` when order doesn't matter and you want lowest latency.
-- **Reconnect vs re-subscribe**: transport reconnect is delegated to the library via `reconnectDelay`; re-subscribing is done by the wrapper before `onConnected`. Re-fetch a snapshot in `onConnected` to fill gaps missed while backgrounded.
+- **No memory growth across reconnects**: `_subscriptions` is keyed by id and is only replayed on reconnect, not added to. The outbox has a size limit. In `manual` mode the `AckControl`s are held by your code, not by the wrapper.
+- **Ordered dispatch**: `ordered:true` uses one serial chain per subscription to keep order. The cost is that a large async parse briefly blocks the messages behind it. Use `ordered:false` when order does not matter and you want the lowest latency.
+- **Reconnect vs re-subscribe**: `stomp_dart_client` reconnects the transport, driven by `reconnectDelay`. The wrapper re-subscribes before `onConnected` fires. Re-fetch a snapshot in `onConnected` to fill in messages missed while the app was in the background.
 
 ## License
 
