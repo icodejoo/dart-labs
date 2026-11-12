@@ -1,185 +1,86 @@
 import 'package:cacheman/cacheman.dart';
 import 'package:flutter/material.dart';
-import '../main.dart';
+import '../demo_kit/demo_kit.dart';
+import '../demo_support.dart';
 
-class BatchPage extends StatefulWidget {
-  const BatchPage({super.key, required this.onChanged});
-  final VoidCallback onChanged;
+/// 批量操作与三种键绑定访问器的入口。
+class BatchPage extends StatelessWidget {
+  /// 创建批量页面。
+  const BatchPage({super.key});
 
+  /// 创建同步批量读写会话。
+  static Future<DemoSession> _batch() async {
+    final cache = await demoCache('batch-operations');
+    return DemoSession([
+      DemoAction('Write all', '批量写入', (_) {
+        cache.writeAll(demoKeys, [10, 20]);
+        return cache.readAll(demoKeys);
+      }),
+      DemoAction('Read all', '批量读取', (_) => cache.readAll(demoKeys)),
+      DemoAction('Remove all', '批量删除', (_) {
+        cache.removeAll(demoKeys);
+        return cache.keys();
+      }),
+    ]);
+  }
+
+  /// 创建带默认 TTL 的 fast、lazy 与 batchFast 访问器。
+  static Future<DemoSession> _accessors() async {
+    final cache = await demoCache('accessors');
+    final direct = fast<String>(cache, demoKey, ttl: accessorTtl);
+    final deferred = lazy<String>(cache, demoKey, ttl: accessorTtl);
+    final pair = batchFast<String>(cache, demoKeys, ttl: accessorTtl);
+    return DemoSession([
+      DemoAction('fast.set', 'fast 写入', (input) {
+        direct.set(input);
+        return direct.get();
+      }),
+      DemoAction('lazy.get', 'lazy 读取', (_) => deferred().get()),
+      DemoAction('batchFast', '批量访问器', (input) {
+        for (final entry in pair.values) {
+          entry.set(input);
+        }
+        return cache.readAll(demoKeys);
+      }),
+    ]);
+  }
+
+  /// 构建批量与快捷访问器卡片。
   @override
-  State<BatchPage> createState() => _BatchPageState();
-}
-
-class _BatchPageState extends State<BatchPage> {
-  final _k1 = TextEditingController(text: 'batch_a');
-  final _v1 = TextEditingController(text: 'alpha');
-  final _k2 = TextEditingController(text: 'batch_b');
-  final _v2 = TextEditingController(text: 'beta');
-  final _k3 = TextEditingController(text: 'batch_c');
-  final _v3 = TextEditingController(text: 'gamma');
-
-  late final FastAccessor<String> _fa =
-      fast<String>(cache, 'fa_key');
-  final _faValCtrl = TextEditingController(text: 'fast_value');
-  String? _faDisplay;
-
-  String _batchResult = '';
-
-  void _refresh() {
-    setState(() {});
-    widget.onChanged();
-  }
-
-  List<String> get _batchKeys =>
-      [_k1.text.trim(), _k2.text.trim(), _k3.text.trim()];
-  List<String> get _batchValues =>
-      [_v1.text.trim(), _v2.text.trim(), _v3.text.trim()];
-
-  void _setAll() {
-    cache.writeAll(_batchKeys, _batchValues);
-    setState(() => _batchResult = 'writeAll done');
-    _refresh();
-  }
-
-  void _getAll() {
-    final results = cache.readAll(_batchKeys);
-    setState(() =>
-        _batchResult = results.asMap().entries.map((e) => '${_batchKeys[e.key]}: ${e.value}').join('\n'));
-  }
-
-  void _removeAll() {
-    cache.removeAll(_batchKeys);
-    setState(() => _batchResult = 'removeAll done');
-    _refresh();
-  }
-
-  void _faGet() {
-    final v = _fa.get();
-    setState(() => _faDisplay = v ?? '(not set)');
-  }
-
-  void _faSet() {
-    final v = _faValCtrl.text.trim();
-    if (v.isEmpty) return;
-    _fa.set(v);
-    setState(() => _faDisplay = v);
-    widget.onChanged();
-  }
-
-  void _faRemove() {
-    _fa.remove();
-    setState(() => _faDisplay = '(removed)');
-    widget.onChanged();
-  }
-
-  @override
-  void dispose() {
-    _k1.dispose(); _v1.dispose();
-    _k2.dispose(); _v2.dispose();
-    _k3.dispose(); _v3.dispose();
-    _faValCtrl.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Batch operations',
-              style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 12),
-          _PairRow(kCtrl: _k1, vCtrl: _v1, label: '1'),
-          const SizedBox(height: 8),
-          _PairRow(kCtrl: _k2, vCtrl: _v2, label: '2'),
-          const SizedBox(height: 8),
-          _PairRow(kCtrl: _k3, vCtrl: _v3, label: '3'),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              FilledButton(onPressed: _setAll, child: const Text('writeAll')),
-              FilledButton.tonal(onPressed: _getAll, child: const Text('readAll')),
-              FilledButton.tonal(
-                  onPressed: _removeAll, child: const Text('removeAll')),
-            ],
-          ),
-          if (_batchResult.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(_batchResult,
-                  style: Theme.of(context).textTheme.bodySmall),
+  Widget build(BuildContext context) => DemoPage(
+    title: tr(context, DemoCopy.batch.en, DemoCopy.batch.zh),
+    description: tr(
+      context,
+      'Batch calls are sequential. Accessors bind a key, adapter and default millisecond TTL.',
+      '批量调用按顺序执行；访问器绑定键、适配器与默认毫秒 TTL。',
+    ),
+    sections: [
+      DemoSection(
+        title: tr(context, 'Fewer repeated keys', '少写重复的键'),
+        code:
+            "cache.writeAll(['first', 'second'], [10, 20]);\nfinal values = cache.readAll(['first', 'second']);\nfinal token = fast<String>(cache, 'token', ttl: 60000);\ntoken.set('abc');\nfinal deferred = lazy<String>(cache, 'token');\nfinal pair = batchFast<String>(cache, ['first', 'second']);",
+        child: DemoGrid(
+          children: [
+            actionCard(
+              context,
+              en: 'Batch operations',
+              zh: '批量操作',
+              descriptionEn: 'Read results preserve the requested key order.',
+              descriptionZh: '读取结果保持请求键的顺序。',
+              create: _batch,
+            ),
+            actionCard(
+              context,
+              en: 'Bound accessors',
+              zh: '绑定访问器',
+              descriptionEn: 'Shared value, with a 60-second default TTL.',
+              descriptionZh: '共用输入值，默认 60 秒 TTL。',
+              create: _accessors,
+              editable: true,
             ),
           ],
-          const SizedBox(height: 24),
-          const Divider(),
-          const SizedBox(height: 12),
-          Text('FastAccessor  (key: "fa_key")',
-              style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _faValCtrl,
-            decoration: const InputDecoration(
-                labelText: 'Value to set', border: OutlineInputBorder()),
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              FilledButton(onPressed: _faSet, child: const Text('set')),
-              FilledButton.tonal(onPressed: _faGet, child: const Text('get')),
-              FilledButton.tonal(onPressed: _faRemove, child: const Text('remove')),
-            ],
-          ),
-          if (_faDisplay != null) ...[
-            const SizedBox(height: 12),
-            Text('Current value: $_faDisplay',
-                style: Theme.of(context).textTheme.bodyMedium),
-          ],
-        ],
+        ),
       ),
-    );
-  }
-}
-
-class _PairRow extends StatelessWidget {
-  const _PairRow(
-      {required this.kCtrl, required this.vCtrl, required this.label});
-  final TextEditingController kCtrl;
-  final TextEditingController vCtrl;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: TextField(
-            controller: kCtrl,
-            decoration: InputDecoration(
-                labelText: 'Key $label', border: const OutlineInputBorder()),
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: TextField(
-            controller: vCtrl,
-            decoration: InputDecoration(
-                labelText: 'Value $label',
-                border: const OutlineInputBorder()),
-          ),
-        ),
-      ],
-    );
-  }
+    ],
+  );
 }

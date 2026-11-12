@@ -1,3 +1,7 @@
+## 1.0.2
+
+- Docs only: rewrote README wording in plain language and added a Chinese README (README.zh-CN.md).
+
 ## 1.0.1
 
 - Docs only: README gains the `gate:` (`OverlayGate` / `OverlayVerdict`) chapter, a 0.x → 1.0 migration table with before/after examples, and the `visible`-confirmed cooldown wording; CHANGELOG 1.0.0 lists `PresentedOverlay.visible`, `gate` and `OverlayVisibility`.

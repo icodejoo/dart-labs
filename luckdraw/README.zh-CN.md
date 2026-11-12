@@ -1,6 +1,8 @@
 # luckdraw
 
-> 状态：0.1.0 候选，尚未发布到 pub.dev。
+**[▶ 在线 Demo](https://icodejoo.github.io/dart-labs/luckdraw/)** — 八种玩法，浏览器直接试玩。
+
+> 状态：0.1.1，已发布到 pub.dev。
 >
 > English: [README.md](./README.md)
 >
@@ -10,7 +12,7 @@
 
 Flutter 抽奖工具包：大转盘、九宫格、老虎机、拉霸机、扭蛋机、数字转盘、抽签、大乐透，渲染核心可插拔。
 
-**状态：0.1.0 候选，尚未发布到 pub.dev。** 仓库门禁通过：analyze 0 issue、
+**状态：0.1.1，已发布到 pub.dev。** 仓库门禁通过：analyze 0 issue、
 1051 条测试通过（0 跳过）、`lib/` 行覆盖6792/6792=100%，格式、imports、
 静态/运行 JSON 验收及 parity manifest 校验通过。Windows 与安卓集成各33/33；
 本地 Flutter 3.24.5 / Dart 3.5.4 analyze 0 issue、非 golden 951 条通过；
@@ -244,6 +246,306 @@ class _SlotDemoState extends State<SlotDemo> {
 }
 ```
 
+### 拉霸机
+
+老虎机的拉杆版本：拖动拉杆开始，再用 `stopEach` 逐轴停下。
+
+```dart
+import 'package:flutter/material.dart';
+import 'package:luckdraw/slot.dart';
+
+/// 拉霸机；拖动拉杆开始，再由外部命令错峰停轮。
+class LeverDemo extends StatefulWidget {
+  /// 创建拉霸机示例。
+  const LeverDemo({super.key});
+
+  /// 创建状态。
+  @override
+  State<LeverDemo> createState() => _LeverDemoState();
+}
+
+class _LeverDemoState extends State<LeverDemo> {
+  final _controller = SlotController();
+  static const _config = SlotConfig(
+    prizes: [
+      SlotPrize(texts: [LuckyText('7')]),
+      SlotPrize(texts: [LuckyText('BAR')]),
+      SlotPrize(texts: [LuckyText('★')]),
+    ],
+    reels: [SlotReel(), SlotReel(), SlotReel()],
+  );
+
+  @override
+  Widget build(BuildContext context) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          LuckyLeverSlotMachine(
+            config: _config,
+            controller: _controller,
+            width: 300,
+            height: 180,
+            onPull: () => debugPrint('Lever pulled'),
+            onEnd: (result) => debugPrint('Lever: ${result.indices}'),
+          ),
+          TextButton(
+            // 拉杆触发 play 后，由服务端结果决定每个转轴停在哪个奖品。
+            onPressed: () {
+              _controller.stopEach([0, 0, 0]);
+            },
+            child: const Text('Server result'),
+          ),
+        ],
+      );
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+}
+```
+
+### 扭蛋机
+
+点击旋钮开始，`stop(1)` 掉出第 1 个胶囊。`physics` 选项切换到内置碰撞模式，去掉即为确定性动画。
+
+```dart
+import 'package:flutter/material.dart';
+import 'package:luckdraw/capsule.dart';
+
+/// 扭蛋机；点击旋钮开始，服务端结果到达后掉出指定胶囊。
+class CapsuleDemo extends StatefulWidget {
+  /// 创建扭蛋机示例。
+  const CapsuleDemo({super.key});
+
+  /// 创建状态。
+  @override
+  State<CapsuleDemo> createState() => _CapsuleDemoState();
+}
+
+class _CapsuleDemoState extends State<CapsuleDemo> {
+  final _controller = CapsuleController();
+  static const _config = CapsuleConfig(
+    prizes: [
+      CapsulePrize(
+        topFill: LuckyFill.color(Color(0xFFFF8A65)),
+        bottomFill: LuckyFill.color(Color(0xFFFFF3E0)),
+        texts: [LuckyText('Gift')],
+        weight: 1,
+      ),
+      CapsulePrize(
+        topFill: LuckyFill.color(Color(0xFF64B5F6)),
+        bottomFill: LuckyFill.color(Color(0xFFFFF3E0)),
+        texts: [LuckyText('Grand')],
+        weight: 1,
+      ),
+    ],
+    // 打开碰撞模式：胶囊从顶部落下，与球壁、拨杆碰撞；删掉这行即为确定性动画。
+    options: CapsuleOptions(physics: LuckyPhysics()),
+  );
+
+  @override
+  Widget build(BuildContext context) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          LuckyCapsuleMachine(
+            config: _config,
+            controller: _controller,
+            width: 300,
+            height: 400,
+            onStart: () {
+              _controller.play();
+            },
+            onEnd: (result) => debugPrint('Capsule: ${result.index}'),
+          ),
+          TextButton(
+            onPressed: () {
+              _controller.stop(1);
+            },
+            child: const Text('Server result'),
+          ),
+        ],
+      );
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+}
+```
+
+### 数字转盘
+
+按号码而不是下标停下：`stopNumber(8)` 让球落进 8 号袋。
+
+```dart
+import 'package:flutter/material.dart';
+import 'package:luckdraw/number_wheel.dart';
+
+/// 数字转盘；按号码而不是下标停下。
+class NumberWheelDemo extends StatefulWidget {
+  /// 创建数字转盘示例。
+  const NumberWheelDemo({super.key});
+
+  /// 创建状态。
+  @override
+  State<NumberWheelDemo> createState() => _NumberWheelDemoState();
+}
+
+class _NumberWheelDemoState extends State<NumberWheelDemo> {
+  final _controller = NumberWheelController();
+  // 0 到 12 共 13 个号码袋。
+  static final _config = NumberWheelConfig.range(0, 12);
+
+  @override
+  Widget build(BuildContext context) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          LuckyNumberWheel(
+            config: _config,
+            controller: _controller,
+            width: 300,
+            height: 300,
+            onStart: () {
+              _controller.play();
+            },
+            onEnd: (result) => debugPrint('Number: ${result.prize?.number}'),
+          ),
+          TextButton(
+            onPressed: () {
+              _controller.stopNumber(8);
+            },
+            child: const Text('Server result'),
+          ),
+        ],
+      );
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+}
+```
+
+### 抽签
+
+摇签筒、出签、展开签文；`weight` 决定默认抽取概率，`stop(0)` 指定第 0 支签。
+
+```dart
+import 'package:flutter/material.dart';
+import 'package:luckdraw/lots.dart';
+
+/// 抽签；摇签筒、出签、展开签文。
+class LotsDemo extends StatefulWidget {
+  /// 创建抽签示例。
+  const LotsDemo({super.key});
+
+  /// 创建状态。
+  @override
+  State<LotsDemo> createState() => _LotsDemoState();
+}
+
+class _LotsDemoState extends State<LotsDemo> {
+  final _controller = LotsController();
+  static const _config = LotsConfig(sticks: [
+    LotsStick(label: 'Great luck', weight: 1),
+    LotsStick(label: 'Good luck', weight: 2),
+    LotsStick(label: 'Small luck', weight: 3),
+  ]);
+
+  @override
+  Widget build(BuildContext context) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          LuckyLots(
+            config: _config,
+            controller: _controller,
+            width: 300,
+            height: 400,
+            onStart: () {
+              _controller.play();
+            },
+            onEnd: (result) => debugPrint('Lots: ${result.prize?.label}'),
+          ),
+          TextButton(
+            onPressed: () {
+              _controller.stop(0);
+            },
+            child: const Text('Server result'),
+          ),
+        ],
+      );
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+}
+```
+
+### 大乐透
+
+`LottoConfig.superLotto` 是 5 + 2 预设。`stopWith(LottoDraw(...))` 套用服务端摇出的整组号码，`onBallDrawn` 逐球回调。
+
+```dart
+import 'package:flutter/material.dart';
+import 'package:luckdraw/lotto.dart';
+
+/// 大乐透；多个号码池逐球摇出，可由服务端指定整组号码。
+class LottoDemo extends StatefulWidget {
+  /// 创建大乐透示例。
+  const LottoDemo({super.key});
+
+  /// 创建状态。
+  @override
+  State<LottoDemo> createState() => _LottoDemoState();
+}
+
+class _LottoDemoState extends State<LottoDemo> {
+  final _controller = LottoController();
+  // 5 + 2 的超级大乐透预设；options 里的 physics 打开碰撞模式。
+  static final _config = LottoConfig.superLotto(
+    options: const LottoOptions(physics: LuckyPhysics()),
+  );
+
+  @override
+  Widget build(BuildContext context) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          LuckyLotto(
+            config: _config,
+            controller: _controller,
+            width: 300,
+            height: 400,
+            onStart: () {
+              _controller.play();
+            },
+            onBallDrawn: (pool, number) => debugPrint('Pool $pool: $number'),
+            onEnd: (result) => debugPrint('Lotto: ${result.draw?.numbers}'),
+          ),
+          TextButton(
+            onPressed: () {
+              _controller.stopWith(const LottoDraw([
+                [7, 1, 18, 25, 35],
+                [12, 3],
+              ]));
+            },
+            child: const Text('Server result'),
+          ),
+        ],
+      );
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+}
+```
+
 ## Controller
 
 Controller 需先挂到玩法 Widget，或显式挂接无头时钟。
@@ -384,7 +686,72 @@ CSS 字符串只在 compat 解析；类型化配置使用 `Color`、`LuckyFill` 
 通过 `extend.dart` 实现自定义 `LuckyGame`、`LuckyRenderer`，再显式传入。
 渲染器读取布局与帧数据；`LuckyEasing` 和 `PrizePicker` 分别替换缓动与选奖策略。
 默认后端使用 Canvas，自定义后端可以返回其它 Widget。
+下面的示例只替换转盘的渲染器，玩法逻辑和 Controller 保持不变。
+
+```dart
+import 'package:flutter/material.dart';
+import 'package:luckdraw/extend.dart';
+import 'package:luckdraw/wheel.dart';
+
+/// 自定义渲染后端：不画 Canvas，只用 Text 显示当前指针指向的奖品下标。
+final class IndexRenderer extends LuckyRenderer<WheelConfig, WheelLayout,
+    WheelFrame, LuckyResult<WheelPrize>> {
+  /// 创建渲染后端。
+  const IndexRenderer();
+
+  /// 读取布局和逐帧数据，返回任意 Widget。
+  @override
+  Widget buildSurface(BuildContext context,
+          LuckySurfaceData<WheelConfig, WheelLayout, WheelFrame> data) =>
+      Center(child: Text('pointer: ${data.frame.pointerIndex}'));
+}
+
+/// 把自定义渲染后端显式传给转盘；玩法逻辑和控制器保持不变。
+Widget customWheel(WheelController controller, WheelConfig config) =>
+    LuckyWheel(
+      config: config,
+      controller: controller,
+      renderer: const IndexRenderer(),
+    );
+```
+
 扩展契约见 [ARCHITECTURE §6](https://github.com/icodejoo/dart-labs/blob/main/luckdraw/docs/ARCHITECTURE.md#6-扩展机制需求-1需求-6-7)。
+
+## 测试
+
+`testing.dart` 提供 `ManualLuckyClock`（手动推进时间）、`SequenceRandom`（重放固定随机数）和
+`LuckyFrameRecorder`（记录帧）。Controller 可以不挂 Widget 无头运行：
+
+```dart
+import 'package:luckdraw/testing.dart';
+import 'package:luckdraw/wheel.dart';
+
+/// 无 Widget 的确定性测试；用手动时钟推进动画，用固定随机序列选奖。
+///
+/// 返回结算后的奖品下标；没有结果时为 null。
+int? runHeadlessWheel() {
+  final clock = ManualLuckyClock();
+  final controller = WheelController(random: SequenceRandom([0.5]));
+  controller.attachHeadless(
+    clock: clock,
+    config: const WheelConfig(prizes: [
+      WheelPrize(texts: [LuckyText('A')]),
+      WheelPrize(texts: [LuckyText('B')]),
+      WheelPrize(texts: [LuckyText('C')]),
+    ]),
+  );
+  controller.play();
+  controller.stop(2);
+  // 每帧 16ms；到达 settled 即停止推进。
+  while (controller.phase != LuckyPhase.settled) {
+    clock.advanceFrames(1);
+  }
+  final index = controller.lastResult!.index;
+  controller.dispose();
+  clock.dispose();
+  return index;
+}
+```
 
 ## 性能
 
