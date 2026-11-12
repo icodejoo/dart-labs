@@ -1,152 +1,108 @@
-import 'package:cacheman/cacheman.dart';
 import 'package:flutter/material.dart';
+import '../demo_kit/demo_kit.dart';
+import '../demo_support.dart';
+import '../demo_backends.dart';
 
-import '../main.dart';
+/// 同步、异步与自定义存储的入口。
+class AsyncPage extends StatelessWidget {
+  /// 创建分层存储页面。
+  const AsyncPage({super.key});
 
-/// Example-only asynchronous backend, deliberately kept out of the package.
-/// 仅示例使用的异步内存后端，不进入包的实现。
-class _MemoryAsync extends AsyncCacheman {
-  /// Isolates the demo's large values. / 隔离示例的大值。
-  _MemoryAsync() : super(options: const CachemanOptions(namespace: 'large'));
-
-  /// Demonstration storage, not a disk backend. / 演示存储，并非磁盘后端。
-  final _data = <String, String>{};
-
-  @override
-  Future<Object?> getRaw(CacheContext ctx, String storageKey) async =>
-      _data[storageKey];
-
-  @override
-  Future<void> setRaw(CacheContext ctx, String storageKey, String value) async {
-    _data[storageKey] = value;
+  /// 创建默认持久化的小值缓存。
+  static Future<DemoSession> _sync() async {
+    final cache = await demoCache('summary');
+    return DemoSession([
+      DemoAction('Store summary', '保存摘要', (_) {
+        cache.write(demoKey, 1000);
+        return cache.read<int>(demoKey);
+      }),
+    ]);
   }
 
-  @override
-  Future<void> removeRaw(CacheContext ctx, String storageKey) async {
-    _data.remove(storageKey);
+  /// 创建显式 await 的大值 Map 后端。
+  static Future<DemoSession> _async() async {
+    final cache = MemoryAsync();
+    await cache.ensureInitialized();
+    return DemoSession([
+      DemoAction('Store 1,000 rows', '保存 1,000 行', (_) async {
+        await cache.write(demoKey, List.generate(1000, (index) => index));
+        final value = await cache.read<List<dynamic>>(demoKey);
+        return {'rows': value?.length, demoKeysField: await cache.length()};
+      }),
+      DemoAction(DemoCopy.erase.en, DemoCopy.erase.zh, (_) async {
+        await cache.erase();
+        return await cache.length();
+      }),
+    ]);
   }
 
-  @override
-  Future<Iterable<String>> keysRaw(CacheContext ctx) async => _data.keys;
-}
-
-/// Example-only synchronous backend built with [Cacheman.custom]; no get_storage involved.
-/// 仅示例使用、基于 [Cacheman.custom] 的同步后端，不涉及 get_storage。
-class _MemorySync extends Cacheman {
-  /// Isolates the demo's custom-backend values. / 隔离示例的自定义后端值。
-  _MemorySync() : super.custom(options: const CachemanOptions(namespace: 'custom'));
-
-  /// Demonstration storage; mutations update it before returning. / 演示存储，变更在返回前更新。
-  final _data = <String, String>{};
-
-  @override
-  Object? getRaw(CacheContext ctx, String storageKey) => _data[storageKey];
-
-  @override
-  Future<void> setRaw(CacheContext ctx, String storageKey, String value) {
-    _data[storageKey] = value;
-    return Future<void>.value();
+  /// 创建同步更新的自定义原语后端。
+  static Future<DemoSession> _custom() async {
+    final cache = MemorySync();
+    await cache.ensureInitialized();
+    return DemoSession([
+      DemoAction('Write custom', '自定义写入', (input) {
+        cache.write(demoKey, input);
+        return cache.read<String>(demoKey);
+      }),
+      DemoAction(DemoCopy.erase.en, DemoCopy.erase.zh, (_) {
+        cache.erase();
+        return cache.length;
+      }),
+    ]);
   }
 
+  /// 构建三个相同逻辑键、独立后端的示例。
   @override
-  Future<void> removeRaw(CacheContext ctx, String storageKey) {
-    _data.remove(storageKey);
-    return Future<void>.value();
-  }
-
-  @override
-  Iterable<String> keysRaw(CacheContext ctx) => _data.keys;
-
-  @override
-  Future<void> clearRaw(CacheContext ctx) {
-    _data.clear();
-    return Future<void>.value();
-  }
-}
-
-/// Runs synchronous small-value and asynchronous large-value caches together.
-/// 同时演示同步小值缓存与异步大值缓存。
-class AsyncPage extends StatefulWidget {
-  /// Creates the demo page. / 创建演示页面。
-  const AsyncPage({super.key, required this.onChanged});
-
-  /// Refreshes the global synchronous-cache count. / 刷新全局同步缓存计数。
-  final VoidCallback onChanged;
-
-  @override
-  State<AsyncPage> createState() => _AsyncPageState();
-}
-
-/// Keeps the example's asynchronous cache local to this page. / 异步示例缓存仅在本页存活。
-class _AsyncPageState extends State<AsyncPage> {
-  /// Large-data semantic layer backed by a demo Map. / 演示 Map 支撑的大数据语义层。
-  final _large = _MemoryAsync();
-
-  /// Synchronous custom backend built with Cacheman.custom. / 用 Cacheman.custom 构建的同步自定义后端。
-  final _custom = _MemorySync();
-
-  /// Last run's visible result. / 最近一次运行的可见结果。
-  Future<String>? _result;
-
-  /// Uses identical logical keys across independent backends. / 独立后端使用相同逻辑键。
-  static const _reportKey = 'layered_report';
-
-  /// Exercises both APIs without adding a library backend/dependency.
-  /// 不新增包内后端/依赖即可演示两套 API。
-  Future<String> _run() async {
-    await _large.ensureInitialized();
-    await _custom.ensureInitialized();
-    const rows = 1000;
-    const ttl = 60000;
-    cache.write(_reportKey, rows, ttl: ttl);
-    await _large.write(
-      _reportKey,
-      List.generate(rows, (i) => {'row': i}),
-      ttl: ttl,
-    );
-    final report = await _large.read<List<dynamic>>(_reportKey);
-    final count = await _large.length();
-    _custom.write(_reportKey, rows, ttl: ttl);
-    widget.onChanged();
-    return 'Small summary (sync): ${cache.read<int>(_reportKey)} rows\n'
-        'Large report (async): ${report?.length} rows, $count key\n'
-        'Custom sync backend: ${_custom.read<int>(_reportKey)} rows, '
-        '${_custom.length} key';
-  }
-
-  @override
-  Widget build(BuildContext context) => ListView(
-    padding: const EdgeInsets.all(16),
-    children: [
-      Text('Layered storage', style: Theme.of(context).textTheme.titleLarge),
-      const SizedBox(height: 12),
-      const Text(
-        'Keep small summaries in Cacheman and large reports in your '
-        'AsyncCacheman subclass. Both can use the same logical key.',
+  Widget build(BuildContext context) => DemoPage(
+    title: tr(context, DemoCopy.async.en, DemoCopy.async.zh),
+    description: tr(
+      context,
+      'One API shape, separate backends. AsyncCacheman awaits reads and writes; Cacheman stays synchronous.',
+      '一致的 API 形式，不同的后端；AsyncCacheman 等待读写，Cacheman 保持同步。',
+    ),
+    sections: [
+      DemoSection(
+        title: tr(context, 'Choose a storage boundary', '选择存储边界'),
+        code:
+            "final summary = Cacheman();\nawait summary.ensureInitialized();\nsummary.write('rows', 1000);\n// App-defined subclass; no built-in asynchronous backend.\nfinal report = MemoryAsync();\nawait report.ensureInitialized();\nawait report.write('rows', [1, 2, 3]);\nfinal rows = await report.read<List<dynamic>>('rows');",
+        child: DemoGrid(
+          children: [
+            actionCard(
+              context,
+              en: 'Persistent summary',
+              zh: '持久化摘要',
+              descriptionEn: 'Default get_storage backend for small values.',
+              descriptionZh: '默认 get_storage 后端保存小值。',
+              create: _sync,
+            ),
+            actionCard(
+              context,
+              en: 'Async report',
+              zh: '异步报表',
+              descriptionEn:
+                  'Example-only Map; not a disk-performance benchmark.',
+              descriptionZh: '仅演示的 Map 后端，不代表磁盘性能。',
+              create: _async,
+            ),
+            actionCard(
+              context,
+              en: 'Custom sync backend',
+              zh: '自定义同步后端',
+              descriptionEn: 'Cacheman.custom with immediate memory updates.',
+              descriptionZh: 'Cacheman.custom 在返回前更新内存。',
+              create: _custom,
+              editable: true,
+            ),
+          ],
+        ),
       ),
-      const SizedBox(height: 8),
-      const Text(
-        'This demo also runs a Cacheman.custom subclass (synchronous, in-memory). '
-        'It uses in-memory Maps. Use LazyBox or file primitives '
-        'in your app for on-demand disk reads without retaining large values.',
-      ),
-      const SizedBox(height: 16),
-      FilledButton(
-        onPressed: () => setState(() {
-          _result = _run();
-        }),
-        child: const Text('Run both caches'),
-      ),
-      const SizedBox(height: 16),
-      FutureBuilder<String>(
-        future: _result,
-        builder: (context, snapshot) {
-          if (snapshot.hasError) return Text('Error: ${snapshot.error}');
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          return Text(snapshot.data ?? 'Run the demo to read both results.');
-        },
+      InfoNote(
+        text: tr(
+          context,
+          'The two Map backends are example code. Replace their primitives with your own storage; the package adds no asynchronous backend.',
+          '两个 Map 后端均为示例代码；应用应自行提供存储原语，本包不内置异步后端。',
+        ),
       ),
     ],
   );

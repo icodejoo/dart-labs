@@ -3,6 +3,7 @@ import 'package:luckdraw/compat.dart';
 import 'package:luckdraw/wheel.dart';
 
 import '../demo_shell.dart';
+import '../online/localized_config.dart';
 
 /// lucky-canvas JSON 迁移示例；例如 `const CompatPage()`。
 class CompatPage extends StatefulWidget {
@@ -135,7 +136,7 @@ class _CompatPageState extends State<CompatPage> {
         _controller.stop(demoTarget);
       },
       game: LuckyWheel(
-          config: _converted.config,
+          config: demoConfig(context, _converted.config),
           controller: _controller,
           width: _converted.width,
           height: _converted.height,

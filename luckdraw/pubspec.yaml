@@ -1,6 +1,6 @@
 name: luckdraw
 description: "Unofficial lucky-canvas Flutter port with wheels, grids, slots, capsule machines, lots and lotto draws, typed controllers and pluggable Canvas rendering."
-version: 0.1.0
+version: 0.1.2
 homepage: https://github.com/icodejoo/dart-labs/tree/main/luckdraw
 repository: https://github.com/icodejoo/dart-labs
 issue_tracker: https://github.com/icodejoo/dart-labs/issues

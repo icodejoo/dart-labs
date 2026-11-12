@@ -1,12 +1,12 @@
 {
-    "name": "flutter_stompsocket_example",
-    "short_name": "flutter_stompsocket_example",
+    "name": "flutter_stompsocket",
+    "short_name": "stompsocket",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
-    "orientation": "portrait-primary",
+    "background_color": "#FFFBFE",
+    "theme_color": "#6750A4",
+    "description": "Interactive STOMP demos · 中英双语连接、订阅、发送与缓冲演示。",
+    "orientation": "any",
     "prefer_related_applications": false,
     "icons": [
         {

@@ -1,3 +1,7 @@
+## 0.1.4
+
+- Docs only: rewrote README wording in plain language and added a Chinese README (README.zh-CN.md).
+
 ## 0.1.3
 
 Metadata and docs only; no code changes.

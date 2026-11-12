@@ -4,9 +4,9 @@
 
 > 中文文档：[README.zh-CN.md](./README.zh-CN.md)
 
-**TanStack-Query-style data fetching for GetX.** A thin, `Rx`-backed bridge over [`flutter_query`](https://pub.dev/packages/flutter_query): call `useQuery` / `useMutation` from **any** function — no `HookWidget`, no `BuildContext` — and render with `Obx`.
+**TanStack-Query-style data fetching for GetX.** A thin layer over [`flutter_query`](https://pub.dev/packages/flutter_query) that exposes queries as `Rx` values. Call `useQuery` / `useMutation` from **any** function (no `HookWidget`, no `BuildContext`) and render with `Obx`.
 
-> Key insight: `flutter_query` is built around Flutter Hooks (`useQuery` only works inside a `HookWidget`'s `build`). getx_query keeps flutter_query's caching/dedup/retry engine but swaps the Hook surface for GetX `Rx`, so a query is just a value you hold and observe with `Obx` — from a controller, a service, or a plain function.
+> How it works: `flutter_query` is built on Flutter Hooks, so its `useQuery` only works inside a `HookWidget`'s `build`. getx_query keeps flutter_query's caching, deduplication and retry engine and replaces the Hook interface with GetX `Rx`. A query becomes a value you hold and watch with `Obx`, whether you are in a controller, a service or a plain function.
 
 - [Features](#features)
 - [Install](#install)
@@ -30,16 +30,16 @@
 
 ## Features
 
-- **Hook-free `useQuery` / `useMutation`** — call from any function; the result is an `Rx`-backed object you render with `Obx`.
-- **`useInfiniteQuery`** — paginated data with page accumulation: `fetchNextPage`/`fetchPreviousPage`, `hasNextPage`/`hasPreviousPage`, same Hook-free/reactive-parameter model as `useQuery`.
-- **`useQueries` with `combine`** — run a dynamic list of queries in parallel and derive a single value from all of them; read `combined()` inside `Obx` for fine-grained rebuilds without React-style memoization.
-- **Reactive parameters** — put reactive values (`RxBool`, `RxString`, `RxList`, `RxMap`, `RxSet`, `Rx<T>`, ...) in `queryKey` or `enabled`; the query re-fetches automatically when they change.
-- **Auto-disposing view models** — `GetBaseViewModel` (a `GetxController`) and `BaseViewModel` track every subscription and dispose them on close.
-- **Grouped lifecycle** — `QueryScope` collects several queries and disposes them together, for contexts that don't want a full ViewModel (a plain `StatefulWidget`, a dialog, a test).
-- **Full `QueryClient` surface** — `invalidate/refetch/cancel/reset/removeQueries`, `fetch/prefetch/ensureQueryData`, `get/setQueryData`, `isFetching/isMutating`.
-- **`QueryService`** — a `GetxService` `QueryClient` pre-wired to `connectivity_plus` so `refetchOnReconnect` works out of the box; every default is individually overridable.
-- **Dispose-safe actions** — calling `refetch()` / `mutate()` / `mutateAsync()` / `reset()` after `dispose()` never throws into the void: fire-and-forget actions become no-ops, `mutateAsync()` rejects with a clear `StateError`.
-- **Single import** — the barrel re-exports flutter_query's public types (`QueryClient`, `StaleDuration`, `RetryResolver`, ...).
+- **`useQuery` / `useMutation` without Hooks.** Call them from any function. The result is an `Rx`-backed object that you render with `Obx`.
+- **`useInfiniteQuery`.** Paginated data that accumulates pages: `fetchNextPage`/`fetchPreviousPage`, `hasNextPage`/`hasPreviousPage`. It works like `useQuery`: no Hooks, reactive parameters.
+- **`useQueries` with `combine`.** Run a list of queries in parallel (the list can change size) and derive one value from all of them. Read `combined()` inside `Obx` and only the fields it reads trigger a rebuild; no React-style memoization needed.
+- **Reactive parameters.** Put reactive values (`RxBool`, `RxString`, `RxList`, `RxMap`, `RxSet`, `Rx<T>`, ...) in `queryKey` or `enabled`, and the query refetches when they change.
+- **View models that clean up after themselves.** `GetBaseViewModel` (a `GetxController`) and `BaseViewModel` track every subscription and dispose of it when closed.
+- **Grouped lifecycle.** `QueryScope` holds several queries and disposes them together. Use it where a full ViewModel is more than you need (a plain `StatefulWidget`, a dialog, a test).
+- **All of `QueryClient`.** `invalidate/refetch/cancel/reset/removeQueries`, `fetch/prefetch/ensureQueryData`, `get/setQueryData`, `isFetching/isMutating`.
+- **`QueryService`.** A `GetxService` that holds a `QueryClient` already connected to `connectivity_plus`, so `refetchOnReconnect` works without extra setup. Every default can be overridden on its own.
+- **Safe to call after `dispose()`.** `refetch()`, `mutate()` and `reset()` become no-ops, and `mutateAsync()` rejects with a `StateError`.
+- **One import.** `getx_query.dart` re-exports flutter_query's public types (`QueryClient`, `StaleDuration`, `RetryResolver`, ...).
 
 ## Install
 
@@ -54,7 +54,7 @@ import 'package:getx_query/getx_query.dart';
 
 ## Setup
 
-Register the shared client once (it wires up connectivity for you):
+Register the shared client once. It also sets up connectivity for you:
 
 ```dart
 GetMaterialApp(
@@ -84,7 +84,7 @@ class TodoViewModel extends GetBaseViewModel {
   );
 }
 
-// UI — no controller boilerplate, just Obx:
+// UI: just Obx, no controller boilerplate
 final vm = Get.put(TodoViewModel());
 
 Obx(() => vm.todos.isLoading
@@ -98,7 +98,7 @@ A complete runnable app is in [`example/getx_query_example.dart`](./example/getx
 
 ### useQuery
 
-Subscribe to a cached query from any function — no ViewModel, no Widget required. Without `client` it resolves the global one from `QueryService`. **Remember to `dispose()`** the result (or use a view model / `QueryScope` that does it for you).
+Subscribe to a cached query from any function. No ViewModel or Widget is needed. Without `client`, it uses the global one from `QueryService`. **Call `dispose()`** on the result when you are done, or use a view model or `QueryScope`, which does it for you.
 
 ```dart
 QueryResult<T> useQuery<T>({
@@ -126,13 +126,13 @@ QueryResult<T> useQuery<T>({
 | `queryKey` *(required)* | Cache key. Reactive items (see below) trigger a refetch when they change. |
 | `queryFn` *(required)* | Fetcher; receives a `QueryFunctionContext` (`queryKey`, `client`, `signal`, `meta`). |
 | `client` | `QueryClient` to use. Defaults to `QueryService`'s global client. |
-| `enabled` | `bool?` \| `RxBool` \| `Rx<bool>` — gates fetching; reactive values re-trigger on change. |
+| `enabled` | `bool?` \| `RxBool` \| `Rx<bool>`. Controls whether it fetches; a change in a reactive value triggers it again. |
 | `placeholder` | Shown while pending and uncached. Not persisted to cache. |
 | `seed` | Initial data persisted to cache before the first real fetch. |
 | `seedUpdatedAt` | Timestamp for `seed`, used for staleness calculation. |
 | `staleDuration` | How long data stays fresh before becoming stale. |
 | `gcDuration` | How long unused cache entries live before eviction. |
-| `retry` | `(failureCount, error) => Duration?` — retry delay, or `null` to stop. |
+| `retry` | `(failureCount, error) => Duration?`. Returns the retry delay, or `null` to stop. |
 | `refetchInterval` | Polling interval while mounted. `null` disables polling. |
 | `refetchOnMount` | Refetch policy when this hook (re)mounts: `stale` / `always` / `never`. |
 | `refetchOnResume` | Same, for app foreground resume. |
@@ -140,11 +140,11 @@ QueryResult<T> useQuery<T>({
 | `networkMode` | `online` (pause offline) / `always` / `offlineFirst`. |
 | `meta` | Arbitrary metadata, readable from `queryFn`'s context. |
 
-`useQueries(List<QueryOptions>, {combine})` subscribes to many at once — see [useQueries](#usequeries).
+`useQueries(List<QueryOptions>, {combine})` subscribes to many at once. See [useQueries](#usequeries).
 
 ### Reactive parameters
 
-Pass a reactive value directly — the query rewires when it changes, mirroring how flutter_query re-runs on every `HookWidget` build. Both scalar Rx types (`RxBool`, `RxString`, `RxInt`, `Rx<T>`, ...) and GetX's reactive collections (`RxList`, `RxMap`, `RxSet`) are recognized:
+Pass a reactive value directly and the query switches to the new value when it changes. This matches how flutter_query re-runs on every `HookWidget` build. Both scalar Rx types (`RxBool`, `RxString`, `RxInt`, `Rx<T>`, ...) and GetX's reactive collections (`RxList`, `RxMap`, `RxSet`) are supported:
 
 ```dart
 final userId  = 'u1'.obs;
@@ -164,7 +164,7 @@ loggedIn.value = true;       // → starts fetching
 
 ### useMutation
 
-Perform create/update/delete with reactive `isPending`/`isSuccess`/`isError` state. Triggered imperatively via `mutate(vars)` (fire-and-forget) or `await mutateAsync(vars)` (throws on failure); `reset()` returns to idle.
+Create, update or delete data, with reactive `isPending`/`isSuccess`/`isError` state. Trigger it with `mutate(vars)` (fire-and-forget) or `await mutateAsync(vars)` (throws on failure); `reset()` returns it to idle.
 
 ```dart
 MutationResult<TData, TVariables> useMutation<TData, TVariables>(
@@ -184,9 +184,9 @@ MutationResult<TData, TVariables> useMutation<TData, TVariables>(
 
 | Param | Meaning |
 |---|---|
-| `mutationFn` *(required)* | `(variables, context) => Future<TData>` — performs the mutation. |
+| `mutationFn` *(required)* | `(variables, context) => Future<TData>`. Runs the mutation. |
 | `client` | Defaults to `QueryService`'s global client. |
-| `onMutate` | Runs before the mutation fires; return a value used as `context` in the other callbacks (e.g. for optimistic updates). |
+| `onMutate` | Runs before the mutation starts. Its return value is passed as `context` to the other callbacks (useful for optimistic updates). |
 | `onSuccess` | Runs after `mutationFn` resolves. |
 | `onError` | Runs after `mutationFn` throws. |
 | `onSettled` | Runs after either success or error. |
@@ -202,7 +202,7 @@ MutationResult<TData, TVariables> useMutation<TData, TVariables>(
 
 | Member | Meaning |
 |---|---|
-| `data` | `T?` — cached/fetched value, falls back to `placeholder`. |
+| `data` | `T?`. The cached or fetched value; falls back to `placeholder`. |
 | `isIdle` | No snapshot yet (before first `onMount`). |
 | `isLoading` | Pending with no data yet. |
 | `isFetching` | A fetch is in flight (including background refetch). |
@@ -233,7 +233,7 @@ MutationResult<TData, TVariables> useMutation<TData, TVariables>(
 
 ### useInfiniteQuery
 
-Paginated data with automatic page accumulation — same Hook-free, reactive-parameter model as `useQuery`, plus pagination. Also available as `this.useInfiniteQuery(...)` inside `BaseViewModel`/`GetBaseViewModel`, tracked and auto-disposed exactly like `useQuery`.
+Paginated data that accumulates pages automatically. It works like `useQuery` (no Hooks, reactive parameters) and adds pagination. Inside `BaseViewModel`/`GetBaseViewModel` you can also call `this.useInfiniteQuery(...)`; it is tracked and disposed just like `useQuery`.
 
 ```dart
 InfiniteQueryResult<TData, TPageParam> useInfiniteQuery<TData, TPageParam>({
@@ -261,15 +261,15 @@ InfiniteQueryResult<TData, TPageParam> useInfiniteQuery<TData, TPageParam>({
 });
 ```
 
-`queryKey`, `client`, `enabled`, `networkMode`, `staleDuration`, `gcDuration`, `placeholder`, `refetchOnMount`, `refetchOnResume`, `refetchOnReconnect`, `refetchInterval`, `retry`, `seed`, `seedUpdatedAt`, `meta` mean the same as on `useQuery`. Pagination-specific params:
+`queryKey`, `client`, `enabled`, `networkMode`, `staleDuration`, `gcDuration`, `placeholder`, `refetchOnMount`, `refetchOnResume`, `refetchOnReconnect`, `refetchInterval`, `retry`, `seed`, `seedUpdatedAt`, `meta` mean the same as in `useQuery`. The pagination parameters:
 
 | Param | Meaning |
 |---|---|
-| `queryFn` *(required)* | `(InfiniteQueryFunctionContext) => Future<TData>` — fetches **one page**; `context.pageParam` is the param for that page. |
+| `queryFn` *(required)* | `(InfiniteQueryFunctionContext) => Future<TData>`. Fetches **one page**; `context.pageParam` is the param for that page. |
 | `initialPageParam` *(required)* | Param used for the first page fetch. |
-| `nextPageParamBuilder` *(required)* | `(InfiniteData data) => TPageParam?` — next page's param from pages fetched so far, or `null` if there are no more. |
+| `nextPageParamBuilder` *(required)* | `(InfiniteData data) => TPageParam?`. Returns the next page's param from the pages fetched so far, or `null` if there are no more. |
 | `prevPageParamBuilder` | Same, for backward pagination. Omit to disable `fetchPreviousPage`. |
-| `maxPages` | Cap on pages kept in memory; oldest pages (from the opposite fetch direction) are dropped past this. |
+| `maxPages` | Maximum number of pages kept in memory. Beyond it, the oldest pages (at the end opposite to the fetch direction) are dropped. |
 | `retryOnMount` | Whether to retry a failed query when a new observer mounts. |
 
 ```dart
@@ -296,7 +296,7 @@ Same status flags as `QueryResult`, plus pagination state. Returned by `useInfin
 
 | Member | Meaning |
 |---|---|
-| `data` | `InfiniteData<TData, TPageParam>?` — all fetched pages + their params. |
+| `data` | `InfiniteData<TData, TPageParam>?`. All fetched pages and their params. |
 | `pages` | Shorthand for `data.pages` (`const []` before the first snapshot). |
 | `pageParams` | Shorthand for `data.pageParams`. |
 | `isIdle` / `isLoading` / `isFetching` / `isSuccess` / `isError` / `isStale` / `isFetchedAfterMount` | Same meaning as on `QueryResult`. |
@@ -311,7 +311,7 @@ Same status flags as `QueryResult`, plus pagination state. Returned by `useInfin
 
 ### useQueries
 
-Runs an arbitrary (and arbitrarily-sized — unlike React, there's no Hook-order rule to work around) list of queries in parallel. Pass `combine` to derive one value from all of them, à la [TanStack Query's `useQueries({ combine })`](https://tanstack.com/query/v5/docs/framework/react/reference/useQueries) — but there's no need for `combine` to memoize away re-renders here: call the returned `combined()` getter *inside* `Obx`, and GetX's fine-grained dependency tracking rebuilds only on the specific fields `combine` actually reads.
+Runs a list of queries in parallel. The list can be any size and can change, because unlike React there is no Hook-order rule here. Pass `combine` to derive one value from all of them, as in [TanStack Query's `useQueries({ combine })`](https://tanstack.com/query/v5/docs/framework/react/reference/useQueries). You don't need `combine` to avoid re-renders, though: call the returned `combined()` getter *inside* `Obx`, and GetX's dependency tracking rebuilds only when a field that `combine` actually reads changes.
 
 ```dart
 (List<QueryResult>, TCombined Function(), VoidCallback) useQueries<TCombined>(
@@ -325,7 +325,7 @@ Runs an arbitrary (and arbitrarily-sized — unlike React, there's no Hook-order
 |---|---|
 | `options` *(required)* | One flutter_query `QueryOptions(queryKey, queryFn, ...)` per query. |
 | `client` | Shared client for every query in the list. |
-| `combine` | `(results) => TCombined` — derives one value. Calling the returned `combined()` without passing this throws `StateError`. |
+| `combine` | `(results) => TCombined`. Derives one value. Calling the returned `combined()` without passing `combine` throws `StateError`. |
 
 Returns `(results, combined, disposeAll)`:
 
@@ -343,7 +343,7 @@ disposeAll();
 
 ### useIsFetching / useIsMutating
 
-Live counts of in-flight queries/mutations — the `RxInt` updates on every cache event, not just once at creation.
+Live counts of queries/mutations in flight. The `RxInt` updates on every cache event, not just once when it is created.
 
 ```dart
 (RxInt, VoidCallback) useIsFetching({QueryClient? client, List<Object?>? queryKey, bool exact = false});
@@ -356,7 +356,7 @@ Live counts of in-flight queries/mutations — the `RxInt` updates on every cach
 | `queryKey` / `mutationKey` | Filter to a specific key; `null` counts everything. |
 | `exact` | `true` matches the key exactly; `false` (default) matches by prefix. |
 
-Returns `(count, dispose)` — own the callback and call it to stop observing:
+Returns `(count, dispose)`. Keep the callback and call it when you want to stop observing:
 
 ```dart
 final (fetchingCount, dispose) = useIsFetching();
@@ -368,9 +368,9 @@ dispose();
 
 ### QueryScope
 
-Groups several `useQuery` results so they dispose together — for contexts that want grouped query lifecycle **without** a full `BaseViewModel`/`GetBaseViewModel`: a plain `StatefulWidget`, a dialog/bottom sheet's local state, a test, or any place you don't want the ceremony of a GetX controller (`Get.put`/`Get.delete`, route bindings) just to manage two or three queries.
+Groups several `useQuery` results so they are disposed together. Use it when you want that grouping **without** a full `BaseViewModel`/`GetBaseViewModel`: a plain `StatefulWidget`, the local state of a dialog or bottom sheet, a test, or anywhere a GetX controller (`Get.put`/`Get.delete`, route bindings) is too much for two or three queries.
 
-Constructor takes an optional `client` — omit it to resolve the global one from `QueryService`, same as `useQuery`.
+The constructor takes an optional `client`. Without it, the global one from `QueryService` is used, same as in `useQuery`.
 
 | Member | Meaning |
 |---|---|
@@ -382,7 +382,7 @@ Constructor takes an optional `client` — omit it to resolve the global one fro
 | `mutate(fn, {invalidates})` | Runs `fn`, then invalidates each key in `invalidates`. |
 | `dispose()` | Disposes every `watch()` result tracked by this scope, then clears the tracking list. |
 
-**Plain `StatefulWidget`, no ViewModel at all** — the scope lives on the `State` and is disposed alongside it:
+**Plain `StatefulWidget`, no ViewModel.** The scope lives on the `State` and is disposed with it:
 
 ```dart
 class ShopPage extends StatefulWidget {
@@ -419,7 +419,7 @@ await scope.mutate(() => api.withdraw(10), invalidates: [['wallet', 'balance']])
 scope.dispose(); // disposes both deposits and balance
 ```
 
-**In a test** — no GetX registration needed at all:
+**In a test** (no GetX registration needed):
 
 ```dart
 final scope = QueryScope(client: freshTestClient());
@@ -433,10 +433,10 @@ scope.dispose();
 
 Both mix in the full `QueryClient` API and track every subscription (`useQuery`, `useMutation`, `useInfiniteQuery`) for automatic cleanup.
 
-- **`GetBaseViewModel`** — extends `GetxController`; wires `onInit`/`onClose` automatically. Resolves the client from `QueryService` unless you pass one.
-- **`BaseViewModel`** — framework-agnostic; constructor-inject a `QueryClient`, call `init()` / `dispose()` yourself (both `@mustCallSuper`).
+- **`GetBaseViewModel`**: extends `GetxController` and hooks into `onInit`/`onClose` for you. It uses the client from `QueryService` unless you pass one.
+- **`BaseViewModel`**: not tied to any framework. Pass a `QueryClient` to the constructor and call `init()` / `dispose()` yourself (both are `@mustCallSuper`).
 
-Each `useQuery`/`useInfiniteQuery` — whether called standalone, via `QueryScope`, or on a ViewModel — honors its own `refetchOnResume` policy individually on app foreground resume (`stale` / `always` / `never`), same as calling flutter_query's hooks directly. There is no blanket, client-wide invalidation on resume.
+When the app returns to the foreground, every `useQuery`/`useInfiniteQuery` follows its own `refetchOnResume` policy (`stale` / `always` / `never`), whether it was called standalone, through `QueryScope` or on a ViewModel. This is the same as calling flutter_query's hooks directly. Nothing is invalidated client-wide on resume.
 
 | Member | Meaning |
 |---|---|
@@ -444,7 +444,7 @@ Each `useQuery`/`useInfiniteQuery` — whether called standalone, via `QueryScop
 | `useMutation(mutationFn, {...})` | Same options/return as top-level `useMutation`. |
 | `useInfiniteQuery({queryKey, queryFn, ...})` | Same options/return as top-level `useInfiniteQuery`. |
 | `fetchQuery({queryKey, queryFn, ...})` | Fetch once, `await` the raw result, and populate the cache. |
-| `prefetchQuery({queryKey, queryFn, ...})` | Same, but discards the result — just warms the cache. |
+| `prefetchQuery({queryKey, queryFn, ...})` | Same, but discards the result; it only warms the cache. |
 | `ensureQueryData({queryKey, queryFn, ...})` | Return cached data if fresh, otherwise fetch. |
 | `getQueryData<T>(queryKey)` | Read the cache directly. |
 | `getQueryState<T>(queryKey)` | Read the full `QueryState` (status, timestamps, ...) for a key. |
@@ -456,14 +456,14 @@ Each `useQuery`/`useInfiniteQuery` — whether called standalone, via `QueryScop
 | `removeQueries({queryKey, exact, predicate})` | Remove matching entries from the cache entirely. |
 | `isFetching({queryKey, exact, predicate})` | Count of matching queries currently fetching. |
 | `isMutating({mutationKey, exact, predicate})` | Count of matching mutations currently pending. |
-| `mutate(fn, {invalidates})` | Imperative fire-and-invalidate helper — for reactive loading/error state use `useMutation` instead. |
+| `mutate(fn, {invalidates})` | Runs `fn`, then invalidates the keys in `invalidates`. For reactive loading/error state, use `useMutation` instead. |
 | `clear()` | Clears the whole `QueryClient` cache. |
 
 ### QueryService
 
-A `GetxService` holding a `QueryClient` and subscribed to `connectivity_plus` for reconnect-driven refetch. `useQueryClient()` returns it. There's only ever one registered `QueryService` — `useQueryClient()` / `GetBaseViewModel`'s default resolution always return *that* instance's `client`, whatever options it was constructed with; there's no separate hidden "default" client to fall back to.
+A `GetxService` that holds a `QueryClient` and listens to `connectivity_plus` to refetch on reconnect. `useQueryClient()` returns it. Only one `QueryService` is ever registered: `useQueryClient()` and `GetBaseViewModel`'s default lookup always return *that* instance's `client`, whatever options it was created with. There is no hidden "default" client behind it.
 
-Every default is an individually-overridable named constructor param, merged field-by-field with getx_query's own defaults — override just what you need, everything else keeps getx_query's defaults:
+Every default is a named constructor parameter that you can override on its own. Your values are merged field by field with getx_query's defaults, so you only set what you want to change:
 
 | Param | getx_query default | Meaning |
 |---|---|---|
@@ -487,13 +487,13 @@ Get.put<QueryService>(
 
 ## Publishing caveat
 
-> **Important.** getx_query reaches into flutter_query's **private internals** — it imports `package:flutter_query/src/core/query_observer.dart` and `.../mutation_observer.dart` and uses `@internal` members. That's what lets it drive queries outside a `HookWidget`.
+> **Important.** getx_query uses flutter_query's **private internals**. It imports `package:flutter_query/src/core/query_observer.dart` and `.../mutation_observer.dart` and uses `@internal` members. That is how it can drive queries outside a `HookWidget`.
 >
 > Consequences:
-> - It is pinned to a compatible `flutter_query` version (`^0.10.0`); a minor bump that reshuffles those `src/` files can break it.
-> - `dart pub publish` will emit an `implementation_imports` warning. Publishing privately (a git dependency or a private pub server) is the smoother path unless/until flutter_query exposes `QueryObserver`/`MutationObserver` publicly.
+> - It depends on `flutter_query` `^0.10.0`; a minor release that moves those `src/` files can break it.
+> - `dart pub publish` gives an `implementation_imports` warning. Unless flutter_query makes `QueryObserver`/`MutationObserver` public, it is easier to publish privately (a git dependency or a private pub server).
 >
-> Use it as a git/path dependency if pub.dev's warning is a blocker:
+> If the pub.dev warning blocks you, use it as a git or path dependency:
 > ```yaml
 > dependencies:
 >   getx_query:

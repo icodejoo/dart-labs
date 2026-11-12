@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:luckdraw/lots.dart';
 
 import '../demo_shell.dart';
+import '../online/localized_config.dart';
 import '../theme/demo_theme.dart';
 import '../theme/lots_art.dart';
 
@@ -77,7 +78,7 @@ class LotsPageState extends State<LotsPage> {
         controller.stop(demoTarget);
       },
       game: LuckyLots(
-          config: config,
+          config: demoConfig(context, config),
           controller: controller,
           width: demoSide,
           height: demoTall,
