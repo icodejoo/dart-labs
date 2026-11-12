@@ -1,5 +1,7 @@
 # luckdraw
 
+**[▶ Live Demo](https://icodejoo.github.io/dart-labs/luckdraw/)** — all eight modes, runnable in the browser.
+
 > Status: 0.1.0 candidate, not yet published to pub.dev.
 >
 > 简体中文: [README.zh-CN.md](./README.zh-CN.md)

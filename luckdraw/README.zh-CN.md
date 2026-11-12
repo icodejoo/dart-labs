@@ -1,5 +1,7 @@
 # luckdraw
 
+**[▶ 在线 Demo](https://icodejoo.github.io/dart-labs/luckdraw/)** — 八种玩法，浏览器直接试玩。
+
 > 状态：0.1.0 候选，尚未发布到 pub.dev。
 >
 > English: [README.md](./README.md)
