@@ -571,6 +571,11 @@ jobs:
       - name: Enable macOS desktop
         run: flutter config --enable-macos-desktop
 
+      # xvg 的 macOS 插件只走 CocoaPods（vendored framework）。Flutter 3.47 默认开 Swift
+      # Package Manager 集成，会让 Runner 链接阶段找不到 xvg.framework，这里先关掉。
+      - name: Disable Swift Package Manager integration
+        run: flutter config --no-enable-swift-package-manager
+
       # TODO(migration): remove this guard once the macOS framework is
       # committed. The three symlinks are checked too (`-L`): a Windows
       # checkout with core.symlinks=false materialises them as plain text
