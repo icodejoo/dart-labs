@@ -42,8 +42,12 @@ jobs:
           fi
       - name: Test font present
         run: |
-          test -f "$FLUTTER_ROOT/bin/cache/artifacts/material_fonts/roboto-regular.ttf" || flutter precache --universal
-          test -f "$FLUTTER_ROOT/bin/cache/artifacts/material_fonts/roboto-regular.ttf"
+          font="$FLUTTER_ROOT/bin/cache/artifacts/material_fonts/roboto-regular.ttf"
+          legacy_font="$FLUTTER_ROOT/bin/cache/artifacts/material_fonts/Roboto-Regular.ttf"
+          if ! test -f "$font" && ! test -f "$legacy_font"; then
+            flutter precache --universal
+          fi
+          test -f "$font" || test -f "$legacy_font"
       - name: Analyze
         run: flutter analyze --no-pub
       - name: Format
@@ -114,8 +118,12 @@ jobs:
           fi
       - name: Test font present
         run: |
-          test -f "$FLUTTER_ROOT/bin/cache/artifacts/material_fonts/roboto-regular.ttf" || flutter precache --universal
-          test -f "$FLUTTER_ROOT/bin/cache/artifacts/material_fonts/roboto-regular.ttf"
+          font="$FLUTTER_ROOT/bin/cache/artifacts/material_fonts/roboto-regular.ttf"
+          legacy_font="$FLUTTER_ROOT/bin/cache/artifacts/material_fonts/Roboto-Regular.ttf"
+          if ! test -f "$font" && ! test -f "$legacy_font"; then
+            flutter precache --universal
+          fi
+          test -f "$font" || test -f "$legacy_font"
       - name: Analyze
         run: flutter analyze --no-pub
       - name: Tests (no goldens)
