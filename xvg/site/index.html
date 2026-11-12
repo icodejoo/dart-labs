@@ -10,7 +10,7 @@
 :root{
   --bg:#0d1117;--card:#161b22;--border:#30363d;--fg:#e6edf3;--muted:#8b949e;
   --accent:#58a6ff;--accent-bg:#1f6feb33;--accent-bd:#1f6feb;--code:#010409;--warn:#d29922;--ok:#3fb950;
-  --pv:#0d1117;
+  --pv:#0d1117;--replay-target:44px;
 }
 @media (prefers-color-scheme:light){
   :root{--bg:#ffffff;--card:#f6f8fa;--border:#d0d7de;--fg:#1f2328;--muted:#59636e;
@@ -44,6 +44,12 @@ button.lang:hover{border-color:var(--accent)}
 .btn.primary{background:var(--accent-bd);border-color:var(--accent-bd);color:#fff}
 .hero-pv{display:flex;gap:18px;justify-content:center;margin-top:28px;flex-wrap:wrap}
 .hero-pv img{width:64px;height:64px}
+.hero-pv .replay-demo img{display:block;margin:0 auto}
+.hero-pv .replay-demo{text-align:center}
+button.replay{min-width:var(--replay-target);min-height:var(--replay-target);margin-top:8px;padding:6px 12px;
+  background:var(--card);color:var(--accent);border:1px solid var(--border);border-radius:8px;cursor:pointer;font:inherit;font-size:.8rem}
+button.replay:hover{border-color:var(--accent)}
+button.replay:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
 .notice{margin:24px auto 0;max-width:720px;padding:12px 16px;border:1px solid var(--warn);border-radius:10px;
   background:color-mix(in srgb,var(--warn) 10%,transparent);font-size:.9rem;text-align:left}
 section{padding:36px 0;border-top:1px solid var(--border)}
@@ -104,13 +110,13 @@ footer{border-top:1px solid var(--border);padding:28px 0 48px;color:var(--muted)
     <a class="btn" href="https://github.com/icodejoo/dart-labs/tree/xvg/xvg">GitHub</a>
     <a class="btn" href="#usage"><span data-l="zh">快速上手</span><span data-l="en">Get started</span></a>
   </div>
-  <div class="hero-pv" aria-hidden="true">
-    <img src="assets/spinner.svg" alt=""><img src="assets/confirm-circle.svg" alt=""><img src="assets/animated-gradient.svg" alt="">
-    <img src="assets/animate-motion.svg" alt=""><img src="assets/animated-mask.svg" alt=""><img src="assets/linear-gradient.svg" alt="">
+  <div class="hero-pv">
+    <div class="replay-demo"><img src="assets/spinner.svg" alt="Spinner"></div><div class="replay-demo"><img src="assets/confirm-circle.svg" alt="Stroke draw"></div><div class="replay-demo"><img src="assets/animated-gradient.svg" alt="Animated gradient"></div>
+    <div class="replay-demo"><img src="assets/animate-motion.svg" alt="animateMotion"></div><div class="replay-demo"><img src="assets/animated-mask.svg" alt="Animated mask"></div><img src="assets/linear-gradient.svg" alt="">
   </div>
   <div class="notice">
-    <span data-l="zh"><strong>Native FFI，不支持 Web。</strong>xvg 的静态路径通过 Rust FFI 与 <code>dart:io</code> 实现，这里没有 web/wasm 构建。此页是<strong>静态展示</strong>：下方预览由浏览器原生 <code>&lt;img&gt;</code> 渲染，不是 xvg 本身的输出。</span>
-    <span data-l="en"><strong>Native FFI &mdash; Web is not supported.</strong> xvg's static path uses Rust FFI and <code>dart:io</code>; there is no web/wasm build. This page is a <strong>static showcase</strong>: the previews below are rendered by the browser's native <code>&lt;img&gt;</code>, not by xvg itself.</span>
+    <span data-l="zh">Native FFI 包；此处另有 <a href="./demo/">wasm 版在线 demo（实验性）</a>。本页预览仍由浏览器原生 SVG 渲染。</span>
+    <span data-l="en">Native FFI package; try the <a href="./demo/">experimental wasm demo</a>. Previews on this page use browser SVG rendering.</span>
   </div>
 </div>
 
@@ -172,16 +178,16 @@ footer{border-top:1px solid var(--border);padding:28px 0 48px;color:var(--muted)
   </div>
   <h3 class="grp"><span data-l="zh">SMIL 动画</span><span data-l="en">SMIL animation</span></h3>
   <div class="pvgrid">
-    <figure class="pv"><img src="assets/confirm-circle.svg" alt="animate stroke draw" loading="lazy" width="72" height="72"><figcaption><span data-l="zh">animate 描边</span><span data-l="en">animate stroke draw</span><code>confirm-circle.svg</code></figcaption></figure>
-    <figure class="pv"><img src="assets/spinner.svg" alt="animateTransform spin" loading="lazy" width="72" height="72"><figcaption><span data-l="zh">animateTransform 旋转</span><span data-l="en">animateTransform spin</span><code>spinner.svg</code></figcaption></figure>
-    <figure class="pv"><img src="assets/rotation-marker.svg" alt="Rotation marker" loading="lazy" width="72" height="72"><figcaption><span data-l="zh">旋转标记</span><span data-l="en">Rotation marker</span><code>rotation-marker.svg</code></figcaption></figure>
-    <figure class="pv"><img src="assets/skewx.svg" alt="skewX" loading="lazy" width="72" height="72"><figcaption><span data-l="zh">skewX 剪切</span><span data-l="en">skewX</span><code>skewx.svg</code></figcaption></figure>
-    <figure class="pv"><img src="assets/use-animated.svg" alt="use + animate" loading="lazy" width="72" height="72"><figcaption><span data-l="zh">use + 动画</span><span data-l="en">use + animate</span><code>use-animated.svg</code></figcaption></figure>
-    <figure class="pv"><img src="assets/syncbase-relay.svg" alt="Syncbase relay" loading="lazy" width="72" height="72"><figcaption><span data-l="zh">begin 接力</span><span data-l="en">Syncbase relay</span><code>syncbase-relay.svg</code></figcaption></figure>
-    <figure class="pv"><img src="assets/animate-motion.svg" alt="animateMotion" loading="lazy" width="72" height="72"><figcaption><span data-l="zh">animateMotion</span><span data-l="en">animateMotion</span><code>animate-motion.svg</code></figcaption></figure>
-    <figure class="pv"><img src="assets/motion-keypoints.svg" alt="keyPoints/keyTimes" loading="lazy" width="72" height="72"><figcaption><span data-l="zh">keyPoints/keyTimes</span><span data-l="en">keyPoints/keyTimes</span><code>motion-keypoints.svg</code></figcaption></figure>
-    <figure class="pv"><img src="assets/animated-mask.svg" alt="Animated mask" loading="lazy" width="72" height="72"><figcaption><span data-l="zh">动画 mask</span><span data-l="en">Animated mask</span><code>animated-mask.svg</code></figcaption></figure>
-    <figure class="pv"><img src="assets/animated-gradient.svg" alt="Animated gradient" loading="lazy" width="72" height="72"><figcaption><span data-l="zh">动画渐变</span><span data-l="en">Animated gradient</span><code>animated-gradient.svg</code></figcaption></figure>
+    <figure class="pv replay-demo"><img src="assets/confirm-circle.svg" alt="animate stroke draw" loading="lazy" width="72" height="72"><figcaption><span data-l="zh">animate 描边</span><span data-l="en">animate stroke draw</span><code>confirm-circle.svg</code></figcaption></figure>
+    <figure class="pv replay-demo"><img src="assets/spinner.svg" alt="animateTransform spin" loading="lazy" width="72" height="72"><figcaption><span data-l="zh">animateTransform 旋转</span><span data-l="en">animateTransform spin</span><code>spinner.svg</code></figcaption></figure>
+    <figure class="pv replay-demo"><img src="assets/rotation-marker.svg" alt="Rotation marker" loading="lazy" width="72" height="72"><figcaption><span data-l="zh">旋转标记</span><span data-l="en">Rotation marker</span><code>rotation-marker.svg</code></figcaption></figure>
+    <figure class="pv replay-demo"><img src="assets/skewx.svg" alt="skewX" loading="lazy" width="72" height="72"><figcaption><span data-l="zh">skewX 剪切</span><span data-l="en">skewX</span><code>skewx.svg</code></figcaption></figure>
+    <figure class="pv replay-demo"><img src="assets/use-animated.svg" alt="use + animate" loading="lazy" width="72" height="72"><figcaption><span data-l="zh">use + 动画</span><span data-l="en">use + animate</span><code>use-animated.svg</code></figcaption></figure>
+    <figure class="pv replay-demo"><img src="assets/syncbase-relay.svg" alt="Syncbase relay" loading="lazy" width="72" height="72"><figcaption><span data-l="zh">begin 接力</span><span data-l="en">Syncbase relay</span><code>syncbase-relay.svg</code></figcaption></figure>
+    <figure class="pv replay-demo"><img src="assets/animate-motion.svg" alt="animateMotion" loading="lazy" width="72" height="72"><figcaption><span data-l="zh">animateMotion</span><span data-l="en">animateMotion</span><code>animate-motion.svg</code></figcaption></figure>
+    <figure class="pv replay-demo"><img src="assets/motion-keypoints.svg" alt="keyPoints/keyTimes" loading="lazy" width="72" height="72"><figcaption><span data-l="zh">keyPoints/keyTimes</span><span data-l="en">keyPoints/keyTimes</span><code>motion-keypoints.svg</code></figcaption></figure>
+    <figure class="pv replay-demo"><img src="assets/animated-mask.svg" alt="Animated mask" loading="lazy" width="72" height="72"><figcaption><span data-l="zh">动画 mask</span><span data-l="en">Animated mask</span><code>animated-mask.svg</code></figcaption></figure>
+    <figure class="pv replay-demo"><img src="assets/animated-gradient.svg" alt="Animated gradient" loading="lazy" width="72" height="72"><figcaption><span data-l="zh">动画渐变</span><span data-l="en">Animated gradient</span><code>animated-gradient.svg</code></figcaption></figure>
   </div>
   <h3 class="grp">currentColor</h3>
   <div class="cc">
@@ -286,7 +292,7 @@ Image(image: NetworkXvg(url))</code></pre>
 
 <footer><div class="wrap">
   <a href="https://pub.dev/packages/xvg">pub.dev</a> &middot; <a href="https://github.com/icodejoo/dart-labs/tree/xvg/xvg">GitHub</a> &middot; <a href="../">dart-labs</a>
-  <p style="margin-top:8px"><span data-l="zh">Native FFI，不支持 Web。此页为静态展示。</span><span data-l="en">Native FFI, no Web support. This page is a static showcase.</span></p>
+  <p style="margin-top:8px"><span data-l="zh">Native FFI 包；<a href="./demo/">实验性 wasm demo</a>。此页为静态展示。</span><span data-l="en">Native FFI package; <a href="./demo/">experimental wasm demo</a>. This page is a static showcase.</span></p>
 </div></footer>
 
 <script>
@@ -302,6 +308,21 @@ Image(image: NetworkXvg(url))</code></pre>
   apply(l);
   document.getElementById('langBtn').addEventListener('click',function(){
     l=root.getAttribute('data-lang')==='zh'?'en':'zh';apply(l);set(l);
+  });
+  // 为每个动画单独重载 SVG，唯一查询参数会重建 SMIL/CSS 时间线。
+  var replayId=0;
+  document.querySelectorAll('.replay-demo').forEach(function(demo){
+    var img=demo.querySelector('img'),button=document.createElement('button');
+    button.type='button';button.className='replay';
+    [['zh','重放'],['en','Replay']].forEach(function(label){
+      var span=document.createElement('span');span.setAttribute('data-l',label[0]);span.textContent=label[1];button.appendChild(span);
+    });
+    button.addEventListener('click',function(){
+      var url=new URL(img.src);
+      url.searchParams.set('replay',Date.now()+'-'+(++replayId));
+      img.loading='eager';img.src=url.href;
+    });
+    demo.appendChild(button);
   });
   var cols=['#58a6ff','#a371f7','#3fb950','#f85149','#d29922'],sw=document.getElementById('sw'),svg=document.getElementById('ccSvg');
   cols.forEach(function(c,i){

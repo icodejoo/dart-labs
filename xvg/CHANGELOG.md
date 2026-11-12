@@ -1,3 +1,8 @@
+## Unreleased
+
+- Add an experimental Flutter Web demo using Rust wasm, synchronous web initialization, browser source loading, and main-thread SMIL parsing. Native bridge and supported pub platforms remain unchanged.
+- Build and deploy the demo under `xvg/demo/`; wasm artifacts are generated in CI and excluded from the pub package.
+
 ## 0.1.2
 
 - Docs: new Chinese README (`README.zh-CN.md`); both READMEs gain a detailed `Xvg.string` guide, a complete API reference (caches, animation controller/events, image providers, `RustLib`) and table of contents. Dartdoc added for `XvgPixelSnap` members.

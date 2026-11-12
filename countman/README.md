@@ -8,7 +8,7 @@
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/icodejoo/dart-labs/blob/main/countman/LICENSE)
 [![Demo](https://img.shields.io/badge/demo-live-brightgreen)](https://icodejoo.github.io/dart-labs/countman/)
 
-**[▶ Live Demo](https://icodejoo.github.io/dart-labs/countman/)** — Counter · Countdown · Elapsed, all widgets, all APIs.
+**[▶ Live Demo](https://icodejoo.github.io/dart-labs/countman/)** — Interactive counter, countdown, elapsed and 0.3.x scheduler examples with English/Chinese controls and light/dark themes.
 
 > **Upgrading from 0.2.x?** Read the
 > [migration guide](https://github.com/icodejoo/dart-labs/blob/main/countman/MIGRATION.md) —
