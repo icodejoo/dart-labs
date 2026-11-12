@@ -62,9 +62,8 @@ Example / 示例：`/dart-labs/getx-query/?lang=zh#/pages/infinite`。
 - The old ViewModel used unqualified `useQuery/useMutation`, resolving to global
   functions. Explicit `this.useQuery/this.useMutation` now ensures controller-owned
   tracking and disposal. / 旧写法会调用顶层函数，现显式调用模型成员以保证自动释放。
-  The package README quick-start samples still contain the same unqualified calls;
-  those pre-existing edits are outside this task and were left untouched.
-  / 两份包 README 的快速上手也包含同类写法，属于现有他人改动，本轮仅报告、未修改。
+  Both package README quick-start samples now use the same explicit member calls.
+  / 两份包 README 的快速上手也已改为显式调用成员方法。
 - Current 0.1.1 foreground behavior is documented: every query follows its own
   `refetchOnResume` policy; no client-wide invalidation on resume.
   / 使用 0.1.1 的逐查询恢复前台策略，不再宣传全客户端批量失效的旧行为。
@@ -115,7 +114,9 @@ then open a new tab at `/dart-labs/getx-query/`. Stop the server after testing.
 ## Verification snapshot / 本轮验证（2026-11-12）
 
 - Flutter 3.47.0 / Dart 3.13.0; package and example analyze: **0 issues**.
-- Package tests: **78 passed**; example tests: **27 passed** (13 kit + 14 app).
+- Package tests: **92 passed**; example tests: **27 passed** (13 kit + 14 app).
+- Migration: `getx_query 0.2.0` uses `flutter_query ^0.11.1`; plain-value wrappers
+  remain compatible, while raw options use `Seed` / `SeedUpdatedAt` / `Placeholder`.
 - Release web build with the workflow's base href: **passed**.
 - `main.dart.js`: 2,647,267 → 2,673,044 bytes; gzip (level 9):
   778,878 → 787,533 bytes (**+1.11%**).

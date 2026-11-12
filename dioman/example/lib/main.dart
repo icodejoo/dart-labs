@@ -4,7 +4,7 @@ import 'scenario_page.dart';
 import 'scenarios.dart';
 
 /// 当前包版本，与上级 pubspec.yaml 保持一致并由测试校验。
-const demoVersion = '0.8.2';
+const demoVersion = '0.8.3';
 
 /// 启动离线可用的线上演示。
 void main() => runApp(const DiomanDemoApp());
