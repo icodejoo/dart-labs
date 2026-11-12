@@ -11,7 +11,7 @@
 # xvg 改为分发预编译原生二进制后（见 PRECOMPILED_MIGRATION_PLAN.md），下游不再
 # 编译 Rust crate，因此 Rust 源码和几百 MB 的 `rust/target/` 构建树对下游是纯粹的
 # 负担。`prebuilt/` 刻意不在此列——那些二进制正是本包存在的意义。
-rust/
+/rust/
 
 # Performance-baseline harness and the vendored `full_svg_flutter` comparison
 # baseline. Never imported by lib/, excluded from analysis, not useful to
@@ -41,3 +41,11 @@ tool/
 # 仓库根目录（dart-labs 是 monorepo），pub 于是退化成列出该目录下的每一个文件，
 # 而不去查它的 git 忽略规则。`.pubignore` 不受这个退化行为影响。
 build/
+site/
+
+example/web/pkg/
+example/build/
+example/.dart_tool/
+
+# Local verification logs.
+*.log

@@ -1,0 +1,9 @@
+targets:
+  $default:
+    builders:
+      json_serializable:
+        enabled: false
+      json_annotation_lenient:auto_default:
+        enabled: true
+        generate_for:
+          - lib/**

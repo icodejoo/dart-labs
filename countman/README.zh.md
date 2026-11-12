@@ -8,7 +8,7 @@
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/icodejoo/dart-labs/blob/main/countman/LICENSE)
 [![Demo](https://img.shields.io/badge/demo-live-brightgreen)](https://icodejoo.github.io/dart-labs/countman/)
 
-**[▶ 在线演示](https://icodejoo.github.io/dart-labs/countman/)** —— 计数器 · 倒计时 · 计时，涵盖全部组件、全部 API。
+**[▶ 在线演示](https://icodejoo.github.io/dart-labs/countman/)** —— 计数器、倒计时、正计时与 0.3.x 调度能力交互示例，支持中英切换和亮暗主题。
 
 > **从 0.2.x 升级？** 请先看
 > [迁移指南](https://github.com/icodejoo/dart-labs/blob/main/countman/MIGRATION.md)（英文）——
@@ -98,7 +98,7 @@ Countman (1 scheduleFrameCallback + 1 个休眠定时器)
 
 ```yaml
 dependencies:
-  countman: ^0.3.0
+  countman: ^0.3.1
 ```
 
 需要 Flutter 3.35+（Dart 3.9+）。
@@ -1125,6 +1125,11 @@ class Beat extends TaskQueuePlugin<BeatTask> {
   `slide` / `flip` 约 45%。大网格优先选 `slide`，并缩短 `duration` 来按比例降低开销。
   `calendar` 往返两段，帧数约为 `slide` 的 2 倍。与 `slide_countdown` 对等对比时，
   使用 `slide` 过渡并设置 `duration: Duration(milliseconds: 250)`。
+- **内存紧张时**：`DialCountdown` 的刻度环与 `CardCountdown` 的翻牌卡面以位图形式缓存，
+  所有实例共享（LRU，分别约 32 MiB / 8 MiB）。可调用
+  `DialCountdown.clearTickImageCache()` 与 `FlipCardPainter.clearFaceImageCache()`
+  （例如在 `didHaveMemoryPressure` 或测试清理时）释放，下次绘制按需重建；
+  两者都不会触发重绘，也不清理字形缓存。
 
 ---
 

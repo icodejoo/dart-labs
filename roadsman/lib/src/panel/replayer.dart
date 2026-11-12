@@ -19,6 +19,7 @@ class ReplayOptions {
   /// Interval between rounds (ms), defaults to 800ms.
   final int intervalMs;
 
+  /// Creates a [ReplayOptions].
   const ReplayOptions({this.intervalMs = 800});
 }
 
@@ -30,6 +31,7 @@ class ReplayProgress {
   /// Total number of rounds.
   final int total;
 
+  /// Creates a [ReplayProgress].
   const ReplayProgress({required this.current, required this.total});
 }
 
@@ -43,6 +45,7 @@ class Replayer {
   int _cursor = 0;
   ReplayState _state = ReplayState.idle;
 
+  /// Creates a [Replayer].
   Replayer(this._fullResults, this._store, {ReplayOptions opts = const ReplayOptions()})
     : _intervalMs = opts.intervalMs;
 

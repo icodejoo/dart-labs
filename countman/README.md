@@ -8,7 +8,7 @@
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/icodejoo/dart-labs/blob/main/countman/LICENSE)
 [![Demo](https://img.shields.io/badge/demo-live-brightgreen)](https://icodejoo.github.io/dart-labs/countman/)
 
-**[▶ Live Demo](https://icodejoo.github.io/dart-labs/countman/)** — Counter · Countdown · Elapsed, all widgets, all APIs.
+**[▶ Live Demo](https://icodejoo.github.io/dart-labs/countman/)** — Interactive counter, countdown, elapsed and 0.3.x scheduler examples with English/Chinese controls and light/dark themes.
 
 > **Upgrading from 0.2.x?** Read the
 > [migration guide](https://github.com/icodejoo/dart-labs/blob/main/countman/MIGRATION.md) —
@@ -107,7 +107,7 @@ each to isolate independent "groups", or write your own
 
 ```yaml
 dependencies:
-  countman: ^0.3.0
+  countman: ^0.3.1
 ```
 
 Requires Flutter 3.35+ (Dart 3.9+).
@@ -154,10 +154,6 @@ frames actually rendered ÷ elapsed; UI/raster = per-frame thread time;
 CPU = share of **one** core, sampled externally from the OS process; RSS =
 resident set size. Lower is better except FPS/jank.
 
-*(50 个并发倒计时，Windows 桌面 profile 模式，每库测量 15 s，同一会话依次运行，
-显示器 120 Hz。CPU 为单核占用率，从操作系统进程外部采样。除 FPS/jank 外均越低越好。
-以上数据基于 0.2.x 调度器测得；0.3.0 起两次更新之间休眠。)*
-
 **Card / slide mode** — countman `CardCountdown(slide)` vs [`slide_countdown`](https://pub.dev/packages/slide_countdown) `^2.0.2`:
 
 | metric | countman `CardCountdown` slide | `slide_countdown` |
@@ -175,10 +171,6 @@ CPU; `slide_countdown` repaints only during its once-per-second slide bursts —
 lower CPU, but burstier cadence and pricier frames. Both are jank-free and use
 the same memory.
 
-*(countman 每帧驱动滑动+缩放+透明动画，完全顺滑、单帧更便宜，因此帧数更多、总 CPU
-更高；`slide_countdown` 仅在每秒滑动瞬间重绘——CPU 更低，但帧节奏更突发、单帧更贵。
-两者均无卡顿，内存相同。)*
-
 **Text mode** — countman `TextCountdown` vs [`stop_watch_timer`](https://pub.dev/packages/stop_watch_timer) `^3.2.2` (driving a `Text` via `StreamBuilder`):
 
 | metric | countman `TextCountdown` | `stop_watch_timer` |
@@ -194,10 +186,6 @@ For plain-text countdowns the single shared ticker + `markNeedsPaint` costs
 **~35 % less CPU** than 50 independent `stop_watch_timer` streams
 (12.1 % vs 18.8 % of a core) with steadier per-frame UI time; memory is
 identical. (Measured with the 0.2.x scheduler, see the note above.)
-
-*(纯文本倒计时下，单一共享 ticker + `markNeedsPaint` 比 50 个独立
-`stop_watch_timer` 流省约 35% CPU（单核 12.1% vs 18.8%），单帧 UI 耗时更稳；
-内存相同。)*
 
 > Reproduce with `example/lib/benchmark_page.dart`:
 > `flutter run --profile -d windows --dart-define=BENCH_LIB=countmanCard`
@@ -1192,6 +1180,12 @@ you can subclass one instead of starting from scratch. `RingPainter` /
   segments and produces about twice as many frames as slide. For an equivalent
   comparison with `slide_countdown`, use the slide transition with
   `duration: Duration(milliseconds: 250)`.
+- **Memory pressure**: `DialCountdown` tick rings and `CardCountdown` card faces
+  are cached as bitmaps shared by all instances (LRU, about 32 MiB / 8 MiB).
+  Call `DialCountdown.clearTickImageCache()` and
+  `FlipCardPainter.clearFaceImageCache()` (for example from
+  `didHaveMemoryPressure` or test teardown) to release them; they are rebuilt
+  on demand at the next paint. Neither call repaints or clears glyph caches.
 
 ---
 

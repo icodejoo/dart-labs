@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.3.0
+
+### Changed
+- Upgraded dependencies to their latest majors: `analyzer ^14.7.0`, `build ^5.0.0`,
+  `source_gen ^4.3.1`. Minimum SDK raised to `^3.13.0` (required by analyzer 14).
+- Shortened the pubspec `description` to fit pub.dev's 60-180 character guideline.
+
+### Added
+- `example/`: a runnable sample using `@LenientConverter` with the `auto_default` builder.
+- API documentation for all public converter constructors, `fromJson`/`toJson`, fields and library entry points.
+
 ## 1.2.0
 
 ### Added

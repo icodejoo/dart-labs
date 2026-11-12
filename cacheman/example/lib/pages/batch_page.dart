@@ -88,7 +88,7 @@ class _BatchPageState extends State<BatchPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Batch operations (ls)',
+          Text('Batch operations',
               style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 12),
           _PairRow(kCtrl: _k1, vCtrl: _v1, label: '1'),
@@ -123,7 +123,7 @@ class _BatchPageState extends State<BatchPage> {
           const SizedBox(height: 24),
           const Divider(),
           const SizedBox(height: 12),
-          Text('FastAccessor  (key: "fa_key", ls)',
+          Text('FastAccessor  (key: "fa_key")',
               style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 12),
           TextField(

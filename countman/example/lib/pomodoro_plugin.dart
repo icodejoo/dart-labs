@@ -90,17 +90,23 @@ class PomodoroTask extends CountmanTask {
   bool get finished => index >= total;
 
   /// 下标对应的阶段（超出范围时取最后一个阶段）。
-  PomodoroPhase phaseAt(int i) => phases[(i < total ? i : total - 1) % phases.length];
+  PomodoroPhase phaseAt(int i) =>
+      phases[(i < total ? i : total - 1) % phases.length];
 
+  /// 是否由控制句柄暂停。
   @override
   bool get isPaused => frozenRemainingMicros != null;
 }
 
 /// 控制一个番茄钟任务的句柄，由 [PomodoroPlugin.start] 返回。
 class PomodoroHandle {
+  /// 创建绑定插件与任务的控制句柄。
   PomodoroHandle._(this._plugin, this._task);
 
+  /// 拥有任务的插件。
   final PomodoroPlugin _plugin;
+
+  /// 当前控制的任务，重播后可能替换。
   PomodoroTask _task;
 
   /// 暂停；已暂停或已结束时无操作。
@@ -148,8 +154,12 @@ class PomodoroPlugin extends TaskQueuePlugin<PomodoroTask> {
     int rounds = 1,
     required void Function(PomodoroSnapshot snapshot) onChange,
   }) {
-    final task = PomodoroTask(nextId(), phases: phases, rounds: rounds, onChange: onChange)
-      ..phaseStartMicros = _now;
+    final task = PomodoroTask(
+      nextId(),
+      phases: phases,
+      rounds: rounds,
+      onChange: onChange,
+    )..phaseStartMicros = _now;
     enqueue(task);
     return PomodoroHandle._(this, task);
   }
@@ -158,14 +168,17 @@ class PomodoroPlugin extends TaskQueuePlugin<PomodoroTask> {
   int _remainingOf(PomodoroTask task) {
     final frozen = task.frozenRemainingMicros;
     if (frozen != null) return frozen;
-    return task.phaseAt(task.index).duration.inMicroseconds - (_now - task.phaseStartMicros);
+    return task.phaseAt(task.index).duration.inMicroseconds -
+        (_now - task.phaseStartMicros);
   }
 
+  /// 冻结任务当前剩余时间。
   void _pause(PomodoroTask task) {
     if (task.done || task.isPaused) return;
     task.frozenRemainingMicros = _remainingOf(task);
   }
 
+  /// 从冻结的剩余时间恢复任务。
   void _resume(PomodoroTask task) {
     final frozen = task.frozenRemainingMicros;
     if (task.done || frozen == null) return;
@@ -176,11 +189,16 @@ class PomodoroPlugin extends TaskQueuePlugin<PomodoroTask> {
     ctx.requestFrame();
   }
 
+  /// 重置已有任务，结束后则创建新任务。
   PomodoroTask _restart(PomodoroTask task) {
     if (task.done) {
       // 已结束的任务已被移出队列，重新建一个。
-      final fresh = PomodoroTask(nextId(), phases: task.phases, rounds: task.rounds, onChange: task.onChange)
-        ..phaseStartMicros = _now;
+      final fresh = PomodoroTask(
+        nextId(),
+        phases: task.phases,
+        rounds: task.rounds,
+        onChange: task.onChange,
+      )..phaseStartMicros = _now;
       enqueue(fresh);
       return fresh;
     }
@@ -198,23 +216,30 @@ class PomodoroPlugin extends TaskQueuePlugin<PomodoroTask> {
   /// 推送快照；剩余秒向上取整。
   void _emit(PomodoroTask task) {
     final remaining = task.finished ? 0 : _remainingOf(task);
-    final seconds = remaining <= 0 ? 0 : (remaining + 999999) ~/ 1000000;
+    final seconds = remaining <= 0
+        ? 0
+        : (remaining + (Duration.microsecondsPerSecond - 1)) ~/
+              Duration.microsecondsPerSecond;
     task.lastShownSeconds = seconds;
     task.lastShownIndex = task.index;
     task.updates++;
-    task.onChange(PomodoroSnapshot(
-      phase: task.phaseAt(task.index),
-      phaseNumber: task.index < task.total ? task.index + 1 : task.total,
-      phaseCount: task.total,
-      remainingSeconds: seconds,
-      finished: task.finished,
-      updates: task.updates,
-    ));
+    task.onChange(
+      PomodoroSnapshot(
+        phase: task.phaseAt(task.index),
+        phaseNumber: task.index < task.total ? task.index + 1 : task.total,
+        phaseCount: task.total,
+        remainingSeconds: seconds,
+        finished: task.finished,
+        updates: task.updates,
+      ),
+    );
   }
 
+  /// 首帧推送当前阶段。
   @override
   void renderInitial(PomodoroTask task) => _emit(task);
 
+  /// 按单调钟推进阶段并仅在显示秒变化时通知。
   @override
   void step(PomodoroTask task, double dtMs) {
     // 阶段到点就顺延到下一个；起点按阶段时长累加，不累积误差。
@@ -227,8 +252,12 @@ class PomodoroPlugin extends TaskQueuePlugin<PomodoroTask> {
       task.done = true;
       return;
     }
-    final seconds = (_remainingOf(task) + 999999) ~/ 1000000;
-    if (task.index != task.lastShownIndex || seconds != task.lastShownSeconds) _emit(task);
+    final seconds =
+        (_remainingOf(task) + (Duration.microsecondsPerSecond - 1)) ~/
+        Duration.microsecondsPerSecond;
+    if (task.index != task.lastShownIndex || seconds != task.lastShownSeconds) {
+      _emit(task);
+    }
   }
 
   /// 新契约的核心：告诉调度器“多久之后再叫我”。
@@ -237,7 +266,10 @@ class PomodoroPlugin extends TaskQueuePlugin<PomodoroTask> {
   int nextWake(PomodoroTask task) {
     final remaining = _remainingOf(task);
     if (remaining <= 0) return CountmanPlugin.nextFrame;
-    final untilNextSecond = remaining - ((remaining - 1) ~/ 1000000) * 1000000;
+    final untilNextSecond =
+        remaining -
+        ((remaining - 1) ~/ Duration.microsecondsPerSecond) *
+            Duration.microsecondsPerSecond;
     // 距离更近的是“阶段结束”还是“下一个整秒”，两者都不会超过剩余时间。
     return untilNextSecond < 1 ? 1 : untilNextSecond;
   }
