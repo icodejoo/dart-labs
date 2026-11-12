@@ -1,6 +1,6 @@
 # xlru
 
-[中文](README.zh.md)
+[中文](README.zh-CN.md)
 
 Zero-dependency LRU cache for Dart and Flutter (VM and web, Dart 3.5+) with
 removal callbacks, pinning, and lookups that don't change recency.
@@ -34,7 +34,7 @@ void main() {
 ## Pin a value while you use it
 
 A pinned entry is never evicted to make room. Use it for resources that must
-stay alive while in use:
+stay alive while you use them:
 
 ```dart
 final feeds = XlruCache<String, Feed>(
@@ -54,7 +54,7 @@ final name = feeds.usePinned('forest', (feed) => feed.name);
 Every successful `pin` needs one `unpin`. Pins only block eviction: `set` with a
 different value, `remove`, and `clear` still remove a pinned entry (and call
 `onRemove`). When every remaining entry is pinned the cache may hold more than
-`maxSize` entries until a later `set`, `unpin`, or `resize`.
+`maxSize` entries until a later `set`, `unpin`, or `resize` brings it back down.
 
 ## API
 
@@ -115,8 +115,8 @@ for (final key in cache.keys.toList()) {
 }
 ```
 
-They also don't support fast random access: `keys.length` and `keys.contains`
-walk every entry. Use `length` and `containsKey` instead.
+They are also slow for lookups: `keys.length` and `keys.contains` walk every
+entry. Use `length` and `containsKey` instead.
 
 #### Methods
 
@@ -166,7 +166,7 @@ typedef XlruRemovalListener<K, V> = void Function(
 | `replaced` | `set` stored a different (non-`identical`) value for an existing key; `value` is the old one. The key is still in the cache. Setting the identical value doesn't notify. |
 | `removed` | `remove` deleted an existing entry. |
 | `cleared` | `clear` deleted the entry (oldest first). |
-| `lost` | A store no longer had the entry's value. Only caches with a `store` report it, but keep it in exhaustive `switch`es. With a store, `XlruCache` can only deliver it when `V` is nullable (the value passed is `null`); otherwise there is nothing to pass and the notification is skipped. |
+| `lost` | A store no longer had the entry's value. Only caches with a `store` report it, but keep it in exhaustive `switch`es. With a store, `XlruCache` can only report it when `V` is nullable (the value passed is `null`). Otherwise there is no value to pass, and the notification is skipped. |
 
 ## Storage backends
 
@@ -243,7 +243,7 @@ final async = XlruAsyncCache<String, int>(
 - `XlruAsyncCache`: without `onError` the exception propagates from the call
   and the cache is as before (a failed delete still leaves the index updated and
   stale data in the store). With `onError`, the failure is reported and the call
-  carries on: a failed read counts as lost data, a failed write leaves the entry
+  continues: a failed read counts as lost data, a failed write leaves the entry
   unchanged, a failed delete or clear is only reported.
 
 ### `XlruAsyncCache<K, V>`
@@ -267,7 +267,7 @@ XlruAsyncCache({
 | Parameter | Description |
 | --- | --- |
 | `maxSize` | Capacity in entries, at least 1; otherwise throws `ArgumentError`. |
-| `store` | The values' home; defaults to in memory. |
+| `store` | Where values live. Defaults to memory. |
 | `onRemove` | Called for each removal, see `XlruAsyncRemovalListener` below. |
 | `onError` | Called instead of throwing when the store fails. |
 | `equals`, `hashCode`, `allowSelfEviction` | As in `XlruCache`. |
@@ -340,8 +340,8 @@ typedef XlruStoreErrorListener<K> = void Function(Object error,
 
 ## Not included
 
-Expiry, size-based weights, and statistics are not provided. Build them around
-the cache using `onRemove`.
+There is no expiry, size-based weighting, or statistics. If you need them, build
+them around the cache with `onRemove`.
 
 ## License
 
