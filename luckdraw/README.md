@@ -1,34 +1,34 @@
 # luckdraw
 
-**[▶ Live Demo](https://icodejoo.github.io/dart-labs/luckdraw/)** — all eight modes, runnable in the browser.
+**[Live demo](https://icodejoo.github.io/dart-labs/luckdraw/)**: all eight modes, runnable in the browser.
 
 > Status: 0.1.1, published to pub.dev.
 >
 > 简体中文: [README.zh-CN.md](./README.zh-CN.md)
 >
 > **Unofficial port.** luckdraw ports [lucky-canvas](https://github.com/buuing/lucky-canvas)
-> (Apache-2.0) to Flutter. It is not affiliated with or endorsed by its authors.
+> (Apache-2.0) to Flutter. It has no connection to the lucky-canvas authors and is not endorsed by them.
 > See [NOTICE](NOTICE) for upstream attribution.
 
-A Flutter lucky-draw toolkit for wheels, nine-grids, slot machines, lever slots,
-capsule machines, number wheels, drawing lots and super-lotto machines, with a pluggable rendering core.
+Lucky-draw widgets for Flutter: wheel, nine-grid, slot machine, lever slot, capsule machine,
+number wheel, drawing lots and super lotto. The rendering core can be swapped out.
 
-**Status: 0.1.1, published to pub.dev.** Repository gates pass with
-zero analysis issues, 1051 tests (zero skipped), 100% `lib/` line coverage (6792/6792),
-formatting, imports, static/runtime acceptance checks and parity manifest verification.
-Windows and Android integration each passed 33/33 runs. Local Flutter 3.24.5 / Dart 3.5.4
-analysis has zero issues and 951 non-golden tests passed; web and APK tree-shaking each
-passed all ten probes without leakage. Device performance acceptance is **not fully passed**;
-shadow comparisons retain measured differences and a clipped slot sample. Linux goldens,
-remote CI and real pub.dev publication remain unverified. See
+**Status: 0.1.1, published to pub.dev.** All repository checks pass: no analysis issues,
+1051 tests (none skipped), 100% line coverage of `lib/` (6792/6792), formatting, imports,
+static/runtime acceptance checks and the parity manifest check.
+Windows and Android integration tests each passed 33/33 runs. With local Flutter 3.24.5 / Dart 3.5.4,
+analysis has no issues and 951 non-golden tests pass. Web and APK tree-shaking each
+passed all ten probes with no leaked code. Device performance acceptance has **not fully passed**:
+shadow comparisons still show measured differences, and one slot sample was clipped. Not yet verified:
+Linux goldens, remote CI and real pub.dev publication. See
 [the release checklist](https://github.com/icodejoo/dart-labs/blob/main/luckdraw/docs/RELEASE_CHECKLIST.md).
-The 12 Dart blocks across both READMEs retain the signatures already analyzed with zero
+The 12 Dart blocks across both READMEs keep the signatures that were analyzed with no
 issues in a temporary Flutter project (REL/B17b).
 
 ## Screenshots
 
-Example app renderings, produced by this project; these are not upstream demo captures
-or evidence of pixel-for-pixel matching. Light theme examples:
+Renderings of this project's example app, not captures of the upstream demo.
+They are not evidence of pixel-for-pixel matching. Light theme:
 
 ![Home example app rendering](https://raw.githubusercontent.com/icodejoo/dart-labs/main/luckdraw/docs/example_audit/after/home-light.png)
 
@@ -46,47 +46,45 @@ or evidence of pixel-for-pixel matching. Light theme examples:
 
 ![Lotto example app rendering](https://raw.githubusercontent.com/icodejoo/dart-labs/main/luckdraw/docs/example_audit/after/lotto-light.png)
 
-Images use absolute repository raw URLs because `docs/` is excluded from the pub archive.
-They require the corresponding files to be present on the repository's `main` branch;
-publication of these changes has not been performed. Local originals are in
-`docs/example_audit/after/` (the complete audit contains 45 PNGs, about 1.26 MB).
+The images use absolute raw URLs because `docs/` is not in the pub archive.
+The files must exist on the repository's `main` branch, and these changes have not been
+published yet. Local originals are in `docs/example_audit/after/`
+(the full audit has 45 PNGs, about 1.26 MB).
 
 ## Features
 
-The implementation includes:
+What it has:
 
 - Immutable typed configuration, Controllers, result callbacks and phase notifications.
-- Explicit prize indices, weighted selection and asynchronous server-selected results.
-- Canvas 2D rendering with cached static `ui.Picture` content and per-frame transforms.
-- An effective timeline with pause/resume, background freezing and refresh-rate-independent speed.
-- Separate game, renderer, easing and prize-picker interfaces; no third-party runtime dependencies.
-- A separate lucky-canvas JSON compatibility layer and opt-in strict comparison preset.
+- Pick a prize by index or by weight, or wait for the result from your server.
+- Canvas 2D rendering: static content is cached as `ui.Picture`, and each frame only applies transforms.
+- A timeline that can pause and resume, freezes in the background, and keeps the same speed at any refresh rate.
+- Game, renderer, easing and prize picker are separate interfaces. No third-party runtime dependencies.
+- A lucky-canvas JSON compatibility layer, kept separate, with an opt-in strict comparison preset.
 
-The five additions beyond upstream are lever slots, capsule machines, number wheels,
-drawing lots and super-lotto machines. They have no upstream equivalents to compare against.
-They use deterministic animation by default; the capsule machine and lotto can opt in to a built-in physics collision mode (`physics: LuckyPhysics()`), with no third-party engine. 3D rendering is an extension path.
+Five games are new and not in upstream: lever slots, capsule machines, number wheels,
+drawing lots and super-lotto machines. There is nothing upstream to compare them with.
+Their animation is deterministic by default. The capsule machine and lotto can opt in to a built-in physics collision mode (`physics: LuckyPhysics()`); it uses no third-party engine. 3D rendering is only an extension path.
 
 ## Install
 
-Planned dependency for the first release:
+Add the dependency:
 
 ```yaml
 dependencies:
   flutter:
     sdk: flutter
-  luckdraw: ^0.1.0
+  luckdraw: ^0.1.2
 ```
 
-Before the first release, check pub.dev for the actual published version and availability;
-this snippet does not mean `0.1.0` is available today.
 The current manifest declares Dart `^3.5.0` and Flutter `>=3.24.0`.
 
 ## Quick start
 
-Each quick-start example is a separate `lib/main.dart` for a Flutter app using the local package.
-They use text only, require no assets or server, and dispose their own Controller.
-Start a round, then press **Stop** to request deceleration to the second prize (zero-based index `1`).
-An accepted stop request completes through the animation; `onEnd` reports the result.
+Each example is a standalone `lib/main.dart` for a Flutter app that uses this package.
+They use text only, need no assets or server, and dispose their own Controller.
+Start a round, then press **Stop** to slow down toward the second prize (zero-based index `1`).
+The animation still has to finish after a stop is accepted; `onEnd` then reports the result.
 
 ### Wheel
 
@@ -143,7 +141,7 @@ class _WheelDemoState extends State<WheelDemo> {
 
 ### Nine-grid
 
-Prize-list order determines stop indices; `x` and `y` determine cell positions.
+Stop indices follow the order of the prize list; `x` and `y` set each cell's position.
 The eight prizes below run clockwise around the center button.
 
 ```dart
@@ -201,8 +199,8 @@ class _GridDemoState extends State<GridDemo> {
 
 ### Slot machine
 
-Slots have no built-in start button or `onStart`; use an external control.
-`stop(1)` targets prize `1` on every reel; `stopEach([0, 1, 2])` targets reels separately.
+Slots have no built-in start button and no `onStart`, so start them from your own control.
+`stop(1)` stops every reel on prize `1`; `stopEach([0, 1, 2])` sets each reel separately.
 
 ```dart
 import 'package:flutter/material.dart';
@@ -427,7 +425,7 @@ class _NumberWheelDemoState extends State<NumberWheelDemo> {
 
 ### Drawing lots
 
-Shake the cylinder, a stick comes out and unfolds; `weight` drives the default draw, `stop(0)` forces stick `0`.
+Shake the cylinder, a stick comes out and unfolds. `weight` sets the default odds; `stop(0)` forces stick `0`.
 
 ```dart
 import 'package:flutter/material.dart';
@@ -537,9 +535,9 @@ class _LottoDemoState extends State<LottoDemo> {
 
 ## Controller
 
-Commands act on a Controller attached to a game Widget (or an explicit headless clock).
-Boolean command results indicate acceptance. For example, `play()` returns `false`
-while a round is running; a stop request during acceleration waits for deceleration.
+A Controller must be attached to a game Widget (or to a headless clock) before its commands work.
+A command that returns a bool tells you whether the request was accepted. For example, `play()`
+returns `false` while a round is running, and a stop request during acceleration waits for deceleration.
 
 | API | Use |
 | --- | --- |
@@ -559,9 +557,9 @@ Null, non-positive and NaN weights are not selectable; with no eligible weight,
 selection cancels rather than choosing uniformly. Disabled prizes are excluded by default.
 The grid and slot examples use explicit indices, so they do not require weights.
 
-To wait for a server result, add this method inside `_WheelDemoState` above.
-Pass your request function, returning a valid index for the current prize list.
-Keep one request in flight and keep that list stable until it finishes.
+To wait for a server result, add this method to `_WheelDemoState` above.
+Pass your own request function; it must return a valid index for the current prize list.
+Run one request at a time and do not change the list until it finishes.
 
 ```dart
 Future<void> drawFromServer(Future<int> Function() requestIndex) async {
@@ -577,13 +575,13 @@ Future<void> drawFromServer(Future<int> Function() requestIndex) async {
 }
 ```
 
-Alternatively, `WheelController.playUntil(resolveIndex, minSpinDuration: ...)` wraps
-start, asynchronous selection and stop, returning `Future<LuckyResult<WheelPrize>>`.
-Its resolver is `FutureOr<int?> Function()`; slots instead resolve `List<int>?` for all reels.
+Or use `WheelController.playUntil(resolveIndex, minSpinDuration: ...)`. It does start,
+async selection and stop in one call and returns `Future<LuckyResult<WheelPrize>>`.
+Its resolver is `FutureOr<int?> Function()`; for slots the resolver returns `List<int>?` covering all reels.
 
-To observe phases, add this method to `_WheelDemoState` and pass a Future representing
-the observation period; the subscription is cancelled when it completes.
-Use Widget `onPhaseChanged` for a callback managed by the Widget lifecycle.
+To watch phase changes, add this method to `_WheelDemoState` and pass a Future that marks
+the end of the observation period. The subscription is cancelled when it completes.
+To let the Widget manage the callback for you, use `onPhaseChanged`.
 
 ```dart
 Future<void> observePhases(Future<void> untilDone) async {
@@ -616,12 +614,12 @@ user API from `luckdraw.dart`; that core entry does not export game Widgets.
 | `extend.dart` | Custom game/rendering SPI, clocks and core user APIs exported directly from `src/core/`. |
 | `testing.dart` | `ManualLuckyClock`, `SequenceRandom`, `LuckyFrameRecorder`. |
 
-The design keeps core independent of games, games independent of each other, and compat
-explicitly imported. There is no global auto-registration; an optional registry is caller-owned.
-Dart tree-shakes reachable declarations, so re-exporting core does not retain every core type.
-[ARCHITECTURE §17](https://github.com/icodejoo/dart-labs/blob/main/luckdraw/docs/ARCHITECTURE.md#17-摇树设计需求-6) records successful web builds
-and source/symbol checks across all ten package probes, with measured size budgets.
-The APK backend only parses existing size reports; its CI job is disabled pending real builds.
+Core does not depend on any game, games do not depend on each other, and compat is only used
+when you import it. Nothing registers itself globally; the optional registry is created and owned by the caller.
+Dart tree-shakes by reachability, so re-exporting core does not keep every core type.
+[ARCHITECTURE §17](https://github.com/icodejoo/dart-labs/blob/main/luckdraw/docs/ARCHITECTURE.md#17-摇树设计需求-6) records web builds that succeeded
+and source/symbol checks on all ten package probes, with size budgets set from measured sizes.
+The APK backend only parses existing size reports. Its CI job is disabled until real builds exist.
 
 ## Migrate from lucky-canvas
 
@@ -650,27 +648,27 @@ Widget migratedWheel(Map<String, Object?> json) {
 }
 ```
 
-Give this Widget bounded parent constraints if the JSON omits dimensions.
-For ordinary migration, `const LuckyCanvasCompatOptions(remBase: 16)` uses default behavior.
-CSS strings are parsed only in compat; typed configuration uses `Color`, `LuckyFill`
-and logical pixels, with `LuckyLength.px/percent` on supported fields.
+If the JSON has no dimensions, put this Widget in a parent with bounded constraints.
+For ordinary migration, `const LuckyCanvasCompatOptions(remBase: 16)` gives the default behavior.
+Only compat parses CSS strings. Typed configuration uses `Color`, `LuckyFill`
+and logical pixels, plus `LuckyLength.px/percent` on fields that support them.
 
-The validated 1:1 scope uses npm lucky-canvas `1.7.26`, with SHA-256-locked baselines
-and the source reference recorded in [NOTICE](NOTICE).
+The 1:1 comparison is validated against npm lucky-canvas `1.7.26`. Its baselines are locked by SHA-256,
+and the source reference is recorded in [NOTICE](NOTICE).
 `strictUpstream()` selects `LuckyTimebase.frame` and `UpstreamStopSolver`; controlled comparisons
-also use matching random sequences, fonts and assets. All 6720 numerical frames across 16 cases
-match exactly after documented mappings. Keyframes pass explicit standard/text-heavy/edge-aa
-tolerances; see [TEST_STRATEGY §6.5](https://github.com/icodejoo/dart-labs/blob/main/luckdraw/docs/TEST_STRATEGY.md#65-容差与已知差异) for limits.
-Default mode uses `LuckyTimebase.time` and `MonotonicStopSolver`. Intentional differences include:
+also need the same random sequences, fonts and assets. All 6720 numeric frames across 16 cases
+match exactly after the documented mappings. Keyframes pass explicit standard, text-heavy and edge-aa
+tolerances; the limits are in [TEST_STRATEGY §6.5](https://github.com/icodejoo/dart-labs/blob/main/luckdraw/docs/TEST_STRATEGY.md#65-容差与已知差异).
+Default mode uses `LuckyTimebase.time` and `MonotonicStopSolver`. The intentional differences are:
 
-- Protection against reverse/zero-displacement stops, invalid inputs and background time jumps.
+- Guards against reversed or zero-displacement stops, invalid input and time jumps after returning from the background.
 - Progressive images, error/fallback callbacks and controlled configuration/size updates.
-- Unicode code-point text splitting; Flutter font, antialiasing and shadow differences.
-- `onEnd` on the settled tick rather than one tick later; slot deceleration preserves its starting scroll.
-- Visible-window slot rendering and per-reel clipping instead of a long offscreen image.
-- Explicit errors for an invalid `stopEach` length; no DOM/platform wrappers or source-compatible image formatter.
+- Text is split by Unicode code point. Flutter renders fonts, antialiasing and shadows differently.
+- `onEnd` fires on the settled tick, not one tick later. Slot deceleration keeps its starting scroll.
+- Slots draw only the visible window and clip per reel, instead of using a long offscreen image.
+- An invalid `stopEach` length throws. There are no DOM or platform wrappers and no source-compatible image formatter.
 
-Strict mode retains documented fixes and deviations; it does not recreate every upstream bug.
+Strict mode keeps the documented fixes and deviations. It does not reproduce every upstream bug.
 See [FIDELITY §8](https://github.com/icodejoo/dart-labs/blob/main/luckdraw/docs/FIDELITY.md#8-偏离与疑点清单) for the full list and comparison exclusions,
 and [UPSTREAM_ISSUES](https://github.com/icodejoo/dart-labs/blob/main/luckdraw/docs/UPSTREAM_ISSUES.md) for the research behind the mitigations.
 The added games have separate acceptance tests; the lotto preset draws 5 of 35 and 2 of 12
@@ -679,7 +677,7 @@ without replacement. It is an animation component, not a real lottery service.
 ## Extend
 
 Use `extend.dart` to implement a custom `LuckyGame` and `LuckyRenderer`, then pass implementations
-explicitly. Renderers consume layout/frame data; `LuckyEasing` and `PrizePicker` replace easing
+explicitly. Renderers read layout and frame data; `LuckyEasing` and `PrizePicker` replace easing
 and selection. The default backend uses Canvas; custom backends can return other Widgets.
 The example below swaps only the renderer of a wheel; game logic and the Controller stay the same.
 
@@ -743,37 +741,39 @@ int? runHeadlessWheel() {
 
 ## Performance
 
-STEADY (2026-11-11), one vivo V2417: instrumented grid/slot/lotto still fail the frozen gates; lots passes this run's three rounds. Wheel process / UI+platform / Raster CPU medians are 39.291% / 14.931% / 18.299%. A lotto preparation-reuse candidate showed no stable net benefit and was reverted. See the [STEADY report](https://github.com/icodejoo/dart-labs/blob/main/luckdraw/tool/bench/results/steady/REPORT.md); the following INSTR/MET2 records retain their historical scope.
+All numbers below come from one vivo V2417 (Android 16). They are not a cross-device guarantee. Sections are listed newest first, and each older section only describes its own scope.
 
-INSTR (2026-11-11, isolated candidate): exact text-width caching reduced cold wheel/grid TextPainter.layout calls from 276/128 to 63/22. Instrumented build-duration medians changed from 38.412/24.214 ms to 27.075/12.993 ms. Increments over the historical DEVFIN blank (2.883 ms) are 24.192/10.110 ms; calibrated increment budgets are 26.612/11.121 ms. Both still miss the original 4 ms target and the three-round spread is large. CPU uses /proc tick deltas and actual host intervals; UI and platform are reported together. Wheel has only 2/5 complete driver runs, so no three-run median; lotto CPU covers mixing only. Library changes are delivered as patches for the shared workspace, pending merge. See the [INSTR report](https://github.com/icodejoo/dart-labs/blob/main/luckdraw/tool/bench/results/pending2/REPORT.md). The DEVFIN/MET2 text below remains historical and does not establish complete performance compliance.
+STEADY (2026-11-11): with instrumentation, grid, slot and lotto still fail the frozen gates. Lots passes in this run's three rounds. Wheel median CPU: process 39.291%, UI+platform 14.931%, Raster 18.299%. A lotto preparation-reuse candidate showed no stable net benefit and was reverted. See the [STEADY report](https://github.com/icodejoo/dart-labs/blob/main/luckdraw/tool/bench/results/steady/REPORT.md).
 
-DEVFIN (2026-11-11) reran four scenes on one vivo V2417 (Android 16), three rounds each. grid_steady: failed; slot_raster: failed; lots_shaking: uncertain; lotto_draw: failed. The 12 ms combined and 4 ms UI p99 gates were not relaxed. Cold-push UI increments (wheel/grid/slot minus blank) were 38.087/10.520/0.245 ms; calibrated increment budgets are 41.896/11.572/0.270 ms. Wheel and grid miss the original 4 ms estimate. Wheel/grid driver summarization succeeded only 2/5 and 1/5 times; raw FrameTiming responses were retained separately. All five CPU projects had 0/5 valid attempts because native statistics referred to stale intervals/PIDs. CPU remains unmeasured, and collection did not pass. Calibration does not establish design-target compliance. See the [DEVFIN report](https://github.com/icodejoo/dart-labs/blob/main/luckdraw/tool/bench/results/pending/REPORT.md).
+INSTR (2026-11-11, candidate tried on a copy of the code): caching exact text widths cut cold-frame `TextPainter.layout` calls for wheel/grid from 276/128 to 63/22. Median build time with instrumentation fell from 38.412/24.214 ms to 27.075/12.993 ms. Output stays equivalent for random, multilingual, emoji and `lineClamp` text. Subtracting the historical DEVFIN blank (2.883 ms) gives increments of 24.192/10.110 ms. The calibrated increment budgets are 26.612/11.121 ms. Both still miss the original 4 ms target, and the three rounds vary a lot. CPU uses `/proc` tick deltas and actual host intervals; UI and platform are reported together as UI+platform. Wheel has only 2/5 complete driver runs, so there is no three-run median. Lotto CPU covers only the mixing phase. The library changes are delivered as patches for the shared workspace and are not merged yet. See the [INSTR report](https://github.com/icodejoo/dart-labs/blob/main/luckdraw/tool/bench/results/pending2/REPORT.md). The DEVFIN and MET2 text below is historical. It does not mean performance fully passes.
 
-The following MET2 results are the historical baseline; DEVFIN supersedes only the four retested scenes. Other scenes were not rerun.
+DEVFIN (2026-11-11) reran four scenes, three rounds each. grid_steady failed, slot_raster failed, lots_shaking is uncertain, and lotto_draw failed. The gates (12 ms combined, 4 ms UI p99) were not relaxed. Cold-push UI increments (wheel/grid/slot minus blank) were 38.087/10.520/0.245 ms; the calibrated increment budgets are 41.896/11.572/0.270 ms. Wheel and grid miss the original 4 ms estimate. Driver summaries for wheel/grid succeeded only 2/5 and 1/5 times, so the raw FrameTiming responses were kept separately. All five CPU projects had 0/5 valid attempts because the native statistics referred to stale intervals and PIDs. CPU is still unmeasured, and the collection did not pass. Calibration does not mean the design targets were met. The [DEVFIN report](https://github.com/icodejoo/dart-labs/blob/main/luckdraw/tool/bench/results/pending/REPORT.md) lists the delivery results of all sustained-animation windows and the hard gates per round, and keeps the missing CPU data and driver failures visible.
 
-`LuckyCacheMode.auto` uses bounded bitmap caching while supported segments move and vector replay when idle; strict upstream comparison retains `picture`.
+The MET2 results below are the historical baseline. DEVFIN replaces only the four scenes it retested; the other scenes were not rerun.
 
-All 130 saved steady windows delivered ~60 fps (59.829927–60.176516), with complete frame delivery and no real dropped frames under the timeline delivery check. Some Raster windows are contaminated by vsync backpressure unrelated to drawing content: the reference square exhibits it too. These traces do not independently measure physical display presentation. Initial regression budgets have been calibrated from measured device data; **this does not mean all original design targets were met**.
+`LuckyCacheMode.auto` uses bounded bitmap caching while supported segments move and vector replay when idle. Strict upstream comparison keeps `picture`.
 
-Memory meets its effective FIN RSS target. Wheel, slot_steady, lever, capsule and number_wheel pass calibrated regression budgets while missing original design targets. Grid, slot_raster and lotto fail the new per-clean-window headroom gates (combined build+raster p99 ≤12 ms, UI p99 ≤4 ms): combined maxima are 12.231, 16.905 and 12.229 ms respectively; lotto UI p99 reaches 4.386 ms. Lots remains uncertain because clean Raster costs vary too much and needs a new controlled run.
+MET2 (2026-11-10, offline recalculation): all 130 saved steady windows delivered about 60 fps (59.829927 to 60.176516), with complete frame delivery and no real dropped frames by the timeline delivery check. Some Raster windows are contaminated by vsync backpressure unrelated to drawing content (the reference square shows it too), so they cannot give the pure drawing cost. Initial regression budgets were calibrated from the measured device data. **This does not mean all original design targets were met**: one item meets its effective target (memory, with the FIN RSS method), five scenes are calibrated but miss the original targets, three scenes fail, one is uncertain, and the cold first frame is informational only.
 
-Complete list of original design target gaps (measured median / original target − 1):
+Memory meets its effective RSS target. Wheel, slot_steady, lever, capsule and number_wheel pass calibrated regression budgets while missing original design targets. Grid, slot_raster and lotto fail the per-clean-window headroom gates (combined build+raster p99 at most 12 ms, UI p99 at most 4 ms): combined maxima are 12.231, 16.905 and 12.229 ms respectively, and lotto UI p99 reaches 4.386 ms. Lots stays uncertain because clean Raster costs vary too much; it needs a new controlled run.
 
-| Scene missing original design targets | Metric and gap |
+Scenes that miss the original design targets (measured median / original target − 1):
+
+| Scene | Metric and gap |
 | --- | --- |
 | wheel_steady | Raster average +1.99% |
-| grid_steady | UI average +70.72%、UI P90 +18.67%、Raster average +37.49% |
+| grid_steady | UI average +70.72%, UI P90 +18.67%, Raster average +37.49% |
 | slot_steady | UI average +35.76% |
 | slot_raster | UI average +6.41% |
-| lever_steady | UI average +39.99%、UI P90 +4.80% |
+| lever_steady | UI average +39.99%, UI P90 +4.80% |
 | capsule_mixing | UI average +10.27% |
 | number_wheel_spin | UI average +13.57% |
-| lots_shaking | UI average +37.82%、UI P90 +1.20% |
-| lotto_draw | UI average +47.92%、UI P90 +10.75% |
+| lots_shaking | UI average +37.82%, UI P90 +1.20% |
+| lotto_draw | UI average +47.92%, UI P90 +10.75% |
 
-Ratio stability uses a 1 percentage point absolute tolerance; timings with median <0.5 ms use 0.15 ms, and other timings use 30% relative range. Normal comparisons use frozen calibrated budgets. RSS retains five cycles, informational warmup and a 1.5 MiB steady-growth gate. Cold first frame (40.378 ms) and process CPU measurement await the next device session; CPU busy indicators are estimates from frame durations, not measured process CPU.
+Ratio stability uses a 1 percentage point absolute tolerance. Timings with a median under 0.5 ms use 0.15 ms, and other timings use a 30% relative range. Normal comparisons use the frozen calibrated budgets. RSS keeps five cycles, an informational warmup and a 1.5 MiB steady-growth gate. The cold first frame (40.378 ms) and process CPU wait for the next device session. CPU busy values are estimates from frame durations, not measured process CPU.
 
-These conclusions use three rounds on one vivo V2417 (Android 16), with the same mixed DEV/PERF sample identities as MET, not a cross-device guarantee or a single-APK rerun. See the [metric correction report](https://github.com/icodejoo/dart-labs/blob/main/luckdraw/docs/METRIC_FIX_REPORT.md) and [MET2 per-metric results](https://github.com/icodejoo/dart-labs/blob/main/luckdraw/tool/bench/results/met2/REPORT.md).
+The MET2 sample mixes DEV/PERF sample identities, as MET did, so it is not a single-APK rerun. See the [metric correction report](https://github.com/icodejoo/dart-labs/blob/main/luckdraw/docs/METRIC_FIX_REPORT.md) and the [MET2 per-metric results](https://github.com/icodejoo/dart-labs/blob/main/luckdraw/tool/bench/results/met2/REPORT.md).
 
 ## License
 
