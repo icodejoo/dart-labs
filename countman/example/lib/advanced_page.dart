@@ -1,479 +1,409 @@
 import 'package:countman/countman.dart';
 import 'package:flutter/material.dart';
-
+import 'package:flutter/scheduler.dart';
+import 'demo_kit/demo_kit.dart';
+import 'demo_samples.dart';
 import 'pomodoro_plugin.dart';
+import 'sample_code.dart';
 
-/// 进阶演示页：CountmanTheme、倒计时模板与取整、进度分母 total、
-/// 正计时的 since / limit / lap、OffsetClock 服务器校时，以及自定义插件。
+/// 进阶页面，隔离休眠观察、限帧、隐藏静音与自定义插件。
 class AdvancedPage extends StatefulWidget {
-  /// 创建进阶演示页。
+  /// 创建进阶页面。
   const AdvancedPage({super.key});
 
+  /// 创建调度演示状态。
   @override
   State<AdvancedPage> createState() => _AdvancedPageState();
 }
 
-/// 示例统一使用的等宽数字样式。
-const _numberStyle = TextStyle(
-  fontSize: 22,
-  fontWeight: FontWeight.w600,
-  fontFeatures: [FontFeature.tabularFigures()],
-);
-
-/// 模板格式化器只需在创建时解析一次，所以放在顶层复用。
-final DurationFormatter _chineseTemplate =
-    CountdownFormat.template('{d}天 {HH}:{mm}:{ss}');
-
-/// 演示页的状态：持有需要长期存活的插件与固定时间点。
+/// 管理调度观测与全局设置，离开页面恢复原设置。
 class _AdvancedPageState extends State<AdvancedPage> {
-  /// 页面整体重播用的种子，改变后所有演示重新开始。
-  int _seed = 0;
+  /// 进入页面前的全局限帧配置。
+  final double? _previousFps = Countman.fps;
 
-  /// 以本机时钟为准的插件。
-  final Countdown _localPlugin = Countdown(name: 'advanced-local');
+  /// 进入页面前的隐藏静音配置。
+  final bool _previousMute = Countman.muteWhenHidden;
 
-  /// 假设服务器时间比本机慢 45 秒，用 [OffsetClock] 校时的插件。
-  final Countdown _serverPlugin = Countdown(
-    name: 'advanced-server',
-    clock: OffsetClock(CountmanClock.system, const Duration(seconds: -45)),
-  );
+  /// 被动观测插件，不请求连续帧。
+  final WakeProbePlugin _probe = WakeProbePlugin();
 
-  /// 同一个绝对截止时间，两个插件对它的剩余时间判断不同。
-  late final DateTime _deadline = DateTime.now().add(const Duration(minutes: 2));
+  /// 本页面累计观察到的 Flutter 帧数。
+  int _frames = 0;
 
-  /// “下单时间”，用于 Elapsed 的 since 演示。
-  late final DateTime _orderedAt =
-      DateTime.now().subtract(const Duration(minutes: 3, seconds: 20));
+  /// 秒级文本收到的更新数。
+  int _seconds = 0;
 
+  /// 快速对照收到的更新数。
+  int _precise = 0;
+
+  /// 最近读取的观测快照。
+  String _snapshot = '';
+
+  /// 是否启用精细计时对照。
+  bool _continuous = false;
+
+  /// 限帧动画的重播代次。
+  int _generation = 0;
+
+  /// 是否运行限帧动画，默认关闭避免污染休眠观察。
+  bool _animate = false;
+
+  /// 隐藏示例当前是否可见。
+  bool _visible = true;
+
+  /// 隐藏示例的重建代次。
+  int _hiddenGeneration = 0;
+
+  /// 隐藏示例收到的显示更新数。
+  int _hiddenTicks = 0;
+
+  /// 隐藏示例完成次数。
+  int _completions = 0;
+
+  /// 当前限帧选择，零表示跟随 vsync。
+  double _fps = Countman.fps ?? 0;
+
+  /// 初始化被动观测，使用一次性帧回调且不主动请求新帧。
   @override
   void initState() {
     super.initState();
-    Countman.use(_localPlugin);
-    Countman.use(_serverPlugin);
+    Countman.use(_probe);
+    SchedulerBinding.instance.addPostFrameCallback(_observe);
   }
 
+  /// 被动重挂帧回调，读取次数不会成为连续帧来源。
+  void _observe(Duration timestamp) {
+    if (!mounted) return;
+    _frames++;
+    SchedulerBinding.instance.addPostFrameCallback(_observe);
+  }
+
+  /// 读取数据的操作本身会产生一帧，页面明确说明此限制。
+  void _read() => setState(
+    () => _snapshot =
+        '${tr(context, 'Flutter frames', 'Flutter 帧')}: $_frames · '
+        '${tr(context, 'Scheduler wakes', '调度唤醒')}: ${_probe.wakes}\n'
+        '${tr(context, 'Second updates', '秒级更新')}: $_seconds · '
+        '${tr(context, 'Precise updates', '精细更新')}: $_precise',
+  );
+
+  /// 切换全局限帧并重播限帧示例。
+  void _setFps(double? value) => setState(() {
+    _fps = value ?? 0;
+    setDemoFps(_fps == 0 ? null : _fps);
+    _animate = true;
+    _generation++;
+  });
+
+  /// 重挂隐藏示例，使 muteWhenHidden 在依赖解析时生效。
+  void _setMute(bool value) => setState(() {
+    Countman.muteWhenHidden = value;
+    _hiddenGeneration++;
+    _hiddenTicks = 0;
+    _completions = 0;
+  });
+
+  /// 记录隐藏示例的完成事件，完成不会因隐藏而丢失。
+  void _completed() {
+    if (mounted) setState(() => _completions++);
+  }
+
+  /// 离开时恢复全局设置并注销观测插件。
   @override
   void dispose() {
-    // 按实例注销并销毁，下次进入页面重新创建同名实例不会冲突。
-    Countman.unuse(_localPlugin);
-    Countman.unuse(_serverPlugin);
+    Countman.unuse(_probe);
+    Countman.fps = _previousFps;
+    Countman.muteWhenHidden = _previousMute;
     super.dispose();
   }
 
-  /// 把整个页面的演示重新开始。
-  void _restart() => setState(() => _seed++);
-
+  /// 构建调度、限帧与隐藏行为三个分区。
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('进阶'),
-        actions: [
-          IconButton(
-            tooltip: '全部重播',
-            icon: const Icon(Icons.replay_rounded),
-            onPressed: _restart,
-          ),
-        ],
-      ),
-      body: KeyedSubtree(
-        key: ValueKey(_seed),
-        child: ListView(
-          padding: const EdgeInsets.all(16),
+  Widget build(BuildContext context) => DemoPage(
+    title: tr(context, 'Advanced', '进阶能力'),
+    description: tr(
+      context,
+      'Observe sleeping, cap display updates and hide a running timer. These are behavior demos, not benchmarks.',
+      '观察休眠、限制显示更新，并隐藏运行中的计时器。这些是行为演示，不是性能基准。',
+    ),
+    sections: [
+      DemoSection(
+        title: tr(context, 'Wake only when needed', '按需唤醒'),
+        code: sampleCode['probe'],
+        child: DemoGrid(
           children: [
-            _Section(
-              title: 'CountmanTheme',
-              note: '通过 ThemeData.extensions 一次性给全部组件换默认样式；组件自己的 style 仍然优先。',
-              children: [
-                _Tile(
-                  '默认样式',
-                  RingCountdown(
-                    to: const Duration(seconds: 45),
-                    total: const Duration(seconds: 60),
-                    center: TextCountdown(to: const Duration(seconds: 45)),
-                  ),
+            DemoGridItem(
+              child: DemoCard(
+                title: tr(context, 'Second-level timer', '秒级计时器'),
+                description: tr(
+                  context,
+                  'Read twice a few seconds apart. Leave the precise comparison off to observe sleeping.',
+                  '间隔几秒读取两次；关闭精细对照，观察休眠。',
                 ),
-                _Tile(
-                  '套用主题',
-                  Theme(
-                    data: Theme.of(context).copyWith(
-                      extensions: const [
-                        CountmanTheme(
-                          ringCountdownStyle: RingStyle(
-                            size: 88,
-                            strokeWidth: 10,
-                            color: Color(0xFFEF6C00),
-                            trackColor: Color(0x33EF6C00),
-                          ),
-                          textCountdownStyle: CountmanTextStyle(
-                            textStyle: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w800,
-                              color: Color(0xFFEF6C00),
+                child: Column(
+                  children: [
+                    TextCountdown(
+                      to: const Duration(hours: 1),
+                      style: demoTextStyle,
+                      onTick: (_) => _seconds++,
+                    ),
+                    FilledButton(
+                      onPressed: _read,
+                      child: Text(tr(context, 'Read counts', '读取计数')),
+                    ),
+                    if (_snapshot.isNotEmpty)
+                      Text(
+                        _snapshot,
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                  ],
+                ),
+              ),
+            ),
+            DemoGridItem(
+              child: DemoCard(
+                title: tr(context, 'Precise comparison', '精细更新对照'),
+                description: tr(
+                  context,
+                  'Enable subsecond updates to request frames more often. Other active demos also affect counts.',
+                  '开启亚秒更新会更频繁地请求帧；其他活跃演示也影响计数。',
+                ),
+                child: Column(
+                  children: [
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(tr(context, 'Enable comparison', '开启对照')),
+                      value: _continuous,
+                      onChanged: (value) => setState(() => _continuous = value),
+                    ),
+                    if (_continuous)
+                      TextElapsed(
+                        plugin: defaultElapsedMs,
+                        formatter: CountdownFormat.msTenths,
+                        style: demoTextStyle,
+                        onTick: (_) => _precise++,
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+      InfoNote(
+        text: tr(
+          context,
+          'Frame counts cover this whole app. Reading, navigating and theme changes add frames. The observer never requests frames; this is not an FPS score. Stop other animated examples when comparing.',
+          '帧数覆盖整个应用；读取、导航和主题切换也会增加帧。观察器不请求帧，这不是 FPS 评分。对比时请关闭其他动画示例。',
+        ),
+      ),
+      DemoSection(
+        title: tr(context, 'Display fps & hidden widgets', '显示限帧与隐藏组件'),
+        code: combineSampleCode(['fps', 'hidden']),
+        child: DemoGrid(
+          children: [
+            DemoGridItem(
+              child: DemoCard(
+                title: 'Countman.fps',
+                description: tr(
+                  context,
+                  'Instance > plugin > global. Completion and thresholds keep their timing.',
+                  '实例 > 插件 > 全局；完成与阈值事件不因显示限帧延后。',
+                ),
+                child: Column(
+                  children: [
+                    SizedBox(
+                      height: 56,
+                      child: DropdownButton<double>(
+                        value: _fps,
+                        isExpanded: true,
+                        items: [
+                          DropdownMenuItem(
+                            value: 0,
+                            child: Text(
+                              tr(context, 'Follow vsync', '跟随 vsync'),
                             ),
                           ),
+                          for (final fps in const <double>[5, 15, 30])
+                            DropdownMenuItem(
+                              value: fps,
+                              child: Text('${fps.toInt()} fps'),
+                            ),
+                        ],
+                        onChanged: _setFps,
+                      ),
+                    ),
+                    if (_animate)
+                      TextCounter(
+                        key: ValueKey(_generation),
+                        to: 10000,
+                        duration: demoShortDuration,
+                        style: const TextCounterStyle(
+                          textStyle: demoNumberStyle,
                         ),
-                      ],
+                      ),
+                    TextButton(
+                      onPressed: () => _setFps(_fps),
+                      child: Text(tr(context, 'Replay animation', '重播动画')),
                     ),
-                    child: RingCountdown(
-                      to: const Duration(seconds: 45),
-                      total: const Duration(seconds: 60),
-                      center: TextCountdown(to: const Duration(seconds: 45)),
+                  ],
+                ),
+              ),
+            ),
+            DemoGridItem(
+              child: DemoCard(
+                title: 'TickerMode',
+                description: tr(
+                  context,
+                  'Hide for 8 seconds. Muting stops display callbacks; completion still fires. Show to catch up.',
+                  '隐藏八秒：静音阻止显示回调，完成仍触发；显示后立即追上。',
+                ),
+                child: Column(
+                  children: [
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('muteWhenHidden'),
+                      value: Countman.muteWhenHidden,
+                      onChanged: _setMute,
                     ),
-                  ),
+                    KeyedSubtree(
+                      key: ValueKey(_hiddenGeneration),
+                      child: hiddenSample(
+                        _visible,
+                        () => _hiddenTicks++,
+                        _completed,
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () => setState(() => _visible = !_visible),
+                      child: Text(
+                        _visible
+                            ? tr(context, 'Hide timer', '隐藏计时器')
+                            : tr(context, 'Show timer', '显示计时器'),
+                      ),
+                    ),
+                    Text(
+                      '${DemoLabels.updates(context)}: $_hiddenTicks · ${tr(context, 'Completions', '完成')}: $_completions',
+                    ),
+                  ],
                 ),
-              ],
-            ),
-            _Section(
-              title: 'CountdownFormat.template',
-              note: "模板创建时只解析一次；记号 {d} {HH} {mm} {ss} {SSS} 等，支持任意中文文本。",
-              children: [
-                _Tile(
-                  "'{d}天 {HH}:{mm}:{ss}'",
-                  TextCountdown(
-                    to: const Duration(days: 2, hours: 3, minutes: 4, seconds: 5),
-                    formatter: _chineseTemplate,
-                    style: const CountmanTextStyle(textStyle: _numberStyle),
-                  ),
-                  width: 240,
-                ),
-                _Tile(
-                  "'还剩 {m} 分 {ss} 秒'",
-                  TextCountdown(
-                    to: const Duration(minutes: 7, seconds: 9),
-                    formatter: CountdownFormat.template('还剩 {m} 分 {ss} 秒'),
-                    style: const CountmanTextStyle(textStyle: _numberStyle),
-                  ),
-                  width: 240,
-                ),
-              ],
-            ),
-            _Section(
-              title: 'rounding: CountdownRounding.ceil',
-              note: '剩余 9.3 秒时：floor 显示 9，ceil 显示 10（最后一整秒显示 1，到 0 才完成）。',
-              children: [
-                _Tile(
-                  'floor（默认）',
-                  TextCountdown(
-                    to: const Duration(seconds: 9, milliseconds: 300),
-                    formatter: CountdownFormat.ms,
-                    style: const CountmanTextStyle(textStyle: _numberStyle),
-                  ),
-                ),
-                _Tile(
-                  'ceil',
-                  TextCountdown(
-                    to: const Duration(seconds: 9, milliseconds: 300),
-                    rounding: CountdownRounding.ceil,
-                    formatter: CountdownFormat.ms,
-                    style: const CountmanTextStyle(textStyle: _numberStyle),
-                  ),
-                ),
-              ],
-            ),
-            _Section(
-              title: 'total：进度分母',
-              note: '剩余 20 秒、总时段 60 秒：进度环从 33% 起步，而不是 100%（比如拍卖整段时间里只剩最后一截）。',
-              children: [
-                _Tile(
-                  'RingCountdown',
-                  RingCountdown(
-                    to: const Duration(seconds: 20),
-                    total: const Duration(seconds: 60),
-                    center: TextCountdown(to: const Duration(seconds: 20)),
-                  ),
-                ),
-                _Tile(
-                  'BarCountdown',
-                  const BarCountdown(
-                    to: Duration(seconds: 20),
-                    total: Duration(seconds: 60),
-                    style: BarStyle(width: 140),
-                  ),
-                  width: 170,
-                ),
-              ],
-            ),
-            _Section(
-              title: 'Elapsed：since / limit / lap',
-              note: 'since 以墙钟为起点（“下单已 3 分钟”）；limit 到上限发最后一次更新并结束；lap 记录圈速，暂停不计。',
-              children: [
-                _Tile(
-                  'since：下单已…',
-                  TextElapsed(
-                    since: _orderedAt,
-                    formatter: CountdownFormat.hms,
-                    style: const CountmanTextStyle(textStyle: _numberStyle),
-                  ),
-                ),
-                _Tile('limit：8 秒后结束', const _LimitDemo()),
-                const _Tile('lap：圈速', _LapDemo(), width: 240, height: 230),
-              ],
-            ),
-            _Section(
-              title: 'OffsetClock：服务器校时',
-              note: '截止时间是同一个绝对时刻，假设服务器比本机慢 45 秒：'
-                  '用 OffsetClock 的插件算出的剩余时间多出 45 秒，相对时长倒计时不受影响。',
-              children: [
-                _Tile(
-                  '本机时钟',
-                  TextCountdown(
-                    to: _deadline,
-                    plugin: _localPlugin,
-                    formatter: CountdownFormat.ms,
-                    style: const CountmanTextStyle(textStyle: _numberStyle),
-                  ),
-                ),
-                _Tile(
-                  'OffsetClock(-45s)',
-                  TextCountdown(
-                    to: _deadline,
-                    plugin: _serverPlugin,
-                    formatter: CountdownFormat.ms,
-                    style: const CountmanTextStyle(textStyle: _numberStyle),
-                  ),
-                ),
-              ],
-            ),
-            _Section(
-              title: '自定义插件：番茄钟',
-              note: '继承 TaskQueuePlugin；tick 契约是“返回距下次处理的微秒数”。'
-                  '专注 10 秒、休息 5 秒、两轮——更新次数远少于帧数，因为调度器在两次更新之间休眠。',
-              children: const [
-                _Tile('PomodoroPlugin', _PomodoroDemo(), width: 300, height: 220),
-              ],
+              ),
             ),
           ],
         ),
       ),
-    );
-  }
-}
-
-/// limit 演示：到达上限后结束并回调 onComplete。
-class _LimitDemo extends StatefulWidget {
-  /// 创建演示。
-  const _LimitDemo();
-
-  @override
-  State<_LimitDemo> createState() => _LimitDemoState();
-}
-
-/// [_LimitDemo] 的状态：记录是否已到上限。
-class _LimitDemoState extends State<_LimitDemo> {
-  /// 是否已触发 onComplete。
-  bool _done = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        TextElapsed(
-          limit: const Duration(seconds: 8),
-          formatter: CountdownFormat.ms,
-          style: const CountmanTextStyle(textStyle: _numberStyle),
-          onComplete: () => setState(() => _done = true),
+      DemoSection(
+        title: tr(context, 'Custom plugin · pomodoro', '自定义插件 · 番茄钟'),
+        subtitle: tr(
+          context,
+          'tick returns int: idle (-1), nextFrame (0), or positive microseconds. TaskQueuePlugin obtains its delay from nextWake.',
+          'tick 返回 int：idle（-1）、nextFrame（0）或正微秒数。TaskQueuePlugin 通过 nextWake 获取等待时长。',
         ),
-        const SizedBox(height: 4),
-        Text(_done ? '已到上限' : '计时中…', style: Theme.of(context).textTheme.bodySmall),
-      ],
-    );
-  }
+        code: sampleCode['pomodoro'],
+        child: const DemoGrid(children: [DemoGridItem(child: _PomodoroDemo())]),
+      ),
+    ],
+  );
 }
 
-/// 圈速演示：用 ElapsedController 记录 lap。
-class _LapDemo extends StatefulWidget {
-  /// 创建演示。
-  const _LapDemo();
-
-  @override
-  State<_LapDemo> createState() => _LapDemoState();
-}
-
-/// [_LapDemo] 的状态：持有控制器并刷新圈速列表。
-class _LapDemoState extends State<_LapDemo> {
-  /// 正计时控制器。
-  final ElapsedController _controller = ElapsedController();
-
-  /// 把时长格式化成 分:秒.十分秒。
-  String _format(Duration d) {
-    final m = d.inMinutes.toString().padLeft(2, '0');
-    final s = (d.inSeconds % 60).toString().padLeft(2, '0');
-    final t = (d.inMilliseconds % 1000) ~/ 100;
-    return '$m:$s.$t';
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final laps = _controller.laps;
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        TextElapsed(
-          controller: _controller,
-          plugin: defaultElapsedMs,
-          formatter: CountdownFormat.msTenths,
-          style: const CountmanTextStyle(textStyle: _numberStyle),
-        ),
-        Wrap(
-          spacing: 6,
-          children: [
-            TextButton(onPressed: () => setState(_controller.lap), child: const Text('Lap')),
-            TextButton(onPressed: _controller.pause, child: const Text('暂停')),
-            TextButton(onPressed: _controller.resume, child: const Text('继续')),
-            TextButton(onPressed: () => setState(_controller.reset), child: const Text('重置')),
-          ],
-        ),
-        for (var i = 0; i < laps.length && i < 4; i++)
-          Text('#${i + 1}  ${_format(laps[i])}', style: Theme.of(context).textTheme.bodySmall),
-      ],
-    );
-  }
-}
-
-/// 番茄钟演示：驱动自定义的 [PomodoroPlugin]。
+/// 短时番茄钟演示，用户点击后才启动，避免干扰休眠观察。
 class _PomodoroDemo extends StatefulWidget {
-  /// 创建演示。
+  /// 创建番茄钟卡片。
   const _PomodoroDemo();
 
+  /// 创建插件状态。
   @override
   State<_PomodoroDemo> createState() => _PomodoroDemoState();
 }
 
-/// [_PomodoroDemo] 的状态：持有插件实例与句柄。
+/// 管理自定义插件实例与当前快照。
 class _PomodoroDemoState extends State<_PomodoroDemo> {
-  /// 演示用的短阶段：专注 10 秒、休息 5 秒。
-  static const _phases = [
-    PomodoroPhase('专注', Duration(seconds: 10)),
-    PomodoroPhase('休息', Duration(seconds: 5)),
-  ];
+  /// 稳定且唯一的插件实例。
+  final PomodoroPlugin _plugin = PomodoroPlugin(name: 'demo-pomodoro');
 
-  /// 插件实例放在长生命周期的 State 里，避免重复创建时同名冲突。
-  final PomodoroPlugin _plugin = PomodoroPlugin(name: 'advanced-pomodoro');
+  /// 当前控制句柄。
+  PomodoroHandle? _handle;
 
-  /// 当前任务的控制句柄。
-  late final PomodoroHandle _handle;
-
-  /// 最近一次快照；首帧之前为空。
+  /// 当前任务快照。
   PomodoroSnapshot? _snapshot;
 
+  /// 注册插件但不主动启动任务。
   @override
   void initState() {
     super.initState();
     Countman.use(_plugin);
+  }
+
+  /// 启动专注和休息各两轮的短演示。
+  void _start() {
+    if (_handle != null) {
+      _handle!.restart();
+      return;
+    }
     _handle = _plugin.start(
-      phases: _phases,
+      phases: const [
+        PomodoroPhase('focus', Duration(seconds: 10)),
+        PomodoroPhase('rest', Duration(seconds: 5)),
+      ],
       rounds: 2,
-      onChange: (s) {
-        if (mounted) setState(() => _snapshot = s);
+      onChange: (value) {
+        if (mounted) setState(() => _snapshot = value);
       },
     );
   }
 
+  /// 注销插件与它拥有的任务。
   @override
   void dispose() {
     Countman.unuse(_plugin);
     super.dispose();
   }
 
+  /// 构建双语阶段与更新计数。
   @override
   Widget build(BuildContext context) {
-    final s = _snapshot;
-    final text = Theme.of(context).textTheme;
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          s == null ? '准备中…' : (s.finished ? '全部完成' : '${s.phase.label} · ${s.remainingSeconds}s'),
-          style: _numberStyle,
-        ),
-        const SizedBox(height: 4),
-        Text(
-          s == null ? '' : '阶段 ${s.phaseNumber}/${s.phaseCount} · 插件已处理 ${s.updates} 次更新',
-          style: text.bodySmall,
-        ),
-        Wrap(
-          spacing: 6,
-          children: [
-            TextButton(onPressed: _handle.pause, child: const Text('暂停')),
-            TextButton(onPressed: _handle.resume, child: const Text('继续')),
-            TextButton(onPressed: _handle.restart, child: const Text('重新开始')),
-          ],
-        ),
-      ],
-    );
-  }
-}
-
-/// 一个演示分组：标题、说明和一排演示卡片。
-class _Section extends StatelessWidget {
-  /// 创建分组。
-  const _Section({required this.title, required this.note, required this.children});
-
-  /// 分组标题。
-  final String title;
-
-  /// 一句话说明。
-  final String note;
-
-  /// 分组内的演示项。
-  final List<Widget> children;
-
-  @override
-  Widget build(BuildContext context) {
-    final text = Theme.of(context).textTheme;
-    final cs = Theme.of(context).colorScheme;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(title, style: text.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
-          const SizedBox(height: 4),
-          Text(note, style: text.bodySmall?.copyWith(color: cs.onSurface.withValues(alpha: 0.6))),
-          const SizedBox(height: 10),
-          Wrap(spacing: 12, runSpacing: 12, children: children),
-        ],
-      ),
-    );
-  }
-}
-
-/// 一个带标签的演示卡片。
-class _Tile extends StatelessWidget {
-  /// 创建卡片；[width] / [height] 为空时由内容撑开。
-  const _Tile(this.label, this.child, {this.width = 150, this.height});
-
-  /// 卡片标签。
-  final String label;
-
-  /// 演示内容。
-  final Widget child;
-
-  /// 卡片宽度。
-  final double width;
-
-  /// 卡片高度；为空时自适应。
-  final double? height;
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return Container(
-      width: width,
-      height: height,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: cs.outlineVariant),
+    final snapshot = _snapshot;
+    final phase = snapshot?.phase.label == 'rest'
+        ? tr(context, 'Rest', '休息')
+        : tr(context, 'Focus', '专注');
+    return DemoCard(
+      title: tr(context, 'Pomodoro', '番茄钟'),
+      description: tr(
+        context,
+        '10s focus, 5s rest, twice. The plugin sleeps between second boundaries.',
+        '专注十秒、休息五秒，重复两轮；插件在秒边界之间休眠。',
       ),
       child: Column(
-        mainAxisSize: MainAxisSize.min,
         children: [
-          Text(label, style: Theme.of(context).textTheme.labelSmall),
-          const SizedBox(height: 10),
-          child,
+          Text(
+            snapshot == null
+                ? tr(context, 'Ready', '准备就绪')
+                : snapshot.finished
+                ? DemoLabels.completed(context)
+                : '$phase · ${snapshot.remainingSeconds} s',
+            style: demoNumberStyle,
+          ),
+          if (snapshot != null)
+            Text('${DemoLabels.updates(context)}: ${snapshot.updates}'),
+          Wrap(
+            children: [
+              TextButton(
+                onPressed: _start,
+                child: Text(tr(context, 'Start / restart', '开始 / 重播')),
+              ),
+              if (_handle != null)
+                TextButton(
+                  onPressed: () => setState(() {
+                    _handle!.isPaused ? _handle!.resume() : _handle!.pause();
+                  }),
+                  child: Text(
+                    _handle!.isPaused
+                        ? DemoLabels.resume(context)
+                        : DemoLabels.pause(context),
+                  ),
+                ),
+            ],
+          ),
         ],
       ),
     );

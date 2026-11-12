@@ -1,6 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:countman/countman.dart';
 
+/// 大跨度快速计数用的 formatter：仅打散低位，结尾精确落在 [target]。
+///
+/// 供压测页复用；参数 [step] 为每帧步长。
+String Function(double) movingFormatter(double target, double step) =>
+    _PerfPageState._movingFormatter(target, step);
+
 /// Performance test page.
 /// Animates multiple counters from 0 → 999,999,999 over 10 s.
 /// Open via route '/perf'.
@@ -109,7 +115,7 @@ class _PerfPageState extends State<PerfPage> {
   /// 减量小于一帧步长,故只打散快速模糊的低位(该速率下本就读不清),而高于步长量级的
   /// 可读高位仍等于真值。于是每一列都在动而非冻结,并在结尾精确落到真实目标(最后回填)。
   /// 确定性 LCG,不用平台随机。
-  String Function(double) _movingFormatter(double target, double step) {
+  static String Function(double) _movingFormatter(double target, double step) {
     var seed = 0x2545F491;
     final tgt = target.round();
     final st = step.round().clamp(1, 1 << 30);
