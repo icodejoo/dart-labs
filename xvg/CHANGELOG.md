@@ -1,8 +1,9 @@
-## Unreleased
+## 0.2.0
 
 - **Breaking**: `maxFps` renamed to `fps`: null follows global; 0 freezes at the first frame; `double.infinity` is unlimited and ignores global.
 - Add `Xvg.fps` for live global animation frame-rate control; external `animation` drivers and static sources are unaffected.
 - `Xvg.ensureInitialized({double? fps})` sets the initial global `Xvg.fps` at startup (non-null only, applied on every call).
+- Fix: the macOS prebuilt `xvg.framework/xvg` symlink pointed to the old `Versions/Current/svgx` name, and the published archive stored the framework symlinks as plain files, so linking a macOS app failed with `framework 'xvg' not found`. The link now points to `Versions/Current/xvg`, and releases are published from a Linux GitHub Actions job that keeps real symlinks.
 
 ## 0.1.3
 
