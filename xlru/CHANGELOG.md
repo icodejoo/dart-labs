@@ -1,3 +1,7 @@
+## 0.1.2
+
+- Docs only: rewrote README wording in plain language; Chinese README renamed to README.zh-CN.md.
+
 ## 0.1.1
 
 - Add pluggable storage: `XlruStore` (sync) and `XlruAsyncStore` (async)

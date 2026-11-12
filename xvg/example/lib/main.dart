@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:xvg/xvg.dart';
 
 import 'animation_control_page.dart';
+import 'replay_demo.dart';
 import 'startup_native.dart' if (dart.library.js_interop) 'web_bootstrap.dart';
 
 // The line-md `confirm_circle` icon SVG source, verbatim. Its `<g>` element
@@ -206,19 +207,36 @@ const String kAnimatedGradientSvg =
     '<rect x="2" y="2" width="20" height="20" rx="4" fill="url(#animGrad)"/>'
     '</svg>';
 
+/// 常规 SVG 演示的边长。
+const _demoEdge = 96.0;
+
+/// 相邻演示之间的垂直间距。
+const _sectionGap = 48.0;
+
+/// 标题与演示之间的垂直间距。
+const _labelGap = 8.0;
+
+/// 两种 spinner 渲染演示共用的颜色主题。
+const _spinnerTheme = XvgTheme(currentColor: Color(0xFF2A6DF4));
+
+/// DecorationImage 演示使用的固定图片缓存键。
+const _decorationSpinner = StringXvg(
+  kSpinnerSvg,
+  width: _demoEdge,
+  height: _demoEdge,
+  theme: _spinnerTheme,
+);
+
+/// 初始化平台桥接并启动演示应用。
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDemo();
   runApp(const MyApp());
 }
 
-/// Remounts an [Xvg.string] on a timer so a non-repeating (no
-/// `repeatCount="indefinite"`) demo animation replays instead of staying
-/// frozen at its final frame once played.
-///
-/// 定时重新挂载 [Xvg.string]，让不带 `repeatCount="indefinite"` 的演示动画
-/// 反复重播，而不是播放一次后永远定格在终态。
+/// 定时重挂载接力动画，让一次性动画继续循环演示。
 class _RestartingSvg extends StatefulWidget {
+  /// 创建按指定间隔重播的 SVG 演示。
   const _RestartingSvg(
     this.source, {
     required this.width,
@@ -226,19 +244,32 @@ class _RestartingSvg extends StatefulWidget {
     required this.interval,
   });
 
+  /// 动画 SVG 源码。
   final String source;
+
+  /// 演示宽度。
   final double width;
+
+  /// 演示高度。
   final double height;
+
+  /// 自动重放间隔。
   final Duration interval;
 
+  /// 创建接力动画的计时状态。
   @override
   State<_RestartingSvg> createState() => _RestartingSvgState();
 }
 
+/// 管理接力演示的自动重放计时器。
 class _RestartingSvgState extends State<_RestartingSvg> {
+  /// 当前自动重放的挂载代数。
   int _generation = 0;
+
+  /// 驱动自动重放的计时器。
   late final Timer _timer;
 
+  /// 启动自动重放计时器。
   @override
   void initState() {
     super.initState();
@@ -248,12 +279,14 @@ class _RestartingSvgState extends State<_RestartingSvg> {
     );
   }
 
+  /// 卸载时取消计时器。
   @override
   void dispose() {
     _timer.cancel();
     super.dispose();
   }
 
+  /// 通过新键从头播放接力动画。
   @override
   Widget build(BuildContext context) {
     return Xvg.string(
@@ -305,158 +338,235 @@ class MyApp extends StatelessWidget {
                   ),
                 const SizedBox(height: 24),
                 const Text('Animated (original SMIL engine)'),
-                const SizedBox(height: 8),
-                Xvg.string(
-                  kConfirmCircleSvg,
-                  width: 96,
-                  height: 96,
-                  // The SVG strokes use `currentColor`; resolve it to orange so
-                  // the circle + checkmark draw-on animation is clearly visible.
-                  theme: const XvgTheme(currentColor: Color(0xFFFF7A00)),
+                const SizedBox(height: _labelGap),
+                ReplayDemo(
+                  child: Xvg.string(
+                    kConfirmCircleSvg,
+                    width: _demoEdge,
+                    height: _demoEdge,
+                    // The SVG strokes use `currentColor`; resolve it to orange so
+                    // the circle + checkmark draw-on animation is clearly visible.
+                    theme: const XvgTheme(currentColor: Color(0xFFFF7A00)),
+                  ),
                 ),
-                const SizedBox(height: 48),
+                const SizedBox(height: _sectionGap),
                 const Text('Looping animateTransform (svg-spinners 180-ring)'),
-                const SizedBox(height: 8),
-                Xvg.string(
-                  kSpinnerSvg,
-                  width: 96,
-                  height: 96,
-                  theme: const XvgTheme(currentColor: Color(0xFF2A6DF4)),
+                const SizedBox(height: _labelGap),
+                ReplayDemo(
+                  child: Xvg.string(
+                    kSpinnerSvg,
+                    width: _demoEdge,
+                    height: _demoEdge,
+                    theme: _spinnerTheme,
+                  ),
                 ),
-                const SizedBox(height: 48),
+                const SizedBox(height: _sectionGap),
                 const Text(
                   'Rotation marker (unambiguous animateTransform proof)',
                 ),
-                const SizedBox(height: 8),
-                Xvg.string(kRotationMarkerSvg, width: 96, height: 96),
-                const SizedBox(height: 48),
+                const SizedBox(height: _labelGap),
+                ReplayDemo(
+                  child: Xvg.string(
+                    kRotationMarkerSvg,
+                    width: _demoEdge,
+                    height: _demoEdge,
+                  ),
+                ),
+                const SizedBox(height: _sectionGap),
                 const Text('Static (Rust usvg path)'),
-                const SizedBox(height: 8),
-                Xvg.string(kStaticCheckCircleSvg, width: 96, height: 96),
-                const SizedBox(height: 48),
+                const SizedBox(height: _labelGap),
+                Xvg.string(
+                  kStaticCheckCircleSvg,
+                  width: _demoEdge,
+                  height: _demoEdge,
+                ),
+                const SizedBox(height: _sectionGap),
                 const Text('Static currentColor (theme override → purple)'),
-                const SizedBox(height: 8),
+                const SizedBox(height: _labelGap),
                 Xvg.string(
                   kStaticCurrentColorSvg,
-                  width: 96,
-                  height: 96,
+                  width: _demoEdge,
+                  height: _demoEdge,
                   theme: const XvgTheme(currentColor: Color(0xFF9B30FF)),
                 ),
-                const SizedBox(height: 48),
+                const SizedBox(height: _sectionGap),
                 const Text(
                   'paint-order: default (fill then stroke) vs stroke-first',
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: _labelGap),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Xvg.string(
                       _paintOrderCircleSvg(strokeFirst: false),
-                      width: 96,
-                      height: 96,
+                      width: _demoEdge,
+                      height: _demoEdge,
                     ),
                     const SizedBox(width: 32),
                     Xvg.string(
                       _paintOrderCircleSvg(strokeFirst: true),
-                      width: 96,
-                      height: 96,
+                      width: _demoEdge,
+                      height: _demoEdge,
                     ),
                   ],
                 ),
-                const SizedBox(height: 48),
+                const SizedBox(height: _sectionGap),
                 const Text('Embedded <image> (base64 PNG)'),
-                const SizedBox(height: 8),
-                Xvg.string(kEmbeddedImageSvg, width: 96, height: 96),
-                const SizedBox(height: 48),
+                const SizedBox(height: _labelGap),
+                Xvg.string(
+                  kEmbeddedImageSvg,
+                  width: _demoEdge,
+                  height: _demoEdge,
+                ),
+                const SizedBox(height: _sectionGap),
                 const Text(
                   'Named CSS colors (fill="tomato" stroke="cornflowerblue")',
                 ),
-                const SizedBox(height: 8),
-                Xvg.string(kNamedColorsSvg, width: 96, height: 96),
-                const SizedBox(height: 48),
+                const SizedBox(height: _labelGap),
+                Xvg.string(
+                  kNamedColorsSvg,
+                  width: _demoEdge,
+                  height: _demoEdge,
+                ),
+                const SizedBox(height: _sectionGap),
                 const Text(
                   'Static <g transform="translate() rotate() scale()">',
                 ),
-                const SizedBox(height: 8),
-                Xvg.string(kGroupTransformSvg, width: 96, height: 96),
-                const SizedBox(height: 48),
-                const Text('animateTransform type="skewX"'),
-                const SizedBox(height: 8),
-                Xvg.string(kSkewXSvg, width: 96, height: 96),
-                const SizedBox(height: 48),
-                const Text('<use> of a <defs> shape with its own <animate>'),
-                const SizedBox(height: 8),
-                Xvg.string(kUseAnimatedSvg, width: 96, height: 96),
-                const SizedBox(height: 48),
-                const Text('Syncbase begin relay (begin="firstAnim.end")'),
-                const SizedBox(height: 8),
-                _RestartingSvg(
-                  kSyncbaseRelaySvg,
-                  width: 96,
-                  height: 96,
-                  interval: const Duration(seconds: 3),
+                const SizedBox(height: _labelGap),
+                Xvg.string(
+                  kGroupTransformSvg,
+                  width: _demoEdge,
+                  height: _demoEdge,
                 ),
-                const SizedBox(height: 48),
+                const SizedBox(height: _sectionGap),
+                const Text('animateTransform type="skewX"'),
+                const SizedBox(height: _labelGap),
+                ReplayDemo(
+                  child: Xvg.string(
+                    kSkewXSvg,
+                    width: _demoEdge,
+                    height: _demoEdge,
+                  ),
+                ),
+                const SizedBox(height: _sectionGap),
+                const Text('<use> of a <defs> shape with its own <animate>'),
+                const SizedBox(height: _labelGap),
+                ReplayDemo(
+                  child: Xvg.string(
+                    kUseAnimatedSvg,
+                    width: _demoEdge,
+                    height: _demoEdge,
+                  ),
+                ),
+                const SizedBox(height: _sectionGap),
+                const Text('Syncbase begin relay (begin="firstAnim.end")'),
+                const SizedBox(height: _labelGap),
+                ReplayDemo(
+                  child: _RestartingSvg(
+                    kSyncbaseRelaySvg,
+                    width: _demoEdge,
+                    height: _demoEdge,
+                    interval: const Duration(seconds: 3),
+                  ),
+                ),
+                const SizedBox(height: _sectionGap),
                 const Text('<animateMotion rotate="auto"> along a path'),
-                const SizedBox(height: 8),
-                Xvg.string(kAnimateMotionSvg, width: 96, height: 96),
-                const SizedBox(height: 48),
+                const SizedBox(height: _labelGap),
+                ReplayDemo(
+                  child: Xvg.string(
+                    kAnimateMotionSvg,
+                    width: _demoEdge,
+                    height: _demoEdge,
+                  ),
+                ),
+                const SizedBox(height: _sectionGap),
                 const Text('Static linearGradient fill'),
-                const SizedBox(height: 8),
-                Xvg.string(kLinearGradientSvg, width: 96, height: 96),
-                const SizedBox(height: 48),
+                const SizedBox(height: _labelGap),
+                Xvg.string(
+                  kLinearGradientSvg,
+                  width: _demoEdge,
+                  height: _demoEdge,
+                ),
+                const SizedBox(height: _sectionGap),
                 const Text('Animated <mask> (Task 1)'),
-                const SizedBox(height: 8),
-                Xvg.string(kAnimatedMaskSvg, width: 96, height: 96),
-                const SizedBox(height: 48),
+                const SizedBox(height: _labelGap),
+                ReplayDemo(
+                  child: Xvg.string(
+                    kAnimatedMaskSvg,
+                    width: _demoEdge,
+                    height: _demoEdge,
+                  ),
+                ),
+                const SizedBox(height: _sectionGap),
                 const Text('<text> with animated opacity (Task 2)'),
-                const SizedBox(height: 8),
-                Xvg.string(kTextSvg, width: 160, height: 48),
-                const SizedBox(height: 48),
+                const SizedBox(height: _labelGap),
+                ReplayDemo(child: Xvg.string(kTextSvg, width: 160, height: 48)),
+                const SizedBox(height: _sectionGap),
                 const Text('<animateMotion keyPoints/keyTimes> (Task 3)'),
-                const SizedBox(height: 8),
-                Xvg.string(kAnimateMotionKeyPointsSvg, width: 96, height: 96),
-                const SizedBox(height: 48),
+                const SizedBox(height: _labelGap),
+                ReplayDemo(
+                  child: Xvg.string(
+                    kAnimateMotionKeyPointsSvg,
+                    width: _demoEdge,
+                    height: _demoEdge,
+                  ),
+                ),
+                const SizedBox(height: _sectionGap),
                 const Text('Animated gradient: geometry + stop-color (Task 4)'),
-                const SizedBox(height: 8),
-                Xvg.string(kAnimatedGradientSvg, width: 96, height: 96),
-                const SizedBox(height: 48),
+                const SizedBox(height: _labelGap),
+                ReplayDemo(
+                  child: Xvg.string(
+                    kAnimatedGradientSvg,
+                    width: _demoEdge,
+                    height: _demoEdge,
+                  ),
+                ),
+                const SizedBox(height: _sectionGap),
                 const Text('Xvg.memory (static SVG bytes)'),
-                const SizedBox(height: 8),
+                const SizedBox(height: _labelGap),
                 Xvg.memory(
                   Uint8List.fromList(utf8.encode(kStaticCurrentColorSvg)),
-                  width: 96,
-                  height: 96,
+                  width: _demoEdge,
+                  height: _demoEdge,
                   theme: const XvgTheme(currentColor: Color(0xFF0D9488)),
                 ),
-                const SizedBox(height: 48),
+                const SizedBox(height: _sectionGap),
                 if (kIsWeb) ...[
                   const Text('Xvg.network (same-origin fetch)'),
-                  const SizedBox(height: 8),
-                  Xvg.network('assets/assets/icon.svg', width: 96, height: 96),
-                  const SizedBox(height: 48),
+                  const SizedBox(height: _labelGap),
+                  Xvg.network(
+                    'assets/assets/icon.svg',
+                    width: _demoEdge,
+                    height: _demoEdge,
+                  ),
+                  const SizedBox(height: _sectionGap),
                 ],
                 const Text('Xvg.asset'),
-                const SizedBox(height: 8),
-                Xvg.asset('assets/icon.svg', width: 96, height: 96),
-                const SizedBox(height: 48),
+                const SizedBox(height: _labelGap),
+                Xvg.asset(
+                  'assets/icon.svg',
+                  width: _demoEdge,
+                  height: _demoEdge,
+                ),
+                const SizedBox(height: _sectionGap),
                 const Text(
                   'StringXvg in a DecorationImage — animated spinner, '
                   'rasterized per-frame through ImageProvider (not '
                   'CustomPainter)',
                 ),
-                const SizedBox(height: 8),
-                Container(
-                  width: 96,
-                  height: 96,
-                  decoration: BoxDecoration(
-                    image: DecorationImage(
-                      image: StringXvg(
-                        kSpinnerSvg,
-                        width: 96,
-                        height: 96,
-                        theme: const XvgTheme(currentColor: Color(0xFF2A6DF4)),
-                      ),
+                const SizedBox(height: _labelGap),
+                ReplayDemo(
+                  onReplay: () {
+                    // 重挂载前移除旧帧流，避免 ImageCache 继续沿用旧进度。
+                    PaintingBinding.instance.imageCache.evict(
+                      _decorationSpinner,
+                    );
+                  },
+                  child: Container(
+                    width: _demoEdge,
+                    height: _demoEdge,
+                    decoration: const BoxDecoration(
+                      image: DecorationImage(image: _decorationSpinner),
                     ),
                   ),
                 ),

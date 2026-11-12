@@ -1,8 +1,8 @@
 # json_annotation_lenient
 
-**Lenient JSON conversion for `json_serializable` — coerce loose `int`/`double`/`num`/`bool`/`String`/`DateTime` values instead of throwing, plus a drop-in build_runner builder that auto-fills type-based defaults for missing fields.**
+**Lenient JSON conversion for `json_serializable`. Converters turn loose `int`/`double`/`num`/`bool`/`String`/`DateTime` values into the right type instead of throwing, and a build_runner builder fills in type-based defaults for missing fields.**
 
-**English** · [简体中文](https://github.com/icodejoo/dart-labs/blob/main/json_annotation_lenient/README.zh.md)
+**English** · [简体中文](https://github.com/icodejoo/dart-labs/blob/main/json_annotation_lenient/README.zh-CN.md)
 
 [![pub.dev](https://img.shields.io/pub/v/json_annotation_lenient.svg)](https://pub.dev/packages/json_annotation_lenient)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/icodejoo/dart-labs/blob/main/json_annotation_lenient/LICENSE)
@@ -11,26 +11,24 @@
 
 ## Why json_annotation_lenient?
 
-Real-world APIs rarely send perfectly-typed JSON — an `int` field shows up as
-`"42"`, a `bool` field shows up as `1`, a timestamp shows up as a string one
-day and an epoch number the next. Stock `json_serializable` throws on all of
-these. `json_annotation_lenient` gives you two independent tools to deal with it:
+Real APIs often send JSON with the wrong types: an `int` field arrives as `"42"`,
+a `bool` field as `1`, and a timestamp is a string one day and an epoch number
+the next. Stock `json_serializable` throws on all of these.
+`json_annotation_lenient` has two separate tools for this:
 
-1. **Converters** — six `JsonConverter` implementations that coerce common
-   alternate shapes for `int`/`double`/`num`/`bool`/`String`/`DateTime`, each
-   falling back to a sensible default when the value is missing or `null`.
-2. **A build_runner builder** — `autoDefaultJsonBuilder`, a full replacement
-   for the stock `json_serializable` builder. It auto-fills type-based
-   defaults for any non-nullable field with no explicit
-   `@JsonKey(defaultValue:)`, and — for a class marked
-   `@LenientConverter(...)` — rewrites its matching fields to route through
-   the converters above automatically, so you don't have to stack a
-   `@LenientIntConverter()` / `@LenientDoubleConverter()` / ... annotation on
-   every single field.
+1. **Converters**: six `JsonConverter` classes that accept the common alternate
+   shapes of `int`/`double`/`num`/`bool`/`String`/`DateTime`. When the value is
+   missing or `null`, each one returns a default.
+2. **A build_runner builder**: `autoDefaultJsonBuilder` replaces the stock
+   `json_serializable` builder. For every non-nullable field without an
+   explicit `@JsonKey(defaultValue:)`, it fills in a default based on the
+   type. For a class marked `@LenientConverter(...)`, it also rewrites the
+   matching fields to use the converters above, so you don't have to put
+   `@LenientIntConverter()` / `@LenientDoubleConverter()` / ... on every field.
 
-Both pieces work independently: use just the converters with the stock
-builder, or pull in the builder for its auto-defaults even on classes that
-never use `@LenientConverter`.
+You can use either one alone: the converters with the stock builder, or the
+builder just for its auto-defaults, even on classes that never use
+`@LenientConverter`.
 
 ---
 
@@ -41,10 +39,9 @@ dependencies:
   json_annotation_lenient: ^1.1.0
 ```
 
-`json_annotation_lenient` is designed to be a **regular** dependency (not
-`dev_dependencies`) even in a project that only uses it at build time — a
-`build.yaml` builder plugin has to be resolvable from the depending project's
-regular dependency graph.
+Add it as a **regular** dependency, not under `dev_dependencies`, even if your
+project only uses it at build time. A `build.yaml` builder plugin has to be
+resolvable from the project's regular dependency graph.
 
 ---
 
@@ -71,46 +68,45 @@ class Foo {
 }
 ```
 
-Each converter falls back to a default value when the JSON value is missing
-or `null` — `0` for int/num, `0.0` for double, `false` for bool, `''` for
-string, and the Unix epoch for `DateTime` (override via the generated
-`@JsonKey(defaultValue: ...)` where the type allows a const default —
-`DateTime` doesn't, since it has no const constructor).
+When the JSON value is missing or `null`, each converter returns a default:
+`0` for int/num, `0.0` for double, `false` for bool, `''` for string, and the
+Unix epoch for `DateTime`. You can change the default with the generated
+`@JsonKey(defaultValue: ...)` where the type allows a const default.
+`DateTime` doesn't, because it has no const constructor.
 
 ### `@LenientConverter` — enable leniency for a whole class
 
-Rather than stacking one converter annotation per field, mark the class
-itself and every field of a matching scalar type gets routed through the
-corresponding converter automatically (this requires the
-`autoDefaultJsonBuilder`, see below):
+Instead of one converter annotation per field, mark the class. Every field of a
+matching scalar type then goes through the corresponding converter (this needs
+the `autoDefaultJsonBuilder`, see below):
 
 ```dart
-@LenientConverter() // int/double/num/bool/String/DateTime all enabled
+@LenientConverter() // int/double/num/bool/String/DateTime are all enabled
 @JsonSerializable()
 class Foo {
   final int count;       // routed through LenientIntConverter
   final bool active;     // routed through LenientBoolConverter
 
   @LenientConverter(double: false)
-  final double score;    // untouched — opted out just for this field
+  final double score;    // untouched: opted out for this field only
 
   @DisableLenient()
-  final int strictId;    // untouched — opts out of everything
+  final int strictId;    // untouched: opted out of everything
 
   Foo(this.count, this.active, this.score, this.strictId);
 }
 ```
 
-`@LenientConverter(dateTimeUtc: true)` (class- or field-level) controls how a
-timezone-less `DateTime` value is interpreted — see the dartdoc on
-`LenientDateTimeConverter` for the full rules.
+`@LenientConverter(dateTimeUtc: true)` (on a class or a field) decides how a
+`DateTime` value without a timezone is interpreted. The full rules are in the
+dartdoc of `LenientDateTimeConverter`.
 
 ---
 
 ## Using the builder
 
-Add a `build.yaml` at your project root that disables the stock
-`json_serializable` builder and enables `json_annotation_lenient`'s replacement instead:
+Add a `build.yaml` at your project root. It turns off the stock
+`json_serializable` builder and turns on the replacement from `json_annotation_lenient`:
 
 ```yaml
 targets:
@@ -124,11 +120,10 @@ targets:
           explicit_to_json: true
 ```
 
-The `auto_default` builder itself is already declared by this package's own
-`build.yaml` (with `auto_apply: none`) — don't redeclare a `builders:` block
-in your own `build.yaml`, it would register a second builder writing the same
-`.g.dart` output and `build_runner` will refuse to run with a
-"conflicting outputs" error.
+This package's own `build.yaml` already declares the `auto_default` builder
+(with `auto_apply: none`). Don't declare a `builders:` block in your own
+`build.yaml`: it would register a second builder that writes the same `.g.dart`
+files, and `build_runner` stops with a "conflicting outputs" error.
 
 Then run `build_runner` as usual:
 
@@ -136,19 +131,17 @@ Then run `build_runner` as usual:
 dart run build_runner build --delete-conflicting-outputs
 ```
 
-The builder already formats every generated `.g.dart` with the `dart_style`
-package, and automatically picks up your project's own `page_width`/
-`trailing_commas` from `analysis_options.yaml` if it sets them (see
-`options.page_width`/`options.trailing_commas` below for the details and
-limitations of that auto-detection). Even so, `dart_style` on pub.dev is a
-separate package from the formatter your SDK's own `dart format` CLI ships
-with, and the two can drift out of sync (pub.dev's release may lag behind
-the formatter bundled in a newer Dart SDK release) — which can still leave
-generated files that don't quite match a plain `dart format .` run on the
-rest of your project. If your project enforces a
-`dart format --set-exit-if-changed` check (in CI or a pre-commit hook), chain
-a real format pass after generation to stay in sync with your SDK's actual
-formatter:
+The builder formats every generated `.g.dart` with the `dart_style` package. It
+also reads `page_width` and `trailing_commas` from your project's
+`analysis_options.yaml` if you set them (see `options.page_width` /
+`options.trailing_commas` below for how this works and where it falls short).
+Even so, the `dart_style` on pub.dev is a separate package from the formatter
+inside your SDK's `dart format` command. Their versions can differ, for example
+when the pub.dev release lags behind the formatter bundled with a newer Dart SDK.
+Then the generated files may not match what a plain `dart format .` produces for
+the rest of your project. If CI or a pre-commit hook runs
+`dart format --set-exit-if-changed`, run a real format pass after generation so
+the files match your SDK's formatter:
 
 ```
 dart run build_runner build --delete-conflicting-outputs && dart format .
@@ -156,32 +149,30 @@ dart run build_runner build --delete-conflicting-outputs && dart format .
 
 With this builder active:
 
-- Every non-nullable field with no explicit `@JsonKey(defaultValue:)` falls
-  back to a type-based default (`''`, `0`, `0.0`, `false`, `const []`,
-  `const {}`) instead of throwing on a missing/null value.
-- A class annotated `@LenientConverter(...)` gets its matching-type fields
-  routed through the corresponding `Lenient*Converter` — no per-field
-  annotation needed.
-- A field marked `@DisableLenient()` is left completely untouched by both of
-  the above (pure stock `json_serializable` behavior).
+- Every non-nullable field without an explicit `@JsonKey(defaultValue:)` falls
+  back to a default based on its type (`''`, `0`, `0.0`, `false`, `const []`,
+  `const {}`) instead of throwing when the key is missing or null.
+- In a class annotated `@LenientConverter(...)`, fields of a matching type are
+  routed through the corresponding `Lenient*Converter`. You don't need an
+  annotation on each field.
+- A field marked `@DisableLenient()` is left untouched by both of the above
+  (plain stock `json_serializable` behavior).
 
-`options` under `json_annotation_lenient:auto_default` are passed straight through to
-the underlying `JsonSerializableGenerator` (`explicit_to_json`,
-`field_rename`, ... — the same options the stock `json_serializable` builder
-accepts) — except for the `lenient:` section below, which the builder consumes
-itself.
+`options` under `json_annotation_lenient:auto_default` are passed unchanged to
+the underlying `JsonSerializableGenerator`. These are the same options the stock
+`json_serializable` builder accepts (`explicit_to_json`, `field_rename`, ...).
+The one exception is the `lenient:` section below, which the builder reads itself.
 
-**`explicit_to_json` defaults to `true`** when you don't set it at all —
-nested `@JsonSerializable` fields need their own `.toJson()` called
-explicitly to serialize correctly, and the stock `json_serializable` default
-of `false` meant every consumer had to opt in by hand. Write
-`explicit_to_json: false` yourself if you rely on the old implicit-`toJson`
-behavior — an explicit value in either direction is always honored.
+**`explicit_to_json` defaults to `true`** when you don't set it. Nested
+`@JsonSerializable` fields need their own `.toJson()` call to serialize
+correctly, and the stock default of `false` made every project turn it on by
+hand. If you rely on the old implicit-`toJson` behavior, write
+`explicit_to_json: false`. An explicit value, true or false, is always honored.
 
 ### `options.lenient` — project-wide leniency, no annotations needed
 
-`@LenientConverter` is per-class. If you want the same policy across the whole
-project, configure it once in `build.yaml` instead:
+`@LenientConverter` works per class. To apply the same policy to the whole
+project, configure it once in `build.yaml`:
 
 ```yaml
 targets:
@@ -212,25 +203,25 @@ targets:
 ```
 
 The six type keys map to the six converters (`int`, `double`, `num`, `bool`,
-`string`, `dateTime`). Every key — including `enabled`, `defaultValue` and
-`utc` — is optional: only what you actually write is applied, and everything
-else keeps the annotation-driven behavior. Classes with no
-`@LenientConverter`/`@DisableLenient` annotation at all are covered too, so a
-yml-only setup works — **as long as the model file itself still imports**
+`string`, `dateTime`). Every key, including `enabled`, `defaultValue` and `utc`,
+is optional. Only what you write is applied; everything else keeps the
+annotation-driven behavior. Classes with no `@LenientConverter` or
+`@DisableLenient` annotation are covered too, so a yml-only setup works,
+**as long as the model file still imports**
 `package:json_annotation_lenient/json_annotation_lenient.dart`. The rewrite
-emits a bare `LenientIntConverter()`/etc. reference into the generated part
-file, which has no imports of its own and inherits the library's; without
-that import the generated code fails with an undefined-name error (the
-builder also logs a build-time warning when this happens).
+puts a bare `LenientIntConverter()` (or similar) into the generated part file.
+A part file has no imports of its own and uses those of its library. Without
+that import, the generated code fails with an undefined-name error (the builder
+also logs a warning at build time when this happens).
 
 **Precedence for `enabled`**, highest first:
 
-1. The field's own `@LenientConverter(...)` — the yml can never override it.
-2. The yml's `enabled:` for that type — overrides the class-level annotation.
+1. The field's own `@LenientConverter(...)`. The yml can never override it.
+2. The yml's `enabled:` for that type. It overrides the class-level annotation.
 3. The class-level `@LenientConverter(...)`.
 
-`@DisableLenient()` on a field still trumps all three (the field is left
-exactly as stock `json_serializable` generated it).
+`@DisableLenient()` on a field still beats all three: the field stays exactly as
+stock `json_serializable` generated it.
 
 **Precedence for the fallback value**, highest first:
 
@@ -238,38 +229,37 @@ exactly as stock `json_serializable` generated it).
 2. The yml's `defaultValue:` for that type.
 3. The built-in type default (`''`, `0`, `0.0`, `false`).
 
-A yml `defaultValue:` applies to plain auto-defaulted fields too, not just
-lenient ones — with `string.defaultValue: "n/a"` a non-lenient `String` field
+A yml `defaultValue:` also applies to plain auto-defaulted fields, not just
+lenient ones. With `string.defaultValue: "n/a"`, a non-lenient `String` field
 generates `json['x'] as String? ?? 'n/a'`.
 
-**`dateTime` specifics:** it accepts `enabled:` and `utc:` (the latter
-overrides a class-level `@LenientConverter(dateTimeUtc:)`, but not a
-field-level one), and does *not* support `defaultValue:` — `DateTime` has no
-const constructor, so there's no Dart literal to emit. A `defaultValue:`
-written under `dateTime` is ignored rather than treated as an error.
+**`dateTime` specifics:** it accepts `enabled:` and `utc:`. `utc:` overrides a
+class-level `@LenientConverter(dateTimeUtc:)` but not a field-level one.
+`defaultValue:` is not supported: `DateTime` has no const constructor, so there
+is no Dart literal to generate. A `defaultValue:` under `dateTime` is ignored,
+not treated as an error.
 
-The whole section is parsed leniently: a malformed entry (wrong shape, wrong
-value type) is skipped rather than failing the build.
+The whole section is parsed leniently: a malformed entry (wrong shape or wrong
+value type) is skipped, and the build does not fail.
 
 ### `options.page_width` / `options.trailing_commas` — matching your formatter config
 
-`dart_style`'s public `DartFormatter` class — the only thing this builder (or
-any other `PartBuilder`-based generator) can call — never reads a project's
-`analysis_options.yaml` at all; the logic that does is private to
-`dart_style`'s own CLI. Without help, generated `.g.dart` always uses
-`dart_style`'s built-in page width (80) and trailing-comma policy
-(`automate`), no matter what your project has configured.
+`dart_style`'s public `DartFormatter` class is the only thing this builder (or any
+other `PartBuilder`-based generator) can call, and it never reads a project's
+`analysis_options.yaml`. The code that does is private to `dart_style`'s own
+CLI. So by default, generated `.g.dart` files always use `dart_style`'s built-in
+page width (80) and trailing-comma policy (`automate`), whatever your project
+configures.
 
-To close that gap, this builder:
+To close that gap, the builder does two things:
 
-1. Auto-detects `formatter: page_width:`/`trailing_commas:` from the nearest
-   `analysis_options.yaml` (walking up from the directory `build_runner` is
-   run from) — a from-scratch, deliberately simplified reimplementation that
-   follows at most one local (non-`package:`) `include:` path per file. An
-   `analysis_options.yaml` whose `formatter:` section lives behind a
-   `package:` include (e.g. a shared team lint package) isn't picked up this
-   way.
-2. Falls back to whatever you set explicitly:
+1. It looks for `formatter: page_width:` / `trailing_commas:` in the nearest
+   `analysis_options.yaml`, walking up from the directory where `build_runner`
+   runs. This is a simplified implementation written from scratch. It follows
+   at most one local (non-`package:`) `include:` path per file. If the
+   `formatter:` section sits behind a `package:` include (for example a shared
+   team lint package), it is not found.
+2. It uses the values you set explicitly:
 
    ```yaml
    options:
@@ -277,35 +267,32 @@ To close that gap, this builder:
      trailing_commas: preserve # or 'automate'
    ```
 
-   An explicit `options:` value here always wins over auto-detection —
-   useful both as an override and as the escape hatch for the `package:`
-   include case above.
+   A value set in `options:` always wins over auto-detection. Use it to override
+   the detected values, or when your settings are behind a `package:` include.
 
 ---
 
 ## Known limitations
 
-The auto-default rewrite only recognizes the specific code shapes
-`json_serializable` emits for `bool`/`num`/`int`/`double`/`String`/`DateTime`
-scalars, `List<T>`/`Set<T>`, and `Map<K, V>`. A few field shapes are
-deliberately left untouched — they behave exactly like stock
-`json_serializable` (i.e. still throw on a missing/null value), not silently
-broken:
+The auto-default rewrite only recognizes the code shapes `json_serializable`
+generates for `bool`/`num`/`int`/`double`/`String`/`DateTime` scalars,
+`List<T>`/`Set<T>` and `Map<K, V>`. A few field shapes are left untouched on
+purpose. They behave exactly like stock `json_serializable` (they still throw on
+a missing or null value) and are not silently broken:
 
 - **Nested `@JsonSerializable` object fields** (`final Bar bar;` generating
   `Bar.fromJson(json['bar'] as Map<String, dynamic>)`) get no auto-default.
-  Give the field its own `@JsonKey(defaultValue: ...)`, or make it nullable,
-  if you need one.
-- **`@JsonKey(fromJson: ..., toJson: ...)`** custom function fields and any
-  third-party `@JsonConverter` not from this package pass straight through
-  unmodified — the rewrite never touches a shape it doesn't explicitly
-  recognize, precisely so it can't emit code that fails to compile.
-- **`enum` fields** are not given an invented fallback value — there's no
-  generically "correct" default enum member the way `0`/`''`/`false` are for
-  scalars. Use `@JsonKey(defaultValue: MyEnum.foo)` (works out of the box
-  with stock `json_serializable`, no leniency needed) for a missing/null
-  key, and/or `@JsonKey(unknownEnumValue: MyEnum.foo)` for a value that
-  isn't one of the enum's cases.
+  If you need one, give the field its own `@JsonKey(defaultValue: ...)` or make
+  it nullable.
+- **`@JsonKey(fromJson: ..., toJson: ...)`** custom function fields, and any
+  third-party `@JsonConverter` not from this package, pass through unchanged.
+  The rewrite never touches a shape it doesn't recognize, so it can't generate
+  code that fails to compile.
+- **`enum` fields** get no made-up fallback value. Unlike `0`/`''`/`false` for
+  scalars, no enum member is a generally correct default. For a missing or null
+  key, use `@JsonKey(defaultValue: MyEnum.foo)` (works with stock
+  `json_serializable`, no leniency needed). For a value that isn't one of the
+  enum's cases, use `@JsonKey(unknownEnumValue: MyEnum.foo)`.
 
 ---
 
@@ -313,9 +300,9 @@ broken:
 
 Issues and PRs are welcome.
 
-- 🐛 [Open an issue](https://github.com/icodejoo/dart-labs/issues)
-- 🔧 [Send a PR](https://github.com/icodejoo/dart-labs/pulls) — please run
-  `dart analyze` and `dart test` (from `json_annotation_lenient/`) before submitting.
+- [Open an issue](https://github.com/icodejoo/dart-labs/issues)
+- [Send a PR](https://github.com/icodejoo/dart-labs/pulls). Please run
+  `dart analyze` and `dart test` (from `json_annotation_lenient/`) first.
 
 ## License
 

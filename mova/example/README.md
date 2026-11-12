@@ -1,6 +1,6 @@
 # mova_example
 
-Demonstrates how to use the mova plugin.
+Demo app for the mova plugin.
 
 ## Entrypoints
 

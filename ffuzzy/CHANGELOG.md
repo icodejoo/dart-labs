@@ -1,3 +1,7 @@
+## 0.6.5
+
+- Docs only: rewrote README wording in plain language.
+
 # Changelog
 
 ## 0.6.4

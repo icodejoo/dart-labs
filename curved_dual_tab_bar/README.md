@@ -1,16 +1,18 @@
 # curved_dual_tab_bar
 
-**A curved, two-segment tab bar with an animated S-curve divider — built on a real Material `TabBar`, not a fake gesture layer.**
+**English** | [简体中文](README.zh-CN.md)
+
+A tab bar with two curved segments and an animated S-curve divider. It sits on top of Flutter's own `TabBar`, so it does not fake taps or selection.
 
 [![pub.dev](https://img.shields.io/pub/v/curved_dual_tab_bar.svg)](https://pub.dev/packages/curved_dual_tab_bar)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/icodejoo/dart-labs/blob/main/curved_dual_tab_bar/LICENSE)
 [![Demo](https://img.shields.io/badge/demo-live-brightgreen)](https://icodejoo.github.io/dart-labs/curved_dual_tab_bar/)
 
-**[▶ Live Demo](https://icodejoo.github.io/dart-labs/curved_dual_tab_bar/)** — every styling knob demoed interactively.
+**[Live demo](https://icodejoo.github.io/dart-labs/curved_dual_tab_bar/)**: every styling option, interactive.
 
-- 🎯 **A real `TabBar` underneath** — tap targets, the selection indicator, ripple/hover/focus feedback and a11y semantics all come from Flutter's own `TabBar`; this widget only paints the curved background around it.
-- 🎨 **Fully themeable** — solid colors, gradients, per-side borders, divider color/width, corner radius, lean amplitude, animation duration/curve.
-- 🧩 **Two ways to use it** — `CurvedDualTabBar` (drop-in header, owns its own `TabController`) or `CurvedTabBackground` (the standalone curve painter, if you already drive a native `TabBar` yourself).
+- **Uses Flutter's `TabBar`.** Tap targets, the selection indicator, ripple/hover/focus feedback and accessibility semantics all come from `TabBar`. This package only paints the curved background around it.
+- **Themeable.** Solid colors, gradients, per-side borders, divider color and width, corner radius, lean amplitude, animation duration and curve.
+- **Two ways to use it.** `CurvedDualTabBar` is a ready-made header that owns its `TabController`. `CurvedTabBackground` is only the curve painter, for when you already drive a native `TabBar` yourself.
 
 ---
 
@@ -21,7 +23,7 @@
 | ![CurvedDualTabBar demo](https://raw.githubusercontent.com/icodejoo/dart-labs/main/curved_dual_tab_bar/example/screenshots/demo.png) |
 | Captured on a physical Android device from the [example app](https://github.com/icodejoo/dart-labs/tree/main/curved_dual_tab_bar/example) |
 
-> Try every variant live at the [demo site](https://icodejoo.github.io/dart-labs/curved_dual_tab_bar/).
+> You can also try every variant on the [demo site](https://icodejoo.github.io/dart-labs/curved_dual_tab_bar/).
 
 ---
 
@@ -44,11 +46,11 @@ CurvedDualTabBar(
 )
 ```
 
-That's a fully working, animated, two-tab header — `CurvedDualTabBar` creates and owns its own `TabController` internally, kept in sync with `selectedIndex`/`onChanged`.
+This gives you a working, animated two-tab header. `CurvedDualTabBar` creates its own `TabController` and keeps it in sync with `selectedIndex` and `onChanged`.
 
 ### Already have a native `TabBar`?
 
-Use `CurvedTabBackground` as pure decoration and let your own `TabController` drive it:
+Use `CurvedTabBackground` as plain decoration and let your own `TabController` drive it:
 
 ```dart
 CurvedTabBackground(
@@ -65,11 +67,11 @@ CurvedTabBackground(
 
 ### Styling
 
-Both widgets accept `activeColor`/`inactiveColor` (or `activeGradient`/`inactiveGradient`), `unselectedColor`/`unselectedBorderColor`, `activeBorderColor`/`inactiveBorderColor`, `borderRadius`, `leanAmplitude` (how much the S-curve leans), and `duration`/`curve` for the transition animation. See the [example app](https://github.com/icodejoo/dart-labs/tree/main/curved_dual_tab_bar/example) for every combination demoed side by side.
+Both widgets take `activeColor`/`inactiveColor` (or `activeGradient`/`inactiveGradient`), `unselectedColor`/`unselectedBorderColor`, `activeBorderColor`/`inactiveBorderColor`, `borderRadius`, `leanAmplitude` (how far the S-curve leans), and `duration`/`curve` for the transition animation. The [example app](https://github.com/icodejoo/dart-labs/tree/main/curved_dual_tab_bar/example) shows the combinations side by side.
 
 ### Divider styling
 
-The seam itself has its own set of knobs, independent of the fill colors:
+The divider has its own options, separate from the fill colors:
 
 ```dart
 CurvedDualTabBar(
@@ -85,15 +87,15 @@ CurvedDualTabBar(
 )
 ```
 
-- `dividerColor`/`dividerWidth` — solid stroke color and width.
-- `dividerGradient` — overrides `dividerColor` with a gradient stroke.
-- `dividerCap` — `StrokeCap.butt` (default, flat cut at the top/bottom edges) or `.round`/`.square`.
-- `dividerShadow` — a `BoxShadow` stroked once behind the seam as a soft glow/shadow; its `spreadRadius` widens the stroke rather than growing a filled shape.
-- `topControlOffset`/`bottomControlOffset` — nudge the curve's own bezier control points directly. The curve's default shape keeps a flat tangent at the top/bottom edges (so it grazes them like a wave crest/trough); these offsets break that and let you reshape the S-curve independent of `leanAmplitude`.
+- `dividerColor`/`dividerWidth`: solid stroke color and width.
+- `dividerGradient`: a gradient stroke; it overrides `dividerColor`.
+- `dividerCap`: `StrokeCap.butt` (default, a flat cut at the top and bottom edges), `.round` or `.square`.
+- `dividerShadow`: a `BoxShadow` drawn once behind the divider as a soft glow or shadow. Its `spreadRadius` makes the stroke wider; it does not grow a filled shape.
+- `topControlOffset`/`bottomControlOffset`: move the curve's bezier control points directly. By default the curve is flat where it meets the top and bottom edges, like a wave crest or trough. These offsets remove that and let you reshape the S-curve independently of `leanAmplitude`.
 
 ## Why exactly 2 tabs?
 
-The curve divider is a single S-shaped seam between an active and an inactive half — that only has a well-defined shape for 2 segments. `CurvedDualTabBar` asserts `titles.length == 2` for that reason. For more segments, use a plain `TabBar`.
+The divider is a single S-shaped curve between an active and an inactive half, and that shape only makes sense for 2 segments. So `CurvedDualTabBar` asserts `titles.length == 2`. For more segments, use a plain `TabBar`.
 
 ## License
 

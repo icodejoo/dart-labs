@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:luckdraw/grid.dart';
 
 import '../demo_shell.dart';
+import '../online/localized_config.dart';
 import '../theme/demo_theme.dart';
 import '../theme/prize_art.dart';
 
@@ -127,7 +128,7 @@ class GridPageState extends State<GridPage> {
         controller.stop(demoTarget);
       },
       game: LuckyGrid(
-          config: config,
+          config: demoConfig(context, config),
           controller: controller,
           width: demoSide,
           height: demoSide,
