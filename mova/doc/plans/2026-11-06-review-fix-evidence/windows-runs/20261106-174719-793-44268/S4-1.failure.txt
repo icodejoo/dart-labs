@@ -1,0 +1,20 @@
+Bad state: StreamSink is bound to a stream
+#0      _StreamSinkImpl._controller (dart:io/io_sink.dart:235:7)
+#1      _StreamSinkImpl.add (dart:io/io_sink.dart:155:5)
+#2      _IOSinkImpl.write (dart:io/io_sink.dart:293:5)
+#3      _Socket.write (dart:io-patch/socket_patch.dart:2767:36)
+#4      _StdSink.writeln (dart:io/stdio.dart:444:13)
+#5      Worker.send (file:///E:/workspaces/dart-labs-mova/mova/example/tool/win_lease_verify/verify.dart:152:19)
+#6      Worker.check (file:///E:/workspaces/dart-labs-mova/mova/example/tool/win_lease_verify/verify.dart:161:11)
+#7      deletionRace.<anonymous closure>.<anonymous closure> (file:///E:/workspaces/dart-labs-mova/mova/example/tool/win_lease_verify/verify.dart:548:19)
+<asynchronous suspension>
+#8      Future.wait.<anonymous closure> (dart:async/future.dart:567:21)
+<asynchronous suspension>
+#9      deletionRace.<anonymous closure> (file:///E:/workspaces/dart-labs-mova/mova/example/tool/win_lease_verify/verify.dart:544:7)
+<asynchronous suspension>
+#10     runCase (file:///E:/workspaces/dart-labs-mova/mova/example/tool/win_lease_verify/verify.dart:319:5)
+<asynchronous suspension>
+#11     deletionRace (file:///E:/workspaces/dart-labs-mova/mova/example/tool/win_lease_verify/verify.dart:492:3)
+<asynchronous suspension>
+#12     main (file:///E:/workspaces/dart-labs-mova/mova/example/tool/win_lease_verify/verify.dart:720:7)
+<asynchronous suspension>

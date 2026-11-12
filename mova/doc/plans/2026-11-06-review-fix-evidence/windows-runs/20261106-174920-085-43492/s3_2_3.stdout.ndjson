@@ -1,0 +1,6 @@
+{"event":"ARMED","pid":34260,"id":"s3_2_3","root":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S3_2\\cache"}
+{"event":"GATE_PROBE","pid":34260,"id":"s3_2_3","acquired":false}
+{"event":"RESOLVE_BEGIN","pid":34260,"id":"s3_2_3"}
+{"event":"READY","pid":34260,"id":"s3_2_3","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S3_2\\cache\\engine_bca7a0e6","marker":"token_s3_2_3.txt","token":"s3_2_3:34260:1793958569399871"}
+{"event":"CHECKED","pid":34260,"id":"s3_2_3","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S3_2\\cache\\engine_bca7a0e6","token":"s3_2_3:34260:1793958569399871","request":"S3-all-live"}
+{"event":"RELEASED","pid":34260,"id":"s3_2_3","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S3_2\\cache\\engine_bca7a0e6"}

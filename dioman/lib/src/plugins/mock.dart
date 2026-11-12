@@ -1,16 +1,18 @@
 import 'dart:async';
 import 'package:dio/dio.dart';
 import '../client.dart';
-import '../constants.dart';
 import '../context.dart';
 import '../options.dart';
 import '../plugin.dart';
 import '../request.dart';
 import '../response.dart';
 import '../stages.dart';
-import 'source.dart';
 
-export 'source.dart' show sourceSafeMethods, sourceProbe;
+/// source 默认安全方法白名单。
+const sourceSafeMethods = {'GET', 'HEAD'};
+
+/// mock 探测期间绕过共享和缓存；只在当前 next 调用期间置位。
+final sourceProbe = StateKey<bool>('mock probe');
 
 /// 内联路由处理器；返回原始数据（HTTP 200）或 Dio Response，由工厂归一化。
 typedef DiomanMockRoute = FutureOr<Object?> Function(DiomanRequest request);
@@ -57,7 +59,7 @@ class DiomanMock<R extends DiomanResponse<dynamic>> extends DiomanPlugin<R> {
   final bool Function(DiomanResponse<dynamic>)? fallbackWhen;
 
   /// 稳定插件名。
-  static const pluginName = diomanMockName;
+  static const pluginName = 'dioman:mock';
 
   /// 请求级 bool 或配置键。
   static final option = DiomanOptionKey<DiomanMockOptions>(pluginName);
@@ -83,9 +85,6 @@ class _Mock<R extends DiomanResponse<dynamic>> extends DiomanPluginInstance<R> {
 
   /// 插件配置。
   final DiomanMockOptions base;
-
-  /// 探测地址末尾的斜杠。
-  static final _trailingSlashes = RegExp(r'/+$');
 
   /// 探测状态只包围一次 next，回落恢复共享与缓存。
   @override
@@ -127,16 +126,15 @@ class _Mock<R extends DiomanResponse<dynamic>> extends DiomanPluginInstance<R> {
       final original = Uri.parse(ctx.request.path);
       final query = original.hasQuery ? '?${original.query}' : '';
       probe = await next(RequestPatch(
-          path:
-              '${url.replaceFirst(_trailingSlashes, '')}$path$query'));
+          path: '${url.replaceFirst(RegExp(r'/+$'), '')}$path$query'));
     } finally {
       ctx.set(sourceProbe, false);
     }
     final cancel = ctx.cancelled();
-    if (probe.kind == DiomanKind.internal) return probe;
     if (cancel != null) return cancel;
     final fallback = o.fallbackWhen?.call(probe) ??
-        (probe.httpStatus == 404 || probe.kind == DiomanKind.network);
+        (probe.status == 404 ||
+            failureOf(probe)?.kind == DiomanFailureKind.network);
     return fallback && ctx.canReplay() ? next() : probe;
   }
 }

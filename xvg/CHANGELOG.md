@@ -1,3 +1,7 @@
+## 0.1.1
+
+- **Fix:** 0.1.0 was published without `lib/src/rust/` (the generated flutter_rust_bridge Dart bindings): an unanchored `rust/` rule in `.pubignore` also excluded it, so the package did not compile. The rule now only excludes the top-level `rust/` crate. Use 0.1.1.
+
 ## 0.1.0
 
 Initial release.

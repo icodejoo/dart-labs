@@ -387,8 +387,13 @@ class _SeekBarState extends State<_SeekBar> {
   }
 
   @override
+  /// Builds the slider using one resolved progress color for track and thumb.
+  ///
+  /// 构建滑块，为轨道与滑块复用一次解析的进度颜色。
   Widget build(BuildContext context) {
     final theme = MovaPlayerStyle.themeOf(context);
+    final progressColor = theme.progressColor;
+    final color = progressColor == null ? null : Color(progressColor);
     final max = widget.duration.inMilliseconds.toDouble();
     final enabled = max > 0;
     final value = (_dragValue ?? _position).clamp(0.0, enabled ? max : 0.0);
@@ -397,12 +402,8 @@ class _SeekBarState extends State<_SeekBar> {
       child: SliderTheme(
         data: SliderTheme.of(context).copyWith(
           trackHeight: theme.progressHeight,
-          activeTrackColor: theme.progressColor == null
-              ? null
-              : Color(theme.progressColor!),
-          thumbColor: theme.progressColor == null
-              ? null
-              : Color(theme.progressColor!),
+          activeTrackColor: color,
+          thumbColor: color,
         ),
         child: Slider(
           value: value,

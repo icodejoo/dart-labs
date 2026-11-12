@@ -1,0 +1,58 @@
+[
+  {
+    "check": "analyze",
+    "command": "dart analyze",
+    "exitCode": 0,
+    "seconds": 5.587,
+    "log": "coverage/r3-analyze.log"
+  },
+  {
+    "check": "analyze-example",
+    "command": "dart analyze example",
+    "exitCode": 0,
+    "seconds": 4.339,
+    "log": "coverage/r3-analyze-example.log"
+  },
+  {
+    "check": "inventory",
+    "command": "dart run test/accept/bin/inventory.dart",
+    "exitCode": 0,
+    "seconds": 7.829,
+    "log": "coverage/r3-inventory.log"
+  },
+  {
+    "check": "matrix-sync",
+    "command": "dart run test/accept/bin/matrix.dart sync",
+    "exitCode": 0,
+    "seconds": 1.414,
+    "log": "coverage/r3-sync.log"
+  },
+  {
+    "check": "coverage-tests",
+    "command": "dart test --concurrency=1 --coverage-path=coverage/local.info --branch-coverage --reporter=expanded",
+    "exitCode": 0,
+    "seconds": 37.227,
+    "log": "coverage/r3-coverage-tests.log"
+  },
+  {
+    "check": "coverage-audit",
+    "command": "python tool/pipeline_b5a_coverage.py coverage/local.info --out coverage/r3-audit",
+    "exitCode": 0,
+    "seconds": 0.112,
+    "log": "coverage/r3-audit.log"
+  },
+  {
+    "check": "gates",
+    "command": "dart run test/accept/bin/matrix.dart gates --lcov=coverage/local.info",
+    "exitCode": 0,
+    "seconds": 1.569,
+    "log": "coverage/r3-gates.log"
+  },
+  {
+    "check": "diff-check",
+    "command": "git diff --check -- .",
+    "exitCode": 0,
+    "seconds": 0.075,
+    "log": "coverage/r3-diff-check.log"
+  }
+]

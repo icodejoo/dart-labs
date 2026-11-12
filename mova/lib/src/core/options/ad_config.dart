@@ -1,5 +1,6 @@
 import '../ad/fail.dart';
 import '../model/ad.dart';
+import '../model/rate.dart';
 import '../cutover/plan.dart';
 import '../cutover/trigger.dart';
 import '../cutover/warm.dart';
@@ -85,14 +86,18 @@ class MovaAdWaitByKind implements MovaAdWaitPolicy {
   /// // 任何位置都不等待——回到 0.4.0 行为。
   /// const MovaAdConfig(waitForAdReady: MovaAdWaitByKind(mid: false));
   /// ```
-  const MovaAdWaitByKind({this.pre = false, this.mid = true, this.post = false});
+  const MovaAdWaitByKind({
+    this.pre = false,
+    this.mid = true,
+    this.post = false,
+  });
 
   @override
   bool waitFor(MovaAdBreak adBreak) => switch (adBreak.kind) {
-        MovaAdBreakKind.pre => pre,
-        MovaAdBreakKind.mid => mid,
-        MovaAdBreakKind.post => post,
-      };
+    MovaAdBreakKind.pre => pre,
+    MovaAdBreakKind.mid => mid,
+    MovaAdBreakKind.post => post,
+  };
 }
 
 /// What to do when an ad was supposed to be warmed up before cutting in, but
@@ -120,8 +125,10 @@ enum MovaAdNotReady {
 enum MovaAdSnapback {
   /// 补播全部到期广告，保留原行为。
   all,
+
   /// 只播最后一个插入点的整个 pod，较早插入点记为已播。
   last,
+
   /// 不补播本次跨过的多个插入点，全部记为已播。
   none,
 }
@@ -277,13 +284,14 @@ class MovaAdConfig {
         trigger: const MovaEagerWarm(),
         policy: MovaBufferWarm(timeout: adReadyTimeout),
         pauseWhenReady: true,
-        rate: 1.0,
+        rate: kMovaNormalRate,
       );
 
   /// The failure policy actually in effect.
   ///
   /// 实际生效的失败兜底策略。
-  MovaAdFailPolicy get effectiveFailPolicy => failPolicy ?? const MovaAdRetrySkip();
+  MovaAdFailPolicy get effectiveFailPolicy =>
+      failPolicy ?? const MovaAdRetrySkip();
 
   /// Returns a copy with the given fields replaced; omitted fields keep their
   /// current value.
@@ -314,7 +322,8 @@ class MovaAdConfig {
       notReadyAction: notReadyAction ?? this.notReadyAction,
       failPolicy: failPolicy ?? this.failPolicy,
       loadTimeout: loadTimeout ?? this.loadTimeout,
-      durationFromFirstFrame: durationFromFirstFrame ?? this.durationFromFirstFrame,
+      durationFromFirstFrame:
+          durationFromFirstFrame ?? this.durationFromFirstFrame,
       adWarmPlan: adWarmPlan ?? this.adWarmPlan,
     );
   }
@@ -338,16 +347,16 @@ class MovaAdConfig {
 
   @override
   int get hashCode => Object.hash(
-        enabled,
-        midRollSnapback,
-        breaks,
-        onAdEvent,
-        waitForAdReady,
-        adReadyTimeout,
-        notReadyAction,
-        failPolicy,
-        loadTimeout,
-        durationFromFirstFrame,
-        adWarmPlan,
-      );
+    enabled,
+    midRollSnapback,
+    breaks,
+    onAdEvent,
+    waitForAdReady,
+    adReadyTimeout,
+    notReadyAction,
+    failPolicy,
+    loadTimeout,
+    durationFromFirstFrame,
+    adWarmPlan,
+  );
 }

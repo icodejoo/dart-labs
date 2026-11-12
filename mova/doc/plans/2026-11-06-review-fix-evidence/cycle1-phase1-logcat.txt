@@ -1,0 +1,156 @@
+--------- beginning of main
+11-06 17:21:07.411 25691 25691 I SELinux : system_file lable set found!!!!!
+11-06 17:21:07.411 25691 25691 I SELinux : value : u:object_r:system_data_file:s0
+11-06 17:21:07.411 25691 25691 I SELinux : path : /data/user
+11-06 17:21:07.411 25691 25691 I SELinux : system_file lable set found!!!!!
+11-06 17:21:07.411 25691 25691 I SELinux : value : u:object_r:system_data_file:s0
+11-06 17:21:07.411 25691 25691 I SELinux : path : /data/data
+11-06 17:21:07.411 25691 25691 I SELinux : system_file lable set found!!!!!
+11-06 17:21:07.411 25691 25691 I SELinux : value : u:object_r:system_data_file:s0
+11-06 17:21:07.411 25691 25691 I SELinux : path : /data/user_de/0
+11-06 17:21:07.411 25691 25691 I SELinux : system_file lable set found!!!!!
+11-06 17:21:07.411 25691 25691 I SELinux : value : u:object_r:system_data_file:s0
+11-06 17:21:07.411 25691 25691 I SELinux : path : /data/user_de
+11-06 17:21:07.431 25691 25691 I va.mova_exampl: ReInitProperties: persist.vm.debug.dumpapi= false
+11-06 17:21:07.440 25691 25691 E va.mova_exampl: Not starting debugger since process cannot load the jdwp agent.
+--------- beginning of system
+11-06 17:21:07.442 25691 25691 I AndroidRuntime: RuntimeInit: Starting application from zygote
+11-06 17:21:07.442 25691 25691 D AndroidRuntime: Entered RuntimeInit!
+11-06 17:21:07.443 25691 25691 D ProcessState: Binder ioctl to enable oneway spam detection failed: Invalid argument
+11-06 17:21:07.448 25691 25691 I AndroidRuntime: MethodAndArgsCaller run()
+11-06 17:21:07.475 25691 25691 D ActivityThread: Attach thread to application
+11-06 17:21:07.526 25691 28521 I LifecycleTransaction: activityCallbacks LaunchActivityItem{intent=Intent { flg=0x10000000 cmp=com.icodejoo.mova.mova_example/.MainActivity },ident=253337754,info=ActivityInfo{8067ddf com.icodejoo.mova.mova_example.MainActivity},curConfig={1.0 ?mcc?mnc [zh_PH_#Hans] ldltr sw423dp w423dp h888dp 408dpi nrml long port night finger -keyb/v/h -nav/h winConfig={ mBounds=Rect(0, 0 - 1080, 2376) mAppBounds=Rect(0, 110 - 1080, 2376) mMaxBounds=Rect(0, 0 - 1080, 2376) mWindowingMode=fullscreen mDisplayWindowingMode=fullscreen mActivityType=undefined mAlwaysOnTop=undefined mRotation=ROTATION_0 mPopOverMode=0} suim:1 extflag:8 s.41312 fontWeightAdjustment=0},overrideConfig={1.0 ?mcc?mnc [zh_PH_#Hans] ldltr sw423dp w423dp h888dp 408dpi nrml long port night finger -keyb/v/h -nav/h winConfig={ mBounds=Rect(0, 0 - 1080, 2376) mAppBounds=Rect(0, 110 - 1080, 2376) mMaxBounds=Rect(0, 0 - 1080, 2376) mWindowingMode=fullscreen mDisplayWindowingMode=fullscreen mActivityType=standard mAlwaysOnTop=undefined mRotation=ROTATION_0 mPopOverMode=0} suim:1 extflag:8 s.1 fontWeightAdjustment=0},referrer=com.android.shell,procState=20,state=null,persistentState=null,pendingResults=null,pendingNewIntents=null,options=null,profilerInfo=null,assistToken=android.os.BinderProxy@e97ba2c,rotationAdj=null,shareableActivityToken=android.os.BinderProxy@b5bdcf5}
+11-06 17:21:07.532 25691 28521 I LifecycleTransaction: lifecycleStateRequest ResumeActivityItem{procState=-1,updateProcState=false,isForward=true}
+11-06 17:21:07.534 25691 25691 D CompatibilityChangeReporter: Compat change id reported: 171979766; UID 10272; state: ENABLED
+11-06 17:21:07.540 25691 25691 I Typeface: fontManager.getInitFontWeightScale:0.85
+11-06 17:21:07.541 25691 28521 I LifecycleTransaction: activityCallbacks TopResumedActivityChangeItem{onTop=true}
+11-06 17:21:07.547 25691 25691 I LoadedApk: createSharedLibrariesLoaders::sharedLibraries is null
+11-06 17:21:07.560 25691 25691 V GraphicsEnvironment: ANGLE Developer option for 'com.icodejoo.mova.mova_example' set to: 'default'
+11-06 17:21:07.560 25691 25691 V GraphicsEnvironment: Neither updatable production driver nor prerelease driver is supported.
+11-06 17:21:07.562 25691 25691 D NetworkSecurityConfig: No Network Security Config specified, using platform default
+11-06 17:21:07.563 25691 25691 D NetworkSecurityConfig: No Network Security Config specified, using platform default
+11-06 17:21:07.563 25691 25691 I HwViewStackScaleFactory: add android.view.HwViewStackScaleFactory@5c82556 to memory.
+11-06 17:21:07.577 25691 28522 I ActivityThread: Init compatible state: true
+11-06 17:21:07.578 25691 28522 D HwFrameworkSecurityPartsFactory: HwFrameworkSecurityPartsFactory in.
+11-06 17:21:07.578 25691 28522 I HwFrameworkSecurityPartsFactory: add HwFrameworkSecurityPartsFactory to memory.
+11-06 17:21:07.578 25691 28522 I BehaviorCollectManager: don't match ai support or app dynamic detection condition
+11-06 17:21:07.579 25691 28522 E BehaviorCollectManager: Fail to acquire dataAnalyzerService...
+11-06 17:21:07.580 25691 28522 I HwApiCacheMangerEx: apicache path=/storage/emulated/0 state=mounted key=com.icodejoo.mova.mova_example#10272#256
+11-06 17:21:07.580 25691 28522 I HwApiCacheMangerEx: need clear apicache,because volumes changed,oldCnt=0 newCnt=1
+11-06 17:21:07.585 25691 25691 I HwTypeface: updateFont: scale=1.0
+11-06 17:21:07.585 25691 28522 I HwApiCacheMangerEx: apicache path=/storage/emulated/0 state=mounted key=com.icodejoo.mova.mova_example#10272#0
+11-06 17:21:07.585 25691 25691 I HwTypeface: size is 0, use default font family
+11-06 17:21:07.585 25691 28522 I HwApiCacheMangerEx: need clear apicache,because volumes changed,oldCnt=1 newCnt=1
+11-06 17:21:07.595 25691 28522 I AwareBitmapCacher: init processName:com.icodejoo.mova.mova_example pid=25691 uid=10272
+11-06 17:21:07.598 25691 28526 W AwareLog: AwareAppScheduleManager: IOException when readFile!
+11-06 17:21:07.594 25691 25691 W Binder:25691_3: type=1400 audit(0.0:5769454): avc: denied { read } for name="temp" dev="sysfs" ino=52514 scontext=u:r:untrusted_app:s0:c16,c257,c512,c768 tcontext=u:object_r:sysfs_pg:s0 tclass=lnk_file permissive=0 app=com.icodejoo.mova.mova_example
+11-06 17:21:07.607 25691 28533 E AwareLog: AtomicFileUtils: readFileLines file not exist: android.util.AtomicFile@73940e2
+11-06 17:21:07.637 25691 25691 W FontFamily: updateFonts: mFonts is null for android.graphics.fonts.FontFamily@5f1ac73
+11-06 17:21:07.663 25691 25691 I ActivityThread: finishPreloaded preloadStatus 0
+11-06 17:21:07.663 25691 25691 I HwViewRootImpl: Add sceneId 1 topId: 0
+11-06 17:21:07.664 25691 25691 I ActivityThread: handleBindApplication cost: 131
+11-06 17:21:07.669 25691 25691 I LaunchActivityItem: execute start, token = android.os.BinderProxy@dedea8a
+11-06 17:21:07.673 25691 25691 D OpenGLRenderer: disableOutlineDraw is true
+11-06 17:21:07.679 25691 28545 I OpenGLRenderer: RenderThread: progress name = [com.icodejoo.mova.mova_example], viewCornerType = 0, g2param1 = 2.000000, g2param2 = 1.100000
+11-06 17:21:07.681 25691 28545 I iGraphics: [0020080c] pn: com.icodejoo.mova.mova_example, p: 25691
+11-06 17:21:07.681 25691 28545 I iGraphics: [0030080c] no spt app: com.icodejoo.mova.mova_example
+11-06 17:21:07.683 25691 28545 I AdrenoGLES-0: QUALCOMM build                   : 4d63f36f51, I3088302919
+11-06 17:21:07.683 25691 28545 I AdrenoGLES-0: Build Date                       : 06/07/22
+11-06 17:21:07.683 25691 28545 I AdrenoGLES-0: OpenGL ES Shader Compiler Version: EV031.32.02.17
+11-06 17:21:07.683 25691 28545 I AdrenoGLES-0: Local Branch                     : 
+11-06 17:21:07.683 25691 28545 I AdrenoGLES-0: Remote Branch                    : 
+11-06 17:21:07.683 25691 28545 I AdrenoGLES-0: Remote Branch                    : 
+11-06 17:21:07.683 25691 28545 I AdrenoGLES-0: Reconstruct Branch               : 
+11-06 17:21:07.683 25691 28545 I AdrenoGLES-0: Build Config                     : S P 10.0.7 AArch64
+11-06 17:21:07.683 25691 28545 I AdrenoGLES-0: Driver Path                      : /vendor/lib64/egl/libGLESv2_adreno.so
+11-06 17:21:07.686 25691 25691 V ActivityThread: callActivityOnCreate
+11-06 17:21:07.692 25691 28545 I AdrenoGLES-0: PFP: 0x016ee197, ME: 0x00000000
+11-06 17:21:07.696 25691 28545 E Adreno-AppProfiles: Could not find QSPM HAL service
+11-06 17:21:07.714 25691 28564 D skia    : [SkFontMgr Android Parser] '/product/etc/fonts_customization.xml' could not be opened
+11-06 17:21:07.719 25691 28545 I OpenGLRenderer: CacheManager width 1080, height 1920
+11-06 17:21:07.741 25691 28565 W libc    : Access denied finding property "ro.vendor.mediatek.platform"
+11-06 17:21:07.749 25691 28565 D vulkan  : searching for layers in '/data/app/~~vhxYp6d6SLthG0g3s7jsmg==/com.icodejoo.mova.mova_example-m3gD3Z56yeH6HmJj32MJHw==/lib/arm64'
+11-06 17:21:07.750 25691 28565 D vulkan  : searching for layers in '/data/app/~~vhxYp6d6SLthG0g3s7jsmg==/com.icodejoo.mova.mova_example-m3gD3Z56yeH6HmJj32MJHw==/base.apk!/lib/arm64-v8a'
+11-06 17:21:07.750 25691 28565 E linker  : library "/system/lib64/libiGraphicsCore.huawei.so" ("/system/lib64/libiGraphicsCore.huawei.so") needed or dlopened by "/apex/com.android.art/lib64/libnativeloader.so" is not accessible for the namespace: [name="classloader-namespace", ld_library_paths="", default_library_paths="/data/app/~~vhxYp6d6SLthG0g3s7jsmg==/com.icodejoo.mova.mova_example-m3gD3Z56yeH6HmJj32MJHw==/lib/arm64:/data/app/~~vhxYp6d6SLthG0g3s7jsmg==/com.icodejoo.mova.mova_example-m3gD3Z56yeH6HmJj32MJHw==/base.apk!/lib/arm64-v8a", permitted_paths="/data:/mnt/expand:/data/data/com.icodejoo.mova.mova_example"]
+11-06 17:21:07.750 25691 28565 E vulkan  : failed to load layer library '/system/lib64/libiGraphicsCore.huawei.so': dlopen failed: library "/system/lib64/libiGraphicsCore.huawei.so" needed or dlopened by "/apex/com.android.art/lib64/libnativeloader.so" is not accessible for the namespace "classloader-namespace"
+11-06 17:21:07.762 25691 28565 E Adreno-AppProfiles: Could not find QSPM HAL service
+11-06 17:21:07.763 25691 28565 I AdrenoVK-0: ===== BEGIN DUMP OF OVERRIDDEN SETTINGS =====
+11-06 17:21:07.763 25691 28565 I AdrenoVK-0: ===== END DUMP OF OVERRIDDEN SETTINGS =====
+11-06 17:21:07.765 25691 28565 I AdrenoVK-0: QUALCOMM build          : 4d63f36f51, I3088302919
+11-06 17:21:07.765 25691 28565 I AdrenoVK-0: Build Date              : 06/07/22
+11-06 17:21:07.765 25691 28565 I AdrenoVK-0: Shader Compiler Version : EV031.32.02.17
+11-06 17:21:07.765 25691 28565 I AdrenoVK-0: Local Branch            : 
+11-06 17:21:07.765 25691 28565 I AdrenoVK-0: Remote Branch           : 
+11-06 17:21:07.765 25691 28565 I AdrenoVK-0: Remote Branch           : 
+11-06 17:21:07.765 25691 28565 I AdrenoVK-0: Reconstruct Branch      : 
+11-06 17:21:07.765 25691 28565 I AdrenoVK-0: Build Config            : S P 10.0.7 AArch64
+11-06 17:21:07.765 25691 28565 I AdrenoVK-0: Driver Path             : /vendor/lib64/hw/vulkan.adreno.so
+11-06 17:21:07.771 25691 28565 I flutter : [IMPORTANT:flutter/shell/platform/android/android_context_vk_impeller.cc(62)] Using the Impeller rendering backend (Vulkan).
+11-06 17:21:07.788 25691 25691 I media_kit: package:media_kit_libs_android_video (mova slim fork) attached.
+11-06 17:21:07.790 25691 25691 D media_kit: HUAWEI
+11-06 17:21:07.791 25691 25691 D media_kit: HWSTG-Q
+11-06 17:21:07.791 25691 25691 D media_kit: HUAWEI/STG-AL00/HWSTG-Q:12/HUAWEISTG-AL00/104.2.0.125C00:user/release-keys
+11-06 17:21:07.791 25691 25691 D media_kit: qcom
+11-06 17:21:07.791 25691 25691 D media_kit: STG-AL00
+11-06 17:21:07.791 25691 25691 D media_kit: HUAWEI
+11-06 17:21:07.791 25691 25691 D media_kit: STG-AL00
+11-06 17:21:07.791 25691 25691 I media_kit: Saved application context.
+11-06 17:21:07.800 25691 28565 I flutter : [IMPORTANT:flutter/shell/platform/android/android_context_gl_impeller.cc(104)] Using the Impeller rendering backend (OpenGLES).
+11-06 17:21:07.802 25691 25691 I HwMediaViewLayoutChangeHandler: attachLayoutChangeListener: attached listener to view=i3.j{dc75f3e V.E...... ......I. 0,0-0,0}
+11-06 17:21:07.808 25691 25691 I InputMethodManager: forContextInternal diaplayId:0,instance=android.view.inputmethod.InputMethodManager@3206b5
+11-06 17:21:07.816 25691 25691 I InputMethodManager: mCurRootView is null
+11-06 17:21:07.829 25691 25691 I DecorView[]: pkgName:com.icodejoo.mova.mova_example old windowMode:0 new windoMode:1, isFixedSize:false, isStackNeedCaptionView:true
+11-06 17:21:07.834 25691 25691 I ActivityThread: add activity client record, r= ActivityRecord{24d3384 token=android.os.BinderProxy@dedea8a {com.icodejoo.mova.mova_example/com.icodejoo.mova.mova_example.MainActivity}} token= android.os.BinderProxy@dedea8a
+11-06 17:21:07.845 25691 25691 D MouseWheelSynthesizer: mMoveStepInDp: 64, mMoveStepInPixel: 163, mUpTimeDelayed: 100
+11-06 17:21:07.847 25691 25691 D HwViewRootImpl: [onViewRootImplInitial] HotZone Threshold = 189
+11-06 17:21:07.851 25691 25691 D ViewRootImpl: ViewUI ViewRootImpl mIsInProductivePCDisplay: false
+11-06 17:21:07.860 25691 25691 I DecorView[]: pkgName:com.icodejoo.mova.mova_example old windowMode:1 new windoMode:1, isFixedSize:false, isStackNeedCaptionView:true
+11-06 17:21:07.864 25691 25691 I InsetsController: ViewUI_insets updateState new source: InsetsSource: {mType=ITYPE_STATUS_BAR, mFrame=[0,0][1080,110], mVisible=true}
+11-06 17:21:07.864 25691 25691 I InsetsController: ViewUI_insets updateState new source: InsetsSource: {mType=ITYPE_NAVIGATION_BAR, mFrame=[0,0][0,0], mVisible=false}
+11-06 17:21:07.865 25691 25691 D InputEventReceiver: dispatchInputInterval 0
+11-06 17:21:07.872 25691 25691 I HwSoraManager: SORA is disabled for com.icodejoo.mova.mova_example.MainActivity
+11-06 17:21:07.879 25691 25691 I RmeSchedManager: init Rme, version is: v1.0
+11-06 17:21:07.879 25691 25691 I RmeSchedManager: init Rme, version is: v1.0
+11-06 17:21:07.879 25691 25691 I TopResumedActivityChangeItem: execute start, ActivityClientRecord = ActivityRecord{24d3384 token=android.os.BinderProxy@dedea8a {com.icodejoo.mova.mova_example/com.icodejoo.mova.mova_example.MainActivity}}
+11-06 17:21:07.899 25691 28589 D HiTouch_PressGestureDetector: onAttached, package=com.icodejoo.mova.mova_example, windowType=1, mIsHiTouchRestricted=false
+11-06 17:21:07.904 25691 25691 I DecorView: updateColorViewInt type:0 size: 110 color:40000000 appColor:40000000
+11-06 17:21:07.915 25691 25691 D BufferQueueCore: BufferQueueCore: mDebugHwFlow=0, mIsBufferQueueLogVSupport=0.
+11-06 17:21:07.916 25691 25691 D InsetsSourceConsumer: ViewUI_insets setControl -> ITYPE_STATUS_BAR on com.icodejoo.mova.mova_example/com.icodejoo.mova.mova_example.MainActivity
+11-06 17:21:07.917 25691 25691 D InsetsSourceConsumer: ViewUI_insets setControl mType:0, requestedVisible:true, getLeash:null, needAnimation:false, mIsAnimationPending:false, getRootViewTitle:com.icodejoo.mova.mova_example/com.icodejoo.mova.mova_example.MainActivity
+11-06 17:21:07.919 25691 28545 D hw-ProcessState: Binder ioctl to enable oneway spam detection failed: Invalid argument
+11-06 17:21:07.919 25691 28545 E OpenGLRenderer: Unable to match the desired swap behavior.
+11-06 17:21:07.923 25691 25691 D BufferQueueCore: BufferQueueCore: mDebugHwFlow=0, mIsBufferQueueLogVSupport=0.
+11-06 17:21:07.924 25691 25691 I SurfaceView: ViewUI setLowResolutionInfo compatInfo.supportsScreen() is not satisfied
+11-06 17:21:09.109 25691 25691 W HwApsImpl: not support full screen video recognize feature ## com.icodejoo.mova.mova_example
+11-06 17:21:09.110 25691 25691 I HwViewRootImpl: remove sceneId 1 topId: 0
+11-06 17:21:09.110 25691 25691 I HwViewRootImpl: Add sceneId 10 topId: 0
+11-06 17:21:09.114 25691 25691 I Choreographer: Skipped 72 frames! The application may be doing too much work on its main thread.
+11-06 17:21:09.117 25691 28545 D OpenGLRenderer: disableOutlineDraw is true
+11-06 17:21:09.140 25691 25691 I DecorView: updateColorViewInt type:0 size: 110 color:40000000 appColor:40000000
+11-06 17:21:09.146 25691 25691 I DecorView: updateColorViewInt type:0 size: 110 color:40000000 appColor:40000000
+11-06 17:21:09.147 25691 25691 I DecorView[]: pkgName:com.icodejoo.mova.mova_example old windowMode:1 new windoMode:1, isFixedSize:false, isStackNeedCaptionView:true
+11-06 17:21:09.147 25691 25691 I DecorView: updateColorViewInt type:0 size: 110 color:40000000 appColor:40000000
+11-06 17:21:09.159 25691 25691 I InsetsController: ViewUI_insets updateState new source: InsetsSource: {mType=ITYPE_STATUS_BAR, mFrame=[0,0][1080,110], mVisible=true}
+11-06 17:21:09.159 25691 25691 I InsetsController: ViewUI_insets updateState new source: InsetsSource: {mType=ITYPE_NAVIGATION_BAR, mFrame=[0,0][0,0], mVisible=false}
+11-06 17:21:09.160 25691 25691 D InsetsSourceConsumer: ViewUI_insets setControl -> ITYPE_STATUS_BAR on com.icodejoo.mova.mova_example/com.icodejoo.mova.mova_example.MainActivity
+11-06 17:21:09.160 25691 25691 D InsetsSourceConsumer: ViewUI_insets setControl mType:0, requestedVisible:true, getLeash:Surface(name=Surface(name=f0d2d67 StatusBar)/@0x3a58eb - animation-leash of insets_animation)/@0x6c83a50, needAnimation:false, mIsAnimationPending:false, getRootViewTitle:com.icodejoo.mova.mova_example/com.icodejoo.mova.mova_example.MainActivity
+11-06 17:21:09.161 25691 25691 I DecorView: updateColorViewInt type:0 size: 110 color:40000000 appColor:40000000
+11-06 17:21:09.181 25691 25691 I HwViewRootImpl: removeInvalidNode jank list is null
+11-06 17:21:09.182 25691 25691 I HwMediaViewLayoutChangeHandler: handleMediaViewLayoutChanged, listener removed. view=i3.j{dc75f3e V.E...... ........ 0,0-1080,2376}
+11-06 17:21:09.183 25691 25691 I InsetsController: ViewUI_insets updateState new source: InsetsSource: {mType=ITYPE_STATUS_BAR, mFrame=[0,0][1080,110], mVisible=true}
+11-06 17:21:09.183 25691 25691 I InsetsController: ViewUI_insets updateState new source: InsetsSource: {mType=ITYPE_NAVIGATION_BAR, mFrame=[0,0][0,0], mVisible=false}
+11-06 17:21:09.184 25691 25691 I InsetsController: ViewUI_insets updateState new source: InsetsSource: {mType=ITYPE_STATUS_BAR, mFrame=[0,0][1080,110], mVisible=true}
+11-06 17:21:09.184 25691 25691 I InsetsController: ViewUI_insets updateState new source: InsetsSource: {mType=ITYPE_NAVIGATION_BAR, mFrame=[0,0][0,0], mVisible=false}
+11-06 17:21:09.184 25691 25691 D HwViewRootImpl: [DetectViewsLocationRunner] updateResolution
+11-06 17:21:09.184 25691 25691 D HwViewRootImpl: [DetectViewsLocationRunner] current resolutionScale: 1.0
+11-06 17:21:09.185 25691 25691 I ImeFocusController: ViewUI imeDisplayId:0 contextDisplayId:0
+11-06 17:21:09.185 25691 25691 I InputMethodManager: set currentRootView to : android.view.ViewRootImpl@816fc05
+11-06 17:21:09.185 25691 25691 I InputMethodManager: Starting input: reason=WINDOW_FOCUS_GAIN
+11-06 17:21:09.186 25691 25691 W HwRemoteInputMethodManager: isCasting false because IHwDistributedWindowManager is invalid.
+11-06 17:21:09.197 25691 25691 I InputMethodManager: Starting input: Bind resultString=SUCCESS_WAITING_IME_SESSION
+11-06 17:21:09.209 25691 25691 I InputMethodManager: Starting input: reason=BOUND_TO_IMMS
+11-06 17:21:09.210 25691 25691 I InputMethodManager: Starting input: finished by someone else. servedView=DecorView@ee56449[MainActivity],focus=false,windowFocus=true,autofillUiShowing=false,window=android.view.ViewRootImpl$W@371045a,displayId=0,temporaryDetach=false,hasImeFocus=true mServedConnecting=false
+11-06 17:21:09.218 25691 25691 D InsetsSourceConsumer: ViewUI_insets setControl -> ITYPE_IME on com.icodejoo.mova.mova_example/com.icodejoo.mova.mova_example.MainActivity
+11-06 17:21:09.220 25691 25691 I flutter : RFV cycle=1 phase=1 START release=true
+11-06 17:21:09.324 25691 25691 I flutter : RFV cycle=1 phase=1 PASS V1_PREPARE A=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_HVWHAK token=a6a03d8965de59a9841a2a40f4c6319a count=1 engines=["engine_HVWHAK"] disposed=false
+11-06 17:21:09.324 25691 25691 I flutter : RFV cycle=1 phase=1 READY_FORCE_STOP

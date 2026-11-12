@@ -74,23 +74,22 @@ class MovaPlayPauseComponent extends MovaComponent {
   MovaSlot get slot => MovaSlot.center;
 
   @override
+  /// Builds playback controls with a shared semantic and tooltip label.
+  ///
+  /// 构建播放控件，为语义与提示复用同一动作名称。
   Widget build(BuildContext context, MovaApi api, List<Widget> children) {
     final theme = MovaPlayerStyle.themeOf(context);
     return MovaSelect<bool>(
       selector: (s) => s.playing,
       builder: (context, playing) {
+        final strings = MovaPlayerStyle.stringsOf(context);
+        final label = playing ? strings.pause : strings.play;
         return Semantics(
           button: true,
-          label: playing
-              ? MovaPlayerStyle.stringsOf(context).pause
-              : MovaPlayerStyle.stringsOf(context).play,
+          label: label,
           child: Tooltip(
             // 持久小窗位于 Overlay 外时只保留按钮语义。
-            message: Overlay.maybeOf(context) == null
-                ? ''
-                : (playing
-                      ? MovaPlayerStyle.stringsOf(context).pause
-                      : MovaPlayerStyle.stringsOf(context).play),
+            message: Overlay.maybeOf(context) == null ? '' : label,
             excludeFromSemantics: true,
             child: Material(
               type: MaterialType.circle,

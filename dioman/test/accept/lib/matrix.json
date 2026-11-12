@@ -69,7 +69,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 10,
       "total": 10
     },
@@ -123,7 +123,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 14,
       "total": 14
     },
@@ -146,7 +146,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 14,
       "total": 14
     },
@@ -198,7 +198,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 81,
       "total": 81
     },
@@ -222,7 +222,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 16,
       "total": 16
     },
@@ -269,7 +269,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 85,
       "total": 85
     },
@@ -416,7 +416,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 10,
       "total": 10
     },
@@ -438,7 +438,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 4,
       "total": 4
     },
@@ -474,7 +474,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 20,
       "total": 20
     },
@@ -495,7 +495,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 4,
       "total": 4
     },
@@ -532,7 +532,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 2,
       "total": 2
     },
@@ -716,7 +716,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 10,
       "total": 10
     },
@@ -739,7 +739,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 24,
       "total": 24
     },
@@ -849,7 +849,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 18,
       "total": 18
     },
@@ -901,7 +901,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 2,
       "total": 2
     },
@@ -1013,7 +1013,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 10,
       "total": 10
     },
@@ -1050,7 +1050,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 8,
       "total": 8
     },
@@ -1163,7 +1163,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 2,
       "total": 2
     },
@@ -1273,7 +1273,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 2,
       "total": 2
     },
@@ -1370,7 +1370,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 10,
       "total": 10
     },
@@ -1395,7 +1395,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 8,
       "total": 8
     },
@@ -1433,7 +1433,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 6,
       "total": 6
     },
@@ -1523,7 +1523,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 4,
       "total": 4
     },
@@ -1587,7 +1587,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 2,
       "total": 2
     },
@@ -1610,7 +1610,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 4,
       "total": 4
     },
@@ -1652,7 +1652,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 8,
       "total": 8
     },
@@ -1745,7 +1745,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 16,
       "total": 16
     },
@@ -1827,7 +1827,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 12,
       "total": 12
     },
@@ -1848,6 +1848,42 @@
     "blocked": null
   },
   {
+    "id": "Dioman.deadline",
+    "plugin": "client",
+    "capability": "逻辑请求整体预算：覆盖等待与完整传输，timeout/deadline，调用方独立归属",
+    "tier": 2,
+    "apis": [
+      "Dioman.deadline",
+      "Dioman.new(deadline)"
+    ],
+    "real": [
+      "local:test/integration/deadline_transport_integration_test.dart",
+      "share.single-all-timeout-aborts-server",
+      "timeout.total-hang",
+      "timeout.total-over-slow-chunks",
+      "timeout.request-override-shorter",
+      "timeout.request-override-longer",
+      "timeout.within-budget",
+      "timeout.recovers-after-timeout",
+      "timeout.parallel-all-timeout",
+      "timeout.weak-generous-budget",
+      "timeout.total-slow-chunks-small",
+      "timeout.total-budget-slow-body-ok",
+      "timeout.receive-gap-vs-chunk-bytes"
+    ],
+    "assumptions": [
+      "H5"
+    ],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
+      "passed": 27,
+      "total": 27
+    },
+    "blocked": null,
+    "note": "假时钟覆盖重试、刷新排队、离线队列和共享归属；testkit timeout-total 原生映射。"
+  },
+  {
     "id": "Dioman.delete",
     "plugin": "client",
     "capability": "Dioman.delete：公开契约及配置解析",
@@ -1861,11 +1897,25 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 1,
       "total": 1
     },
     "blocked": null
+  },
+  {
+    "id": "Dioman.delete(decode)",
+    "plugin": "client",
+    "capability": "成功落定后独立解码；可预期失败不解码，程序错误原栈抛出",
+    "tier": 1,
+    "apis": [
+      "Dioman.delete(decode)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "R5：test/unit/decode_test.dart；纯调用方转换，不依赖真实传输"
   },
   {
     "id": "Dioman.dio",
@@ -1905,15 +1955,55 @@
     "real": [],
     "assumptions": [],
     "result": null,
-    "blocked": null
+    "blocked": null,
+    "note": " R5：异步清理由客户端继续跟踪，dispose 等待并原栈报告；销毁开始后拒绝 eject。"
   },
   {
     "id": "Dioman.extend",
     "plugin": "client",
-    "capability": "Dioman.extend：公开契约及配置解析",
+    "capability": "extend 默认复制选项；显式 dio 保留引擎扩展并作用 options 覆盖",
     "tier": 1,
     "apis": [
       "Dioman.extend"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "Dioman.extend(dio)",
+    "plugin": "client",
+    "apis": [
+      "Dioman.extend(dio)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "tier": 1,
+    "capability": "直接使用传入引擎并保留扩展，允许显式共享父引擎"
+  },
+  {
+    "id": "Dioman.extend(options)",
+    "plugin": "client",
+    "capability": "安装后覆盖引擎配置并保持选项克隆边界",
+    "tier": 1,
+    "apis": [
+      "Dioman.extend(options)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "Dioman.extend(plugins)",
+    "plugin": "client",
+    "capability": "替换继承插件列表并重新 setup",
+    "tier": 1,
+    "apis": [
+      "Dioman.extend(plugins)"
     ],
     "real": [],
     "assumptions": [],
@@ -1934,11 +2024,25 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 1,
       "total": 1
     },
     "blocked": null
+  },
+  {
+    "id": "Dioman.get(decode)",
+    "plugin": "client",
+    "capability": "成功落定后独立解码；可预期失败不解码，程序错误原栈抛出",
+    "tier": 1,
+    "apis": [
+      "Dioman.get(decode)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "R5：test/unit/decode_test.dart；纯调用方转换，不依赖真实传输"
   },
   {
     "id": "Dioman.head",
@@ -1954,11 +2058,25 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 1,
       "total": 1
     },
     "blocked": null
+  },
+  {
+    "id": "Dioman.head(decode)",
+    "plugin": "client",
+    "capability": "成功落定后独立解码；可预期失败不解码，程序错误原栈抛出",
+    "tier": 1,
+    "apis": [
+      "Dioman.head(decode)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "R5：test/unit/decode_test.dart；纯调用方转换，不依赖真实传输"
   },
   {
     "id": "Dioman.inspect",
@@ -1967,6 +2085,19 @@
     "tier": 1,
     "apis": [
       "Dioman.inspect"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "Dioman.isCancel",
+    "plugin": "client",
+    "capability": "Dioman.isCancel：R2a 响应契约与纯判定规则",
+    "tier": 1,
+    "apis": [
+      "Dioman.isCancel"
     ],
     "real": [],
     "assumptions": [],
@@ -2040,11 +2171,25 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 1,
       "total": 1
     },
     "blocked": null
+  },
+  {
+    "id": "Dioman.patch(decode)",
+    "plugin": "client",
+    "capability": "成功落定后独立解码；可预期失败不解码，程序错误原栈抛出",
+    "tier": 1,
+    "apis": [
+      "Dioman.patch(decode)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "R5：test/unit/decode_test.dart；纯调用方转换，不依赖真实传输"
   },
   {
     "id": "Dioman.pending",
@@ -2086,11 +2231,25 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 1,
       "total": 1
     },
     "blocked": null
+  },
+  {
+    "id": "Dioman.post(decode)",
+    "plugin": "client",
+    "capability": "成功落定后独立解码；可预期失败不解码，程序错误原栈抛出",
+    "tier": 1,
+    "apis": [
+      "Dioman.post(decode)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "R5：test/unit/decode_test.dart；纯调用方转换，不依赖真实传输"
   },
   {
     "id": "Dioman.put",
@@ -2106,11 +2265,25 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 1,
       "total": 1
     },
     "blocked": null
+  },
+  {
+    "id": "Dioman.put(decode)",
+    "plugin": "client",
+    "capability": "成功落定后独立解码；可预期失败不解码，程序错误原栈抛出",
+    "tier": 1,
+    "apis": [
+      "Dioman.put(decode)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "R5：test/unit/decode_test.dart；纯调用方转换，不依赖真实传输"
   },
   {
     "id": "Dioman.reject",
@@ -2140,11 +2313,25 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 1,
       "total": 1
     },
     "blocked": null
+  },
+  {
+    "id": "Dioman.request(decode)",
+    "plugin": "client",
+    "capability": "成功落定后独立解码；可预期失败不解码，程序错误原栈抛出",
+    "tier": 1,
+    "apis": [
+      "Dioman.request(decode)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "R5：test/unit/decode_test.dart；纯调用方转换，不依赖真实传输"
   },
   {
     "id": "Dioman.response",
@@ -2176,10 +2363,38 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 7,
       "total": 7
     },
+    "blocked": null
+  },
+  {
+    "id": "Dioman.send(decode)",
+    "plugin": "client",
+    "capability": "成功落定后独立解码；可预期失败不解码，程序错误原栈抛出",
+    "tier": 1,
+    "apis": [
+      "Dioman.send(decode)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "R5：test/unit/decode_test.dart；纯调用方转换，不依赖真实传输"
+  },
+  {
+    "id": "Dioman.statusOf",
+    "plugin": "client",
+    "capability": "Dioman.statusOf：R2a 响应契约与纯判定规则",
+    "tier": 1,
+    "apis": [
+      "Dioman.new(statusOf)",
+      "Dioman.statusOf"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
     "blocked": null
   },
   {
@@ -2233,7 +2448,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 2,
       "total": 2
     },
@@ -2330,7 +2545,7 @@
     ],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 80,
       "total": 80
     },
@@ -2354,7 +2569,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 4,
       "total": 4
     },
@@ -2411,7 +2626,7 @@
     ],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 18,
       "total": 242
     },
@@ -2434,7 +2649,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 3,
       "total": 3
     },
@@ -2456,7 +2671,8 @@
     "blocked": null,
     "note": "lib/src/replay_support.dart:runDownstream/finishRecovered：先调用宿主中恢复者之前的 DiomanCache，再调用恢复者之后的响应拦截器；普通 reject 终止，reject(true)/抛错走后续错误链；先交认领再处理下游，share 用处理前快照。QueuedInterceptor 的串行队列会被绕过。",
     "unit": [
-      "test/combo/b3_outer_combo_test.dart"
+      "test/combo/loading_notify_retry_combo_test.dart",
+      "test/combo/auth_loading_notify_combo_test.dart"
     ]
   },
   {
@@ -2471,7 +2687,11 @@
     "blocked": null,
     "note": "lib/src/request_claims.dart；share 依据认领延后结算，cancel 延后注销；公开/短路请求未认领时当场结算；end/race 落败者等待胜出结果，joined 请求不得再次自行恢复。",
     "unit": [
-      "test/combo/b3_combo_test.dart"
+      "test/combo/breaker_retry_combo_test.dart",
+      "test/combo/auth_retry_combo_test.dart",
+      "test/combo/auth_loading_notify_combo_test.dart",
+      "test/combo/auth_retry_replay_combo_test.dart",
+      "test/boundary/retry_cancel_boundary_test.dart"
     ]
   },
   {
@@ -2491,7 +2711,7 @@
     ],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 6,
       "total": 6
     },
@@ -2514,7 +2734,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 4,
       "total": 4
     },
@@ -2536,14 +2756,17 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 2,
       "total": 2
     },
     "blocked": null,
     "note": "lib/src/replay_support.dart:fetch；auth/retry/share 借宿主 adapter/transformer，未绑定用兜底裸 Dio；FormData 克隆、Stream 拒绝重放；状态机是 tier 1，传输消费及连接复用另拆 H2/H4。",
     "unit": [
-      "test/integration/b3_transport_integration_test.dart"
+      "test/integration/auth_session_integration_test.dart",
+      "test/integration/auth_retry_transport_integration_test.dart",
+      "test/integration/retry_after_integration_test.dart",
+      "test/integration/breaker_lifecycle_integration_test.dart"
     ]
   },
   {
@@ -2560,7 +2783,7 @@
     ],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 2,
       "total": 2
     },
@@ -2603,7 +2826,7 @@
     ],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 64,
       "total": 64
     },
@@ -2627,7 +2850,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 6,
       "total": 6
     },
@@ -2855,10 +3078,23 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 10,
       "total": 10
     },
+    "blocked": null
+  },
+  {
+    "id": "DiomanContext.native",
+    "plugin": "context",
+    "capability": "R3 原生槽与失败诊断只读契约",
+    "tier": 1,
+    "apis": [
+      "DiomanContext.native"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
     "blocked": null
   },
   {
@@ -2889,12 +3125,64 @@
     "blocked": null
   },
   {
+    "id": "DiomanContext.statusOf",
+    "plugin": "context",
+    "capability": "DiomanContext.statusOf：R2a 响应契约与纯判定规则",
+    "tier": 1,
+    "apis": [
+      "DiomanContext.statusOf"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
     "id": "DiomanContext.wait",
     "plugin": "context",
     "capability": "DiomanContext.wait：公开契约及配置解析",
     "tier": 1,
     "apis": [
       "DiomanContext.wait"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanNative.error",
+    "plugin": "context",
+    "capability": "R3 原生槽与失败诊断只读契约",
+    "tier": 1,
+    "apis": [
+      "DiomanNative.error"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanNative.raw",
+    "plugin": "context",
+    "capability": "R3 原生槽与失败诊断只读契约",
+    "tier": 1,
+    "apis": [
+      "DiomanNative.raw"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanNative.response",
+    "plugin": "context",
+    "capability": "R3 原生槽与失败诊断只读契约",
+    "tier": 1,
+    "apis": [
+      "DiomanNative.response"
     ],
     "real": [],
     "assumptions": [],
@@ -2922,7 +3210,10 @@
     "tier": 1,
     "apis": [],
     "unit": [
-      "test/boundary/b4_final_review_boundary_test.dart",
+      "test/boundary/share_timeout_boundary_test.dart",
+      "test/boundary/offline_online_boundary_test.dart",
+      "test/boundary/share_withdrawal_boundary_test.dart",
+      "test/boundary/cache_clone_boundary_test.dart",
       "test/integration/source_transport_integration_test.dart",
       "test/rule/client_rule_test.dart",
       "test/rule/retry_rule_test.dart",
@@ -3109,7 +3400,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 1,
       "total": 1
     },
@@ -3143,7 +3434,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 4,
       "total": 4
     },
@@ -3181,7 +3472,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 8,
       "total": 8
     },
@@ -3244,7 +3535,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 4,
       "total": 4
     },
@@ -3363,7 +3654,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 2,
       "total": 2
     },
@@ -3448,7 +3739,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 102,
       "total": 116
     },
@@ -3491,7 +3782,7 @@
     ],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 66,
       "total": 66
     },
@@ -3530,7 +3821,7 @@
     ],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 56,
       "total": 56
     },
@@ -3559,9 +3850,9 @@
     ],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
-      "passed": 1,
-      "total": 85
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
+      "passed": 13,
+      "total": 13
     },
     "blocked": null,
     "unit": [
@@ -3600,7 +3891,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 4,
       "total": 4
     },
@@ -3638,7 +3929,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 4,
       "total": 4
     },
@@ -3661,7 +3952,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 6,
       "total": 6
     },
@@ -3687,7 +3978,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 18,
       "total": 18
     },
@@ -3741,7 +4032,7 @@
     ],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 16,
       "total": 16
     },
@@ -3766,7 +4057,7 @@
     ],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 6,
       "total": 6
     },
@@ -3827,7 +4118,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 49,
       "total": 49
     },
@@ -3944,7 +4235,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 6,
       "total": 6
     },
@@ -3995,7 +4286,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 3,
       "total": 3
     },
@@ -4018,7 +4309,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 14,
       "total": 14
     },
@@ -4119,7 +4410,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 6,
       "total": 6
     },
@@ -4229,7 +4520,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 27,
       "total": 27
     },
@@ -4305,7 +4596,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 11,
       "total": 11
     },
@@ -4368,7 +4659,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 8,
       "total": 8
     },
@@ -4405,7 +4696,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 12,
       "total": 12
     },
@@ -4429,7 +4720,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 6,
       "total": 6
     },
@@ -4611,7 +4902,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 36,
       "total": 36
     },
@@ -4632,13 +4923,49 @@
     "blocked": null
   },
   {
-    "id": "DiomanCall.envelope",
+    "id": "DiomanCall.deadline",
     "plugin": "options",
-    "capability": "DiomanCall.envelope：公开契约及配置解析",
+    "capability": "逻辑请求整体预算：覆盖等待与完整传输，timeout/deadline，调用方独立归属",
+    "tier": 2,
+    "apis": [
+      "DiomanCall.deadline",
+      "DiomanCall.new(deadline)"
+    ],
+    "real": [
+      "local:test/integration/deadline_transport_integration_test.dart",
+      "share.single-all-timeout-aborts-server",
+      "timeout.total-hang",
+      "timeout.total-over-slow-chunks",
+      "timeout.request-override-shorter",
+      "timeout.request-override-longer",
+      "timeout.within-budget",
+      "timeout.recovers-after-timeout",
+      "timeout.parallel-all-timeout",
+      "timeout.weak-generous-budget",
+      "timeout.total-slow-chunks-small",
+      "timeout.total-budget-slow-body-ok",
+      "timeout.receive-gap-vs-chunk-bytes"
+    ],
+    "assumptions": [
+      "H5"
+    ],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
+      "passed": 27,
+      "total": 27
+    },
+    "blocked": null,
+    "note": "假时钟覆盖重试、刷新排队、离线队列和共享归属；testkit timeout-total 原生映射。"
+  },
+  {
+    "id": "DiomanCall.extra",
+    "plugin": "options",
+    "capability": "DiomanCall.extra：R2a 响应契约与纯判定规则",
     "tier": 1,
     "apis": [
-      "DiomanCall.envelope",
-      "DiomanCall.new(envelope)"
+      "DiomanCall.extra",
+      "DiomanCall.new(extra)"
     ],
     "real": [],
     "assumptions": [],
@@ -4674,7 +5001,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 2,
       "total": 2
     },
@@ -4688,6 +5015,20 @@
     "apis": [
       "DiomanCall.new(options)",
       "DiomanCall.options"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanCall.raw",
+    "plugin": "options",
+    "capability": "R3 原生槽与失败诊断只读契约",
+    "tier": 1,
+    "apis": [
+      "DiomanCall.new(raw)",
+      "DiomanCall.raw"
     ],
     "real": [],
     "assumptions": [],
@@ -4777,23 +5118,29 @@
     "blocked": null
   },
   {
-    "id": "DiomanPlugin pairs",
+    "id": "INV-pairs",
     "plugin": "pipeline",
-    "capability": "整形插件与交互插件 42 对配置透传",
+    "capability": "组合不变量",
     "tier": 1,
     "apis": [],
     "real": [],
+    "unit": [
+      "test/combo/prepare_pairs_combo_test.dart"
+    ],
     "assumptions": [],
     "result": null,
     "blocked": null
   },
   {
-    "id": "DiomanPlugin powerset",
+    "id": "INV-powerset",
     "plugin": "pipeline",
-    "capability": "九插件 512 子集九流程 I1–I7",
+    "capability": "组合不变量",
     "tier": 1,
     "apis": [],
     "real": [],
+    "unit": [
+      "test/combo/powerset_combo_test.dart"
+    ],
     "assumptions": [],
     "result": null,
     "blocked": null
@@ -4946,7 +5293,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 8,
       "total": 8
     },
@@ -4982,7 +5329,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 8,
       "total": 8
     },
@@ -5447,27 +5794,12 @@
     "blocked": null
   },
   {
-    "id": "DiomanFailure.data",
-    "plugin": "response",
-    "capability": "DiomanFailure.data：公开契约及配置解析",
-    "tier": 1,
-    "apis": [
-      "DiomanFailure.data",
-      "DiomanFailure.new(data)"
-    ],
-    "real": [],
-    "assumptions": [],
-    "result": null,
-    "blocked": null
-  },
-  {
     "id": "DiomanFailure.error",
     "plugin": "response",
-    "capability": "DiomanFailure.error：公开契约及配置解析",
+    "capability": "R3 原生槽与失败诊断只读契约",
     "tier": 1,
     "apis": [
-      "DiomanFailure.error",
-      "DiomanFailure.new(error)"
+      "DiomanFailure.error"
     ],
     "real": [],
     "assumptions": [],
@@ -5477,11 +5809,10 @@
   {
     "id": "DiomanFailure.errorStack",
     "plugin": "response",
-    "capability": "DiomanFailure.errorStack：公开契约及配置解析",
+    "capability": "R3 原生槽与失败诊断只读契约",
     "tier": 1,
     "apis": [
-      "DiomanFailure.errorStack",
-      "DiomanFailure.new(errorStack)"
+      "DiomanFailure.errorStack"
     ],
     "real": [],
     "assumptions": [],
@@ -5494,22 +5825,7 @@
     "capability": "DiomanFailure.kind：公开契约及配置解析",
     "tier": 1,
     "apis": [
-      "DiomanFailure.kind",
-      "DiomanFailure.new(kind)"
-    ],
-    "real": [],
-    "assumptions": [],
-    "result": null,
-    "blocked": null
-  },
-  {
-    "id": "DiomanFailure.message",
-    "plugin": "response",
-    "capability": "DiomanFailure.message：公开契约及配置解析",
-    "tier": 1,
-    "apis": [
-      "DiomanFailure.message",
-      "DiomanFailure.new(message)"
+      "DiomanFailure.kind"
     ],
     "real": [],
     "assumptions": [],
@@ -5522,7 +5838,6 @@
     "capability": "DiomanFailure.reason：公开契约及配置解析",
     "tier": 1,
     "apis": [
-      "DiomanFailure.new(reason)",
       "DiomanFailure.reason"
     ],
     "real": [],
@@ -5531,13 +5846,12 @@
     "blocked": null
   },
   {
-    "id": "DiomanFailure.status",
+    "id": "DiomanFailureKind.auth",
     "plugin": "response",
-    "capability": "DiomanFailure.status：公开契约及配置解析",
+    "capability": "DiomanFailureKind.auth：R2a 响应契约与纯判定规则",
     "tier": 1,
     "apis": [
-      "DiomanFailure.new(status)",
-      "DiomanFailure.status"
+      "DiomanFailureKind.auth"
     ],
     "real": [],
     "assumptions": [],
@@ -5545,12 +5859,12 @@
     "blocked": null
   },
   {
-    "id": "DiomanKind.auth",
+    "id": "DiomanFailureKind.breaker",
     "plugin": "response",
-    "capability": "DiomanKind.auth：公开契约及配置解析",
+    "capability": "DiomanFailureKind.breaker：R2a 响应契约与纯判定规则",
     "tier": 1,
     "apis": [
-      "DiomanKind.auth"
+      "DiomanFailureKind.breaker"
     ],
     "real": [],
     "assumptions": [],
@@ -5558,12 +5872,12 @@
     "blocked": null
   },
   {
-    "id": "DiomanKind.biz",
+    "id": "DiomanFailureKind.cancel",
     "plugin": "response",
-    "capability": "DiomanKind.biz：公开契约及配置解析",
+    "capability": "DiomanFailureKind.cancel：R2a 响应契约与纯判定规则",
     "tier": 1,
     "apis": [
-      "DiomanKind.biz"
+      "DiomanFailureKind.cancel"
     ],
     "real": [],
     "assumptions": [],
@@ -5571,12 +5885,12 @@
     "blocked": null
   },
   {
-    "id": "DiomanKind.breaker",
+    "id": "DiomanFailureKind.internal",
     "plugin": "response",
-    "capability": "DiomanKind.breaker：公开契约及配置解析",
+    "capability": "DiomanFailureKind.internal：R2a 响应契约与纯判定规则",
     "tier": 1,
     "apis": [
-      "DiomanKind.breaker"
+      "DiomanFailureKind.internal"
     ],
     "real": [],
     "assumptions": [],
@@ -5584,12 +5898,12 @@
     "blocked": null
   },
   {
-    "id": "DiomanKind.cancel",
+    "id": "DiomanFailureKind.network",
     "plugin": "response",
-    "capability": "DiomanKind.cancel：公开契约及配置解析",
+    "capability": "DiomanFailureKind.network：R2a 响应契约与纯判定规则",
     "tier": 1,
     "apis": [
-      "DiomanKind.cancel"
+      "DiomanFailureKind.network"
     ],
     "real": [],
     "assumptions": [],
@@ -5597,12 +5911,12 @@
     "blocked": null
   },
   {
-    "id": "DiomanKind.http",
+    "id": "DiomanFailureKind.offline",
     "plugin": "response",
-    "capability": "DiomanKind.http：公开契约及配置解析",
+    "capability": "DiomanFailureKind.offline：R2a 响应契约与纯判定规则",
     "tier": 1,
     "apis": [
-      "DiomanKind.http"
+      "DiomanFailureKind.offline"
     ],
     "real": [],
     "assumptions": [],
@@ -5610,12 +5924,12 @@
     "blocked": null
   },
   {
-    "id": "DiomanKind.internal",
+    "id": "DiomanFailureKind.parse",
     "plugin": "response",
-    "capability": "DiomanKind.internal：公开契约及配置解析",
+    "capability": "DiomanFailureKind.parse：R2a 响应契约与纯判定规则",
     "tier": 1,
     "apis": [
-      "DiomanKind.internal"
+      "DiomanFailureKind.parse"
     ],
     "real": [],
     "assumptions": [],
@@ -5623,12 +5937,12 @@
     "blocked": null
   },
   {
-    "id": "DiomanKind.network",
+    "id": "DiomanFailureKind.timeout",
     "plugin": "response",
-    "capability": "DiomanKind.network：公开契约及配置解析",
+    "capability": "DiomanFailureKind.timeout：R2a 响应契约与纯判定规则",
     "tier": 1,
     "apis": [
-      "DiomanKind.network"
+      "DiomanFailureKind.timeout"
     ],
     "real": [],
     "assumptions": [],
@@ -5636,12 +5950,13 @@
     "blocked": null
   },
   {
-    "id": "DiomanKind.offline",
+    "id": "DiomanParsed.code",
     "plugin": "response",
-    "capability": "DiomanKind.offline：公开契约及配置解析",
+    "capability": "DiomanParsed.code：R2a 响应契约与纯判定规则",
     "tier": 1,
     "apis": [
-      "DiomanKind.offline"
+      "DiomanParsed.code",
+      "DiomanParsed.new(code)"
     ],
     "real": [],
     "assumptions": [],
@@ -5649,12 +5964,13 @@
     "blocked": null
   },
   {
-    "id": "DiomanKind.ok",
+    "id": "DiomanParsed.data",
     "plugin": "response",
-    "capability": "DiomanKind.ok：公开契约及配置解析",
+    "capability": "DiomanParsed.data：R2a 响应契约与纯判定规则",
     "tier": 1,
     "apis": [
-      "DiomanKind.ok"
+      "DiomanParsed.data",
+      "DiomanParsed.new(data)"
     ],
     "real": [],
     "assumptions": [],
@@ -5662,25 +5978,13 @@
     "blocked": null
   },
   {
-    "id": "DiomanKind.parse",
+    "id": "DiomanParsed.message",
     "plugin": "response",
-    "capability": "DiomanKind.parse：公开契约及配置解析",
+    "capability": "DiomanParsed.message：R2a 响应契约与纯判定规则",
     "tier": 1,
     "apis": [
-      "DiomanKind.parse"
-    ],
-    "real": [],
-    "assumptions": [],
-    "result": null,
-    "blocked": null
-  },
-  {
-    "id": "DiomanKind.timeout",
-    "plugin": "response",
-    "capability": "DiomanKind.timeout：公开契约及配置解析",
-    "tier": 1,
-    "apis": [
-      "DiomanKind.timeout"
+      "DiomanParsed.message",
+      "DiomanParsed.new(message)"
     ],
     "real": [],
     "assumptions": [],
@@ -5748,7 +6052,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 19,
       "total": 33
     },
@@ -5766,55 +6070,6 @@
     "real": [],
     "assumptions": [],
     "result": null,
-    "blocked": null
-  },
-  {
-    "id": "DiomanResponse.errorStack",
-    "plugin": "response",
-    "capability": "DiomanResponse.errorStack：公开契约及配置解析",
-    "tier": 1,
-    "apis": [
-      "DiomanResponse.errorStack",
-      "DiomanResponse.new(errorStack)"
-    ],
-    "real": [],
-    "assumptions": [],
-    "result": null,
-    "blocked": null
-  },
-  {
-    "id": "DiomanResponse.httpStatus",
-    "plugin": "response",
-    "capability": "DiomanResponse.httpStatus：公开契约及配置解析",
-    "tier": 1,
-    "apis": [
-      "DiomanResponse.httpStatus",
-      "DiomanResponse.new(httpStatus)"
-    ],
-    "real": [],
-    "assumptions": [],
-    "result": null,
-    "blocked": null
-  },
-  {
-    "id": "DiomanResponse.kind",
-    "plugin": "response",
-    "capability": "DiomanResponse.kind：公开契约及配置解析",
-    "tier": 1,
-    "apis": [
-      "DiomanResponse.kind",
-      "DiomanResponse.new(kind)"
-    ],
-    "real": [
-      "faults.html-gateway-page"
-    ],
-    "assumptions": [],
-    "result": {
-      "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
-      "passed": 4,
-      "total": 4
-    },
     "blocked": null
   },
   {
@@ -5860,20 +6115,6 @@
     "blocked": null
   },
   {
-    "id": "DiomanResponse.reason",
-    "plugin": "response",
-    "capability": "DiomanResponse.reason：公开契约及配置解析",
-    "tier": 1,
-    "apis": [
-      "DiomanResponse.new(reason)",
-      "DiomanResponse.reason"
-    ],
-    "real": [],
-    "assumptions": [],
-    "result": null,
-    "blocked": null
-  },
-  {
     "id": "DiomanResponse.request",
     "plugin": "response",
     "capability": "DiomanResponse.request：公开契约及配置解析",
@@ -5905,7 +6146,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 10,
       "total": 10
     },
@@ -5952,20 +6193,6 @@
     "blocked": null
   },
   {
-    "id": "DiomanResponseFactory.envelope",
-    "plugin": "response",
-    "capability": "DiomanResponseFactory.envelope：公开契约及配置解析",
-    "tier": 1,
-    "apis": [
-      "DiomanResponseFactory.envelope",
-      "DiomanResponseFactory.new(envelope)"
-    ],
-    "real": [],
-    "assumptions": [],
-    "result": null,
-    "blocked": null
-  },
-  {
     "id": "DiomanResponseFactory.expectJson",
     "plugin": "response",
     "capability": "DiomanResponseFactory.expectJson：公开契约及配置解析",
@@ -5993,20 +6220,6 @@
     "blocked": null
   },
   {
-    "id": "DiomanResponseFactory.isEnvelope",
-    "plugin": "response",
-    "capability": "DiomanResponseFactory.isEnvelope：公开契约及配置解析",
-    "tier": 1,
-    "apis": [
-      "DiomanResponseFactory.isEnvelope",
-      "DiomanResponseFactory.new(isEnvelope)"
-    ],
-    "real": [],
-    "assumptions": [],
-    "result": null,
-    "blocked": null
-  },
-  {
     "id": "DiomanResponseFactory.isSuccess",
     "plugin": "response",
     "capability": "DiomanResponseFactory.isSuccess：公开契约及配置解析",
@@ -6014,20 +6227,6 @@
     "apis": [
       "DiomanResponseFactory.isSuccess",
       "DiomanResponseFactory.new(isSuccess)"
-    ],
-    "real": [],
-    "assumptions": [],
-    "result": null,
-    "blocked": null
-  },
-  {
-    "id": "DiomanResponseFactory.logicalStatus",
-    "plugin": "response",
-    "capability": "DiomanResponseFactory.logicalStatus：公开契约及配置解析",
-    "tier": 1,
-    "apis": [
-      "DiomanResponseFactory.logicalStatus",
-      "DiomanResponseFactory.new(logicalStatus)"
     ],
     "real": [],
     "assumptions": [],
@@ -6048,13 +6247,13 @@
     "blocked": null
   },
   {
-    "id": "Envelope.code",
+    "id": "DiomanResponseFactory.parse",
     "plugin": "response",
-    "capability": "Envelope.code：公开契约及配置解析",
+    "capability": "DiomanResponseFactory.parse：R2a 响应契约与纯判定规则",
     "tier": 1,
     "apis": [
-      "Envelope.code",
-      "Envelope.new(code)"
+      "DiomanResponseFactory.new(parse)",
+      "DiomanResponseFactory.parse"
     ],
     "real": [],
     "assumptions": [],
@@ -6062,27 +6261,35 @@
     "blocked": null
   },
   {
-    "id": "Envelope.data",
+    "id": "failureOf",
     "plugin": "response",
-    "capability": "Envelope.data：公开契约及配置解析",
+    "capability": "failureOf：R2a 响应契约与纯判定规则",
     "tier": 1,
     "apis": [
-      "Envelope.data",
-      "Envelope.new(data)"
+      "failureOf"
     ],
-    "real": [],
+    "real": [
+      "faults.html-gateway-page"
+    ],
     "assumptions": [],
-    "result": null,
-    "blocked": null
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
+      "passed": 4,
+      "total": 4
+    },
+    "blocked": null,
+    "unit": [
+      "test/rule/response_contract_rule_test.dart"
+    ]
   },
   {
-    "id": "Envelope.message",
+    "id": "isDiomanCancel",
     "plugin": "response",
-    "capability": "Envelope.message：公开契约及配置解析",
+    "capability": "isDiomanCancel：R2a 响应契约与纯判定规则",
     "tier": 1,
     "apis": [
-      "Envelope.message",
-      "Envelope.new(message)"
+      "isDiomanCancel"
     ],
     "real": [],
     "assumptions": [],
@@ -6173,7 +6380,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 10,
       "total": 10
     },
@@ -6256,7 +6463,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 65,
       "total": 65
     },
@@ -6282,7 +6489,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 17,
       "total": 17
     },
@@ -6357,7 +6564,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 2,
       "total": 2
     },
@@ -6383,7 +6590,7 @@
     ],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 23,
       "total": 23
     },
@@ -6438,7 +6645,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 16,
       "total": 16
     },
@@ -6473,7 +6680,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 12,
       "total": 12
     },
@@ -6497,7 +6704,7 @@
     ],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 2,
       "total": 2
     },
@@ -6534,7 +6741,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 3,
       "total": 3
     },
@@ -6569,7 +6776,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 2,
       "total": 2
     },
@@ -6605,7 +6812,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 3,
       "total": 3
     },
@@ -6627,7 +6834,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 7,
       "total": 7
     },
@@ -6662,7 +6869,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 1,
       "total": 1
     },
@@ -6697,7 +6904,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 2,
       "total": 2
     },
@@ -6733,7 +6940,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 4,
       "total": 4
     },
@@ -6827,9 +7034,9 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
-      "passed": 24,
-      "total": 38
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
+      "passed": 26,
+      "total": 26
     },
     "blocked": null
   },
@@ -6889,7 +7096,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 4,
       "total": 4
     },
@@ -6941,7 +7148,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 8,
       "total": 8
     },
@@ -6975,7 +7182,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 2,
       "total": 2
     },
@@ -6997,7 +7204,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 6,
       "total": 6
     },
@@ -7020,7 +7227,7 @@
     ],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 2,
       "total": 2
     },
@@ -7047,7 +7254,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 28,
       "total": 28
     },
@@ -7221,9 +7428,9 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
-      "passed": 10,
-      "total": 80
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
+      "passed": 20,
+      "total": 34
     },
     "blocked": null,
     "note": "probe 是使用者回调（契约替身）；真实执行器的 probe 恒返回 excellent。"
@@ -7308,9 +7515,9 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
-      "passed": 18,
-      "total": 88
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
+      "passed": 28,
+      "total": 42
     },
     "blocked": null
   },
@@ -7359,9 +7566,9 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
-      "passed": 4,
-      "total": 18
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
+      "passed": 8,
+      "total": 8
     },
     "blocked": null,
     "note": "只验配置写入；真实连接超时见 DiomanTimeouts.connect#effective。"
@@ -7375,20 +7582,18 @@
       "DiomanTimeouts.connect",
       "DiomanTimeouts.new(connect)"
     ],
-    "real": [
-      "local:test/integration/timeout_effective_integration_test.dart"
-    ],
+    "real": [],
     "assumptions": [
       "H5"
     ],
     "result": {
-      "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
-      "passed": 1,
-      "total": 1
+      "status": "BLOCKED",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
+      "passed": 0,
+      "total": 0
     },
-    "blocked": null,
-    "note": "用不 accept 且队列占满的本地监听端点，让 SYN 被丢弃，真实触发连接超时；H5 在 connect 上的落点。"
+    "blocked": "BLOCKED：testkit D22 的用户态 netem 无法丢弃 SYN；blackhole 只能测握手后接收超时。解锁：提供独立、稳定可控的握手不完成端点，或经授权使用平台包过滤，再补真实 connect 场景。",
+    "note": "H5 本来就要求\"逐格确认断言的是错误类型与耗时\"，这一行是它在 connect 上的落点。"
   },
   {
     "id": "DiomanTimeouts.receive",
@@ -7407,7 +7612,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 6,
       "total": 6
     },
@@ -7435,9 +7640,9 @@
     ],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
-      "passed": 8,
-      "total": 22
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
+      "passed": 10,
+      "total": 10
     },
     "blocked": null,
     "note": "单测 rule/timeout_rule_test 用本地 TestServer 断言了 receiveTimeout；真实侧 boundary receive_ms=1 断言 error=timeout，connect-blackhole 断言耗时 700-3500ms。按 H5 要求还应逐格复核每个样本的耗时，不只看 PASS。"
@@ -7475,7 +7680,7 @@
     ],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 3,
       "total": 3
     },
@@ -7497,7 +7702,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 2,
       "total": 16
     },

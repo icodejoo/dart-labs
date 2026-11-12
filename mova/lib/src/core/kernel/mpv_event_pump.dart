@@ -36,21 +36,18 @@ class MovaMpvEventPump {
   });
 
   final MovaMpvEventBackend _backend;
-  
+
   /// 客户端名称。
   final String name;
-  
+
   /// PLAYBACK_RESTART 回调。
   final void Function() onRestart;
-  
+
   /// END_FILE 回调。
   final void Function(int reason) onEndFile;
 
   /// 当前状态机状态。
   _PumpState _state = _PumpState.idle;
-
-  /// 记录启动过程的 Future。
-  Future<void>? _startFuture;
 
   /// 记录销毁过程的 Future。
   Future<void>? _disposeFuture;
@@ -72,8 +69,9 @@ class MovaMpvEventPump {
   Future<void> start(Future<void> ready) async {
     if (_state != _PumpState.idle) return; // 忽略重复调用
     _state = _PumpState.registering;
-    _startFuture = _doStart(ready);
-    await _startFuture;
+    // Await startup locally; no other operation needs to retain its Future.
+    // 在此等待启动过程的 Future，其他操作无需保存它。
+    await _doStart(ready);
   }
 
   /// 执行实际的启动流程。
@@ -129,11 +127,11 @@ class MovaMpvEventPump {
   /// 示例：`await pump.dispose()`
   Future<void> dispose() {
     if (_disposeFuture != null) return _disposeFuture!;
-    
+
     _state = _PumpState.closing;
     _teardown();
     _state = _PumpState.closed;
-    
+
     _disposeFuture = Future.value();
     return _disposeFuture!;
   }
@@ -180,7 +178,7 @@ class MovaMpvEventPump {
         _state = _PumpState.closed;
         break;
       }
-      
+
       if (event == null) break;
 
       if (event.id == MovaMpvEventBackend.eventShutdown) {

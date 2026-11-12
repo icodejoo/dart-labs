@@ -60,6 +60,67 @@ class _Rig {
 ///
 /// 覆盖终审确认的 QoE 错误与手动起播回归。
 void main() {
+  test('B2 grace first frame lands autoplay with native subscription / 宽限首帧落地自动播放', () async {
+    final probe = FakeStatsProbe()..nativeRestartAvailable = true;
+    final r = _Rig(probe: probe);
+    addTearDown(r.close);
+    r.events.add(const MovaPlay());
+    r.advance(2);
+    r.events.add(const MovaFirstFrame(
+      sinceOpen: Duration(seconds: 2), signal: MovaFirstFrameSignal.grace,
+    ));
+    r.advance(3);
+    probe.pushRestart();
+    await Future<void>.delayed(Duration.zero);
+    r.events.add(const MovaFirstFrame(
+      sinceOpen: Duration(seconds: 5), signal: MovaFirstFrameSignal.restart,
+    ));
+    r.collector.onTeardown();
+    expect(r.end.params['watchedMs'], 3000);
+    expect(r.end.params['reason'], 'stopped');
+    final frames = r.reports.where((e) => e.name == MovaReportName.firstFrame);
+    expect(frames, hasLength(1));
+    expect(frames.single.params['signal'], 'grace');
+    expect(frames.single.params['ttffMs'], 2000);
+    expect(r.reports.where((e) => e.name == MovaReportName.startupFail), isEmpty);
+  });
+
+  for (final native in [false, true]) {
+    test('B2 completion ignores pre-frame residue / 完成率忽略首帧前残留 native=$native', () async {
+      final probe = native ? (FakeStatsProbe()..nativeRestartAvailable = true) : null;
+      final r = _Rig(probe: probe);
+      addTearDown(r.close);
+      r.events.add(const MovaDurationChange(Duration(seconds: 10)));
+      r.collector.onPosition(const Duration(seconds: 90));
+      r.collector.onPosition(Duration.zero);
+      if (probe != null) {
+        probe.pushRestart();
+        await Future<void>.delayed(Duration.zero);
+      }
+      r.collector.onPosition(const Duration(milliseconds: 100));
+      r.collector.onPosition(const Duration(milliseconds: 200));
+      r.collector.onPosition(const Duration(seconds: 5));
+      r.collector.onTeardown();
+      expect(r.end.params['completionPercent'], 50);
+    });
+  }
+
+  test('B2 zero plus stale position cannot start autoplay / 零位置加残留位置不起播', () async {
+    final r = _Rig();
+    addTearDown(r.close);
+    r.events.add(const MovaPlay());
+    r.events.add(const MovaDurationChange(Duration(seconds: 10)));
+    r.collector.onPosition(Duration.zero);
+    r.advance(1);
+    r.collector.onPosition(const Duration(seconds: 90));
+    r.advance(3);
+    r.collector.onTeardown();
+    expect(r.end.params['watchedMs'], 0);
+    expect(r.end.params['completionPercent'], 0);
+    expect(r.reports.where((e) => e.name == MovaReportName.firstFrame), isEmpty);
+    expect(r.reports.where((e) => e.name == MovaReportName.startupFail), hasLength(1));
+  });
+
   for (final native in [false, true]) {
     for (final healsWhilePaused in [false, true]) {
       test('D10 pause excludes idle time, native=$native heal=$healsWhilePaused', () async {

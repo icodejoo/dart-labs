@@ -467,7 +467,8 @@ class _TenthsDemoState extends State<_TenthsDemo> {
 
   @override
   void dispose() {
-    _plugin.dispose();
+    // 按实例注销并销毁，下次进入页面重新创建同名实例时不会冲突。
+    Countman.unuse(_plugin);
     super.dispose();
   }
 

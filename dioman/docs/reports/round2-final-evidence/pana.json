@@ -1,0 +1,78 @@
+{
+  "tags": [
+    "sdk:dart",
+    "sdk:flutter",
+    "platform:android",
+    "platform:ios",
+    "platform:windows",
+    "platform:linux",
+    "platform:macos",
+    "platform:web",
+    "runtime:native-aot",
+    "runtime:native-jit",
+    "runtime:web",
+    "is:null-safe",
+    "is:wasm-ready",
+    "is:dart3-compatible",
+    "license:mit",
+    "license:fsf-libre",
+    "license:osi-approved"
+  ],
+  "scores": {
+    "grantedPoints": 140,
+    "maxPoints": 160
+  },
+  "runtimeInfo": {
+    "panaVersion": "0.23.16",
+    "sdkVersion": "3.13.0",
+    "flutterVersions": {
+      "frameworkVersion": "3.47.0",
+      "channel": "stable",
+      "repositoryUrl": "https://github.com/flutter/flutter.git",
+      "frameworkRevision": "4cf24164269a5ebf0c16a028a00727d0e77bbb05",
+      "frameworkCommitDate": "2026-08-11 11:53:49 -0700",
+      "engineRevision": "5f77625673248ee5846fbcaf5d3e1a3878386fd7",
+      "engineCommitDate": "2026-08-11 16:38:36.000Z",
+      "engineContentHash": "59d54a2b2896a6bbf356c94b7fac7b9e235bdacd",
+      "engineBuildDate": "2026-08-12 01:18:15.653",
+      "dartSdkVersion": "3.13.0",
+      "devToolsVersion": "2.60.0",
+      "flutterVersion": "3.47.0"
+    }
+  },
+  "sections": [
+    {
+      "title": "Follow Dart file conventions",
+      "grantedPoints": 30,
+      "maxPoints": 30,
+      "summary": "### [*] 10/10 points: Provide a valid `pubspec.yaml`\n\n### [*] 5/5 points: Provide a valid `README.md`\n\n### [*] 5/5 points: Provide a valid `CHANGELOG.md`\n\n### [*] 10/10 points: Use an OSI-approved license\n\nDetected license: `MIT`.\n"
+    },
+    {
+      "title": "Provide documentation",
+      "grantedPoints": 20,
+      "maxPoints": 20,
+      "summary": "### [*] 10/10 points: 20% or more of the public API has dartdoc comments\n\n503 out of 505 API elements (99.6 %) have documentation comments.\n\nSome symbols that are missing documentation: `dioman.DiomanLoadingApi.DiomanLoadingApi.new`, `dioman.DiomanPluginInstance.DiomanPluginInstance.new`.\n\n### [*] 10/10 points: Package has an example\n"
+    },
+    {
+      "title": "Platform support",
+      "grantedPoints": 20,
+      "maxPoints": 20,
+      "summary": "### [*] 20/20 points: Supports 6 of 6 possible platforms (**iOS**, **Android**, **Web**, **Windows**, **macOS**, **Linux**)\n\n* ✓ Android\n\n* ✓ iOS\n\n* ✓ Windows\n\n* ✓ Linux\n\n* ✓ macOS\n\n* ✓ Web\n\n\n**WASM-ready:** This package is compatible with runtime `wasm`. See https://dart.dev/web/wasm for details.\n"
+    },
+    {
+      "title": "Pass static analysis",
+      "grantedPoints": 50,
+      "maxPoints": 50,
+      "summary": "### [*] 50/50 points: code has no errors, warnings, lints, or formatting issues\n"
+    },
+    {
+      "title": "Support up-to-date dependencies",
+      "grantedPoints": 20,
+      "maxPoints": 40,
+      "summary": "### [*] 10/10 points: All of the package dependencies are supported in the latest version\n\n|Package|Constraint|Compatible|Latest|Notes|\n|:-|:-|:-|:-|:-|\n|[`dio`]|`^5.0.0`|5.11.1|5.11.1||\n\n<details><summary>Transitive dependencies</summary>\n\n|Package|Constraint|Compatible|Latest|Notes|\n|:-|:-|:-|:-|:-|\n|[`async`]|-|2.13.1|2.13.1||\n|[`collection`]|-|1.19.1|1.19.1||\n|[`dio_web_adapter`]|-|2.2.2|2.2.2||\n|[`http_parser`]|-|4.1.2|4.1.2||\n|[`meta`]|-|1.19.0|1.19.0||\n|[`mime`]|-|2.1.0|2.1.0||\n|[`path`]|-|1.9.1|1.9.1||\n|[`source_span`]|-|1.10.2|1.10.2||\n|[`string_scanner`]|-|1.4.1|1.4.1||\n|[`term_glyph`]|-|1.2.2|1.2.2||\n|[`typed_data`]|-|1.4.0|1.4.0||\n|[`web`]|-|1.1.2|1.1.2||\n</details>\n\nTo reproduce run `dart pub outdated --no-dev-dependencies --up-to-date --no-dependency-overrides`.\n\n[`dio`]: https://pub.dev/packages/dio\n[`async`]: https://pub.dev/packages/async\n[`collection`]: https://pub.dev/packages/collection\n[`dio_web_adapter`]: https://pub.dev/packages/dio_web_adapter\n[`http_parser`]: https://pub.dev/packages/http_parser\n[`meta`]: https://pub.dev/packages/meta\n[`mime`]: https://pub.dev/packages/mime\n[`path`]: https://pub.dev/packages/path\n[`source_span`]: https://pub.dev/packages/source_span\n[`string_scanner`]: https://pub.dev/packages/string_scanner\n[`term_glyph`]: https://pub.dev/packages/term_glyph\n[`typed_data`]: https://pub.dev/packages/typed_data\n[`web`]: https://pub.dev/packages/web\n\n### [*] 10/10 points: Package supports latest stable Dart and Flutter SDKs\n\n### [x] 0/20 points: Compatible with dependency constraint lower bounds\n\ndowngrade analysis failed failed with 20 errors:\n\n - `UNDEFINED_GETTER` - `lib\\src\\config.dart:36:9` - The getter 'preserveHeaderCase' isn't defined for the type 'BaseOptions'.\n - `UNDEFINED_GETTER` - `lib\\src\\config.dart:36:41` - The getter 'preserveHeaderCase' isn't defined for the type 'BaseOptions'.\n - `UNDEFINED_SETTER` - `lib\\src\\config.dart:37:12` - The setter 'preserveHeaderCase' isn't defined for the type 'BaseOptions'.\n\nRun `dart pub downgrade` and then `dart analyze` to reproduce the above problem.\n\nYou may run `dart pub upgrade --tighten` to update your dependency constraints, see [dart.dev/go/downgrade-testing](https://dart.dev/go/downgrade-testing) for details.\n"
+    }
+  ],
+  "exit": 0,
+  "source_sha256": "ed0f8476f6af4b4e7f360348af294623b444e07b26d857499e64e60f31c08eeb",
+  "source": "coverage/round2-final/pana.json"
+}

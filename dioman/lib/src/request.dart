@@ -15,8 +15,9 @@ class DiomanRequest {
         query = Map.unmodifiable(options.queryParameters),
         extra = Map.unmodifiable(options.extra),
         call = DiomanCall(
+            raw: call.raw,
             key: call.key,
-            envelope: call.envelope,
+            extra: Map.unmodifiable(call.extra),
             silent: call.silent,
             options: Map.unmodifiable(call.options));
 

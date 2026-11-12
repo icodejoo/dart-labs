@@ -1,0 +1,28 @@
+00:00 +0: loading test/rule/cache_snapshot_rule_test.dart
+00:00 +0: test/rule/cache_snapshot_rule_test.dart: [DiomanCache][DiomanResponse.request][DiomanResponseFactory.create] 内存命中经工厂绑定当前请求且不保留旧凭证或原生数据
+00:00 +1: test/rule/cache_snapshot_rule_test.dart: [DiomanCache.shouldStore][DiomanResponseFactory.create] 快照生成前工厂 internal 不入缓存并保留原异常 disk=false
+00:00 +2: test/rule/cache_snapshot_rule_test.dart: [DiomanCache.shouldStore][DiomanResponseFactory.create] 快照生成前工厂 internal 不入缓存并保留原异常 disk=true
+00:00 +3: test/rule/cache_snapshot_rule_test.dart: [DiomanRetry.retryAfterMax][DiomanCache.shouldStore] 内存快照保留服务器超限退避且不读 raw
+00:00 +4: loading test/combo/native_share_retry_combo_test.dart
+00:00 +4: test/combo/native_share_retry_combo_test.dart: [DiomanRetry.respectRetryAfter][DiomanShare][DiomanCall.raw] 跟随者遵守头等待且不借用首发原生数据
+00:00 +5: test/combo/native_share_retry_combo_test.dart: [DiomanContext.native][DiomanSharePolicy.start] 首发落定后共享传输完成不能重写槽
+00:00 +6: test/combo/native_share_retry_combo_test.dart: [DiomanMock.mockUrl][DiomanContext.native] mock 探测走真实传输时仍有自身槽
+00:00 +7: test/combo/native_share_retry_combo_test.dart: [DiomanMock.routes][DiomanRetry.respectRetryAfter] 内联 mock 响应保留服务器等待事实且没有原生槽
+00:00 +8: loading test/boundary/native_slot_boundary_test.dart
+00:00 +8: test/boundary/native_slot_boundary_test.dart: [DiomanCall.raw][DiomanCall.new(raw)][DiomanResponse.raw][DiomanResponse.error] 自身成功与失败 raw=false status=200
+00:00 +9: test/boundary/native_slot_boundary_test.dart: [DiomanCall.raw][DiomanCall.new(raw)][DiomanResponse.raw][DiomanResponse.error] 自身成功与失败 raw=false status=503
+00:00 +10: test/boundary/native_slot_boundary_test.dart: [DiomanCall.raw][DiomanCall.new(raw)][DiomanResponse.raw][DiomanResponse.error] 自身成功与失败 raw=true status=200
+00:00 +11: test/boundary/native_slot_boundary_test.dart: [DiomanCall.raw][DiomanCall.new(raw)][DiomanResponse.raw][DiomanResponse.error] 自身成功与失败 raw=true status=503
+00:00 +12: test/boundary/native_slot_boundary_test.dart: [DiomanResponse.error][DiomanCall.raw] 网络失败按需附自身异常
+00:00 +13: test/boundary/native_slot_boundary_test.dart: [Dioman.send][Dioman.reject][DiomanFailure.error][DiomanFailure.errorStack] I11 return 落定清空并拒绝迟到写入
+00:00 +14: test/boundary/native_slot_boundary_test.dart: [Dioman.send][Dioman.reject][DiomanFailure.error][DiomanFailure.errorStack] I11 throw 落定清空并拒绝迟到写入
+00:00 +15: test/boundary/native_slot_boundary_test.dart: [Dioman.send][Dioman.reject][DiomanFailure.error][DiomanFailure.errorStack] I11 reject 落定清空并拒绝迟到写入
+00:00 +16: test/boundary/native_slot_boundary_test.dart: [Dioman.send][Dioman.reject][DiomanFailure.error][DiomanFailure.errorStack] I11 internal 落定清空并拒绝迟到写入
+00:00 +17: test/boundary/native_slot_boundary_test.dart: [DiomanContext.native][DiomanCall.raw] 重试成功清空上次异常
+00:00 +18: test/boundary/native_slot_boundary_test.dart: [DiomanNext][DiomanContext.native] 已传输后短路立即解除原生视图 cancelled=false
+00:00 +19: test/boundary/native_slot_boundary_test.dart: [DiomanNext][DiomanContext.native] 已传输后短路立即解除原生视图 cancelled=true
+00:00 +20: test/boundary/native_slot_boundary_test.dart: [DiomanRetry.respectRetryAfter][DiomanResponseFactory.normalize] 多值头不把正常协议结果改为 internal status=200 error=false
+00:00 +21: test/boundary/native_slot_boundary_test.dart: [DiomanRetry.respectRetryAfter][DiomanResponseFactory.normalize] 多值头不把正常协议结果改为 internal status=200 error=true
+00:00 +22: test/boundary/native_slot_boundary_test.dart: [DiomanRetry.respectRetryAfter][DiomanResponseFactory.normalize] 多值头不把正常协议结果改为 internal status=503 error=false
+00:00 +23: test/boundary/native_slot_boundary_test.dart: [DiomanRetry.respectRetryAfter][DiomanResponseFactory.normalize] 多值头不把正常协议结果改为 internal status=503 error=true
+00:00 +24: All tests passed!

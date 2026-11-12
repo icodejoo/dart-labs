@@ -1,3 +1,4 @@
+import '../support/response_contract.dart';
 import '../support/constants.dart';
 import 'package:dioman/dioman.dart';
 import 'package:dio/dio.dart';
@@ -8,7 +9,7 @@ import '../support/helpers.dart';
 /// 最外层落定规则及用户配置合并。
 void main() {
   test(
-      '[DiomanKind.offline][DiomanResponseFactory.fail]'
+      '[DiomanFailureKind.offline][DiomanResponseFactory.fail]'
       '[INV-context-lifecycle]'
       '[DiomanResponseFactory.create] debug 派生工厂抛错不进入 reject，原栈抛出', () async {
     final bug = StateError('debug factory');
@@ -25,8 +26,7 @@ void main() {
         },
         plugins: [
           TestPlugin('failure',
-              handler: (ctx, _) async =>
-                  ctx.fail(const DiomanFailure(kind: DiomanKind.offline)))
+              handler: (ctx, _) async => scriptedResult(ctx, diomanTestOffline))
         ]);
     await expectLater(
         api.get<Object?>(pipelineTestRootPath), throwsA(same(bug)));
@@ -34,9 +34,9 @@ void main() {
     expect(api.pending, 0);
   });
   for (final debug in [false, true, pipelineTestLogger]) {
-    for (final kind in [DiomanKind.ok, DiomanKind.http, DiomanKind.internal]) {
+    for (final kind in [diomanTestOk, diomanTestHttp, diomanTestInternal]) {
       test(
-          '[DiomanResponse.errorStack]'
+          '[DiomanFailure.errorStack]'
           '[Dioman.send] 九格落定 debug=$debug kind=$kind', () async {
         final bug = StateError(pipelineTestOriginal);
         final stack = StackTrace.fromString(pipelineTestOriginalStack);
@@ -49,14 +49,13 @@ void main() {
             },
             plugins: [
               TestPlugin('result',
-                  handler: (ctx, _) async => ctx.fail(DiomanFailure(
-                      kind: kind,
-                      status: kind == DiomanKind.http ? 503 : 200,
-                      data: kind == DiomanKind.ok ? 7 : null,
+                  handler: (ctx, _) async => scriptedResult(ctx, kind,
+                      status: kind == diomanTestHttp ? 503 : 200,
+                      data: kind == diomanTestOk ? 7 : null,
                       error: bug,
-                      errorStack: stack)))
+                      errorStack: stack))
             ]);
-        if (kind == DiomanKind.internal) {
+        if (kind == diomanTestInternal) {
           for (final pending in [
             api.send<int>(pipelineTestGetMethod, pipelineTestX),
             api.get<int>(pipelineTestX)
@@ -72,9 +71,9 @@ void main() {
           expect(rejected, 0);
         } else {
           final r = await api.send<int>(pipelineTestGetMethod, pipelineTestX);
-          expect(r.kind, kind);
-          expect(r.callSite != null, kind != DiomanKind.ok && debug != false);
-          if (kind == DiomanKind.ok) {
+          expect(outcomeOf(r), kind);
+          expect(r.callSite != null, kind != diomanTestOk && debug != false);
+          if (kind == diomanTestOk) {
             expect(await api.get<int>(pipelineTestX), 7);
             expect(rejected, 0);
           } else {
@@ -144,8 +143,9 @@ void main() {
     }
     network.routes['GET:/fail'] = [const FakeReply(status: 503)];
     final failed = await api.send<int>(pipelineTestGetMethod, pipelineTestFail);
-    expect(failed.kind, DiomanKind.http);
-    expect(failed.raw!.statusCode, 503);
+    expect(outcomeOf(failed), diomanTestHttp);
+    expect(failed.raw, isNull);
+    expect(failed.status, 503);
   });
   test('[Dioman.reject] 仅动词可预期失败转换，send 保持结果，debug 不修改原对象', () async {
     Result? shared;
@@ -153,7 +153,7 @@ void main() {
     final api = testClient(debug: true, reject: (_) => converted, plugins: [
       TestPlugin('shared',
           handler: (ctx, _) async =>
-              shared ??= ctx.fail(const DiomanFailure(kind: DiomanKind.biz))),
+              shared ??= scriptedResult(ctx, diomanTestBiz)),
     ]);
     expect(
         (await api.send<Object?>(pipelineTestGetMethod, pipelineTestRootPath))
@@ -164,8 +164,7 @@ void main() {
         api.get<Object?>(pipelineTestRootPath), throwsA(same(converted)));
     final plain = testClient(plugins: [
       TestPlugin('fail',
-          handler: (ctx, _) async =>
-              ctx.fail(const DiomanFailure(kind: DiomanKind.biz)))
+          handler: (ctx, _) async => scriptedResult(ctx, diomanTestBiz))
     ]);
     await expectLater(plain.get<Object?>(pipelineTestRootPath),
         throwsA(isA<DiomanResponse>()));

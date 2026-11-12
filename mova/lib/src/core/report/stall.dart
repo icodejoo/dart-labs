@@ -54,31 +54,27 @@ class MovaEdgeStall implements MovaStallPolicy {
   /// 创建一个边沿式卡顿策略。
   MovaEdgeStall({this.minStall = const Duration(milliseconds: 200)});
 
-  bool _stalled = false;
   DateTime? _risingAt;
 
+  /// Records edges using the rising timestamp as the active-stall state.
+  ///
+  /// 以上升沿时间戳表示当前卡顿状态，记录边沿。
   @override
   MovaStall? onStall(bool stalled, DateTime at) {
-    if (stalled && !_stalled) {
-      _stalled = true;
-      _risingAt = at;
+    if (stalled) {
+      _risingAt ??= at;
       return null;
     }
-    if (!stalled && _stalled) {
-      _stalled = false;
-      final rising = _risingAt;
-      _risingAt = null;
-      if (rising == null) return null;
-      final duration = at.difference(rising);
-      if (duration < minStall) return null;
-      return MovaStall(duration: duration, at: at);
-    }
-    return null;
+    final rising = _risingAt;
+    _risingAt = null;
+    if (rising == null) return null;
+    final duration = at.difference(rising);
+    if (duration < minStall) return null;
+    return MovaStall(duration: duration, at: at);
   }
 
   @override
   void reset() {
-    _stalled = false;
     _risingAt = null;
   }
 }

@@ -1,0 +1,36 @@
+{
+  "classification": "执行器映射",
+  "reason": "R6b 无条件将旧请求 timeout_ms 映射整体 deadline，导致未声明 timeout-total 的 retry 场景在第一次超时后耗尽整个逻辑预算；按能力声明或 total_ms 配置恢复中立映射。",
+  "library_changed": false,
+  "new_unit_tests": 2,
+  "red_failed": 1,
+  "green_passed": 16,
+  "cases": [
+    {
+      "cell": "retry.hang-timeout-retried|normal@http",
+      "first_failure": [
+        "duration_ms=512，预期 {\"min\":900}",
+        "server.by_path./t/echo=1，预期 {\"eq\":2}"
+      ],
+      "jobs1_failure": [
+        "duration_ms=517，预期 {\"min\":900}",
+        "server.by_path./t/echo=1，预期 {\"eq\":2}"
+      ],
+      "recheck_status": "通过",
+      "final_status": "通过"
+    },
+    {
+      "cell": "retry.hang-timeout-retried|normal@business",
+      "first_failure": [
+        "duration_ms=512，预期 {\"min\":900}",
+        "server.by_path./t/echo=1，预期 {\"eq\":2}"
+      ],
+      "jobs1_failure": [
+        "duration_ms=520，预期 {\"min\":900}",
+        "server.by_path./t/echo=1，预期 {\"eq\":2}"
+      ],
+      "recheck_status": "通过",
+      "final_status": "通过"
+    }
+  ]
+}

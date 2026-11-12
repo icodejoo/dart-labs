@@ -1,0 +1,103 @@
+[
+  {
+    "name": "harness-unit",
+    "command": [
+      "E:\\sdk\\Python314\\python.exe",
+      "tool/dioman_bench_load_test.py"
+    ],
+    "exitCode": 0,
+    "elapsedSeconds": 3.5473012924194336,
+    "log": "coverage\\r4b-current-harness-unit.log",
+    "result": "7/7 通过"
+  },
+  {
+    "name": "analyze",
+    "command": [
+      "E:\\sdk\\flutter\\bin\\cache\\dart-sdk\\bin\\dart.exe",
+      "analyze"
+    ],
+    "exitCode": 0,
+    "elapsedSeconds": 9.936700820922852,
+    "log": "coverage\\r4b-current-analyze.log",
+    "result": "0 issue"
+  },
+  {
+    "name": "analyze-example",
+    "command": [
+      "E:\\sdk\\flutter\\bin\\cache\\dart-sdk\\bin\\dart.exe",
+      "analyze",
+      "example"
+    ],
+    "exitCode": 0,
+    "elapsedSeconds": 10.978372812271118,
+    "log": "coverage\\r4b-current-analyze-example.log",
+    "result": "0 issue"
+  },
+  {
+    "name": "tests-coverage",
+    "command": [
+      "E:\\sdk\\flutter\\bin\\cache\\dart-sdk\\bin\\dart.exe",
+      "test",
+      "--concurrency=1",
+      "--coverage-path=coverage/r4b-current-final.info",
+      "--branch-coverage"
+    ],
+    "exitCode": 0,
+    "elapsedSeconds": 162.39345169067383,
+    "log": "coverage\\r4b-current-tests-coverage.log",
+    "result": "5704 项全绿，单并发"
+  },
+  {
+    "name": "coverage-audit",
+    "command": [
+      "E:\\sdk\\Python314\\python.exe",
+      "tool/pipeline_b5a_coverage.py",
+      "coverage/r4b-current-final.info",
+      "--out",
+      "E:\\workspaces\\dart-labs-dioman\\dioman\\docs\\reports\\round2-r4b-evidence"
+    ],
+    "exitCode": 0,
+    "elapsedSeconds": 0.45481109619140625,
+    "log": "coverage\\r4b-current-coverage-audit.log",
+    "result": "1698/1698 行；806/806 分支；100%"
+  },
+  {
+    "name": "gates",
+    "command": [
+      "E:\\sdk\\flutter\\bin\\cache\\dart-sdk\\bin\\dart.exe",
+      "run",
+      "test/accept/bin/matrix.dart",
+      "gates",
+      "--lcov=coverage/r4b-current-final.info"
+    ],
+    "exitCode": 0,
+    "elapsedSeconds": 2.365391492843628,
+    "log": "coverage\\r4b-current-gates.log",
+    "result": "G0/G1/G2/G3/G5=0；G4=1（既有缺口）"
+  },
+  {
+    "name": "docs-index",
+    "command": [
+      "E:\\sdk\\Python314\\python.exe",
+      "C:\\Users\\jelon\\.claude\\skills\\docs-index\\scripts\\check_docs.py",
+      "docs"
+    ],
+    "exitCode": 1,
+    "elapsedSeconds": 0.39647912979125977,
+    "log": "coverage\\r4b-current-docs-index.log",
+    "result": "未收录: reports/2026-11-03-round2-r4b.md；1 个问题；按用户要求不改索引"
+  },
+  {
+    "name": "diff-check",
+    "command": [
+      "git",
+      "diff",
+      "--check",
+      "--",
+      "."
+    ],
+    "exitCode": 0,
+    "log": "coverage\\r4b-current-diff-check.log",
+    "result": "无空白错误"
+  }
+]

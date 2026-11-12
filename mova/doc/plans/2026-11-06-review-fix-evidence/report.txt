@@ -1,0 +1,123 @@
+RFV Android 真机验收最终报告 — 2026-11-06
+
+结论：最终完整三轮 24 PASS / 0 FAIL。
+V1：每轮 6 项，共 18 PASS / 0 FAIL。
+V2：44100Hz 双声道源 3/3 PASS，48000Hz 单声道源 3/3 PASS。
+设备：仅 7NQBB23606003715，STG-AL00，Android 12。
+应用：com.icodejoo.mova.mova_example；全部 release=true，arm64。
+每次安装/启动前 dumpsys window 均为 isKeyguardShowing=false。
+
+测量依据：
+V1 为真实文件路径、随机 token、engine_* 目录列表、Directory.stat 和扫描后的文件存在性。
+阶段一不 dispose；外部 am force-stop 后 pidof 为空，再安装阶段二保留应用数据并重启。
+V2 调用未注入参数的 MovaAudioExtractor()，等待其返回并关闭播放器后读取真实 WAV。
+遍历 RIFF fmt/data 块，时长 = dataBytes / blockAlign / sampleRate，不使用墙钟推断时长。
+源文件由 Python wave 生成：stereo44100 左 440Hz / 右 997Hz，352800 帧；
+mono48000 为 440Hz，384000 帧。均 signed 16bit、精确 8 秒。
+6 个不同查询参数的音频请求均见 http-server.txt 的 HTTP 200 记录。
+
+逐轮数字：
+轮次  A目录          B目录          阶段1→重启数  第二provider后  第三provider后  旧目录年龄(s)  结果
+1     engine_HVWHAK  engine_OHBBAD  1→1           2               3               691200         PASS
+2     engine_CNFAMH  engine_ZLJWKO  1→1           2               3               691200         PASS
+3     engine_PUTGEC  engine_QENYOE  1→1           2               3               691200         PASS
+第三个 provider 三轮均收养 engine_fresh，engine_old 均被删除，A/B 均保留。
+每轮释放 provider 后，本轮 engine_*、marker、mtime stamp、状态文件均已删除，remaining=[]。
+
+V2 六次均：channels=1 sampleRate=16000 bitsPerSample=16 format=65534
+          dataBytes=256000 fileBytes=256068 seconds=8.0，绝对误差 0.0 秒。
+44100Hz 双声道组：三次 8.0 / 8.0 / 8.0 秒，平均 8.0 秒。
+48000Hz 单声道组：三次 8.0 / 8.0 / 8.0 秒，平均 8.0 秒。
+默认抽取器在当前 media_kit 1.2.6 + example 配置的 Android slim libmpv 上可以运行。
+无需启用失败诊断；未注入替代 player、目录或格式参数。
+
+发现的问题与方法偏差：
+1. Android 的 File(directoryPath).setLastModified 不支持目录，错误原文：
+   FileSystemException: Cannot set modification time, path = '/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_old' (OS Error: Is a directory, errno = 21)
+   首次脚本三轮均因该夹具问题中断，不能算完整验收；原始输出保留在 pilot-file-mtime-error/。
+   修正后的验收仍记录此 API 的真实错误，再以 File.setLastModified 设置临时 stamp，
+   读取真实文件 mtime，经 libc.utime 写入目录，最后 Directory.stat 确认实际年龄。
+   这一步偏离了“仅直接用 File.setLastModified 设置目录”的预想，但没有修改或注入 provider。
+2. PC 构建遇到提交内存不足：
+   Native memory allocation (malloc) failed to allocate 1559856 bytes. Error detail: Chunk::new
+   Could not reserve enough space for object heap
+   通过只对脚本设置 Gradle launcher 128MB / daemon 1536MB、单 worker、单次 daemon、
+   Kotlin in-process 完成 release 构建；回收的 Kotlin 孤儿进程确认来自本次失败构建。
+3. --no-pub 沿用开发模式插件注册代码，release Java 编译错误原文：
+   程序包dev.flutter.plugins.integration_test不存在
+   去掉 --no-pub 后由 Flutter 重新生成正确的 release 注册代码。
+4. 本次验收未发现两处目标库实现的功能失败。lib/ 无修改；未 commit/stash/reset。
+
+复现（当前工程根目录，设备须保持解锁）：
+python -u example/tool/review_fix_verify.py
+
+脚本生成临时 WAV、启动 python -m http.server、配置 adb reverse、构建两份 release APK，
+各循环执行 adb install -r / am start / logcat --pid / 外部 am force-stop，共三轮。
+完整构建参数与主机内存参数在脚本中，成功构建输出见 build-phase1.txt / build-phase2.txt。
+本次最终重试复用了同一页面版本已经成功构建的 PHASE=1 APK：
+python -u example/tool/review_fix_verify.py --phase1-apk example/build/app/outputs/flutter-apk/app-release.apk
+该 --phase1-apk 参数只适合手上确实持有相同页面版本的 PHASE=1 包；普通复现请用首条命令。
+
+关键命令（均使用唯一设备）：
+adb -s 7NQBB23606003715 shell dumpsys window
+flutter build apk --release --target-platform android-arm64 -t lib/main_review_fix_verify.dart --dart-define=PHASE=1
+flutter build apk --release --target-platform android-arm64 -t lib/main_review_fix_verify.dart --dart-define=PHASE=2
+adb -s 7NQBB23606003715 reverse tcp:18764 tcp:18764
+adb -s 7NQBB23606003715 install -r <phase1.apk或phase2.apk>
+adb -s 7NQBB23606003715 shell am start -W -n com.icodejoo.mova.mova_example/.MainActivity
+adb -s 7NQBB23606003715 logcat -d -v threadtime --pid=<实际PID>
+adb -s 7NQBB23606003715 shell am force-stop com.icodejoo.mova.mova_example
+adb -s 7NQBB23606003715 reverse --remove-all
+
+静态检查：flutter analyze --no-pub lib/main_review_fix_verify.dart，No issues found。
+脚本 Python AST 解析通过；最终 24 条检查行数量和 PASS 判定已从原始 execution.txt 核对。
+
+以下为每个检查项每次运行的真实输出行（逐字摘录，未缩短路径）：
+
+RFV cycle=1 phase=1 PASS V1_PREPARE A=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_HVWHAK token=a6a03d8965de59a9841a2a40f4c6319a count=1 engines=["engine_HVWHAK"] disposed=false
+RFV cycle=1 phase=2 PASS V1_ADOPT A=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_HVWHAK expected=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_HVWHAK token=a6a03d8965de59a9841a2a40f4c6319a expectedToken=a6a03d8965de59a9841a2a40f4c6319a
+RFV cycle=1 phase=2 PASS V1_COUNT before=1 after=1 engines=["engine_HVWHAK"]
+RFV cycle=1 phase=2 PASS V1_SECOND A=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_HVWHAK B=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_OHBBAD AExists=true tokenIntact=true count=2 engines=["engine_HVWHAK","engine_OHBBAD"]
+RFV cycle=1 phase=2 PASS V1_LEGACY_SETUP old=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_old ageSeconds=691200 fresh=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_fresh oldLease=false freshLease=false
+RFV cycle=1 phase=2 PASS V1_PRUNE C=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_fresh oldExists=false freshExists=true count=3 engines=["engine_HVWHAK","engine_OHBBAD","engine_fresh"]
+RFV cycle=1 phase=2 PASS V2_WAV source=stereo44100 run=1 path=/data/user/0/com.icodejoo.mova.mova_example/cache/mova_stt_audio_1793956873968656.wav channels=1 sampleRate=16000 bitsPerSample=16 format=65534 dataBytes=256000 seconds=8.0 fileBytes=256068
+RFV cycle=1 phase=2 PASS V2_WAV source=stereo44100 run=2 path=/data/user/0/com.icodejoo.mova.mova_example/cache/mova_stt_audio_1793956874178909.wav channels=1 sampleRate=16000 bitsPerSample=16 format=65534 dataBytes=256000 seconds=8.0 fileBytes=256068
+RFV cycle=1 phase=2 PASS V2_WAV source=stereo44100 run=3 path=/data/user/0/com.icodejoo.mova.mova_example/cache/mova_stt_audio_1793956874328446.wav channels=1 sampleRate=16000 bitsPerSample=16 format=65534 dataBytes=256000 seconds=8.0 fileBytes=256068
+RFV cycle=1 phase=2 PASS V2_WAV source=mono48000 run=1 path=/data/user/0/com.icodejoo.mova.mova_example/cache/mova_stt_audio_1793956874450610.wav channels=1 sampleRate=16000 bitsPerSample=16 format=65534 dataBytes=256000 seconds=8.0 fileBytes=256068
+RFV cycle=1 phase=2 PASS V2_WAV source=mono48000 run=2 path=/data/user/0/com.icodejoo.mova.mova_example/cache/mova_stt_audio_1793956874556647.wav channels=1 sampleRate=16000 bitsPerSample=16 format=65534 dataBytes=256000 seconds=8.0 fileBytes=256068
+RFV cycle=1 phase=2 PASS V2_WAV source=mono48000 run=3 path=/data/user/0/com.icodejoo.mova.mova_example/cache/mova_stt_audio_1793956874701620.wav channels=1 sampleRate=16000 bitsPerSample=16 format=65534 dataBytes=256000 seconds=8.0 fileBytes=256068
+RFV cycle=2 phase=1 PASS V1_PREPARE A=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_CNFAMH token=feeded810a3b7c715375bd73dd95c54b count=1 engines=["engine_CNFAMH"] disposed=false
+RFV cycle=2 phase=2 PASS V1_ADOPT A=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_CNFAMH expected=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_CNFAMH token=feeded810a3b7c715375bd73dd95c54b expectedToken=feeded810a3b7c715375bd73dd95c54b
+RFV cycle=2 phase=2 PASS V1_COUNT before=1 after=1 engines=["engine_CNFAMH"]
+RFV cycle=2 phase=2 PASS V1_SECOND A=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_CNFAMH B=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_ZLJWKO AExists=true tokenIntact=true count=2 engines=["engine_CNFAMH","engine_ZLJWKO"]
+RFV cycle=2 phase=2 PASS V1_LEGACY_SETUP old=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_old ageSeconds=691200 fresh=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_fresh oldLease=false freshLease=false
+RFV cycle=2 phase=2 PASS V1_PRUNE C=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_fresh oldExists=false freshExists=true count=3 engines=["engine_CNFAMH","engine_ZLJWKO","engine_fresh"]
+RFV cycle=3 phase=1 PASS V1_PREPARE A=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_PUTGEC token=a067eb67e09ccabbe76ba999d0ec694b count=1 engines=["engine_PUTGEC"] disposed=false
+RFV cycle=3 phase=2 PASS V1_ADOPT A=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_PUTGEC expected=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_PUTGEC token=a067eb67e09ccabbe76ba999d0ec694b expectedToken=a067eb67e09ccabbe76ba999d0ec694b
+RFV cycle=3 phase=2 PASS V1_COUNT before=1 after=1 engines=["engine_PUTGEC"]
+RFV cycle=3 phase=2 PASS V1_SECOND A=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_PUTGEC B=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_QENYOE AExists=true tokenIntact=true count=2 engines=["engine_PUTGEC","engine_QENYOE"]
+RFV cycle=3 phase=2 PASS V1_LEGACY_SETUP old=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_old ageSeconds=691200 fresh=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_fresh oldLease=false freshLease=false
+RFV cycle=3 phase=2 PASS V1_PRUNE C=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_fresh oldExists=false freshExists=true count=3 engines=["engine_PUTGEC","engine_QENYOE","engine_fresh"]
+
+进程退出与最终清理原始输出：
+
+PROCESS cycle=1 phase=1 pid=25691
+EXTERNAL_FORCE_STOP cycle=1 phase=1 previousPid=25691 noProcess=True
+PROCESS cycle=1 phase=2 pid=25692
+EXTERNAL_FORCE_STOP cycle=1 phase=2 previousPid=25692 noProcess=True
+PROCESS cycle=2 phase=1 pid=25693
+EXTERNAL_FORCE_STOP cycle=2 phase=1 previousPid=25693 noProcess=True
+PROCESS cycle=2 phase=2 pid=26229
+EXTERNAL_FORCE_STOP cycle=2 phase=2 previousPid=26229 noProcess=True
+PROCESS cycle=3 phase=1 pid=26230
+EXTERNAL_FORCE_STOP cycle=3 phase=1 previousPid=26230 noProcess=True
+PROCESS cycle=3 phase=2 pid=26231
+EXTERNAL_FORCE_STOP cycle=3 phase=2 previousPid=26231 noProcess=True
+RESULT pass=24 fail=0
+CLEANUP appStopped=true httpStopped=true tempRemoved=True reverse=''
+
+源码 SHA256：
+89b23c27ad5c60089a9415d33a1f0b4d4c40dcc8b6aa5989ac4b12e17c94fec4  example/lib/main_review_fix_verify.dart
+4981a35f657fd8aeeecbc6cd8994ee2563f588f17212da81e22535a8ec438d8b  lib/src/platform_impl/thumb_dir_impl.dart
+4324bc6932442b59ab3df29f5af58a88415e39e12b04ccc473c687904a1cd8df  lib/src/core/preview/dir_lease.dart
+e3f40d3db12bd2fad14c98ca46b0bdbe26fbbda151a9fc84e268630b98f5bf9e  lib/src/platform_impl/mpv_audio_extractor_impl.dart

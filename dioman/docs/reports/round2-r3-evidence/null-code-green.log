@@ -1,0 +1,9 @@
+00:00 +0: loading test/rule/cache_snapshot_rule_test.dart
+00:00 +0: [DiomanCache][DiomanResponse.request][DiomanResponseFactory.create] 内存命中经工厂绑定当前请求且不保留旧凭证或原生数据
+00:00 +1: [DiomanCache.shouldStore][DiomanResponseFactory.create] 快照生成前工厂 internal 不入缓存并保留原异常 disk=false
+00:00 +2: [DiomanCache.shouldStore][DiomanResponseFactory.create] 快照生成前工厂 internal 不入缓存并保留原异常 disk=true
+00:00 +3: [DiomanRetry.retryAfterMax][DiomanCache.shouldStore] 内存快照保留服务器超限退避且不读 raw
+00:00 +4: [DiomanParsed.code][DiomanCache.cachePolicy] 快照区分显式 null 业务码与缺省值 policy=DiomanCachePolicy.memo
+00:00 +5: [DiomanParsed.code][DiomanCache.cachePolicy] 快照区分显式 null 业务码与缺省值 policy=DiomanCachePolicy.persist
+00:00 +6: [DiomanParsed.code][DiomanCache.cachePolicy] 快照区分显式 null 业务码与缺省值 policy=DiomanCachePolicy.both
+00:00 +7: All tests passed!

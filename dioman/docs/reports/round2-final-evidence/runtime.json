@@ -1,0 +1,132 @@
+{
+  "commit": "c3b8965f6257f2ea7c5a594c951c11a90fc0a9a2",
+  "reused": true,
+  "binaries": {
+    "api-ws-demo.exe": {
+      "path": "C:\\Users\\jelon\\AppData\\Local\\Temp\\claude\\E--workspaces-dart-labs-dioman\\8e9dd7c7-f80b-4489-8690-3147638feaf4\\scratchpad\\tk-target-r6\\release\\api-ws-demo.exe",
+      "sha256": "93e266b640c296be224a85710c77f4245884be088fd06ab9fdd4efbf753849a7",
+      "pid": 43764,
+      "port": 47480
+    },
+    "netem.exe": {
+      "path": "C:\\Users\\jelon\\AppData\\Local\\Temp\\claude\\E--workspaces-dart-labs-dioman\\8e9dd7c7-f80b-4489-8690-3147638feaf4\\scratchpad\\tk-target-r6\\release\\netem.exe",
+      "sha256": "84d55bfac0f84f91d734a0efc47702a4531282db055509920c466e15c15a0410",
+      "pid": 44096,
+      "port": 47490
+    }
+  },
+  "started": "2026-11-03T16:57:01+0800",
+  "commands": [
+    {
+      "name": "mapping-recheck",
+      "exit": 0,
+      "seconds": 5.92
+    },
+    {
+      "name": "acceptance-final",
+      "exit": 0,
+      "seconds": 873.64
+    },
+    {
+      "name": "plugin-matrix",
+      "exit": 0,
+      "seconds": 56.52
+    },
+    {
+      "name": "api-probes",
+      "exit": 0,
+      "seconds": 3.99
+    }
+  ],
+  "cleanup": {
+    "pids": [
+      {
+        "pid": 43764,
+        "exited": true
+      },
+      {
+        "pid": 44096,
+        "exited": true
+      }
+    ],
+    "listeners": {
+      "47480": false,
+      "47490": false
+    },
+    "proxies": 1368,
+    "journal_created": 1368,
+    "journal_deleted": 1368,
+    "all_proxy_stats_404": true,
+    "finished": "2026-11-03T17:12:53+0800"
+  },
+  "listeners_at_start": [
+    {
+      "LocalAddress": "127.0.0.1",
+      "LocalPort": 47490,
+      "OwningProcess": 44096
+    },
+    {
+      "LocalAddress": "0.0.0.0",
+      "LocalPort": 47480,
+      "OwningProcess": 43764
+    }
+  ],
+  "proxy_checks_sha256": "8c8f76899b964964873e8d6f578887851e7ebe4dfaccd6324de934bee5ec2944",
+  "first_run": {
+    "commit": "c3b8965f6257f2ea7c5a594c951c11a90fc0a9a2",
+    "reused": true,
+    "binaries": {
+      "api-ws-demo.exe": {
+        "path": "C:\\Users\\jelon\\AppData\\Local\\Temp\\claude\\E--workspaces-dart-labs-dioman\\8e9dd7c7-f80b-4489-8690-3147638feaf4\\scratchpad\\tk-target-r6\\release\\api-ws-demo.exe",
+        "sha256": "93e266b640c296be224a85710c77f4245884be088fd06ab9fdd4efbf753849a7",
+        "pid": 42980,
+        "port": 47480
+      },
+      "netem.exe": {
+        "path": "C:\\Users\\jelon\\AppData\\Local\\Temp\\claude\\E--workspaces-dart-labs-dioman\\8e9dd7c7-f80b-4489-8690-3147638feaf4\\scratchpad\\tk-target-r6\\release\\netem.exe",
+        "sha256": "84d55bfac0f84f91d734a0efc47702a4531282db055509920c466e15c15a0410",
+        "pid": 35320,
+        "port": 47490
+      }
+    },
+    "started": "2026-11-03T16:31:52+0800",
+    "commands": [
+      {
+        "name": "acceptance-full",
+        "exit": 1,
+        "seconds": 876.96
+      },
+      {
+        "name": "retry-0",
+        "exit": 1,
+        "seconds": 12.26
+      },
+      {
+        "name": "retry-1",
+        "exit": 1,
+        "seconds": 8.94
+      }
+    ],
+    "cleanup": {
+      "pids": [
+        {
+          "pid": 42980,
+          "exited": true
+        },
+        {
+          "pid": 35320,
+          "exited": true
+        }
+      ],
+      "listeners": {
+        "47480": false,
+        "47490": false
+      },
+      "proxies": 1230,
+      "journal_created": 1230,
+      "journal_deleted": 1230,
+      "all_proxy_stats_404": true,
+      "finished": "2026-11-03T16:47:00+0800"
+    }
+  }
+}

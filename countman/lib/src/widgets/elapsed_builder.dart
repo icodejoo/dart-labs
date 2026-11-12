@@ -1,8 +1,10 @@
 import 'package:flutter/widgets.dart';
+import 'package:countman/src/core/run_state.dart';
 import 'package:countman/src/count_down/types.dart' show TimeParts;
 import 'package:countman/src/elapsed/plugin.dart';
 import 'package:countman/src/elapsed/types.dart';
-import 'providers.dart';
+import 'scope_resolution.dart';
+import 'hidden_task_state.dart';
 
 /// Low-level open-ended elapsed-time (stopwatch) widget that exposes the
 /// current [TimeParts] via a [builder] — the elapsed counterpart to
@@ -27,7 +29,12 @@ class ElapsedBuilder extends StatefulWidget {
     required this.builder,
     this.child,
     this.plugin,
+    this.fps,
     this.precise = false,
+    this.since,
+    this.initial,
+    this.limit,
+    this.onComplete,
     this.controller,
     this.onTick,
     this.threshold,
@@ -37,7 +44,14 @@ class ElapsedBuilder extends StatefulWidget {
     this.onCancel,
     this.onPause,
     this.onResume,
-  });
+  }) : assert(
+         fps == null || (fps > 0 && fps < double.infinity),
+         'fps 必须为有限正数',
+       ),
+       assert(
+         since == null || initial == null,
+         'ElapsedBuilder: provide at most one of since or initial.',
+       );
 
   /// Called each tick with the elapsed [TimeParts] and the pass-through [child].
   /// Update rate is set by [Elapsed.interval] on the [plugin].
@@ -60,6 +74,10 @@ class ElapsedBuilder extends StatefulWidget {
   /// [defaultElapsed]。
   final Elapsed? plugin;
 
+  /// 实例显示刷新上限（帧/秒），返回可空配置；null 继承插件再到全局。
+  /// 示例：`fps: 30`；只限制显示更新，完成与阈值不延迟。
+  final double? fps;
+
   /// When true and no [plugin] is supplied, drives this stopwatch on the shared
   /// precise ([defaultElapsedMs], `interval: 0`) group so sub-second formatters
   /// update every frame. Ignored when [plugin] is set.
@@ -67,6 +85,21 @@ class ElapsedBuilder extends StatefulWidget {
   /// 为 true 且未提供 [plugin] 时，用共享的精确组（[defaultElapsedMs]，
   /// `interval: 0`）驱动本秒表，使亚秒格式化器每帧更新。设置了 [plugin] 时忽略。
   final bool precise;
+
+  /// 墙钟锚定的起点：已经过 = 当前墙钟 − [since]，例如“下单已 3 分钟”。
+  /// 与 [initial] 互斥；详见 [ElapsedOptions.since]。改变后会重建任务。
+  final DateTime? since;
+
+  /// 单调钟锚定的起始偏移，例如恢复上次的秒表。与 [since] 互斥；详见
+  /// [ElapsedOptions.initial]。改变后会重建任务。
+  final Duration? initial;
+
+  /// 上限：到达时发出值为 [limit] 的最后一次更新、触发 [onComplete] 并结束任务。
+  /// 结束后 `controller.reset()` 会从零重新开始。修改它不会重建任务，已累计时间保留。
+  final Duration? limit;
+
+  /// 累计时间到达 [limit] 时调用一次。
+  final void Function()? onComplete;
 
   /// Optional controller for pause / resume / reset.
   ///
@@ -102,34 +135,137 @@ class ElapsedBuilder extends StatefulWidget {
   State<ElapsedBuilder> createState() => _ElapsedBuilderState();
 }
 
-class _ElapsedBuilderState extends State<ElapsedBuilder> {
+/// 管理正计时任务、插件迁移、运行状态及控制器归属。
+class _ElapsedBuilderState extends State<ElapsedBuilder>
+    with HiddenTaskState<ElapsedBuilder> {
+  /// 同步组件可见性；静音不会改变控制器运行状态。
+  @override
+  void onTaskMuteChanged(bool muted) => _handle?.muted = muted;
+
   // Latest decomposed elapsed time (reused instance from the engine's onUpdate).
   TimeParts _parts = TimeParts.of(Duration.zero);
   // Bumped each tick to drive a rebuild (TimeParts is mutated in place).
   final ValueNotifier<int> _rev = ValueNotifier(0);
-  ElapsedHandle? _handle;
-  // Plugin inherited from the nearest ElapsedProvider (null if none).
-  Elapsed? _scopePlugin;
-  bool _initialized = false;
 
+  /// 当前任务句柄。
+  ElapsedHandle? _handle;
+
+  /// 当前生效的插件（显式 > Provider > precise 默认组 > 默认组）。
+  late Elapsed _plugin;
+
+  /// 首次 didChangeDependencies 才创建任务，保证能读到作用域。
+  bool _started = false;
+
+  /// 无存活任务时的终态：到达 limit 为 completed，其余为 idle。
+  CountmanRunState _doneState = CountmanRunState.idle;
+
+  /// 为 true 时旧任务被取消不把 runState 写成 idle（紧接着会有新任务）。
+  bool _keepRunState = false;
+
+  /// 为 true 时旧任务被取消不触发用户的 onCancel（插件迁移，不是真的取消）。
+  bool _quietCancel = false;
+
+  /// 为 true 时不转发用户的 onPause（迁移时为还原暂停态而暂停新任务）。
+  bool _quietPause = false;
+
+  /// 解析当前应使用的插件，并向作用域注册依赖。
+  Elapsed _resolvePlugin() => resolvePluginDependent<Elapsed>(context,
+      widgetPlugin: widget.plugin,
+      fallback: () => widget.precise ? defaultElapsedMs : defaultElapsed);
+
+  /// 首次解析插件并创建任务；之后插件变化时迁移任务并保留状态。
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final scopePlugin = CountmanScope.maybeOf<Elapsed>(context)?.plugin;
-    // Start on first resolve, or re-anchor if the inherited group changed.
-    if (!_initialized || scopePlugin != _scopePlugin) {
-      _initialized = true;
-      _scopePlugin = scopePlugin;
+    final plugin = _resolvePlugin();
+    if (!_started) {
+      _started = true;
+      _plugin = plugin;
       _start();
+    } else if (!identical(plugin, _plugin)) {
+      _migrate(plugin);
     }
   }
 
-  void _start() {
-    _handle?.cancel();
-    _handle = (widget.plugin ??
-            _scopePlugin ??
-            (widget.precise ? defaultElapsedMs : defaultElapsed))
-        .add(ElapsedOptions(
+  /// 任务创建时的累计时间（钳到 limit），用于首个 tick 之前的显示。
+  Duration _initialElapsed(Elapsed plugin) {
+    final since = widget.since;
+    var micros = since != null
+        ? plugin.clock.wallMicros() - since.microsecondsSinceEpoch
+        : widget.initial?.inMicroseconds ?? 0;
+    final limit = Elapsed.limitMicrosOf(widget.limit);
+    if (limit != null && micros > limit) micros = limit;
+    return Duration(microseconds: micros < 0 ? 0 : micros);
+  }
+
+  /// 取消当前任务；[silent] 为 true 时不触发用户 onCancel。
+  /// 取消期间不把 runState 写成 idle，由调用方随后写入新状态。
+  void _cancelCurrent({bool silent = false}) {
+    final handle = _handle;
+    if (handle == null) return;
+    _keepRunState = true;
+    _quietCancel = silent;
+    try {
+      handle.cancel();
+    } finally {
+      _keepRunState = false;
+      _quietCancel = false;
+    }
+  }
+
+  /// 任务被取消的回调：转发用户 onCancel，并把 runState 回到 idle。
+  void _onTaskCancel() {
+    if (!_quietCancel) widget.onCancel?.call();
+    if (_keepRunState) return;
+    _doneState = CountmanRunState.idle;
+    widget.controller?.setRunState(CountmanRunState.idle);
+  }
+
+  /// 到达上限的回调：先更新 runState 为 completed，再转发用户 onComplete。
+  void _onTaskComplete() {
+    // 静音时没有最终 onUpdate，单独同步终态显示。
+    if (taskMuted) {
+      _parts.setMicros(widget.limit?.inMicroseconds ?? _parts.inMicroseconds, null);
+      _rev.value++;
+    }
+    _doneState = CountmanRunState.completed;
+    widget.controller?.setRunState(CountmanRunState.completed);
+    widget.onComplete?.call();
+  }
+
+  /// 新建正计时任务，并恢复控制器的重启入口。[fromZero] 为 true（结束后重启）时
+  /// 忽略 since / initial，从零开始，与存活任务 reset 清零的语义一致。
+  /// 迁移时传入 [resumeAt]（接着已经过的时长走）、[adoptLapsFrom]（接管圈速）、
+  /// [paused]（保持暂停）与 [silent]（旧任务静默取消）。
+  void _start({
+    bool fromZero = false,
+    Duration? resumeAt,
+    ElapsedHandle? adoptLapsFrom,
+    bool paused = false,
+    bool silent = false,
+  }) {
+    _cancelCurrent(silent: silent);
+    _doneState = CountmanRunState.idle;
+    final plugin = _plugin;
+    final Duration shown;
+    if (fromZero) {
+      shown = Duration.zero;
+    } else if (resumeAt != null) {
+      shown = resumeAt;
+    } else {
+      shown = _initialElapsed(plugin);
+    }
+    _parts = TimeParts.of(shown);
+    _rev.value++;
+    final useConfigStart = !fromZero && resumeAt == null;
+    _handle = plugin.addMuted(ElapsedOptions(
+      fps: widget.fps,
+      since: useConfigStart ? widget.since : null,
+      initial: fromZero
+          ? null
+          : (resumeAt ?? widget.initial),
+      limit: widget.limit,
+      onComplete: _onTaskComplete,
       onUpdate: (p) {
         _parts = p;
         _rev.value++;
@@ -140,29 +276,91 @@ class _ElapsedBuilderState extends State<ElapsedBuilder> {
       onThreshold: () => widget.onThreshold?.call(),
       onReady: () => widget.onReady?.call(),
       onStart: () => widget.onStart?.call(),
-      onCancel: () => widget.onCancel?.call(),
-      onPause: () => widget.onPause?.call(),
+      onCancel: _onTaskCancel,
+      onPause: () {
+        if (!_quietPause) widget.onPause?.call();
+      },
       onResume: () => widget.onResume?.call(),
-    ));
-    widget.controller?.attach(_handle!);
+    ), muted: taskMuted);
+    if (adoptLapsFrom != null) _handle!.adoptLaps(adoptLapsFrom);
+    if (paused) {
+      _quietPause = true;
+      try {
+        _handle!.pause();
+      } finally {
+        _quietPause = false;
+      }
+    }
+    _attachController();
   }
 
+  /// 插件变化：存活任务迁移到新插件，保留已经过时长、圈速与暂停态；
+  /// 没有存活任务（到达上限或已取消）时只换插件，保留终态与圈速。
+  void _migrate(Elapsed next) {
+    final old = _handle;
+    _plugin = next;
+    if (old == null || old.isDone) return;
+    _start(
+      resumeAt: old.elapsed,
+      adoptLapsFrom: old,
+      paused: old.isPaused,
+      silent: true,
+    );
+  }
+
+  /// 任务结束或取消后的重启入口：从零开始。
+  void _relaunch() => _start(fromZero: true);
+
+  /// 按组件当前配置（`since` / `initial` 起点、`limit`）从头开始。
+  void _restart() => _start();
+
+  /// 由任务句柄状态推导当前 runState：存活为 running / paused，否则取终态。
+  CountmanRunState _runStateNow() {
+    final handle = _handle;
+    if (handle != null && !handle.isDone) {
+      return handle.isPaused
+          ? CountmanRunState.paused
+          : CountmanRunState.running;
+    }
+    return _doneState;
+  }
+
+  /// 绑定任务、重启动作及 runState。
+  void _attachController() {
+    final controller = widget.controller;
+    if (controller == null || _handle == null) return;
+    controller.attach(_handle!, relaunch: _relaunch, restart: _restart);
+    controller.setRunState(_runStateNow());
+  }
+
+  /// 任务配置改变时重建；仅换插件时迁移；仅换控制器时保留时间、暂停状态和生命周期。
   @override
   void didUpdateWidget(ElapsedBuilder old) {
     super.didUpdateWidget(old);
+    if (widget.fps != old.fps) _handle?.fps = widget.fps;
+    final controllerChanged = widget.controller != old.controller;
+    if (controllerChanged) old.controller?.detach(_handle);
     // 动态阈值单独更新，避免为配置变化重建任务。
     _handle?.updateThreshold(widget.threshold);
-    if (widget.plugin != old.plugin ||
-        widget.precise != old.precise ||
-        widget.controller != old.controller) {
-      old.controller?.detach();
+    final plugin = _resolvePlugin();
+    if (widget.since != old.since || widget.initial != old.initial) {
+      _plugin = plugin;
       _start();
+      return;
+    }
+    // 动态上限单独更新，保留已累计时间。
+    if (widget.limit != old.limit) _handle?.updateLimit(widget.limit);
+    if (!identical(plugin, _plugin)) {
+      _migrate(plugin);
+    } else if (controllerChanged) {
+      _attachController();
     }
   }
 
+  /// 仅解绑当前 State 的任务，再释放更新通知器。
   @override
   void dispose() {
-    widget.controller?.detach();
+    widget.controller?.detach(_handle);
     _handle?.cancel();
     _rev.dispose();
     super.dispose();

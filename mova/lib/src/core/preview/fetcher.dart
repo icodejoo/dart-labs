@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
-
 /// Fetches small auxiliary assets (WebVTT tracks, sprite sheets) over HTTP.
 ///
 /// A port rather than a direct `HttpClient` call so tests can serve canned
@@ -117,7 +116,9 @@ class MovaIoHttpFetcher implements MovaHeaderedHttpFetch {
       if (!result.isCompleted) result.complete(null);
     }
 
-    /// 执行完整请求，迟到的连接立即中止，避免释放后重新挂起。
+    /// Streams the body into one builder; late connections are aborted.
+    ///
+    /// 执行完整请求，迟到的连接立即中止，避免释放后重新挂起；响应体直接累积。
     Future<void> run() async {
       try {
         final req = await client.getUrl(url);
@@ -132,11 +133,8 @@ class MovaIoHttpFetcher implements MovaHeaderedHttpFetch {
           cancel();
           return;
         }
-        final chunks = await response.toList();
         final out = BytesBuilder(copy: false);
-        for (final chunk in chunks) {
-          out.add(chunk);
-        }
+        await response.forEach(out.add);
         if (!result.isCompleted) result.complete(out.takeBytes());
       } on Object {
         cancel();

@@ -233,9 +233,13 @@ class CounterProvider extends StatefulWidget {
     this.allowNegative,
     this.repaintBoundary,
     this.animateOnce,
+    @Deprecated('改用 ThemeData.extensions 里的 CountmanTheme')
     this.textCounterStyle,
+    @Deprecated('改用 ThemeData.extensions 里的 CountmanTheme')
     this.ringCounterStyle,
+    @Deprecated('改用 ThemeData.extensions 里的 CountmanTheme')
     this.barCounterStyle,
+    @Deprecated('改用 ThemeData.extensions 里的 CountmanTheme')
     this.odometerCounterStyle,
     this.onGroupReady,
     this.onAllComplete,
@@ -270,9 +274,13 @@ class CounterProvider extends StatefulWidget {
   /// Default per-component styles handed down to counter descendants.
   ///
   /// 下发给向上计数后代的各组件默认样式。
+  @Deprecated('改用 ThemeData.extensions 里的 CountmanTheme')
   final TextCounterStyle? textCounterStyle;
+  @Deprecated('改用 ThemeData.extensions 里的 CountmanTheme')
   final RingCounterStyle? ringCounterStyle;
+  @Deprecated('改用 ThemeData.extensions 里的 CountmanTheme')
   final BarCounterStyle? barCounterStyle;
+  @Deprecated('改用 ThemeData.extensions 里的 CountmanTheme')
   final OdometerCounterStyle? odometerCounterStyle;
 
   final Widget child;
@@ -337,11 +345,17 @@ class CountdownProvider extends StatefulWidget {
     this.trackColor,
     this.repaintBoundary,
     this.formatter,
+    @Deprecated('倒计时组件没有入场动画，animateOnce 不起作用，请移除')
     this.animateOnce,
+    @Deprecated('改用 ThemeData.extensions 里的 CountmanTheme')
     this.textCountdownStyle,
+    @Deprecated('改用 ThemeData.extensions 里的 CountmanTheme')
     this.ringCountdownStyle,
+    @Deprecated('改用 ThemeData.extensions 里的 CountmanTheme')
     this.barCountdownStyle,
+    @Deprecated('改用 ThemeData.extensions 里的 CountmanTheme')
     this.dialCountdownStyle,
+    @Deprecated('改用 ThemeData.extensions 里的 CountmanTheme')
     this.cardCountdownStyle,
     this.onGroupReady,
     this.onAllComplete,
@@ -361,14 +375,9 @@ class CountdownProvider extends StatefulWidget {
   /// 覆盖）。
   final DurationFormatter? formatter;
 
-  /// When `true`, descendant countdown widgets carrying a stable [ValueKey]
-  /// play their entrance transition only the first time that key is seen; on
-  /// later rebuilds they show the current remaining value with no entrance
-  /// transition. A widget's own `animateOnce` overrides this.
-  ///
-  /// 为 `true` 时，携带稳定 [ValueKey] 的后代 countdown widget 只在该 key 首次
-  /// 出现时播放入场过渡；之后重建直接显示当前剩余值、无入场过渡。widget 自身的
-  /// `animateOnce` 会覆盖此值。
+  /// 无效：倒计时组件没有入场动画，没有任何组件读取这个值。
+  /// 保留仅为源码兼容，请移除；计数器的入场只播一次请用 [CounterProvider.animateOnce]。
+  @Deprecated('倒计时组件没有入场动画，animateOnce 不起作用，请移除')
   final bool? animateOnce;
 
   /// Fired when the group goes idle → active (its first task is enqueued).
@@ -380,10 +389,15 @@ class CountdownProvider extends StatefulWidget {
   /// Default per-component styles handed down to countdown descendants.
   ///
   /// 下发给倒计时后代的各组件默认样式。
+  @Deprecated('改用 ThemeData.extensions 里的 CountmanTheme')
   final TextCountdownStyle? textCountdownStyle;
+  @Deprecated('改用 ThemeData.extensions 里的 CountmanTheme')
   final RingCountdownStyle? ringCountdownStyle;
+  @Deprecated('改用 ThemeData.extensions 里的 CountmanTheme')
   final BarCountdownStyle? barCountdownStyle;
+  @Deprecated('改用 ThemeData.extensions 里的 CountmanTheme')
   final DialCountdownStyle? dialCountdownStyle;
+  @Deprecated('改用 ThemeData.extensions 里的 CountmanTheme')
   final CardCountdownStyle? cardCountdownStyle;
 
   final Widget child;
@@ -426,8 +440,6 @@ class _CountdownProviderState
         allowNegative: null,
         repaintBoundary: widget.repaintBoundary,
         formatter: widget.formatter,
-        animateOnce: widget.animateOnce,
-        once: once,
         textCountdownStyle: widget.textCountdownStyle,
         ringCountdownStyle: widget.ringCountdownStyle,
         barCountdownStyle: widget.barCountdownStyle,
@@ -446,6 +458,7 @@ class ElapsedProvider extends StatefulWidget {
     super.key,
     this.plugin,
     this.textStyle,
+    @Deprecated('改用 ThemeData.extensions 里的 CountmanTheme')
     this.textElapsedStyle,
     this.formatter,
     this.onGroupReady,
@@ -459,6 +472,7 @@ class ElapsedProvider extends StatefulWidget {
   /// Default [TextElapsed] style handed down to elapsed descendants.
   ///
   /// 下发给经过时间后代的默认 [TextElapsed] 样式。
+  @Deprecated('改用 ThemeData.extensions 里的 CountmanTheme')
   final TextElapsedStyle? textElapsedStyle;
 
   /// Default duration formatter handed down to [TextElapsed] descendants
@@ -526,7 +540,7 @@ class _ElapsedProviderState
 ///
 /// Shared visual defaults ([textStyle] / [color] / [trackColor] /
 /// [repaintBoundary] / [animateOnce]) apply to whichever families they're
-/// relevant to; counter-only ([duration] / [curve] / [allowNegative]),
+/// relevant to（[animateOnce] 只作用于计数器，倒计时没有入场动画）; counter-only ([duration] / [curve] / [allowNegative]),
 /// countdown+elapsed ([formatter]), and each per-component `*Style` route to
 /// their respective family. Internally just nests the three providers.
 ///
@@ -561,15 +575,25 @@ class CountmanProvider extends StatelessWidget {
     this.repaintBoundary,
     this.animateOnce,
     this.formatter,
+    @Deprecated('改用 ThemeData.extensions 里的 CountmanTheme')
     this.textCounterStyle,
+    @Deprecated('改用 ThemeData.extensions 里的 CountmanTheme')
     this.textCountdownStyle,
+    @Deprecated('改用 ThemeData.extensions 里的 CountmanTheme')
     this.textElapsedStyle,
+    @Deprecated('改用 ThemeData.extensions 里的 CountmanTheme')
     this.ringCounterStyle,
+    @Deprecated('改用 ThemeData.extensions 里的 CountmanTheme')
     this.ringCountdownStyle,
+    @Deprecated('改用 ThemeData.extensions 里的 CountmanTheme')
     this.barCounterStyle,
+    @Deprecated('改用 ThemeData.extensions 里的 CountmanTheme')
     this.barCountdownStyle,
+    @Deprecated('改用 ThemeData.extensions 里的 CountmanTheme')
     this.dialCountdownStyle,
+    @Deprecated('改用 ThemeData.extensions 里的 CountmanTheme')
     this.cardCountdownStyle,
+    @Deprecated('改用 ThemeData.extensions 里的 CountmanTheme')
     this.odometerCounterStyle,
     required this.child,
   });
@@ -595,15 +619,25 @@ class CountmanProvider extends StatelessWidget {
   final DurationFormatter? formatter;
 
   /// Per-component default styles, routed to their family's provider.
+  @Deprecated('改用 ThemeData.extensions 里的 CountmanTheme')
   final TextCounterStyle? textCounterStyle;
+  @Deprecated('改用 ThemeData.extensions 里的 CountmanTheme')
   final TextCountdownStyle? textCountdownStyle;
+  @Deprecated('改用 ThemeData.extensions 里的 CountmanTheme')
   final TextElapsedStyle? textElapsedStyle;
+  @Deprecated('改用 ThemeData.extensions 里的 CountmanTheme')
   final RingCounterStyle? ringCounterStyle;
+  @Deprecated('改用 ThemeData.extensions 里的 CountmanTheme')
   final RingCountdownStyle? ringCountdownStyle;
+  @Deprecated('改用 ThemeData.extensions 里的 CountmanTheme')
   final BarCounterStyle? barCounterStyle;
+  @Deprecated('改用 ThemeData.extensions 里的 CountmanTheme')
   final BarCountdownStyle? barCountdownStyle;
+  @Deprecated('改用 ThemeData.extensions 里的 CountmanTheme')
   final DialCountdownStyle? dialCountdownStyle;
+  @Deprecated('改用 ThemeData.extensions 里的 CountmanTheme')
   final CardCountdownStyle? cardCountdownStyle;
+  @Deprecated('改用 ThemeData.extensions 里的 CountmanTheme')
   final OdometerCounterStyle? odometerCounterStyle;
 
   final Widget child;
@@ -630,7 +664,6 @@ class CountmanProvider extends StatelessWidget {
         color: color,
         trackColor: trackColor,
         repaintBoundary: repaintBoundary,
-        animateOnce: animateOnce,
         formatter: formatter,
         textCountdownStyle: textCountdownStyle,
         ringCountdownStyle: ringCountdownStyle,

@@ -1,7 +1,6 @@
 import 'dart:async';
 import '../client.dart';
 import '../clock.dart';
-import '../constants.dart';
 import '../context.dart';
 import '../options.dart';
 import '../plugin.dart';
@@ -10,7 +9,7 @@ import '../stages.dart';
 
 /// loading 请求级覆盖；null 字段继承插件配置。
 class DiomanLoadingOptions {
-  /// [onChanged] 按回调身份独立计数；[delay] 与 [delayClose] 控制边沿延迟。
+  /// [onChanged] 按相等回调共享计数；[delay] 与 [delayClose] 控制边沿延迟。
   const DiomanLoadingOptions(
       {this.enabled, this.onChanged, this.delay, this.delayClose});
 
@@ -33,7 +32,7 @@ abstract class DiomanLoadingApi {
   int get activeCount;
 }
 
-/// 按回调身份管理逻辑请求显示周期，内层重发不重复计数。
+/// 按相等回调跨客户端共享显示周期，内层重发不重复计数。
 class DiomanLoading<R extends DiomanResponse<dynamic>> extends DiomanPlugin<R> {
   /// [onChanged] 必填，例如 `DiomanLoading(onChanged: (visible) => print(visible))`。
   /// 延迟默认为零；通知抛错会隔离并记日志。
@@ -57,7 +56,7 @@ class DiomanLoading<R extends DiomanResponse<dynamic>> extends DiomanPlugin<R> {
   final bool enabled;
 
   /// 稳定名称。
-  static const pluginName = diomanLoadingName;
+  static const pluginName = 'dioman:loading';
 
   /// 请求级 bool 或 DiomanLoadingOptions 键。
   static final option = DiomanOptionKey<DiomanLoadingOptions>(pluginName);
@@ -70,7 +69,7 @@ class DiomanLoading<R extends DiomanResponse<dynamic>> extends DiomanPlugin<R> {
   @override
   DiomanStage get stage => DiomanStage.outer;
 
-  /// 建立独立计数器与时钟。
+  /// 建立本客户端占用与窗口时钟。
   @override
   DiomanPluginInstance<R> setup(Dioman<R> client) => _Loading<R>(
       client.clock,
@@ -78,76 +77,111 @@ class DiomanLoading<R extends DiomanResponse<dynamic>> extends DiomanPlugin<R> {
           onChanged: onChanged, delay: delay, delayClose: delayClose));
 }
 
-/// 一个回调的显示状态。
-class _Display {
-  /// 初始状态为未显示、无请求。
-  _Display(this.log);
+/// 按 == 合并回调，支持实例方法 tear-off。
+final _displays = <void Function(bool), _Display>{};
 
-  /// 对应客户端的隔离日志器。
-  final DiomanLogger log;
-
-  /// 在途计数。
-  int count = 0;
-
-  /// 是否已发出 true。
-  bool shown = false;
-
-  /// 待触发的边沿定时器。
-  Timer? timer;
+/// 共享显示资源诊断，不从公开入口导出。
+abstract final class DiomanLoadingDiagnostics {
+  /// 仍有占用或待执行窗口的条目数。
+  static int get entries => _displays.length;
 }
 
-/// 每客户端的计数与管理 API。
+/// 一个共享回调的显示与窗口状态。
+class _Display {
+  /// 保存可隔离的通知日志器。
+  _Display(this.log);
+
+  /// 通知日志器。
+  final DiomanLogger log;
+
+  /// 全部客户端占用数。
+  int count = 0;
+
+  /// 是否已通知显示。
+  bool shown = false;
+
+  /// 延迟显示窗口。
+  Timer? showTimer;
+
+  /// 延迟隐藏窗口。
+  Timer? hideTimer;
+
+  /// 隐藏窗口归属方，接入新请求时转移。
+  Object? owner;
+
+  /// 取消全部边沿窗口。
+  void clear() {
+    showTimer?.cancel();
+    hideTimer?.cancel();
+    showTimer = null;
+    hideTimer = null;
+  }
+}
+
+/// 每客户端的占用与管理接口。
 class _Loading<R extends DiomanResponse<dynamic>>
     extends DiomanPluginInstance<R> implements DiomanLoadingApi {
-  /// 保存时钟和预合并配置。
+  /// 保存时钟与配置。
   _Loading(this.clock, this.base);
 
-  /// 时间服务。
+  /// 窗口安排方的时钟。
   final DiomanClock clock;
 
-  /// 基础配置。
+  /// 预合并配置。
   final DiomanLoadingOptions base;
 
-  /// 回调身份独立状态。
-  final states = Map<void Function(bool), _Display>.identity();
+  /// 本客户端按相等回调记录的占用。
+  final holdings = <void Function(bool), int>{};
 
-  /// 是否已销毁。
+  /// 是否已卸载。
   bool disposed = false;
 
-  /// 所有参与请求的数量，包含等待显示的请求。
+  /// 只计算本客户端占用，卸载后为零。
   @override
-  int get activeCount =>
-      states.values.fold(0, (sum, state) => sum + state.count);
+  int get activeCount => holdings.values.fold(0, (sum, count) => sum + count);
 
-  /// 取消上一个边沿窗口。
-  void clear(_Display state) {
-    state.timer?.cancel();
-    state.timer = null;
-  }
-
-  /// 先更新状态，再通知；回调异常不能破坏配对。
-  void schedule(void Function(bool) fn, _Display state, bool visible,
-      Duration delay, DiomanLogger log) {
-    /// 发出当前显示边沿。
+  /// 更新状态后通知，异常不影响配对。
+  void schedule(
+      void Function(bool) fn, _Display state, bool visible, Duration delay) {
+    /// 发出边沿并释放无需保留的共享条目。
     void fire() {
-      state.timer = null;
+      state.showTimer = null;
+      state.hideTimer = null;
       state.shown = visible;
-      if (!visible) states.remove(fn);
+      if (!visible) _displays.remove(fn);
       try {
         fn(visible);
       } catch (e, s) {
-        log('[${DiomanLoading.pluginName}] 通知回调失败: $e\n$s');
+        state.log('[${DiomanLoading.pluginName}] 通知回调失败: $e\n$s');
       }
     }
 
+    state.owner = this;
+    // 使用安排窗口的客户端时钟；窗口交接后新窗口使用新归属方的时钟。
     if (delay > Duration.zero) {
-      state.timer = clock.createTimer(delay, fire);
+      final timer = clock.createTimer(delay, fire);
+      if (visible) {
+        state.showTimer = timer;
+      } else {
+        state.hideTimer = timer;
+      }
     } else {
       fire();
     }
   }
 
-  /// 逻辑请求计数严格配对，在 finally 中释放。
+  /// 释放最后占用时取消显示窗口并安排隐藏。
+  void release(void Function(bool) fn, _Display state, Duration delay) {
+    if (state.count != 0) return;
+    state.clear();
+    if (state.shown) {
+      schedule(fn, state, false, delay);
+    } else {
+      _displays.remove(fn);
+    }
+  }
+
+  /// 每个逻辑请求只登记和释放一次本客户端占用。
   @override
   Future<DiomanResponse<dynamic>> handle(
       DiomanContext<R> ctx, DiomanNext<R> next) async {
@@ -161,39 +195,48 @@ class _Loading<R extends DiomanResponse<dynamic>>
             delayClose: b.delayClose ?? a.delayClose));
     if (disposed || o == null || o.enabled == false) return next();
     final fn = o.onChanged!;
-    final state = states.putIfAbsent(fn, () => _Display(ctx.client.logError));
+    final state =
+        _displays.putIfAbsent(fn, () => _Display(ctx.client.logError));
+    holdings.update(fn, (count) => count + 1, ifAbsent: () => 1);
     if (++state.count == 1) {
-      clear(state);
-      if (!state.shown) {
-        schedule(fn, state, true, o.delay!, ctx.client.logError);
-      }
+      state.clear();
+      state.owner = this;
+      if (!state.shown) schedule(fn, state, true, o.delay!);
     }
     try {
       final result = await next();
       final cancelled = ctx.cancelled();
-      return result.kind == DiomanKind.internal ? result : cancelled ?? result;
+      return failureOf(result)?.kind == DiomanFailureKind.internal
+          ? result
+          : cancelled ?? result;
     } finally {
-      if (--state.count == 0 && !disposed) {
-        clear(state);
-        if (state.shown) {
-          schedule(fn, state, false, o.delayClose!, ctx.client.logError);
+      // dispose 已释放本实例全部占用，迟到 finally 不再扣减或通知。
+      if (!disposed) {
+        final remaining = holdings[fn]! - 1;
+        if (remaining == 0) {
+          holdings.remove(fn);
         } else {
-          states.remove(fn);
+          holdings[fn] = remaining;
         }
+        state.count--;
+        release(fn, state, o.delayClose!);
       }
     }
   }
 
-  /// 取消窗口并立即关闭已显示回调，在途请求不再通知。
+  /// 只释放本客户端占用；归属窗口无人占用时立即补齐 false。
   @override
   void dispose() {
+    if (disposed) return;
     disposed = true;
-    for (final entry in states.entries.toList()) {
-      clear(entry.value);
-      if (entry.value.shown) {
-        schedule(entry.key, entry.value, false, Duration.zero, entry.value.log);
+    for (final entry in _displays.entries.toList()) {
+      final state = entry.value;
+      final count = holdings[entry.key] ?? 0;
+      state.count -= count;
+      if (count > 0 || state.owner == this) {
+        release(entry.key, state, Duration.zero);
       }
     }
-    states.clear();
+    holdings.clear();
   }
 }

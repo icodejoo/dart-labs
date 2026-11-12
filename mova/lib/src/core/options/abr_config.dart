@@ -44,6 +44,11 @@ abstract class MovaAbrPolicy {
 /// 禁用本监测、由 libmpv 自行做 ABR；它的价值在于当用户*锁定*了网络扛不住的
 /// 清晰度时触发降档。
 class MovaBufferAbr implements MovaAbrPolicy {
+  /// Default stall budget shared with the ABR configuration.
+  ///
+  /// 与 ABR 配置共用的默认卡顿预算。
+  static const _defaultThreshold = 3;
+
   /// Number of stalls that triggers a downshift suggestion.
   ///
   /// 触发降档建议所需的卡顿次数。
@@ -55,7 +60,7 @@ class MovaBufferAbr implements MovaAbrPolicy {
   /// Creates a monitor that downshifts after [threshold] stalls (default 3).
   ///
   /// 创建一个在 [threshold] 次卡顿后建议降档的监测器（默认 3）。
-  MovaBufferAbr({this.threshold = 3});
+  MovaBufferAbr({this.threshold = _defaultThreshold});
 
   /// Number of stalls counted since the last downshift signal.
   ///
@@ -137,7 +142,7 @@ class MovaAbrConfig {
   /// [manageAuto] 为实验性 auto 降档接管，默认关，返回配置实例。
   /// 示例：`const MovaAbrConfig(manageAuto: true, stallThreshold: 3)`。
   const MovaAbrConfig({
-    this.stallThreshold = 3,
+    this.stallThreshold = MovaBufferAbr._defaultThreshold,
     this.enabled = true,
     this.probeVariants = true,
     this.manageAuto = false,
@@ -158,5 +163,12 @@ class MovaAbrConfig {
           policyFactory == other.policyFactory;
 
   @override
-  int get hashCode => Object.hash(stallThreshold, enabled, probeVariants, manageAuto, policy, policyFactory);
+  int get hashCode => Object.hash(
+    stallThreshold,
+    enabled,
+    probeVariants,
+    manageAuto,
+    policy,
+    policyFactory,
+  );
 }

@@ -1,3 +1,4 @@
+import '../support/response_contract.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'package:dio/dio.dart';
@@ -69,7 +70,7 @@ void main() {
       expect(success.ok, isTrue);
       final failure =
           await api.send<Object?>(_b7Literal0, _path, query: {_fail: true});
-      expect(failure.kind, DiomanKind.http);
+      expect(outcomeOf(failure), diomanTestHttp);
       expect(failure.status, 500);
       expect(received, [
         for (final method in methods.keys) ...[method, method],

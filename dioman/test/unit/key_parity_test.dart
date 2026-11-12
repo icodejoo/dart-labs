@@ -10,7 +10,7 @@ import 'package:test/test.dart';
 void main() {
   test(
       '[DiomanKeyOptions.fastMode][DiomanKeyOptions.ignores]'
-      '[DiomanKeyService.build] 固定种子 2400 个入口中 Map/String 与显式/快速键逐字节兼容旧基准',
+      '[DiomanKeyService.build] 固定种子 2400 个入口中 有意变化逐项断言，其余入口逐字节兼容旧基准',
       () async {
     final random = Random(20261028);
     Object? value(int depth) {
@@ -38,6 +38,7 @@ void main() {
         jsonDecode(File('test/support/key_baseline.json').readAsStringSync())
             as List;
     expect(baseline, hasLength(2400));
+    final counts = <String, int>{};
     for (var i = 0; i < 2400; i++) {
       final fast = random.nextBool();
       final requestFast = random.nextBool() ? random.nextBool() : null;
@@ -72,17 +73,49 @@ void main() {
                   ignores: requestIgnores,
                   key: explicit,
                   builder: local));
-      // B8 撤销 409 个旧身份键；其余 1991 个旧基准逐字节严格对照。
+      // 固定基准不改，只转换已明确变更的自动键字段。
       final expected = (baseline[i] as String?)?.replaceAll(
           '"<identityHashCode(data)>"', '${identityHashCode(request.data)}');
       if (expected?.contains('identity') != true) {
-        expect(next, expected, reason: 'seed=20261028 case=$i');
+        final automatic = local == null &&
+            (explicit == null || explicit.isEmpty) &&
+            global == null;
+        final category =
+            automatic ? ((requestFast ?? fast) ? 'fast' : 'deep') : 'unchanged';
+        counts.update(category, (n) => n + 1, ifAbsent: () => 1);
+        var wanted = expected;
+        if (automatic && expected != null) {
+          final scoped = scope != null && scope.isNotEmpty;
+          if (requestFast ?? fast) {
+            final old =
+                scoped ? (jsonDecode(expected) as List).first : expected;
+            final fastKey = jsonEncode([old, ResponseType.json.name]);
+            wanted = scoped ? jsonEncode([fastKey, scope]) : fastKey;
+          } else {
+            final fields = jsonDecode(expected) as List;
+            fields[1] = jsonEncode(_tagKeys(jsonDecode(fields[1] as String)));
+            final body = fields[2];
+            if (body is Map && body.containsKey('map')) {
+              body['map'] =
+                  jsonEncode(_tagKeys(jsonDecode(body['map'] as String)));
+            }
+            fields.insert(3, ResponseType.json.name);
+            wanted = jsonEncode(fields);
+          }
+        }
+        expect(next, wanted, reason: 'seed=20261028 case=$i');
       } else if (request.data is List) {
+        counts.update('b8-list', (n) => n + 1, ifAbsent: () => 1);
         expect(next, isNotNull, reason: 'B8 JSON 数组按内容构键 case=$i');
       } else {
+        counts.update('b8-scalar', (n) => n + 1, ifAbsent: () => 1);
         expect(next, isNull, reason: 'B8 不再生成标量身份键 case=$i');
       }
     }
+    final evidence = File('coverage/r2b-key-parity.json');
+    evidence.parent.createSync(recursive: true);
+    evidence.writeAsStringSync(jsonEncode(counts));
+    expect(counts.values.reduce((a, b) => a + b), 2400);
   });
 
   test('[DiomanKeyService.build] 开关、显式键、异常及不可序列化回退', () {
@@ -120,4 +153,13 @@ void main() {
             namespace: () => throw StateError('namespace'))).build(r),
         throwsStateError);
   });
+}
+
+/// 将历史字符串键基准转换为本批明确引入的类型标签。
+Object? _tagKeys(Object? value) {
+  if (value is Map) {
+    return value.map((key, item) => MapEntry('string:$key', _tagKeys(item)));
+  }
+  if (value is List) return value.map(_tagKeys).toList();
+  return value;
 }

@@ -74,12 +74,18 @@ class MovaTimeouts {
   /// 创建配置；所有字段默认“不动 mpv 默认值”。
   ///
   /// Creates the settings; every field defaults to leaving mpv's default.
-  const MovaTimeouts({this.network, this.whepHandshake, this.whepFirstFrame, this.whepMedia});
+  const MovaTimeouts({
+    this.network,
+    this.whepHandshake,
+    this.whepFirstFrame,
+    this.whepMedia,
+  });
 
   /// [address] 是否为 `whep…` 地址。
   ///
   /// Whether [address] is a `whep…` address.
-  static bool isWhep(String address) => address.toLowerCase().startsWith('whep');
+  static bool isWhep(String address) =>
+      address.toLowerCase().startsWith('whep');
 
   /// [address] 对应的 mpv 顶层选项（`network-timeout`）；返回新 Map。
   ///
@@ -89,7 +95,7 @@ class MovaTimeouts {
   Map<String, String> mpvOptionsFor(String address) {
     final n = network;
     if (n == null) return {};
-    final secs = (n.inMilliseconds / 1000).ceil();
+    final secs = (n.inMilliseconds / Duration.millisecondsPerSecond).ceil();
     return {'network-timeout': (secs < 1 ? 1 : secs).toString()};
   }
 
@@ -101,9 +107,12 @@ class MovaTimeouts {
   Map<String, String> demuxerOptionsFor(String address) {
     if (!isWhep(address)) return {};
     return {
-      if (whepHandshake != null) 'handshake_timeout': whepHandshake!.inMicroseconds.toString(),
-      if (whepFirstFrame != null) 'first_frame_timeout': whepFirstFrame!.inMicroseconds.toString(),
-      if (whepMedia != null) 'media_timeout': whepMedia!.inMicroseconds.toString(),
+      if (whepHandshake != null)
+        'handshake_timeout': whepHandshake!.inMicroseconds.toString(),
+      if (whepFirstFrame != null)
+        'first_frame_timeout': whepFirstFrame!.inMicroseconds.toString(),
+      if (whepMedia != null)
+        'media_timeout': whepMedia!.inMicroseconds.toString(),
     };
   }
 
@@ -116,7 +125,9 @@ class MovaTimeouts {
   Duration startWindowFor(String address, {Duration? networkOverride}) {
     final net = networkOverride ?? network ?? kMpvDefaultNetworkTimeout;
     if (isWhep(address)) {
-      return net + (whepHandshake ?? kWhepDefaultHandshake) + (whepFirstFrame ?? kWhepDefaultFirstFrame);
+      return net +
+          (whepHandshake ?? kWhepDefaultHandshake) +
+          (whepFirstFrame ?? kWhepDefaultFirstFrame);
     }
     return net > kFfmpegReconnectWindow ? net : kFfmpegReconnectWindow;
   }
@@ -141,5 +152,6 @@ class MovaTimeouts {
           whepMedia == other.whepMedia;
 
   @override
-  int get hashCode => Object.hash(network, whepHandshake, whepFirstFrame, whepMedia);
+  int get hashCode =>
+      Object.hash(network, whepHandshake, whepFirstFrame, whepMedia);
 }

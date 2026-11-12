@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/widgets.dart';
 
 import 'painter/ring_painter.dart';
@@ -127,11 +128,15 @@ mixin RingStyleFields {
 /// @returns A configured [RingPainter].
 ///
 ///   配置好的 [RingPainter]。
+/// textDirection 用于解析方向性渐变；例如传 Directionality.maybeOf(context)。
+/// 常驻用法：传 [progressListenable]（此时 [progress] 可省略），画笔只创建一次。
 RingPainter ringPainterFrom(
   RingStyleFields s, {
-  required double progress,
+  double progress = 0,
+  ValueListenable<double>? progressListenable,
   required Color color,
   required Color trackColor,
+  TextDirection? textDirection,
   EdgeInsets arcInset = EdgeInsets.zero,
   bool anchorAtEnd = false,
   StrokeCap defaultStrokeCap = StrokeCap.round,
@@ -139,8 +144,10 @@ RingPainter ringPainterFrom(
 }) {
   return RingPainter(
     progress: progress,
+    progressListenable: progressListenable,
     color: color,
     trackColor: trackColor,
+    textDirection: textDirection,
     strokeWidth: s.strokeWidth ?? 8.0,
     trackStrokeWidth: s.trackStrokeWidth,
     clockwise: s.clockwise ?? true,
@@ -316,6 +323,38 @@ class RingStyle with BoxStyleFields, RingStyleFields, StyleProps {
           padding: padding ?? other.padding,
           decoration: decoration ?? other.decoration,
         );
+
+  /// 在 [a] 与 [b] 之间按 [t]（0–1）插值，用于 `ThemeExtension.lerp`。
+  ///
+  /// 尺寸、角度、颜色、渐变、内边距、装饰逐字段插值；布尔、端帽等不可插值字段在
+  /// `t < 0.5` 时取 [a]，否则取 [b]；任一端为空时同样按 `t < 0.5` 取一端。
+  /// 例如 `RingStyle.lerp(const RingStyle(size: 80), const RingStyle(size: 120), 0.5)`。
+  static RingStyle? lerp(RingStyle? a, RingStyle? b, double t) {
+    if (identical(a, b)) return a;
+    if (a == null || b == null) return t < 0.5 ? a : b;
+    return RingStyle(
+      size: lerpNum(a.size, b.size, t),
+      strokeWidth: lerpNum(a.strokeWidth, b.strokeWidth, t),
+      trackStrokeWidth: lerpNum(a.trackStrokeWidth, b.trackStrokeWidth, t),
+      color: lerpColor(a.color, b.color, t),
+      trackColor: lerpColor(a.trackColor, b.trackColor, t),
+      gradient: Gradient.lerp(a.gradient, b.gradient, t),
+      trackGradient: Gradient.lerp(a.trackGradient, b.trackGradient, t),
+      startAngle: lerpNum(a.startAngle, b.startAngle, t),
+      strokeCap: pickField(a.strokeCap, b.strokeCap, t),
+      clockwise: pickField(a.clockwise, b.clockwise, t),
+      sweepAngle: lerpNum(a.sweepAngle, b.sweepAngle, t),
+      showTrack: pickField(a.showTrack, b.showTrack, t),
+      backgroundColor: lerpColor(a.backgroundColor, b.backgroundColor, t),
+      centerAlignment:
+          AlignmentGeometry.lerp(a.centerAlignment, b.centerAlignment, t),
+      showThumb: pickField(a.showThumb, b.showThumb, t),
+      thumbColor: lerpColor(a.thumbColor, b.thumbColor, t),
+      thumbRadius: lerpNum(a.thumbRadius, b.thumbRadius, t),
+      padding: EdgeInsetsGeometry.lerp(a.padding, b.padding, t),
+      decoration: Decoration.lerp(a.decoration, b.decoration, t),
+    );
+  }
 
   @override
   List<Object?> get props => [

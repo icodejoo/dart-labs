@@ -2,17 +2,18 @@ import 'package:dio/dio.dart';
 import '../cache_store.dart';
 import '../client.dart';
 import '../clock.dart';
-import '../config.dart';
-import '../constants.dart';
 import '../context.dart';
 import '../options.dart';
 import '../plugin.dart';
 import '../request.dart';
 import '../response.dart';
 import '../stages.dart';
-import 'source.dart';
+import 'mock.dart';
 
 part 'cache_internal.dart';
+
+/// 克隆策略的诊断字段名。
+const _diomanCloneField = 'clone';
 
 /// 响应数据的克隆策略；也可直接提供自定义函数。
 enum DiomanClonePolicy {
@@ -120,7 +121,7 @@ class DiomanCache<R extends DiomanResponse<dynamic>> extends DiomanPlugin<R> {
   final bool enabled;
 
   /// 稳定名称。
-  static const pluginName = diomanCacheName;
+  static const pluginName = 'dioman:cache';
 
   /// 请求级 bool、Duration 或配置键。
   static final option = DiomanOptionKey<DiomanCacheOptions>(pluginName);
@@ -147,13 +148,22 @@ class DiomanCache<R extends DiomanResponse<dynamic>> extends DiomanPlugin<R> {
           shouldStore: shouldStore));
 }
 
+/// 不得转为快照的内核失败，即使用户允许写入也须保留原始异常。
+bool _diomanCacheForbidden(DiomanResponse<dynamic> r) => const {
+      DiomanFailureKind.internal,
+      DiomanFailureKind.cancel
+    }.contains(failureOf(r)?.kind);
+
 /// 内存缓存条目。
 class _Entry {
   /// 保存响应及绝对到期时刻。
-  _Entry(this.response, this.expiresAt);
+  _Entry(this.snapshot, this.expiresAt, {this.retryAfter});
 
-  /// 来源响应。
-  final DiomanResponse<dynamic> response;
+  /// 不含请求和原生对象的结果快照。
+  final Map<String, Object?> snapshot;
+
+  /// 仅内存保留的服务器退避小事实，不进入持久化格式。
+  final String? retryAfter;
 
   /// epoch 毫秒。
   final int expiresAt;
@@ -210,7 +220,10 @@ class _Cache<R extends DiomanResponse<dynamic>> extends DiomanPluginInstance<R>
   /// 新格式保存归一化元信息，旧格式仍按原始 HTTP 200 读取。
   static const resultField = 'result';
 
-  /// 结果类别字段。
+  /// 成败字段。
+  static const okField = 'ok';
+
+  /// 失败类别字段。
   static const kindField = 'kind';
 
   /// 逻辑状态字段。
@@ -228,6 +241,17 @@ class _Cache<R extends DiomanResponse<dynamic>> extends DiomanPluginInstance<R>
   /// 细分原因字段。
   static const reasonField = 'reason';
 
+  /// 提取与持久化相同的结果字段，不保留来源请求。
+  Map<String, Object?> snapshot(DiomanResponse<dynamic> r) => {
+        okField: r.ok,
+        if (failureOf(r) != null) kindField: failureOf(r)!.kind.name,
+        statusField: r.status,
+        codeField: r.code,
+        messageField: r.message,
+        if (failureOf(r)?.reason != null) reasonField: failureOf(r)!.reason,
+        dataField: r.data
+      };
+
   /// 从新格式恢复归一化结果，老格式继续交给工厂识别信封。
   DiomanResponse<dynamic> restore(DiomanContext<R> ctx, Map saved) {
     final meta = saved[resultField];
@@ -238,17 +262,20 @@ class _Cache<R extends DiomanResponse<dynamic>> extends DiomanPluginInstance<R>
               statusCode: 200,
               data: saved[dataField]));
     }
-    final kind = DiomanKind.values.byName(meta[kindField] as String);
+    final legacyKind = meta[kindField];
     final init = DiomanResponse<dynamic>(
-        ok: kind == DiomanKind.ok,
-        kind: kind,
-        status: meta[statusField] as int,
-        httpStatus: meta[httpField] as int,
-        code: meta[codeField],
+        ok: meta[okField] as bool? ?? legacyKind == okField,
+        status: (meta[httpField] ?? meta[statusField]) as int,
+        code: meta.containsKey(codeField) ? meta[codeField] : 0,
         message: meta[messageField] as String,
-        reason: meta[reasonField] as String?,
         data: meta[dataField],
         request: ctx.request);
+    if (legacyKind != null &&
+        DiomanFailureKind.values.any((kind) => kind.name == legacyKind)) {
+      DiomanResponseInternal.restore(
+          init, DiomanFailureKind.values.byName(legacyKind as String),
+          reason: meta[reasonField] as String?);
+    }
     return ctx.factory.derive(init, init.data);
   }
 
@@ -290,6 +317,13 @@ class _Cache<R extends DiomanResponse<dynamic>> extends DiomanPluginInstance<R>
         : enqueue(() => persist!.erase());
   }
 
+  /// 递归复制 Map/List；其余载荷按引用保留。
+  Object? deep(Object? data) {
+    if (data is Map) return data.map((k, v) => MapEntry(k, deep(v)));
+    if (data is List) return data.map(deep).toList();
+    return data;
+  }
+
   /// 数据副本经扩展工厂创建，保留所有响应元信息。
   DiomanResponse<dynamic> clone(
       DiomanContext<R> ctx, DiomanResponse<dynamic> r, Object strategy) {
@@ -299,7 +333,7 @@ class _Cache<R extends DiomanResponse<dynamic>> extends DiomanPluginInstance<R>
     if (strategy is Object? Function(Object?)) {
       copied = strategy(data);
     } else if (strategy == DiomanClonePolicy.deep) {
-      copied = cloneDiomanConfig(data);
+      copied = deep(data);
     } else if (strategy == DiomanClonePolicy.shallow) {
       copied = data is Map
           ? Map.of(data)
@@ -307,7 +341,7 @@ class _Cache<R extends DiomanResponse<dynamic>> extends DiomanPluginInstance<R>
               ? List.of(data)
               : data;
     } else {
-      throw ArgumentError.value(strategy, 'clone');
+      throw ArgumentError.value(strategy, _diomanCloneField);
     }
     return ctx.factory.derive(r, copied);
   }
@@ -330,6 +364,11 @@ class _Cache<R extends DiomanResponse<dynamic>> extends DiomanPluginInstance<R>
             cachePolicy: b.cachePolicy ?? a.cachePolicy));
     if (o == null || o.enabled == false || ctx.get(sourceProbe) == true) {
       return next();
+    }
+    if (ctx.client.debugEnabled &&
+        o.clone is! DiomanClonePolicy &&
+        o.clone is! Object? Function(Object?)) {
+      throw ArgumentError.value(o.clone, _diomanCloneField);
     }
     if (!(o.shouldCache?.call(ctx.request) ??
         sourceSafeMethods.contains(ctx.request.method))) {
@@ -360,7 +399,10 @@ class _Cache<R extends DiomanResponse<dynamic>> extends DiomanPluginInstance<R>
         if (saved is Map && saved[expiresField] is int) {
           final expiry = saved[expiresField] as int;
           if (expiry > clock.now().millisecondsSinceEpoch && valid()) {
-            hit = _Entry(restore(ctx, saved), expiry);
+            final restored = restore(ctx, saved);
+            if (_diomanCacheForbidden(restored)) return restored;
+            hit = _Entry(snapshot(restored), expiry,
+                retryAfter: DiomanResponseInternal.retryAfter(restored));
             if (memo) put(key, hit);
           } else {
             await ctx.wait(enqueue(() async {
@@ -373,33 +415,32 @@ class _Cache<R extends DiomanResponse<dynamic>> extends DiomanPluginInstance<R>
       }
       if (hit != null) {
         if (memo) put(key, hit);
-        final result = clone(ctx, hit.response, o.clone!);
+        final restored = restore(ctx, {resultField: hit.snapshot});
+        DiomanResponseInternal.setRetryAfter(restored, hit.retryAfter);
+        final result = clone(ctx, restored, o.clone!);
         return ctx.cancelled() ?? result;
       }
       final r = await next();
       final cancel = ctx.cancelled();
-      if (r.kind == DiomanKind.internal) return r;
       if (cancel != null) return cancel;
       var stored = false;
-      if (valid() && (o.shouldStore?.call(r) ?? r.ok)) {
+      if (failureOf(r)?.kind != DiomanFailureKind.internal &&
+          failureOf(r)?.kind != DiomanFailureKind.cancel &&
+          valid() &&
+          (o.shouldStore?.call(r) ?? r.ok)) {
+        final cached = clone(ctx, r, o.clone!);
+        if (_diomanCacheForbidden(cached)) return cached;
         stored = true;
         barrier.latest = ticket;
-        final entry = _Entry(clone(ctx, r, o.clone!),
-            clock.now().add(o.expires!).millisecondsSinceEpoch);
+        final entry = _Entry(snapshot(cached),
+            clock.now().add(o.expires!).millisecondsSinceEpoch,
+            retryAfter: DiomanResponseInternal.retryAfter(cached));
         if (memo) put(key, entry);
         if (disk) {
           await ctx.wait(enqueue(() => persist!.write(key, {
-                dataField: r.raw?.data ?? r.data,
+                dataField: ctx.native?.raw?.data ?? r.data,
                 expiresField: entry.expiresAt,
-                resultField: {
-                  kindField: r.kind.name,
-                  statusField: r.status,
-                  httpField: r.httpStatus,
-                  codeField: r.code,
-                  messageField: r.message,
-                  reasonField: r.reason,
-                  dataField: entry.response.data
-                }
+                resultField: entry.snapshot
               })));
           final cancel = ctx.cancelled();
           if (cancel != null) return cancel;
