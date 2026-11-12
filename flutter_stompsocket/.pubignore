@@ -1,1 +1,12 @@
+# pub 看到 .pubignore 后不再读 .gitignore，所以构建产物要在这里重复排除。
+.dart_tool/
+.packages
+.pub-cache/
+.pub/
+build/
+pubspec.lock
+.flutter-plugins
+.flutter-plugins-dependencies
+example/build/
+example/.dart_tool/
 /CHANGELOG.zh-CN.md

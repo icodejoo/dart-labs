@@ -1,3 +1,7 @@
+## 0.1.4
+
+- Packaging fix: 0.1.3 shipped a 29 MB archive because the new `.pubignore` replaced `.gitignore` and `build/` was included. `.pubignore` now excludes build output again (archive is about 90 KB). README wording cleaned up. No code changes.
+
 ## 0.1.3
 
 - Metadata and docs only, no code changes: `repository` / `issue_tracker` now
