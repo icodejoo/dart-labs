@@ -891,13 +891,13 @@ B15 example与11个集成文件在Windows真实运行三轮共**33/33、100%**�
 
 | 作业 | 已落地的配置 | 验收边界 |
 | --- | --- | --- |
-| gate | stable；pub get 后立即恢复分析配置；串行 analyze/test，覆盖率路径 coverage/ci.lcov；coverage、acceptance、imports；parity 工具存在时核验 manifest | 本机批次结果见 ACCEPTANCE；不等同 GitHub 作业通过 |
+| gate | Windows stable（与现有 golden/parity 基线标定平台一致）；pub get 后立即恢复分析配置；串行 analyze/test，覆盖率路径 coverage/ci.lcov；coverage、acceptance、imports；parity 工具存在时核验 manifest | 2026-11-13 本机 Windows 3.50 全量1281通过、lib覆盖率100%；不等同 GitHub 作业通过 |
 | example | 只在 example/pubspec.yaml、tool/bench/pubspec.yaml 各自存在时安装并分析独立工程 | 文件存在条件不能替代集成测试或真机 profile |
-| min-sdk | Flutter 3.24.5；保留分析配置；字体存在检查；analyze、串行非 golden 测试 | 当前未取得本批远程运行证据，待落地验证 |
+| min-sdk | Linux 矩阵：Flutter 3.24.5 与 stable；保留分析配置；字体存在检查；analyze、串行非 golden 测试；stable 另执行 100% 覆盖率门禁 | 2026-11-13 本机3.24.5定向18通过；WSL/Linux3.50非golden1240通过、lib覆盖率100%；远程待验 |
 | treeshake-web | 工具存在时执行 --backend=web | 本地累计十探针成功，预算已回填；远程作业仍需运行证据 |
 | treeshake-apk | 已重新启用，自动构建五项探针 | 本地十项零泄漏且预算已回填；远程结果待验 |
 
-T0.1 对后续工具与独立工程设置文件存在条件，逐阶段启用；B13a 的解析器/构建流程夹具通过不能替代真实产物。字体路径先检查，必要时 precache 后再检查；缺字体显式抛错。golden 标签已注册；Linux golden与远程min-sdk作业尚无成功证据；本地3.24.5非golden验证已通过，不能代替这两项。
+T0.1 对后续工具与独立工程设置文件存在条件，逐阶段启用；B13a 的解析器/构建流程夹具通过不能替代真实产物。字体路径先检查，必要时 precache 后再检查；缺字体显式抛错。golden 标签已注册；Linux golden与远程min-sdk作业尚无成功证据；本地3.24.5非golden验证已通过，不能代替这两项。现有图像及逐帧容差在 Windows 标定；Linux 3.50 实测出现文字栅格化差异，CI 因此在 Windows 完整执行视觉断言，Linux stable 保留全部非 golden 用例与覆盖率门禁，不扩大图像容差或重写基线。
 
 pub get 后保存/检查/恢复 analysis_options 的动作必须紧接依赖安装，不能等到交付前才发现规则被改；规范内容以 IMPLEMENTATION_GUIDE §2.3 为准，包含 tool/treeshake/probes/**。远程还须核验 FLUTTER_ROOT 及字体回退逻辑、3.24.5 analyze 零诊断，不从 YAML 静态存在推导成功。
 
