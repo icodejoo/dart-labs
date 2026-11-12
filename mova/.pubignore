@@ -20,3 +20,6 @@ example/android/app/.cxx/
 # 使用者不需要它们（对外说明见 README.md/CHANGELOG.md，两者仍会发布）。
 doc/
 CLAUDE.md
+
+# HarmonyOS 验证用的实验工程，体积大且含无关测试，不随包发布。
+/tool/harmonyos-spike/
