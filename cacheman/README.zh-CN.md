@@ -256,7 +256,7 @@ final profile = cache.readWith<Profile>('profile', adapter: profiles);
 // AsyncCacheman：同样的适配器，write / readWith 须 await。
 ```
 
-## 从 0.6 迁移到下一版本（计划 0.7.0）
+## 从 0.6 迁移到 0.7.0
 
 - 原 `error is FormatException` 改为
   `error is CorruptEntryError && error.cause is FormatException`；其他异常也检查 cause。

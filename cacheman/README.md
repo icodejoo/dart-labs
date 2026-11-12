@@ -286,7 +286,7 @@ final profile = cache.readWith<Profile>('profile', adapter: profiles);
 // AsyncCacheman：同样的适配器，write / readWith 须 await。
 ```
 
-## Migration from 0.6 to the next release (planned 0.7.0)
+## Migration from 0.6 to 0.7.0
 
 - Change raw exception checks such as `error is FormatException` to
   `error is CorruptEntryError && error.cause is FormatException`; other failures also inspect cause.
