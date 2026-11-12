@@ -66,6 +66,10 @@ class MovaTheme {
   /// 进度条轨道的高度。
   final double progressHeight;
 
+  /// 进度条高亮与滑块的 ARGB 颜色；null 沿用宿主 SliderTheme。
+  /// 示例：`MovaTheme(progressColor: 0xFF00FF00)`。
+  final int? progressColor;
+
   /// ARGB color for modal sheet backgrounds (e.g. the quality picker).
   ///
   /// 弹层（如清晰度选择器）背景的 ARGB 颜色。
@@ -102,6 +106,7 @@ class MovaTheme {
     this.badgeFontSize = 11.0,
     this.centerIconSize = 64.0,
     this.progressHeight = 2.0,
+    this.progressColor,
     this.sheetBackgroundColor = 0xEE1A1A1A,
     this.bufferingSize,
     this.bufferingStrokeWidth,
@@ -124,6 +129,7 @@ class MovaTheme {
           badgeFontSize == other.badgeFontSize &&
           centerIconSize == other.centerIconSize &&
           progressHeight == other.progressHeight &&
+          progressColor == other.progressColor &&
           sheetBackgroundColor == other.sheetBackgroundColor &&
           bufferingSize == other.bufferingSize &&
           bufferingStrokeWidth == other.bufferingStrokeWidth &&
@@ -131,20 +137,21 @@ class MovaTheme {
 
   @override
   int get hashCode => Object.hash(
-        iconColor,
-        textColor,
-        accentColor,
-        timeshiftBadgeColor,
-        barGradientColor,
-        titleFontSize,
-        timeFontSize,
-        captionFontSize,
-        badgeFontSize,
-        centerIconSize,
-        progressHeight,
-        sheetBackgroundColor,
-        bufferingSize,
-        bufferingStrokeWidth,
-        bufferingColor,
-      );
+    iconColor,
+    textColor,
+    accentColor,
+    timeshiftBadgeColor,
+    barGradientColor,
+    titleFontSize,
+    timeFontSize,
+    captionFontSize,
+    badgeFontSize,
+    centerIconSize,
+    progressHeight,
+    progressColor,
+    sheetBackgroundColor,
+    bufferingSize,
+    bufferingStrokeWidth,
+    bufferingColor,
+  );
 }

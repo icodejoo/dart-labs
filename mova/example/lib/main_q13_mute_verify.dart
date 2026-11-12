@@ -151,7 +151,7 @@ class _Q13PageState extends State<_Q13Page> {
       engineFactory: () {
         final player = Player();
         _players.add(player);
-        return createMovaEngine(kernel: MovaMpvKernel(player: player, lazyVideo: true, observeQoeSignals: false), options: opts);
+        return createMovaEngine(kernel: MovaMpvKernel(player: player, lazyVideo: true, observeQoeSignals: false), ownsKernel: true, options: opts);
       },
     );
     _cutover = cutover;
@@ -174,7 +174,7 @@ class _Q13PageState extends State<_Q13Page> {
     _progSub = null;
     if (mounted) setState(() {});
     await Future<void>.delayed(const Duration(milliseconds: 300));
-    ads?.dispose();
+    await ads?.dispose();
     await cutover?.dispose();
     await Future<void>.delayed(const Duration(milliseconds: 700));
   }

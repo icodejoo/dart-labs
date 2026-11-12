@@ -1,0 +1,104 @@
+{
+  "relative_links_checked": 94,
+  "broken_relative_links": [],
+  "test_refs_checked": 1004,
+  "test_refs_not_in_matrix": [],
+  "missing_literal_paths": [
+    "IMPLEMENTATION_GUIDE.md: lib/main.dart",
+    "IMPLEMENTATION_GUIDE.md: tool/xxx.dart",
+    "TEST_STRATEGY.md: test/文件.dart"
+  ],
+  "missing_class_tokens": {
+    "LuckyFlip": [
+      "ARCHITECTURE.md"
+    ],
+    "LuckyRegistry": [
+      "ARCHITECTURE.md"
+    ]
+  },
+  "readme_images": [
+    {
+      "readme": "README.md",
+      "file": "docs/example_audit/after/home-light.png",
+      "bytes": 42990
+    },
+    {
+      "readme": "README.md",
+      "file": "docs/example_audit/after/wheel-light.png",
+      "bytes": 41344
+    },
+    {
+      "readme": "README.md",
+      "file": "docs/example_audit/after/grid-light.png",
+      "bytes": 36367
+    },
+    {
+      "readme": "README.md",
+      "file": "docs/example_audit/after/slot-light.png",
+      "bytes": 29013
+    },
+    {
+      "readme": "README.md",
+      "file": "docs/example_audit/after/lever-light.png",
+      "bytes": 30241
+    },
+    {
+      "readme": "README.md",
+      "file": "docs/example_audit/after/capsule-light.png",
+      "bytes": 37652
+    },
+    {
+      "readme": "README.md",
+      "file": "docs/example_audit/after/number_wheel-light.png",
+      "bytes": 38374
+    },
+    {
+      "readme": "README.md",
+      "file": "docs/example_audit/after/lotto-light.png",
+      "bytes": 39723
+    },
+    {
+      "readme": "README.zh-CN.md",
+      "file": "docs/example_audit/after/home-light.png",
+      "bytes": 42990
+    },
+    {
+      "readme": "README.zh-CN.md",
+      "file": "docs/example_audit/after/wheel-light.png",
+      "bytes": 41344
+    },
+    {
+      "readme": "README.zh-CN.md",
+      "file": "docs/example_audit/after/grid-light.png",
+      "bytes": 36367
+    },
+    {
+      "readme": "README.zh-CN.md",
+      "file": "docs/example_audit/after/slot-light.png",
+      "bytes": 29013
+    },
+    {
+      "readme": "README.zh-CN.md",
+      "file": "docs/example_audit/after/lever-light.png",
+      "bytes": 30241
+    },
+    {
+      "readme": "README.zh-CN.md",
+      "file": "docs/example_audit/after/capsule-light.png",
+      "bytes": 37652
+    },
+    {
+      "readme": "README.zh-CN.md",
+      "file": "docs/example_audit/after/number_wheel-light.png",
+      "bytes": 38374
+    },
+    {
+      "readme": "README.zh-CN.md",
+      "file": "docs/example_audit/after/lotto-light.png",
+      "bytes": 39723
+    }
+  ],
+  "audit_png_count": 45,
+  "audit_png_bytes": 1262694,
+  "readme_dart_blocks_unchanged": true
+}

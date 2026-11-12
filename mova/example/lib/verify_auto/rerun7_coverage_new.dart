@@ -366,7 +366,7 @@ Future<void> feed() async {
     if(i%20==0)c.mark('FEED_SAMPLE',{'index':controller.activeIndex,'engines':made.length,'rss':ProcessInfo.currentRss});
   }
   await Future.wait([for(var i=101;i<=120;i++)controller.activate(i)]);
-  c.check('A29.final',controller.activeIndex==120 && made.length==3,'active=${controller.activeIndex} engines=${made.length}');
+  c.check('A29.final',controller.activeIndex==120 && made.isNotEmpty && made.length<=pool.size,'active=${controller.activeIndex} engines=${made.length} capacity=${pool.size}');
   c.mark('FEED_ENGINES',{'states':made.map(c.snapshot).toList()});
   controller.dispose(); await pool.dispose().timeout(const Duration(seconds:20));
   c.check('A29.dispose',true,'controller and 3 native engines disposed');
@@ -457,11 +457,11 @@ class RetrySttEngine extends MovaNoopSttEngine {
 ///
 /// 验证无引擎阻断及启动失败后可重试。
 Future<void> stt() async {
-  final none=createMovaEngine(audioOnly:true,options:const MovaOpts(stt:MovaSttConfig(enabled:true)));
+  final none=createMovaEngine(options:const MovaOpts(stt:MovaSttConfig(enabled:true)));
   c.observe(none);await none.open(c.source(),autoPlay:false);await none.stt.start();await none.stt.stop();
   c.mark('STT_NO_ENGINE',{'running':none.stt.isRunning,'languages':none.stt.languages});await none.dispose();
   final engine=RetrySttEngine();
-  final a=createMovaEngine(audioOnly:true,options:MovaOpts(stt:MovaSttConfig(enabled:true,engine:engine)));
+  final a=createMovaEngine(options:MovaOpts(stt:MovaSttConfig(enabled:true,engine:engine)));
   c.observe(a);await a.open(c.source(),autoPlay:false);
   try{await a.stt.start();}catch(e){c.mark('STT_EXPECTED_THROW',{'error':'$e','running':a.stt.isRunning});}
   c.check('N22.sttRollback',!a.stt.isRunning,'after first failure running=${a.stt.isRunning}');

@@ -1,5 +1,6 @@
 import 'dart:async';
 import '../client.dart';
+import '../constants.dart';
 import '../context.dart';
 import '../options.dart';
 import '../plugin.dart';
@@ -170,7 +171,7 @@ class DiomanAuth<R extends DiomanResponse<dynamic>> extends DiomanPlugin<R> {
   static const readyStableAttempts = 3;
 
   /// 稳定名称。
-  static const pluginName = 'dioman:auth';
+  static const pluginName = diomanAuthName;
 
   /// 请求级选项键，支持 bool 与 DiomanAuthOptions。
   static final option = DiomanOptionKey<DiomanAuthOptions>(pluginName);

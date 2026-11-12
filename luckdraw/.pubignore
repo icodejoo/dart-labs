@@ -1,0 +1,26 @@
+test/parity/baselines/
+tool/bench/build/
+tool/bench/.dart_tool/
+coverage/
+
+# Development evidence and tooling are kept in the source repository.
+/test/
+/tool/
+/docs/
+/build/
+**/.dart_tool/
+**/build/
+**/pubspec.lock
+**/.flutter-plugins
+**/.flutter-plugins-dependencies
+**/flutter_export_environment.sh
+**/local.properties
+/example/validation/
+/example/android/.gradle/
+/example/android/gradlew
+/example/android/gradlew.bat
+/example/android/gradle/wrapper/gradle-wrapper.jar
+/example/windows/flutter/ephemeral/
+/example/windows/flutter/generated_plugin_registrant.cc
+/example/windows/flutter/generated_plugin_registrant.h
+/example/windows/flutter/generated_plugins.cmake

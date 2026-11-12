@@ -1,0 +1,14 @@
+[
+  {
+    "ProcessId": 25880,
+    "ParentProcessId": 37952,
+    "Name": "dart.exe",
+    "CommandLine": "E:\\workspaces\\c66_frontend_bingoplus_m_micro_wt1\\node_modules\\.pnpm\\sass-embedded-win32-x64@1.106.1\\node_modules\\sass-embedded-win32-x64\\dart-sass\\src\\dart.exe E:\\workspaces\\c66_frontend_bingoplus_m_micro_wt1\\node_modules\\.pnpm\\sass-embedded-win32-x64@1.106.1\\node_modules\\sass-embedded-win32-x64\\dart-sass\\src\\sass.snapshot --embedded"
+  },
+  {
+    "ProcessId": 22908,
+    "ParentProcessId": 38380,
+    "Name": "dart.exe",
+    "CommandLine": "E:\\workspaces\\c66_frontend_bingoplus_m_micro_wt2\\node_modules\\.pnpm\\sass-embedded-win32-x64@1.106.1\\node_modules\\sass-embedded-win32-x64\\dart-sass\\src\\dart.exe E:\\workspaces\\c66_frontend_bingoplus_m_micro_wt2\\node_modules\\.pnpm\\sass-embedded-win32-x64@1.106.1\\node_modules\\sass-embedded-win32-x64\\dart-sass\\src\\sass.snapshot --embedded"
+  }
+]

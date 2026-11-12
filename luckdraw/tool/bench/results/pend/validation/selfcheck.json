@@ -1,0 +1,30 @@
+{
+  "relative_links_checked": 155,
+  "broken_links": [],
+  "analysis_options_matches_guide": true,
+  "frozen_product_and_baseline_files": 245,
+  "historical_summary_sha256_verified": 33,
+  "raw_trace_sha256_verified": 16,
+  "all_and_formal_spikes": {
+    "slot_raster": [
+      5,
+      5
+    ],
+    "grid_steady": [
+      10,
+      8
+    ],
+    "lotto_draw": [
+      171,
+      24
+    ],
+    "lots_shaking": [
+      0,
+      0
+    ]
+  },
+  "new_text_files_lf": true,
+  "device_collection_run": false,
+  "product_lib_changed": false,
+  "performance_passed_claimed": false
+}

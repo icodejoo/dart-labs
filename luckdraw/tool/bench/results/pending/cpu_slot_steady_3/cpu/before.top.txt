@@ -1,0 +1,5 @@
+Threads: 0 total,   0 running,   0 sleeping,   0 stopped,   0 zombie
+  Mem:  7638132K total,  7498136K used,   139996K free,    10380K buffers
+ Swap:  8388604K total,  3016224K used,  5372380K free,  3773120K cached
+800%cpu 3300%user 2200%nice 3400%sys 8400%idle   0%iow 300%irq   0%sirq   0%host
+  TID USER         PR  NI VIRT  RES  SHR S[%CPU] %MEM     TIME+ THREAD          PROCESS

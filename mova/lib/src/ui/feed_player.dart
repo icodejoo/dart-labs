@@ -1,4 +1,10 @@
-import 'package:flutter/widgets.dart';
+import 'dart:async';
+import 'package:flutter/material.dart';
+
+import '../core/guard/auto_pause.dart';
+import '../core/state/state.dart';
+import 'guard/auto_pause.dart';
+import 'style/style.dart';
 
 import '../core/api.dart';
 import '../core/feed/engine_pool.dart';
@@ -28,7 +34,136 @@ import 'skins/douyin_skin.dart';
 /// Returns the placeholder widget to paint behind the page's chrome.
 ///
 /// 返回要绘制在该页 chrome 之下的占位组件。
-typedef MovaFeedHolderBuilder = Widget Function(BuildContext context, MovaFeedItem item);
+typedef MovaFeedHolderBuilder =
+    Widget Function(BuildContext context, MovaFeedItem item);
+
+/// 构建单页失败界面；[retry] 仅重试该页，不影响相邻条目。
+typedef MovaFeedErrorBuilder =
+    Widget Function(
+      BuildContext context,
+      int index,
+      Object error,
+      VoidCallback retry,
+    );
+
+/// Host controls for one feed player; the widget owns its engines while the
+/// host owns this controller. Queries return null and commands do nothing
+/// while detached. Example: `await controller.pause()`.
+///
+/// Feed 的宿主控制入口；组件持有引擎生命周期，宿主持有本控制器。
+/// 同时仅可挂载到一个 MovaFeedPlayer，卸载后查询返回 null、命令为空操作。
+/// 示例：`await controller.pause()`。
+class MovaFeedPlayerController extends ChangeNotifier {
+  /// 创建未绑定的控制器；交给 MovaFeedPlayer.controller 后生效。
+  MovaFeedPlayerController();
+
+  _MovaFeedPlayerState? _owner;
+
+  /// Generation of host pause commands; play and detach invalidate pending reconciliation.
+  ///
+  /// 宿主暂停命令的代际；play 与解绑会使待补暂停失效。
+  int _pauseGeneration = 0;
+
+  /// 当前 feed，可查询缓存、条目和点赞状态；不要自行 dispose。
+  MovaFeed? get feed => _owner?._controller;
+
+  /// 最近开始绑定的条目索引，首次绑定前为 null。
+  int? get activeIndex => feed?.activeIndex;
+
+  /// 当前页引擎；没有绑定时为 null，打开在途时也可控制；宿主不要自行 dispose。
+  MovaApi? get activeApi => _owner?._activeApi;
+
+  /// 跳至 [index]；负索引不执行，当前页重复调用会重试加载。
+  void jumpToPage(int index) {
+    final owner = _owner;
+    if (owner == null || index < 0 || !owner._pageController.hasClients) return;
+    if ((owner._pageController.page?.round() ?? 0) == index) {
+      owner._retry(index);
+    } else {
+      owner._pageController.jumpToPage(index);
+    }
+  }
+
+  /// Pauses the current page without waiting for activation. A pending
+  /// activation reapplies the pause after focus; unbound calls do nothing.
+  ///
+  /// 暂停当前页，不等待激活；在途激活聚焦后会补暂停，未绑定时为空操作。
+  ///
+  /// Returns when the current engine's pause completes.
+  ///
+  /// 当前引擎的暂停完成时返回。
+  Future<void> pause() async {
+    // 即使意图已被守卫置为暂停，也要撤销它记住的恢复欠账。
+    final owner = _owner;
+    final generation = owner?._activationGeneration;
+    final pauseGeneration = ++_pauseGeneration;
+    owner?._guardKey.currentState?.cancelResume();
+    await activeApi?.pause();
+    if (owner != null) {
+      unawaited(
+        _pauseAfterActivation(
+          owner,
+          generation!,
+          pauseGeneration,
+        ).catchError((Object _) {}),
+      );
+    }
+  }
+
+  /// Reapplies pause after focus, isolating activation failures already shown
+  /// by the owner and skipping detached controllers, newer pages or commands.
+  ///
+  /// 聚焦后补暂停，隔离 owner 已展示的激活错误，并跳过解绑、更新的页面或命令。
+  Future<void> _pauseAfterActivation(
+    _MovaFeedPlayerState owner,
+    int generation,
+    int pauseGeneration,
+  ) async {
+    try {
+      await owner._activationSettled;
+    } on Object {
+      // Activation reports its own failure UI; pause remains best-effort.
+      //
+      // 激活自行展示失败 UI；此处仍尽力落实暂停。
+    }
+    if (identical(_owner, owner) &&
+        pauseGeneration == _pauseGeneration &&
+        generation == owner._activationGeneration) {
+      owner._guardKey.currentState?.cancelResume();
+      await activeApi?.pause();
+    }
+  }
+
+  /// Plays the current page and cancels a pending pause reconciliation.
+  /// Visibility guards may still pause it while hidden.
+  ///
+  /// 播放当前页并取消待补暂停；内置可见性守卫仍可在隐藏时暂停它。
+  ///
+  /// Returns when the current engine's play completes; unbound calls do nothing.
+  ///
+  /// 当前引擎的播放命令完成时返回；未绑定时为空操作。
+  Future<void> play() async {
+    ++_pauseGeneration;
+    await activeApi?.play();
+  }
+
+  void _attach(_MovaFeedPlayerState owner) {
+    assert(_owner == null || identical(_owner, owner), '控制器不能同时挂载多个 feed');
+    _owner = owner;
+  }
+
+  /// Detaches [owner] and invalidates its pending pause reconciliation.
+  ///
+  /// 解绑 [owner]，使其待补暂停失效。
+  void _detach(_MovaFeedPlayerState owner) {
+    if (identical(_owner, owner)) {
+      ++_pauseGeneration;
+      _owner = null;
+    }
+  }
+
+  void _changed() => notifyListeners();
+}
 
 /// A vertical, douyin-style "swipe for next video" feed backed by a pool of
 /// playback engines — one per warm page, rather than one shared by all.
@@ -68,6 +203,10 @@ class MovaFeedPlayer extends StatefulWidget {
   ///   does not construct one itself / 创建池中每个引擎，宿主传
   ///   `createMovaEngine`。工厂产出的每个引擎都由本组件持有并释放——与早期的
   ///   单引擎 API 不同，宿主不再自行构造引擎
+  /// - [controller]: 宿主控制器，组件卸载时解绑，引擎仍归组件持有
+  /// - [autoPause]: 整条 feed 的可见性守卫配置，null 禁用内置守卫
+  /// - [routeObservers]: 已挂到外层 Navigator 的观察器
+  /// - [errorBuilder]: 单页失败界面及显式重试入口
   /// - [loader]: resolves feed items by index / 按索引解析 feed 条目
   /// - [poolSize]: how many engines may exist at once; 3 (the default) covers
   ///   every page `PageView` mounts and both swipe directions. Lower it to 2
@@ -104,12 +243,29 @@ class MovaFeedPlayer extends StatefulWidget {
     this.fit = MovaFit.cover,
     this.placeholderBuilder,
     this.posterUntilFirstFrame = false,
+    this.controller,
+    this.autoPause = const MovaAutoPauseConfig(),
+    this.routeObservers = const [],
+    this.errorBuilder,
   });
 
   /// Creates each pooled engine.
   ///
   /// 创建池中每个引擎。
   final MovaEngineFactory engineFactory;
+
+  /// 宿主控制入口；更换或卸载时解除绑定，不负责 dispose 控制器。
+  final MovaFeedPlayerController? controller;
+
+  /// 整个 feed 的可见性暂停策略；默认隐藏时暂停，重新可见按原意图恢复。
+  /// 为 null 时禁用内置守卫，翻页的单页互斥仍由引擎池管理。
+  final MovaAutoPauseConfig? autoPause;
+
+  /// 已挂到外层 Navigator 的观察器，用于感知半透明路由覆盖。
+  final List<RouteObserver<ModalRoute<dynamic>>> routeObservers;
+
+  /// 单页加载或播放失败时的界面；默认显示主题文案和重试按钮。
+  final MovaFeedErrorBuilder? errorBuilder;
 
   /// Resolves feed items by index.
   ///
@@ -179,11 +335,14 @@ class _MovaFeedPlayerState extends State<MovaFeedPlayer> {
   /// 支撑纵向"上滑下一个视频"翻页的控制器。
   final PageController _pageController = PageController();
 
-  /// Like-state notifiers, keyed by feed index, kept alive for this
-  /// [State]'s whole lifetime so double-tap (gesture layer) and the social
+  // 守卫在引擎解绑期间保持挂载，宿主暂停可同步撤销恢复。
+  final _guardKey = GlobalKey<MovaAutoPauseState>();
+
+  /// Like-state notifiers, keyed by feed index, kept alive within the current
+  /// retained window so double-tap (gesture layer) and the social
   /// rail's like button never drift out of sync across page rebuilds.
   ///
-  /// 按 feed 索引存放的点赞状态 notifier，在本 [State] 整个生命周期内存活，
+  /// 按 feed 索引存放的点赞状态 notifier，在当前滑窗内跨重建存活，
   /// 使双击（手势层）与社交竖排的点赞按钮在历次页面重建间永不失步。
   final Map<int, ValueNotifier<({bool liked, int count})>> _likeNotifiers =
       <int, ValueNotifier<({bool liked, int count})>>{};
@@ -193,17 +352,157 @@ class _MovaFeedPlayerState extends State<MovaFeedPlayer> {
   /// Without this, a page whose loader resolves `null` (the feed ended) spins
   /// forever: `build` requests it, the request completes with nothing to
   /// cache, `setState` rebuilds, and `build` requests it again. Failed loads
-  /// drop back out of the set so a later rebuild does retry them.
+  /// keep their ticket until the viewer explicitly retries.
   ///
   /// [_buildPage] 已经向 [MovaFeed.ensure] 请求过的索引。
   ///
   /// 没有这层记录，loader 解析出 `null`（feed 已到尽头）的页面会永远空转：
   /// `build` 发起请求，请求完成但没有任何东西可缓存，`setState` 触发重建，
-  /// `build` 又发起同一个请求。加载失败的索引会被移出集合，使后续重建仍会
-  /// 重试它们。
-  final Set<int> _requested = <int>{};
+  /// `build` 又发起同一个请求。加载失败保留票据并展示错误，只在显式重试时移除。
+  final Map<int, Object> _requested = <int, Object>{};
+  final Map<int, Object> _errors = {};
+  int _activationGeneration = 0;
+  int? _endIndex;
+
+  /// Records the first unavailable page and returns the loader result.
+  ///
+  /// 记录首个不可用页面并返回加载结果。
+  Future<MovaFeedItem?> _load(int index) async {
+    if (_endIndex != null && index >= _endIndex!) return null;
+    final item = await widget.loader(index);
+    if (mounted && item == null && (_endIndex == null || index < _endIndex!)) {
+      setState(() => _endIndex = index);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || !_pageController.hasClients || index == 0) return;
+        if ((_pageController.page ?? 0) >= index) {
+          _pageController.jumpToPage(index - 1);
+        }
+      });
+    }
+    return item;
+  }
+
+  MovaApi? get _activeApi {
+    final index = _controller.activeIndex;
+    return index == null ? null : _controller.slotFor(index)?.api;
+  }
+
+  /// 当前缓存的逐页请求和点赞状态总数，供回归检查。
+  int get debugPageStateCount => _requested.length + _likeNotifiers.length;
+
+  // 当前翻页的打开、聚焦和互斥暂停全部完成后才落定。
+  Future<void>? _activationSettled;
+
+  /// Activates a valid page and pauses playback beyond the known end.
+  ///
+  /// 激活有效页面；进入已知终点以外时暂停播放。
+  Future<void> _activate(int index) async {
+    if (_endIndex != null && index >= _endIndex!) {
+      await _activeApi?.pause();
+      return;
+    }
+    final generation = ++_activationGeneration;
+    try {
+      final result = _controller.activate(index);
+      _activationSettled = result;
+      _prunePageState();
+      await result;
+      if (!mounted || generation != _activationGeneration) return;
+      if (_controller.peek(index) == null) {
+        for (final bound in _pool.boundIndices) {
+          await _pool.slotFor(bound)?.api.pause();
+        }
+        return;
+      }
+      if (_controller.peek(index) != null &&
+          _controller.slotFor(index)?.ready != true) {
+        _recordFailure(index, StateError('媒体打开未被接受'));
+      } else {
+        setState(() => _errors.remove(index));
+        widget.controller?._changed();
+      }
+    } on Object catch (error) {
+      if (generation == _activationGeneration) _recordFailure(index, error);
+    }
+  }
+
+  void _recordFailure(int index, Object error) {
+    if (!mounted || !_controller.retains(index)) return;
+    setState(() => _errors[index] = error);
+    // 当前页加载失败时停止上一页，避免失败界面下仍有旧页声音。
+    if (_pageController.hasClients && _pageController.page?.round() == index) {
+      unawaited(_activeApi?.pause().catchError((Object _) {}));
+    }
+  }
+
+  void _retry(int index) {
+    setState(() {
+      _errors.remove(index);
+      _requested.remove(index);
+    });
+    final slot = _controller.slotFor(index);
+    if (slot != null && slot.ready && slot.api.state.error != null) {
+      unawaited(
+        slot.api.reload().catchError((Object e) => _recordFailure(index, e)),
+      );
+    } else {
+      unawaited(_activate(index));
+    }
+  }
+
+  Widget _failure(
+    BuildContext context,
+    int index,
+    Object error, {
+    MovaApi? api,
+  }) {
+    void retry() {
+      if (api == null) {
+        _retry(index);
+      } else {
+        unawaited(
+          api.reload().catchError((Object e) => _recordFailure(index, e)),
+        );
+      }
+    }
+
+    final custom = widget.errorBuilder;
+    if (custom != null) return custom(context, index, error, retry);
+    final strings = MovaPlayerStyle.stringsOf(context);
+    return ColoredBox(
+      color: const Color(0xFF000000),
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              strings.playbackError,
+              style: const TextStyle(color: Colors.white),
+            ),
+            TextButton(onPressed: retry, child: Text(strings.retry)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 回收窗口外的页面状态，等子树在本帧卸载后再释放 notifier。
+  void _prunePageState() {
+    _requested.removeWhere((index, _) => !_controller.retains(index));
+    _errors.removeWhere((index, _) => !_controller.retains(index));
+    final expired = _likeNotifiers.keys
+        .where((index) => !_controller.retains(index))
+        .toList();
+    for (final index in expired) {
+      final notifier = _likeNotifiers.remove(index)!;
+      WidgetsBinding.instance.addPostFrameCallback((_) => notifier.dispose());
+    }
+  }
 
   @override
+  /// Connects the loader through the page-end tracker.
+  ///
+  /// 将加载器接入分页终点追踪。
   void initState() {
     super.initState();
     _pool = MovaFeedEnginePool(
@@ -214,11 +513,21 @@ class _MovaFeedPlayerState extends State<MovaFeedPlayer> {
     );
     _controller = MovaFeed(
       pool: _pool,
-      loader: widget.loader,
+      loader: _load,
       prefetchDepth: widget.prefetchDepth,
       prefetcher: widget.prefetcher,
     );
-    _controller.activate(0);
+    widget.controller?._attach(this);
+    unawaited(_activate(0));
+  }
+
+  @override
+  void didUpdateWidget(MovaFeedPlayer oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.controller, widget.controller)) {
+      oldWidget.controller?._detach(this);
+      widget.controller?._attach(this);
+    }
   }
 
   /// Rebuilds when a pool slot binds, unbinds, or becomes ready — that is
@@ -228,6 +537,8 @@ class _MovaFeedPlayerState extends State<MovaFeedPlayer> {
   /// 视频画面的时机。
   void _onPoolChanged() {
     if (!mounted) return;
+    _prunePageState();
+    widget.controller?._changed();
     setState(() {});
   }
 
@@ -240,7 +551,10 @@ class _MovaFeedPlayerState extends State<MovaFeedPlayer> {
   /// - [index]: the feed index the notifier belongs to / 该 notifier 所属的
   ///   feed 索引
   ValueNotifier<({bool liked, int count})> _likeNotifierFor(int index) {
-    return _likeNotifiers.putIfAbsent(index, () => ValueNotifier(_controller.likeStateOf(index)));
+    return _likeNotifiers.putIfAbsent(
+      index,
+      () => ValueNotifier(_controller.likeStateOf(index)),
+    );
   }
 
   /// Builds one feed page: its own pooled engine's video surface once that
@@ -253,17 +567,29 @@ class _MovaFeedPlayerState extends State<MovaFeedPlayer> {
   /// - [context]: the page's build context / 该页的 build 上下文
   /// - [index]: the feed index being built / 正在构建的 feed 索引
   Widget _buildPage(BuildContext context, int index) {
+    final failure = _errors[index];
+    if (failure != null) return _failure(context, index, failure);
     final item = _controller.peek(index);
     if (item == null) {
-      if (_requested.add(index)) {
-        _controller.ensure(index).then(
-          (_) {
-            if (mounted) setState(() {});
-          },
-          onError: (Object _) {
-            _requested.remove(index);
-          },
-        );
+      if (!_requested.containsKey(index) && _controller.retains(index)) {
+        final ticket = Object();
+        _requested[index] = ticket;
+        _controller
+            .ensure(index)
+            .then(
+              (_) {
+                if (mounted &&
+                    _controller.retains(index) &&
+                    identical(_requested[index], ticket)) {
+                  setState(() {});
+                }
+              },
+              onError: (Object error) {
+                if (identical(_requested[index], ticket)) {
+                  _recordFailure(index, error);
+                }
+              },
+            );
       }
       return const ColoredBox(color: Color(0xFF000000));
     }
@@ -277,13 +603,24 @@ class _MovaFeedPlayerState extends State<MovaFeedPlayer> {
 
     final slot = _controller.slotFor(index);
     if (slot != null && slot.ready) {
-      return MovaPlayer(
-        api: slot.api,
-        skin: skin,
-        autoLoadQualities: false,
-        poster: widget.posterUntilFirstFrame
-            ? (widget.placeholderBuilder?.call(context, item) ?? const ColoredBox(color: Color(0xFF000000)))
-            : null,
+      return StreamBuilder<MovaState>(
+        stream: slot.api.states,
+        initialData: slot.api.state,
+        builder: (context, snapshot) {
+          final error = snapshot.data?.error;
+          if (error != null) {
+            return _failure(context, index, error, api: slot.api);
+          }
+          return MovaPlayer(
+            api: slot.api,
+            skin: skin,
+            autoLoadQualities: false,
+            poster: widget.posterUntilFirstFrame
+                ? (widget.placeholderBuilder?.call(context, item) ??
+                      const ColoredBox(color: Color(0xFF000000)))
+                : null,
+          );
+        },
       );
     }
 
@@ -299,7 +636,8 @@ class _MovaFeedPlayerState extends State<MovaFeedPlayer> {
     // 非空即可。
     final scopeApi = slot?.api ?? _fallbackScopeApi(index);
     final placeholder =
-        widget.placeholderBuilder?.call(context, item) ?? const ColoredBox(color: Color(0xFF000000));
+        widget.placeholderBuilder?.call(context, item) ??
+        const ColoredBox(color: Color(0xFF000000));
     if (scopeApi == null) return placeholder;
 
     // Route through MovaPlayer with the placeholder as its surface rather than
@@ -312,7 +650,12 @@ class _MovaFeedPlayerState extends State<MovaFeedPlayer> {
     // MovaScope + buildSlots + assemble：MovaPlayer 按 api 身份给组件树做 key，
     // 于是当本页自己的引擎打开完成、scopeApi 从借来的 fallback 切成自己的引擎时，
     // chrome 会干净地重新挂载，而不是悄悄复用绑在旧 api 上的 State。
-    return MovaPlayer(api: scopeApi, skin: skin, autoLoadQualities: false, surface: placeholder);
+    return MovaPlayer(
+      api: scopeApi,
+      skin: skin,
+      autoLoadQualities: false,
+      surface: placeholder,
+    );
   }
 
   /// Returns any live engine to scope a not-yet-bound page's chrome against:
@@ -341,17 +684,33 @@ class _MovaFeedPlayerState extends State<MovaFeedPlayer> {
   }
 
   @override
+  /// Limits paging to the first confirmed loader end.
+  ///
+  /// 将分页限制在加载器首次确认的终点之前。
   Widget build(BuildContext context) {
-    return PageView.builder(
+    final pages = PageView.builder(
+      itemCount: _endIndex,
       controller: _pageController,
       scrollDirection: Axis.vertical,
-      onPageChanged: _controller.activate,
+      onPageChanged: _activate,
       itemBuilder: _buildPage,
+    );
+    final api = _activeApi;
+    final config = widget.autoPause;
+    // 打开失败导致 api 为空时仍保留包装，避免 PageView 重挂丢失页码。
+    if (config == null) return pages;
+    return MovaAutoPause(
+      key: _guardKey,
+      api: api,
+      config: config,
+      routeObservers: widget.routeObservers,
+      child: pages,
     );
   }
 
   @override
   void dispose() {
+    widget.controller?._detach(this);
     _controller.dispose();
     _pool.dispose();
     _pageController.dispose();

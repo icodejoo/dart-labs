@@ -1,0 +1,185 @@
+{
+  "source": "wheel_1\\wheel_steady_1794305396820500.timeline.json",
+  "event_count": 32566,
+  "event_phases": {
+    "M": 13,
+    "E": 13504,
+    "C": 587,
+    "b": 1753,
+    "e": 1754,
+    "f": 585,
+    "B": 13495,
+    "s": 583,
+    "t": 292
+  },
+  "top_paired_events": [
+    {
+      "name": "Rasterizer::DoDraw",
+      "count": 292,
+      "sum_ms": 4829.893,
+      "mean_ms": 16.540729452054794,
+      "max_ms": 20.533
+    },
+    {
+      "name": "Rasterizer::DrawToSurfaces",
+      "count": 292,
+      "sum_ms": 4820.511,
+      "mean_ms": 16.50859931506849,
+      "max_ms": 20.508
+    },
+    {
+      "name": "GPURasterizer::Draw",
+      "count": 291,
+      "sum_ms": 4819.613,
+      "mean_ms": 16.562243986254295,
+      "max_ms": 20.546
+    },
+    {
+      "name": "SurfaceFrame::Submit",
+      "count": 292,
+      "sum_ms": 4745.783,
+      "mean_ms": 16.252681506849314,
+      "max_ms": 20.302
+    },
+    {
+      "name": "SurfaceFrame::Encode",
+      "count": 292,
+      "sum_ms": 4227.027,
+      "mean_ms": 14.476119863013698,
+      "max_ms": 18.546
+    },
+    {
+      "name": "ReactorGLES::React",
+      "count": 292,
+      "sum_ms": 3952.824,
+      "mean_ms": 13.537068493150686,
+      "max_ms": 17.871
+    },
+    {
+      "name": "ReactOnce",
+      "count": 292,
+      "sum_ms": 3951.377,
+      "mean_ms": 13.53211301369863,
+      "max_ms": 17.868
+    },
+    {
+      "name": "FlushOps",
+      "count": 292,
+      "sum_ms": 3946.359,
+      "mean_ms": 13.51492808219178,
+      "max_ms": 17.855
+    },
+    {
+      "name": "ReactorGLES::Operation",
+      "count": 292,
+      "sum_ms": 3936.974,
+      "mean_ms": 13.482787671232876,
+      "max_ms": 17.824
+    },
+    {
+      "name": "RenderPassGLES::EncodeCommandsInReactor",
+      "count": 292,
+      "sum_ms": 3934.026,
+      "mean_ms": 13.472691780821918,
+      "max_ms": 17.811
+    },
+    {
+      "name": "VsyncProcessCallback",
+      "count": 291,
+      "sum_ms": 440.006,
+      "mean_ms": 1.5120481099656358,
+      "max_ms": 3.3
+    },
+    {
+      "name": "Animator::BeginFrame",
+      "count": 292,
+      "sum_ms": 421.764,
+      "mean_ms": 1.4443972602739725,
+      "max_ms": 3.204
+    },
+    {
+      "name": "Dart_InvokeClosure",
+      "count": 622,
+      "sum_ms": 379.834,
+      "mean_ms": 0.6106655948553055,
+      "max_ms": 2.13
+    },
+    {
+      "name": "PAINT (root)",
+      "count": 292,
+      "sum_ms": 109.597,
+      "mean_ms": 0.3753321917808219,
+      "max_ms": 1.067
+    },
+    {
+      "name": "PAINT",
+      "count": 292,
+      "sum_ms": 105.601,
+      "mean_ms": 0.3616472602739726,
+      "max_ms": 1.048
+    },
+    {
+      "name": "COMPOSITING",
+      "count": 292,
+      "sum_ms": 87.835,
+      "mean_ms": 0.3008047945205479,
+      "max_ms": 1.36
+    },
+    {
+      "name": "AsyncWaitForVsync",
+      "count": 292,
+      "sum_ms": 76.037,
+      "mean_ms": 0.26040068493150687,
+      "max_ms": 1.719
+    },
+    {
+      "name": "PlatformVsync",
+      "count": 291,
+      "sum_ms": 34.338,
+      "mean_ms": 0.118,
+      "max_ms": 0.253
+    },
+    {
+      "name": "SEMANTICS (root)",
+      "count": 292,
+      "sum_ms": 29.326,
+      "mean_ms": 0.10043150684931507,
+      "max_ms": 0.536
+    },
+    {
+      "name": "CreateGlyphAtlas",
+      "count": 292,
+      "sum_ms": 28.552,
+      "mean_ms": 0.09778082191780822,
+      "max_ms": 0.294
+    },
+    {
+      "name": "CompositorContext::ScopedFrame::Raster",
+      "count": 292,
+      "sum_ms": 22.195,
+      "mean_ms": 0.07601027397260275,
+      "max_ms": 0.294
+    },
+    {
+      "name": "VsyncFireCallback",
+      "count": 291,
+      "sum_ms": 22.126,
+      "mean_ms": 0.07603436426116839,
+      "max_ms": 0.198
+    },
+    {
+      "name": "LayerTree::Paint",
+      "count": 292,
+      "sum_ms": 11.21,
+      "mean_ms": 0.038390410958904116,
+      "max_ms": 0.176
+    },
+    {
+      "name": "Dart_NotifyIdle",
+      "count": 292,
+      "sum_ms": 10.842,
+      "mean_ms": 0.037130136986301375,
+      "max_ms": 3.981
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "command": [
+    "dart",
+    "run",
+    "tool/check_imports.dart"
+  ],
+  "cwd": "C:\\ldq\\luckdraw",
+  "exit_code": 0,
+  "seconds": 2.005
+}

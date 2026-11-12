@@ -1,0 +1,44 @@
+[
+  {
+    "path": "docs/PERF_ROOTCAUSE_REPORT.md",
+    "mode": "append",
+    "anchor": null,
+    "fragment": "documentation_0.md"
+  },
+  {
+    "path": "docs/METRIC_FIX_REPORT.md",
+    "mode": "append",
+    "anchor": null,
+    "fragment": "documentation_1.md"
+  },
+  {
+    "path": "docs/TEST_STRATEGY.md",
+    "mode": "before",
+    "anchor": "\n## 8. 摇树验证",
+    "fragment": "documentation_2.md"
+  },
+  {
+    "path": "docs/README.md",
+    "mode": "append",
+    "anchor": null,
+    "fragment": "documentation_3.md"
+  },
+  {
+    "path": "README.md",
+    "mode": "after",
+    "anchor": "## Performance\n",
+    "fragment": "documentation_4.md"
+  },
+  {
+    "path": "README.zh-CN.md",
+    "mode": "after",
+    "anchor": "## 性能\n",
+    "fragment": "documentation_5.md"
+  },
+  {
+    "path": "docs/RELEASE_CHECKLIST.md",
+    "mode": "append",
+    "anchor": null,
+    "fragment": "release_append.md"
+  }
+]

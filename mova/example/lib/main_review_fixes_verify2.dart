@@ -1,8 +1,11 @@
 import 'dart:async';
+import 'verify_auto/auto_kit.dart' show coverageRunsOverride;
 import 'dart:io';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:media_kit/media_kit.dart' show NativePlayer;
+import 'package:media_kit_video/media_kit_video.dart' show VideoController;
 import 'package:mova/mova.dart';
 // ignore: implementation_imports
 import 'package:mova/src/core/kernel/mpv_kernel.dart';
@@ -18,7 +21,7 @@ import 'package:mova/src/core/kernel/mpv_kernel.dart';
 const _kSrc = String.fromEnvironment('SRC', defaultValue: 'http://127.0.0.1:18080');
 
 /// 每项重复次数。
-const _kRuns = 3;
+int get _kRuns => coverageRunsOverride ?? 3;
 
 /// 启动参数里的组名。
 String _group = const String.fromEnvironment('GROUP', defaultValue: 'v10');
@@ -199,7 +202,7 @@ class _HomeState extends State<_Home> {
       _log('START', 'control server unreachable: ${e.runtimeType}');
     }
     _log('START', 'group=$_group win=${_win()}');
-    for (final g in _group == 'all' ? ['v10', 'v10x', 'v10c', 'v11', 'v12', 'v12b', 'v13a', 'v13b', 'v14'] : [_group]) {
+    for (final g in _group == 'all' ? ['v10', 'v10x', 'v10c', 'v11', 'v12', 'v12b', 'v13a', 'v13b', 'v14'] : _group.split(',')) {
       _log('GROUP', 'begin $g');
       try {
         switch (g) {
@@ -531,6 +534,30 @@ Future<void> _v13(int run, {required bool now}) async {
   var pos13 = Duration.zero;
   final p13 = proxy.progress.listen((p) => pos13 = p.position);
   final adRates = <double>[];
+  final nativeRates = <Map<String, Object?>>[];
+  var readingNative = false;
+  Future<void> readNativeRate(String phase) async {
+    if (readingNative) return;
+    readingNative = true;
+    final handle = proxy.renderHandle;
+    final epoch = proxy.state.renderEpoch;
+    try {
+      final player = (handle as VideoController).player.platform as NativePlayer;
+      final values = await Future.wait(['path', 'speed'].map(player.getProperty))
+          .timeout(const Duration(seconds: 1));
+      final row = <String, Object?>{
+        'phase': phase, 'epoch': epoch, 'path': values[0],
+        'speed': double.tryParse(values[1]),
+        'stable': identical(handle, proxy.renderHandle) && epoch == proxy.state.renderEpoch,
+      };
+      nativeRates.add(row);
+      _log(id, 'run$run NATIVE_SPEED $row');
+    } catch (error) {
+      _log(id, 'run$run NATIVE_SPEED_ERROR phase=$phase error=$error');
+    } finally {
+      readingNative = false;
+    }
+  }
   final poll = Timer.periodic(const Duration(milliseconds: 100), (_) {
     final s = proxy.state;
     final cur = 'rate=${s.rate} title=${s.sourceTitle} epoch=${s.renderEpoch}';
@@ -539,6 +566,9 @@ Future<void> _v13(int run, {required bool now}) async {
       _log(id, 'run$run state $cur');
     }
     if (s.sourceTitle == 'AD' && at[MovaAdEventType.completed] == null) adRates.add(s.rate);
+    if (s.sourceTitle == 'AD' && at[MovaAdEventType.completed] == null) {
+      unawaited(readNativeRate('ad'));
+    }
   });
   await ctrl.load(_s('vod.mp4', 'C'));
   await _until(() => proxy.state.rendered && pos13 > Duration.zero, const Duration(seconds: 20));
@@ -551,12 +581,22 @@ Future<void> _v13(int run, {required bool now}) async {
   await _until(() => proxy.state.sourceTitle == 'C' && proxy.state.rendered, const Duration(seconds: 15));
   await _wait(3000);
   poll.cancel();
+  while (readingNative) { await _wait(20); }
+  await readNativeRate('returned');
+  final nativeAd = nativeRates.where((r) => r['phase'] == 'ad' && r['stable'] == true &&
+      r['speed'] != null && '${r['path']}'.contains('ad.mp4')).toList();
+  final nativeBack = nativeRates.where((r) => r['phase'] == 'returned' && r['stable'] == true &&
+      r['speed'] != null && '${r['path']}'.contains('vod.mp4')).toList();
+  final nativeComplete = nativeAd.length > 8 && nativeBack.isNotEmpty;
+  final nativePass = nativeComplete &&
+      nativeAd.sublist(nativeAd.length ~/ 3).every((r) => r['speed'] == 1.0) &&
+      nativeBack.last['speed'] == want;
   final back = proxy.state.rate;
   final adMax = adRates.isEmpty ? -1.0 : adRates.reduce((a, b) => a > b ? a : b);
   final adSettled = adRates.length > 8 ? adRates.sublist(adRates.length ~/ 3).every((r) => r == 1.0) : false;
   _log(id, 'run$run completedAt=$completedAt adRateSamples=${adRates.length} adMaxRate=$adMax adSettled1x=$adSettled backRate=$back title=${proxy.state.sourceTitle}');
   await p13.cancel();
-  _result(id, run, adSettled && back == want, 'adRate settled1x=$adSettled (max seen ${adMax}x over ${adRates.length} samples) rateAfterReturn=$back want=$want');
+  _result(id, run, adSettled && back == want && nativePass, 'adRate settled1x=$adSettled (max seen ${adMax}x over ${adRates.length} samples) rateAfterReturn=$back want=$want nativeSpeedComplete=$nativeComplete nativeSpeedPass=$nativePass nativeAdSamples=${nativeAd.length} nativeBack=${nativeBack.isEmpty ? null : nativeBack.last}');
   await ctrl.dispose();
   await _teardown(proxy);
 }

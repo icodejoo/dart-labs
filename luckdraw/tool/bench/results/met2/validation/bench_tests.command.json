@@ -1,0 +1,17 @@
+{
+  "command": [
+    "flutter",
+    "test",
+    "--no-pub",
+    "--concurrency=1",
+    "--reporter=json",
+    "test/tool/bench_compare_test.dart",
+    "test/tool/bench_metrics_test.dart",
+    "test/tool/bench_met_test.dart",
+    "test/tool/bench_met2_test.dart",
+    "test/tool/design_invariants_test.dart"
+  ],
+  "cwd": "E:\\workspaces\\dart-labs\\luckdraw",
+  "exit_code": 0,
+  "seconds": 22.816
+}

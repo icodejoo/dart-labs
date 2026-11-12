@@ -1,0 +1,47 @@
+{
+  "date": "2026-11-10",
+  "purpose": "副本补齐当时真实仓库已有的 F1 修复与 T4.4 旧断言更新；这些文件不在本批交付清单",
+  "copiedBack": false,
+  "records": [
+    {
+      "path": "lib/src/core/control/controller.dart",
+      "originalSha256": "68cf5d251ebad2d7dcdedd57e744ee3fe7c7eda927a04726b1d834fedad0511e",
+      "testedSha256": "faad782bc70b4979f5976711c18fb2b952b8ad1466d28b9b9e7ed50b1d492703"
+    },
+    {
+      "path": "lib/src/core/easing/easing.dart",
+      "originalSha256": "d14e9b116c2df5aec69548a210e8de1dce897f569f04d73175944a91e6df4d99",
+      "testedSha256": "6d32751902f159aaaeb4a128b33840d27d8b23cc697660441430d563cbde63d0"
+    },
+    {
+      "path": "lib/src/core/foundation/fill.dart",
+      "originalSha256": "6dd8c1a7d583fe2d4282049bb48cfea66102d732c7f65cb26f6f6c48ae48046b",
+      "testedSha256": "31f58d7bc8b6dbd7b7a9333b947e9862e26ae7e29674ca770c1071f1b6dd3097"
+    },
+    {
+      "path": "lib/src/core/image/image_resolver.dart",
+      "originalSha256": "4959ee8e45079e12098d4ba5d6b87fdc81b9412dcffcfbd8d1c15bbe0fc0a526",
+      "testedSha256": "96da6072a37f12211c3f150598b7e413961e6b2e8dca54716998e5c4b5f471ea"
+    },
+    {
+      "path": "lib/src/core/render/paint_helpers.dart",
+      "originalSha256": "7cbc7949eee3cc103de2c5b2f74021cd031ace4b88eac01ec3f0fb21301c26ba",
+      "testedSha256": "24d7975893b06d41997b312dc2a60cd5bc83946acb6063c21d2edabc703a8531"
+    },
+    {
+      "path": "lib/src/core/text/text_measurer.dart",
+      "originalSha256": "a85cdcc93c249fb7ffd6b518a00af29ec89641468040a754c7e26bca7e567f11",
+      "testedSha256": "2e1695b96dae07009b689bd83ac4f517a60d4501d96002a11b2890386f24899d"
+    },
+    {
+      "path": "lib/src/core/widgets/game_view.dart",
+      "originalSha256": "362dab82dcad647559e89ec4a402bb8e86df46eb782d49546229b3ed0a909472",
+      "testedSha256": "a33aba99c6b9b84c38b7d0f7187d90f3d0e14207495beca0d3ac201d5caaa283"
+    },
+    {
+      "path": "test/core/widgets/game_view_test.dart",
+      "originalSha256": "7003bf8747972a35569f47a1b73bbb82ae026b8e3475135448f254ecd9847789",
+      "testedSha256": "1c1d1bb1a03f0668dab218c1953d5133345e1b7d8b0b27082fa537ceeab4780b"
+    }
+  ]
+}

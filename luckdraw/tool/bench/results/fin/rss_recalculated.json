@@ -1,0 +1,527 @@
+[
+  {
+    "batch": "DEV",
+    "scene": "capsule_mixing",
+    "warmup_bytes": [
+      -204800,
+      1015808,
+      327680
+    ],
+    "steady_raw_bytes": [
+      1163264,
+      856064,
+      1417216
+    ],
+    "median_bytes": 1163264,
+    "gate_median_bytes": 1163264,
+    "limit_bytes": 1572864,
+    "passed": true,
+    "sources": [
+      {
+        "path": "tool/bench/results/bench_20261110_180650/comparison/capsule_mixing_1794307338918934.timeline_summary.json",
+        "sha256": "b0486bd2a1351529178e529702f82e7b08a83f221959da6da70905704029722b",
+        "run_id": "1794307338918934"
+      },
+      {
+        "path": "tool/bench/results/bench_20261110_180650/comparison/capsule_mixing_1794307482879570.timeline_summary.json",
+        "sha256": "218bde0acda0b00579a9362dbd1db7f6fa9683243de4d5695a7145f821d7db40",
+        "run_id": "1794307482879570"
+      },
+      {
+        "path": "tool/bench/results/bench_20261110_180650/comparison/capsule_mixing_1794307751074775.timeline_summary.json",
+        "sha256": "5ac76c9889e0c1df43cd2d42d23e544cef123e9f9a71e0436d32359aba9b929a",
+        "run_id": "1794307751074775"
+      }
+    ]
+  },
+  {
+    "batch": "DEV",
+    "scene": "grid_steady",
+    "warmup_bytes": [
+      352256,
+      491520,
+      -172032
+    ],
+    "steady_raw_bytes": [
+      -10981376,
+      831488,
+      466944
+    ],
+    "median_bytes": 466944,
+    "gate_median_bytes": 466944,
+    "limit_bytes": 1572864,
+    "passed": true,
+    "sources": [
+      {
+        "path": "tool/bench/results/bench_20261110_180650/comparison/grid_steady_1794305776155025.timeline_summary.json",
+        "sha256": "679195cec51fab566b1a03dbe4dbc1b5cff9f10010c0eb6fc964502bcda8f856",
+        "run_id": "1794305776155025"
+      },
+      {
+        "path": "tool/bench/results/bench_20261110_180650/comparison/grid_steady_1794305881436541.timeline_summary.json",
+        "sha256": "8590a7bd4d690305c9127c5e322b9fb32bdbc895d0f3254320c572ac7c0f217e",
+        "run_id": "1794305881436541"
+      },
+      {
+        "path": "tool/bench/results/bench_20261110_180650/comparison/grid_steady_1794305983682447.timeline_summary.json",
+        "sha256": "8897078c454a46e81171ca8b3d92b898820987f41bf03bd045ae39367dab80d4",
+        "run_id": "1794305983682447"
+      }
+    ]
+  },
+  {
+    "batch": "DEV",
+    "scene": "lever_steady",
+    "warmup_bytes": [
+      1732608,
+      610304,
+      1265664
+    ],
+    "steady_raw_bytes": [
+      753664,
+      1523712,
+      -4182016
+    ],
+    "median_bytes": 753664,
+    "gate_median_bytes": 753664,
+    "limit_bytes": 1572864,
+    "passed": true,
+    "sources": [
+      {
+        "path": "tool/bench/results/bench_20261110_180650/comparison/lever_steady_1794306971906081.timeline_summary.json",
+        "sha256": "cd9b49792abd1f455581f008e03889af599b7d1e2e6b4bbba4450c88fc8a412c",
+        "run_id": "1794306971906081"
+      },
+      {
+        "path": "tool/bench/results/bench_20261110_180650/comparison/lever_steady_1794307088000701.timeline_summary.json",
+        "sha256": "51940f408523bded256db72f678d218cd95d548557f373ffc0afb323c6236a00",
+        "run_id": "1794307088000701"
+      },
+      {
+        "path": "tool/bench/results/bench_20261110_180650/comparison/lever_steady_1794307182571397.timeline_summary.json",
+        "sha256": "5984025e9d141da65234dff7ce6b781b585c6a20c1d64f3bbd05d1112febc4c5",
+        "run_id": "1794307182571397"
+      }
+    ]
+  },
+  {
+    "batch": "DEV",
+    "scene": "lots_shaking",
+    "warmup_bytes": [
+      1175552,
+      389120,
+      573440
+    ],
+    "steady_raw_bytes": [
+      819200,
+      802816,
+      -10776576
+    ],
+    "median_bytes": 802816,
+    "gate_median_bytes": 802816,
+    "limit_bytes": 1572864,
+    "passed": true,
+    "sources": [
+      {
+        "path": "tool/bench/results/bench_20261110_180650/comparison/lots_shaking_1794308933597372.timeline_summary.json",
+        "sha256": "39db8b31dbd17604db289603791e45c63cd908c6205c24509bf55a688149471a",
+        "run_id": "1794308933597372"
+      },
+      {
+        "path": "tool/bench/results/bench_20261110_180650/comparison/lots_shaking_1794309094772711.timeline_summary.json",
+        "sha256": "e1ef402222d141a883bbd2bce868812e6c16f99a8137b4766d72dfa45fbe3fc4",
+        "run_id": "1794309094772711"
+      },
+      {
+        "path": "tool/bench/results/bench_20261110_180650/comparison/lots_shaking_1794309197830176.timeline_summary.json",
+        "sha256": "9a7fa6a41dfd125cab931ffec905d0543408170bfedaba4cd4b893713d9ddfe4",
+        "run_id": "1794309197830176"
+      }
+    ]
+  },
+  {
+    "batch": "DEV",
+    "scene": "lotto_draw",
+    "warmup_bytes": [
+      389120,
+      864256,
+      454656
+    ],
+    "steady_raw_bytes": [
+      843776,
+      905216,
+      221184
+    ],
+    "median_bytes": 843776,
+    "gate_median_bytes": 843776,
+    "limit_bytes": 1572864,
+    "passed": true,
+    "sources": [
+      {
+        "path": "tool/bench/results/bench_20261110_180650/comparison/lotto_draw_1794309329997426.timeline_summary.json",
+        "sha256": "32b80097f5cb275f46e8291c23187737a8548affd89b2fe8218ff1be4fb7eb04",
+        "run_id": "1794309329997426"
+      },
+      {
+        "path": "tool/bench/results/bench_20261110_180650/comparison/lotto_draw_1794309404767165.timeline_summary.json",
+        "sha256": "522123ca2cca352b2ad83b3a72d816a1fb2430f63101c8481be235453bb48428",
+        "run_id": "1794309404767165"
+      },
+      {
+        "path": "tool/bench/results/bench_20261110_180650/comparison/lotto_draw_1794309488538708.timeline_summary.json",
+        "sha256": "5386b5416cdb8d41ee57fd439c57bbf316e866d4b13227180c0a6dbba3dff38f",
+        "run_id": "1794309488538708"
+      }
+    ]
+  },
+  {
+    "batch": "DEV",
+    "scene": "memory_cycles",
+    "warmup_bytes": [
+      4177920,
+      4395008,
+      3895296
+    ],
+    "steady_raw_bytes": [
+      933888,
+      106496,
+      1224704
+    ],
+    "median_bytes": 933888,
+    "gate_median_bytes": 933888,
+    "limit_bytes": 1572864,
+    "passed": true,
+    "sources": [
+      {
+        "path": "tool/bench/results/bench_20261110_180650/comparison/memory_cycles_1794310311094766.timeline_summary.json",
+        "sha256": "4a7481e5c2399d13d53c42aea42536b92b14961330d7becd71101e90836c7e2f",
+        "run_id": "1794310311094766"
+      },
+      {
+        "path": "tool/bench/results/bench_20261110_180650/comparison/memory_cycles_1794310371442895.timeline_summary.json",
+        "sha256": "44de7ba81522574946ae19649d006b5eb9f9a7bbdcb0ad02094164a1be9e7061",
+        "run_id": "1794310371442895"
+      },
+      {
+        "path": "tool/bench/results/bench_20261110_180650/comparison/memory_cycles_1794310535504668.timeline_summary.json",
+        "sha256": "ca4d7d67fcf0232f3b19a051bcfe87ca59ecd1704bd3354c8e29c61467680a0a",
+        "run_id": "1794310535504668"
+      }
+    ]
+  },
+  {
+    "batch": "DEV",
+    "scene": "number_wheel_spin",
+    "warmup_bytes": [
+      307200,
+      356352,
+      -212992
+    ],
+    "steady_raw_bytes": [
+      1576960,
+      851968,
+      -2052096
+    ],
+    "median_bytes": 851968,
+    "gate_median_bytes": 851968,
+    "limit_bytes": 1572864,
+    "passed": true,
+    "sources": [
+      {
+        "path": "tool/bench/results/bench_20261110_180650/comparison/number_wheel_spin_1794307935246425.timeline_summary.json",
+        "sha256": "8f3f99ad68d21cd6e31478d974ed59ceca0080e946774c285ddbbb5b1e5e74cf",
+        "run_id": "1794307935246425"
+      },
+      {
+        "path": "tool/bench/results/bench_20261110_180650/comparison/number_wheel_spin_1794308053039094.timeline_summary.json",
+        "sha256": "f25061e366ebecdcbd4f0db9989072c5f54fd6643e1a83cb54d36ef0efa5ad3f",
+        "run_id": "1794308053039094"
+      },
+      {
+        "path": "tool/bench/results/bench_20261110_180650/comparison/number_wheel_spin_1794308364525262.timeline_summary.json",
+        "sha256": "1901891575347a15ac995580885f96b7303930aaca7e5e133531d37b91de44c7",
+        "run_id": "1794308364525262"
+      }
+    ]
+  },
+  {
+    "batch": "DEV",
+    "scene": "slot_raster",
+    "warmup_bytes": [
+      1040384,
+      -9146368,
+      196608
+    ],
+    "steady_raw_bytes": [
+      483328,
+      -929792,
+      -970752
+    ],
+    "median_bytes": -929792,
+    "gate_median_bytes": 0,
+    "limit_bytes": 1572864,
+    "passed": true,
+    "sources": [
+      {
+        "path": "tool/bench/results/bench_20261110_180650/comparison/slot_raster_1794306159431550.timeline_summary.json",
+        "sha256": "f53dd16cd08a2c6909288c9aa49cdd7e91d626f2a9fce58f473abd28fb3a7850",
+        "run_id": "1794306159431550"
+      },
+      {
+        "path": "tool/bench/results/bench_20261110_180650/comparison/slot_raster_1794306659957714.timeline_summary.json",
+        "sha256": "ec63028476e2a7812be1fd2df8fb04278b553a7ab6f28a845f700c67a5f9bbdf",
+        "run_id": "1794306659957714"
+      },
+      {
+        "path": "tool/bench/results/bench_20261110_180650/comparison/slot_raster_1794306825736505.timeline_summary.json",
+        "sha256": "43722cbf4445fd7596b516780a0490dc2ec76889594236d5bd3d1878efbbd698",
+        "run_id": "1794306825736505"
+      }
+    ]
+  },
+  {
+    "batch": "DEV",
+    "scene": "slot_steady",
+    "warmup_bytes": [
+      1052672,
+      2068480,
+      1351680
+    ],
+    "steady_raw_bytes": [
+      331776,
+      331776,
+      77824
+    ],
+    "median_bytes": 331776,
+    "gate_median_bytes": 331776,
+    "limit_bytes": 1572864,
+    "passed": true,
+    "sources": [
+      {
+        "path": "tool/bench/results/bench_20261110_180650/comparison/slot_steady_1794306159431550.timeline_summary.json",
+        "sha256": "9b318036d2c44d2b4e919c1e33a2d9a57cb7884e536df7a0fa26b387225342d3",
+        "run_id": "1794306159431550"
+      },
+      {
+        "path": "tool/bench/results/bench_20261110_180650/comparison/slot_steady_1794306659957714.timeline_summary.json",
+        "sha256": "247315b16e622cca2ba9fb3873dbbc7bbe2be672dead18c32e3045d80d0232c4",
+        "run_id": "1794306659957714"
+      },
+      {
+        "path": "tool/bench/results/bench_20261110_180650/comparison/slot_steady_1794306825736505.timeline_summary.json",
+        "sha256": "ef545e7bed86c6b4e769a64e6755b139d83beb217a3f3ce769e8a4544cd8bbf5",
+        "run_id": "1794306825736505"
+      }
+    ]
+  },
+  {
+    "batch": "DEV",
+    "scene": "wheel_steady",
+    "warmup_bytes": [
+      1060864,
+      2289664,
+      323584
+    ],
+    "steady_raw_bytes": [
+      1540096,
+      -114688,
+      1179648
+    ],
+    "median_bytes": 1179648,
+    "gate_median_bytes": 1179648,
+    "limit_bytes": 1572864,
+    "passed": true,
+    "sources": [
+      {
+        "path": "tool/bench/results/bench_20261110_180650/comparison/wheel_steady_1794305396820500.timeline_summary.json",
+        "sha256": "6e4a3edf5c2bb8bdbad141cdc9ca72a4e56f7b56d0a761db58c6aebea0fbcf79",
+        "run_id": "1794305396820500"
+      },
+      {
+        "path": "tool/bench/results/bench_20261110_180650/comparison/wheel_steady_1794305572288023.timeline_summary.json",
+        "sha256": "5092d6092d93facb27b8b6f6b072adda30d622ffc9d900ca72eaaba250b320be",
+        "run_id": "1794305572288023"
+      },
+      {
+        "path": "tool/bench/results/bench_20261110_180650/comparison/wheel_steady_1794305667616945.timeline_summary.json",
+        "sha256": "5e2207bcfd530bbdaf60f571b4078dff52e0317401b73ad29e32484975f11d05",
+        "run_id": "1794305667616945"
+      }
+    ]
+  },
+  {
+    "batch": "PERF",
+    "scene": "wheel_steady",
+    "warmup_bytes": [
+      1675264,
+      270336,
+      1257472
+    ],
+    "steady_raw_bytes": [
+      -2789376,
+      1323008,
+      -10059776
+    ],
+    "median_bytes": -2789376,
+    "gate_median_bytes": 0,
+    "limit_bytes": 1572864,
+    "passed": true,
+    "sources": [
+      {
+        "path": "tool/bench/results/perf_after/wheel_default_1/wheel_steady_1794313406972146.timeline_summary.json",
+        "sha256": "c189e448d7c0e9b5a64b8ed93b06e54313d53d2560bf26f700cdba10d1e778fe",
+        "run_id": "1794313406972146"
+      },
+      {
+        "path": "tool/bench/results/perf_after/wheel_default_2/wheel_steady_1794313485209525.timeline_summary.json",
+        "sha256": "64daada823f96c4eb0c31d5e43cee2d7366e5b86d4ca509cf219e3743885897d",
+        "run_id": "1794313485209525"
+      },
+      {
+        "path": "tool/bench/results/perf_after/wheel_default_3/wheel_steady_1794313560628439.timeline_summary.json",
+        "sha256": "03a593a9a6b935ba7e1218f6066c11ac73e78f1960e69be5dbdc257977d38bc7",
+        "run_id": "1794313560628439"
+      }
+    ]
+  },
+  {
+    "batch": "PERF",
+    "scene": "number_wheel_spin",
+    "warmup_bytes": [
+      -9351168,
+      -217088,
+      -10743808
+    ],
+    "steady_raw_bytes": [
+      1110016,
+      -2125824,
+      1409024
+    ],
+    "median_bytes": 1110016,
+    "gate_median_bytes": 1110016,
+    "limit_bytes": 1572864,
+    "passed": true,
+    "sources": [
+      {
+        "path": "tool/bench/results/perf_after/number_wheel_spin_1/number_wheel_spin_1794313634381578.timeline_summary.json",
+        "sha256": "777116fcb40cdead535bc657e9181e4e7e07b963661866bd9ce9c72f50fdd781",
+        "run_id": "1794313634381578"
+      },
+      {
+        "path": "tool/bench/results/perf_after/number_wheel_spin_2/number_wheel_spin_1794313710151659.timeline_summary.json",
+        "sha256": "537a632aa5291afec56b759094c4603392349b32194dd814ba2ecdafb647792b",
+        "run_id": "1794313710151659"
+      },
+      {
+        "path": "tool/bench/results/perf_after/number_wheel_spin_3/number_wheel_spin_1794313785579170.timeline_summary.json",
+        "sha256": "e1177aa7b55b78c106f06e111dc30327a0f4617d2bb303081c03fb5b4b962c23",
+        "run_id": "1794313785579170"
+      }
+    ]
+  },
+  {
+    "batch": "PERF",
+    "scene": "capsule_mixing",
+    "warmup_bytes": [
+      196608,
+      -10903552,
+      585728
+    ],
+    "steady_raw_bytes": [
+      585728,
+      1208320,
+      487424
+    ],
+    "median_bytes": 585728,
+    "gate_median_bytes": 585728,
+    "limit_bytes": 1572864,
+    "passed": true,
+    "sources": [
+      {
+        "path": "tool/bench/results/perf_after/capsule_mixing_1/capsule_mixing_1794313856923256.timeline_summary.json",
+        "sha256": "d445169d3f56f2549447f1c8b1956b6179166c0d7611304bc6e21aa009e5a0ab",
+        "run_id": "1794313856923256"
+      },
+      {
+        "path": "tool/bench/results/perf_after/capsule_mixing_2/capsule_mixing_1794313932872435.timeline_summary.json",
+        "sha256": "0bec731b02a880589f3850fa17bd47a09ec303c49a46e6401c09a46d423389b3",
+        "run_id": "1794313932872435"
+      },
+      {
+        "path": "tool/bench/results/perf_after/capsule_mixing_4/capsule_mixing_1794314342104240.timeline_summary.json",
+        "sha256": "f7cd197b3ae51279ba4d55ef2a2e13581e53b6f7b61118e47d91f0d5e51e0238",
+        "run_id": "1794314342104240"
+      }
+    ]
+  },
+  {
+    "batch": "PERF",
+    "scene": "lotto_draw",
+    "warmup_bytes": [
+      921600,
+      1011712,
+      3686400
+    ],
+    "steady_raw_bytes": [
+      1163264,
+      -8925184,
+      1470464
+    ],
+    "median_bytes": 1163264,
+    "gate_median_bytes": 1163264,
+    "limit_bytes": 1572864,
+    "passed": true,
+    "sources": [
+      {
+        "path": "tool/bench/results/perf_after/lotto_draw_1/lotto_draw_1794314421829493.timeline_summary.json",
+        "sha256": "778e02552ea12edc4e427f9f412963de636e6670ca08cc4e898194a4921999ca",
+        "run_id": "1794314421829493"
+      },
+      {
+        "path": "tool/bench/results/perf_after/lotto_draw_2/lotto_draw_1794314496989620.timeline_summary.json",
+        "sha256": "7f109d7323b83c76747d4a90b6e90a32a2fe5c809ec1384042cf69c73739de07",
+        "run_id": "1794314496989620"
+      },
+      {
+        "path": "tool/bench/results/perf_after/lotto_draw_3/lotto_draw_1794314571366953.timeline_summary.json",
+        "sha256": "91b6384f2fe59cf7059bb432cf948044a5b0004531ad7469c14191492cc024dd",
+        "run_id": "1794314571366953"
+      }
+    ]
+  },
+  {
+    "batch": "PERF",
+    "scene": "grid_steady",
+    "warmup_bytes": [
+      946176,
+      -7770112,
+      688128
+    ],
+    "steady_raw_bytes": [
+      -565248,
+      933888,
+      925696
+    ],
+    "median_bytes": 925696,
+    "gate_median_bytes": 925696,
+    "limit_bytes": 1572864,
+    "passed": true,
+    "sources": [
+      {
+        "path": "tool/bench/results/perf_after/grid_steady_1/grid_steady_1794314642091899.timeline_summary.json",
+        "sha256": "fc3fd5507990cd8fad502ad066386b1aaf5d79f2975c2f5043be78cf289c90ec",
+        "run_id": "1794314642091899"
+      },
+      {
+        "path": "tool/bench/results/perf_after/grid_steady_2/grid_steady_1794314716054046.timeline_summary.json",
+        "sha256": "718aecb30afe2b026bab849155cba982bd9ed0d174aae24fa3faca6a4b4045b0",
+        "run_id": "1794314716054046"
+      },
+      {
+        "path": "tool/bench/results/perf_after/grid_steady_3/grid_steady_1794314791537683.timeline_summary.json",
+        "sha256": "441c7311cef999383a4377397d3d1061841c2d164a76cf0281ac2436928f5746",
+        "run_id": "1794314791537683"
+      }
+    ]
+  }
+]

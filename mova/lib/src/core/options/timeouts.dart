@@ -113,8 +113,8 @@ class MovaTimeouts {
   /// Longest time mpv itself may take before a start attempt reports an error.
   ///
   /// - [address]: 正在加载的地址 / the address being loaded
-  Duration startWindowFor(String address) {
-    final net = network ?? kMpvDefaultNetworkTimeout;
+  Duration startWindowFor(String address, {Duration? networkOverride}) {
+    final net = networkOverride ?? network ?? kMpvDefaultNetworkTimeout;
     if (isWhep(address)) {
       return net + (whepHandshake ?? kWhepDefaultHandshake) + (whepFirstFrame ?? kWhepDefaultFirstFrame);
     }
@@ -126,9 +126,9 @@ class MovaTimeouts {
   /// Longest time mpv may stay silent after the first frame before reporting an error.
   ///
   /// - [address]: 正在播放的地址 / the address being played
-  Duration stallWindowFor(String address) {
+  Duration stallWindowFor(String address, {Duration? networkOverride}) {
     if (isWhep(address)) return whepMedia ?? kWhepDefaultMedia;
-    return startWindowFor(address);
+    return startWindowFor(address, networkOverride: networkOverride);
   }
 
   @override

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:mova/src/testing/hooks.dart';
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mova/src/core/engine.dart';
@@ -17,7 +18,7 @@ import '../../support/fake_kernel.dart';
 class _Rig {
   _Rig({MovaRecoveryConfig recovery = const MovaRecoveryConfig(startTimeout: Duration(seconds: 10), stallTimeout: Duration(seconds: 10), enabled: true)})
     : kernel = FakeStatsKernel() {
-    engine = MovaEngine(
+    engine = MovaEngine(fetcher: const MovaTestHttpFetch(),
       kernel: kernel,
       options: MovaOpts(recovery: recovery, controls: const MovaCtrlsConfig(autoHide: false)),
     );
@@ -48,14 +49,15 @@ void main() {
   const oneSecond = Duration(seconds: 1);
 
   group('1. 恢复成功后清掉旧错误', () {
-    test('MovaRecovered 之后 state.error 为空', () {
+    test('可恢复超时不写终结错误，MovaRecovered 之后 state.error 为空', () {
       fakeAsync((async) {
         final r = _Rig();
         r.open(async);
-        r.kernel.emitError('Failed to recognize file format');
-        async.flushMicrotasks();
-        expect(r.engine.state.error, isNotNull, reason: '失败期间错误可见');
-        async.elapse(tenSeconds + oneSecond);
+        // 格式错误已终结，不能再用它制造可恢复状态；改用起播超时。
+        async.elapse(tenSeconds);
+        expect(r.failures, hasLength(1));
+        expect(r.engine.state.error, isNull, reason: '等待重试期间不是终结失败');
+        async.elapse(oneSecond);
         r.land(async);
         expect(r.events.whereType<MovaRecovered>(), hasLength(1));
         expect(r.engine.state.error, isNull);
@@ -101,7 +103,7 @@ void main() {
   });
 
   group('3. 确定性失败不必等满 startTimeout', () {
-    const patient = MovaRecoveryConfig(startTimeout: Duration(seconds: 10), stallTimeout: Duration(seconds: 10), 
+    const patient = MovaRecoveryConfig(startTimeout: Duration(seconds: 10), stallTimeout: Duration(seconds: 10),
       enabled: true,
       policy: MovaRetryThenFailover(maxRetries: 5),
     );

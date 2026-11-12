@@ -1,0 +1,14 @@
+{
+  "name": "format",
+  "args": [
+    "dart",
+    "format",
+    "--output=none",
+    "--set-exit-if-changed",
+    "lib",
+    "test",
+    "tool"
+  ],
+  "exitCode": 0,
+  "elapsedSeconds": 1.858
+}

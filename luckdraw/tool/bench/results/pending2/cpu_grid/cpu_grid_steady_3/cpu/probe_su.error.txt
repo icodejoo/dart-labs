@@ -1,0 +1,2 @@
+Bad state: adb 127: /system/bin/sh: su: inaccessible or not found
+

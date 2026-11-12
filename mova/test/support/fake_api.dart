@@ -1,3 +1,4 @@
+import 'package:mova/src/core/playback_commands.dart';
 import 'dart:async';
 
 import 'package:mova/src/core/api.dart';
@@ -22,6 +23,8 @@ import 'package:mova/src/core/cutover/ctl.dart';
 import 'package:mova/src/core/cutover/plan.dart';
 import 'package:mova/src/core/cutover/trigger.dart';
 
+import 'gated.dart';
+
 import 'fake_kernel.dart' show StatsProbeStub;
 
 /// A test double for [MovaApi] that records every capability call it receives
@@ -41,7 +44,36 @@ class FakeMovaApi implements MovaApi {
   /// snapshots.
   ///
   /// 创建一个假 API，用 [options] 及默认状态/UI 状态快照进行初始化。
-  FakeMovaApi({this.options = const MovaOpts()});
+  FakeMovaApi({this.options = const MovaOpts(), this.commandLog});
+
+  /// 跨实例的严格命令日志。
+  final CommandLog? commandLog;
+
+  /// 实例编号与释放调用次数。
+  final int instanceId = _nextInstanceId++;
+  static int _nextInstanceId = 0;
+  int disposeCount = 0;
+
+  /// 可选命令门闩，默认不等待。
+  Completer<void>? openGate, playGate, pauseGate, seekGate;
+
+  /// 是否由动词模拟内核播放观测，默认关闭。
+  bool pushPlayingOnVerbs = false;
+
+  /// 同时记录实例内与跨实例命令顺序。
+  void _record(String verb) {
+    calls.add(verb);
+    commandLog?.record(instanceId, verb);
+  }
+
+  /// 推送自然结束事件。
+  void emitDone() => pushEvent(const MovaDone());
+
+  /// 推送错误；当前事件模型尚无 fatal 字段，终结错误同时写入快照。
+  void emitError(Object error, {bool fatal = true}) {
+    if (fatal) push(state.copyWith(error: error));
+    pushEvent(MovaErrorEvent(error));
+  }
 
   /// The configuration passed at construction time.
   ///
@@ -324,9 +356,11 @@ class FakeMovaApi implements MovaApi {
   /// `open` 是否报告源已被接受；false 模拟 `beforeOpen` 拒绝（什么都不加载）。
   bool acceptOpens = true;
 
+  /// 接受打开后维护自动播放意图，不伪造内核播放观测。
   @override
   Future<bool> open(MovaSource source, {bool autoPlay = true}) async {
-    calls.add('open');
+    _record('open');
+    if (openGate != null) await openGate!.future;
     openCalls++;
     if (!acceptOpens) return false;
     openedUris.add(source.uri);
@@ -338,6 +372,7 @@ class FakeMovaApi implements MovaApi {
     lastAutoPlay = autoPlay;
     this.source = source;
     push(state.copyWith(
+      playbackIntent: autoPlay,
       type: source.type,
       sourceTitle: source.title,
       clearSourceTitle: source.title == null,
@@ -345,77 +380,88 @@ class FakeMovaApi implements MovaApi {
     return true;
   }
 
+  /// 记录播放意图，播放观测由独立信号控制。
   @override
   Future<void> play() async {
-    calls.add('play');
+    movaRecordPlaybackCommand(this);
+    _record('play');
+    if (playGate != null) await playGate!.future;
+    push(state.copyWith(playbackIntent: true));
+    if (pushPlayingOnVerbs) push(state.copyWith(playing: true));
   }
 
+  /// 清除播放意图，播放观测由独立信号控制。
   @override
   Future<void> pause() async {
-    calls.add('pause');
+    movaRecordPlaybackCommand(this);
+    _record('pause');
+    if (pauseGate != null) await pauseGate!.future;
+    push(state.copyWith(playbackIntent: false));
+    if (pushPlayingOnVerbs) push(state.copyWith(playing: false));
   }
 
   @override
   Future<void> playOrPause() async {
-    calls.add('playOrPause');
+    _record('playOrPause');
   }
 
   @override
   Future<void> seek(Duration to) async {
-    calls.add('seek');
+    _record('seek');
+    if (seekGate != null) await seekGate!.future;
     lastSeek = to;
   }
 
   @override
   Future<void> seekBy(Duration delta) async {
-    calls.add('seekBy');
+    _record('seekBy');
   }
 
   @override
   Future<void> setVolume(double v) async {
-    calls.add('setVolume');
+    _record('setVolume');
     lastVolume = v;
   }
 
   @override
   Future<void> setBrightness(double v) async {
-    calls.add('setBrightness');
+    _record('setBrightness');
     lastBrightness = v;
   }
 
   @override
   Future<void> setRate(double r) async {
-    calls.add('setRate');
+    _record('setRate');
     lastRate = r;
   }
 
   @override
   Future<void> setFit(MovaFit f) async {
-    calls.add('setFit');
+    _record('setFit');
     lastFit = f;
   }
 
   @override
   Future<void> setZoom(double z) async {
-    calls.add('setZoom');
+    _record('setZoom');
     lastZoom = z;
   }
 
   @override
   Future<void> setLocked(bool v) async {
-    calls.add('setLocked');
+    _record('setLocked');
     lastLocked = v;
   }
 
   @override
   Future<void> setFullscreen(bool v) async {
-    calls.add('setFullscreen');
+    _record('setFullscreen');
     lastFullscreen = v;
   }
 
   @override
   Future<void> setMini(bool v) async {
-    calls.add('setMini');
+    _record('setMini');
     lastMini = v;
     push(state.copyWith(mini: v));
   }
@@ -429,58 +475,58 @@ class FakeMovaApi implements MovaApi {
 
   @override
   Future<void> setOrientation(MovaOrientation o) async {
-    calls.add('setOrientation');
+    _record('setOrientation');
     lastOrientation = o;
     push(state.copyWith(orientation: o));
   }
 
   @override
   Future<void> loadQualities() async {
-    calls.add('loadQualities');
+    _record('loadQualities');
   }
 
   @override
   Future<void> switchQuality(MovaQuality q) async {
-    calls.add('switchQuality');
+    _record('switchQuality');
     lastQuality = q;
   }
 
   @override
   Future<bool> enterPip() async {
-    calls.add('enterPip');
+    _record('enterPip');
     return pipSupported;
   }
 
   @override
   Future<void> reload() async {
-    calls.add('reload');
+    _record('reload');
   }
 
   @override
   Future<void> backToLiveEdge() async {
-    calls.add('backToLiveEdge');
+    _record('backToLiveEdge');
   }
 
   @override
   void showControls({bool sticky = false}) {
-    calls.add('showControls');
+    _record('showControls');
   }
 
   @override
   void hideControls() {
-    calls.add('hideControls');
+    _record('hideControls');
   }
 
   @override
   void showHud(MovaHud hud, {String? text}) {
-    calls.add('showHud');
+    _record('showHud');
     lastHud = hud;
     lastHudText = text;
   }
 
   @override
   void setDragging(bool v, {Duration? previewAt}) {
-    calls.add('setDragging');
+    _record('setDragging');
     lastDragging = v;
     lastPreviewAt = previewAt;
   }
@@ -498,14 +544,16 @@ class FakeMovaApi implements MovaApi {
 
   @override
   void report(MovaReportName name, {Map<String, dynamic>? params}) {
-    calls.add('report');
+    _record('report');
     lastReportName = name;
     lastReportParams = params;
   }
 
   @override
   Future<void> dispose() async {
-    calls.add('dispose');
+    _record('dispose');
+    disposeCount++;
+    if (disposed) return;
     disposed = true;
     await _progress.close();
     await _events.close();
@@ -619,6 +667,16 @@ class FakeCutoverCtl implements MovaCutover {
   /// [commit] 的返回值；可由测试赋值，默认 false。
   bool commitResult = false;
 
+  /// 预热源及历史记录，供跨源断言使用。
+  MovaSource? preparedSource;
+  final List<MovaSource> preparedSources = [];
+
+  /// 按当前源决定提交结果，未设置时沿用固定结果。
+  bool Function(MovaSource source)? commitResultFor;
+
+  /// 可选预热和提交门闩。
+  Completer<void>? prepareGate, commitGate;
+
   /// The `waitForReady` argument of the most recent [commit] call.
   ///
   /// 最近一次 [commit] 调用的 `waitForReady` 参数。
@@ -643,16 +701,21 @@ class FakeCutoverCtl implements MovaCutover {
     MovaWarmPlan plan = const MovaWarmPlan(),
   }) async {
     calls.add('prepare');
+    preparedSource = source;
+    preparedSources.add(source);
     lastPrepareAt = at;
     lastCue = cue;
     lastPlan = plan;
+    if (prepareGate != null) await prepareGate!.future;
   }
 
   @override
   Future<bool> commit({bool waitForReady = false}) async {
     calls.add('commit');
     lastWaitForReady = waitForReady;
-    return commitResult;
+    final source = preparedSource;
+    if (commitGate != null) await commitGate!.future;
+    return source == null ? commitResult : (commitResultFor?.call(source) ?? commitResult);
   }
 
   @override

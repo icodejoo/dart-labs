@@ -79,6 +79,7 @@ const _defaultTree = <String>[
   'buffering@center',
   'error@center',
   'lockMask@overlay',
+  'lockToggle@overlay',
 ];
 
 /// A marker leaf for patch tests.

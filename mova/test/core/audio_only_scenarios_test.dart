@@ -1,3 +1,4 @@
+import 'package:mova/src/testing/hooks.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mova/src/core/engine.dart';
 import 'package:mova/src/core/events/events.dart';
@@ -23,8 +24,8 @@ Future<void> tick() => Future<void>.delayed(Duration.zero);
 /// 便于测试驱动内核并对 engine 做断言。
 ({FakeKernel kernel, MovaEngine engine}) buildAudioEngine({MovaOpts? options}) {
   final kernel = FakeKernel.audioOnly();
-  final engine = MovaEngine(
-    kernel: kernel,
+  final engine = MovaEngine(fetcher: const MovaTestHttpFetch(),
+    kernel: kernel, ownsKernel: true,
     audioOnly: true,
     options: options ?? const MovaOpts(),
   );
@@ -208,7 +209,7 @@ void main() {
       await engine.open(const MovaSource('https://host/one.m4a'));
       const q = MovaQuality(label: '320k', uri: 'https://host/one-320.m4a');
       engine.debugSetQualities(const [q], current: q);
-      kernel.emitError('boom');
+      kernel.emitError('Failed to recognize file format.');
       await tick();
       expect(engine.state.error, isNotNull);
       expect(engine.state.qualities, isNotEmpty);
@@ -355,6 +356,8 @@ void main() {
       const high = MovaQuality(label: '320k', uri: 'https://host/320.m3u8', height: 1080);
       const low = MovaQuality(label: '128k', uri: 'https://host/128.m3u8', height: 480);
       await engine.open(const MovaSource('https://host/stream.m3u8'));
+      // 自动探测结算后再手工种入 ABR 测试档位。
+      await engine.loadQualities();
       engine.debugSetQualities(const [auto, high, low], current: high);
 
       final events = <MovaEvent>[];

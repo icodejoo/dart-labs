@@ -1,3 +1,6 @@
+/// HUD 浮层自动收起前的停留时长。
+const Duration kMovaHudDuration = Duration(milliseconds: 800);
+
 /// Which transient heads-up overlay the controls layer should show.
 ///
 /// 控制层当前应展示的临时提示浮层类型。

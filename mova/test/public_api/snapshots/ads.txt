@@ -1,0 +1,5 @@
+src/core/ad/ads.dart;
+src/core/ad/fail.dart;
+src/core/model/ad.dart;
+src/core/options/ad_config.dart;
+src/ui/components/ad_overlay.dart;

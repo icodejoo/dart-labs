@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:dio/dio.dart';
 
 /// 客户端和请求级的构键配置；空字段继承客户端值。
@@ -54,7 +55,7 @@ class DiomanKeyService {
     }
     final ignores = _merge(options.ignores ?? const [], o?.ignores);
     return (o?.fastMode ?? options.fastMode ?? false)
-        ? _scopedKey(_fastKey(request), scope)
+        ? _scopedKey(_fastKey(request, request.uri), scope)
         : _deepKey(request, ignores, scope);
   }
 
@@ -70,8 +71,8 @@ class DiomanKeyService {
       override == null ? base : {...base, ...override}.toList();
 
   /// 使用方法、来源和路径生成快速键。
-  String _fastKey(RequestOptions o) =>
-      '${o.method.toUpperCase()}:${o.uri.hasAuthority ? o.uri.origin : ''}${o.uri.path}';
+  String _fastKey(RequestOptions o, Uri uri) =>
+      '${o.method.toUpperCase()}:${uri.hasAuthority ? uri.origin : ''}${uri.path}';
 
   /// 分字段编码查询和安全请求体，不透明载荷不生成自动键。
   String? _deepKey(RequestOptions o, List<String> ignoreKeys, String? scope) {
@@ -95,7 +96,7 @@ class DiomanKeyService {
       }
     } else if (data is String) {
       if (data.isNotEmpty) body = {'string': data};
-    } else if (data is List<int>) {
+    } else if (data is Uint8List) {
       if (data.length > maxBodyBytes) return null;
       var hash = 0x811c9dc5;
       for (final byte in data) {
@@ -113,7 +114,7 @@ class DiomanKeyService {
     }
     final query = _encode(params);
     return jsonEncode([
-      _fastKey(o),
+      _fastKey(o, uri),
       query,
       body,
       if (scope != null && scope.isNotEmpty) scope,

@@ -1,0 +1,1738 @@
+{
+  "wheel_steady/before/1794305396820500": {
+    "Rasterizer::DoDraw": {
+      "count": 292,
+      "mean_ms": 16.540729452054794,
+      "max_ms": 20.533
+    },
+    "SurfaceFrame::Encode": {
+      "count": 292,
+      "mean_ms": 14.476119863013698,
+      "max_ms": 18.546
+    },
+    "RenderPassGLES::EncodeCommandsInReactor": {
+      "count": 292,
+      "mean_ms": 13.472691780821918,
+      "max_ms": 17.811
+    },
+    "Animator::BeginFrame": {
+      "count": 292,
+      "mean_ms": 1.4443972602739725,
+      "max_ms": 3.204
+    },
+    "LAYOUT": {
+      "count": 292,
+      "mean_ms": 0.00636986301369863,
+      "max_ms": 0.19
+    },
+    "PAINT": {
+      "count": 292,
+      "mean_ms": 0.3616472602739726,
+      "max_ms": 1.048
+    },
+    "COMPOSITING": {
+      "count": 292,
+      "mean_ms": 0.3008047945205479,
+      "max_ms": 1.36
+    },
+    "SEMANTICS": {
+      "count": 292,
+      "mean_ms": 0.03525342465753425,
+      "max_ms": 0.382
+    },
+    "CreateGlyphAtlas": {
+      "count": 292,
+      "mean_ms": 0.09778082191780822,
+      "max_ms": 0.294
+    }
+  },
+  "wheel_steady/before/1794305572288023": {
+    "Rasterizer::DoDraw": {
+      "count": 291,
+      "mean_ms": 16.556756013745705,
+      "max_ms": 23.505
+    },
+    "SurfaceFrame::Encode": {
+      "count": 292,
+      "mean_ms": 14.625797945205479,
+      "max_ms": 21.503
+    },
+    "RenderPassGLES::EncodeCommandsInReactor": {
+      "count": 293,
+      "mean_ms": 13.667361774744027,
+      "max_ms": 21.056
+    },
+    "Animator::BeginFrame": {
+      "count": 292,
+      "mean_ms": 1.3344417808219178,
+      "max_ms": 2.885
+    },
+    "LAYOUT": {
+      "count": 293,
+      "mean_ms": 0.005935153583617747,
+      "max_ms": 0.113
+    },
+    "PAINT": {
+      "count": 293,
+      "mean_ms": 0.34025255972696244,
+      "max_ms": 0.957
+    },
+    "COMPOSITING": {
+      "count": 293,
+      "mean_ms": 0.26449488054607506,
+      "max_ms": 0.847
+    },
+    "SEMANTICS": {
+      "count": 293,
+      "mean_ms": 0.03518430034129693,
+      "max_ms": 0.575
+    },
+    "CreateGlyphAtlas": {
+      "count": 292,
+      "mean_ms": 0.08974315068493151,
+      "max_ms": 0.244
+    }
+  },
+  "wheel_steady/before/1794305667616945": {
+    "Rasterizer::DoDraw": {
+      "count": 294,
+      "mean_ms": 10.751602040816326,
+      "max_ms": 28.229
+    },
+    "SurfaceFrame::Encode": {
+      "count": 295,
+      "mean_ms": 8.761894915254237,
+      "max_ms": 25.937
+    },
+    "RenderPassGLES::EncodeCommandsInReactor": {
+      "count": 295,
+      "mean_ms": 7.755149152542373,
+      "max_ms": 24.893
+    },
+    "Animator::BeginFrame": {
+      "count": 296,
+      "mean_ms": 1.3216959459459459,
+      "max_ms": 3.057
+    },
+    "LAYOUT": {
+      "count": 295,
+      "mean_ms": 0.005115254237288136,
+      "max_ms": 0.033
+    },
+    "PAINT": {
+      "count": 295,
+      "mean_ms": 0.32401694915254237,
+      "max_ms": 1.09
+    },
+    "COMPOSITING": {
+      "count": 295,
+      "mean_ms": 0.2938067796610169,
+      "max_ms": 0.769
+    },
+    "SEMANTICS": {
+      "count": 295,
+      "mean_ms": 0.029416949152542372,
+      "max_ms": 0.407
+    },
+    "CreateGlyphAtlas": {
+      "count": 295,
+      "mean_ms": 0.09421694915254238,
+      "max_ms": 0.235
+    }
+  },
+  "wheel_steady/after/1794313406972146": {
+    "Rasterizer::DoDraw": {
+      "count": 301,
+      "mean_ms": 4.980169435215947,
+      "max_ms": 13.339
+    },
+    "SurfaceFrame::Encode": {
+      "count": 301,
+      "mean_ms": 3.033136212624585,
+      "max_ms": 11.426
+    },
+    "RenderPassGLES::EncodeCommandsInReactor": {
+      "count": 301,
+      "mean_ms": 2.8193089700996676,
+      "max_ms": 11.207
+    },
+    "Animator::BeginFrame": {
+      "count": 301,
+      "mean_ms": 1.320063122923588,
+      "max_ms": 3.792
+    },
+    "LAYOUT": {
+      "count": 301,
+      "mean_ms": 0.005179401993355482,
+      "max_ms": 0.023
+    },
+    "PAINT": {
+      "count": 301,
+      "mean_ms": 0.2639036544850498,
+      "max_ms": 2.891
+    },
+    "COMPOSITING": {
+      "count": 301,
+      "mean_ms": 0.33498671096345517,
+      "max_ms": 1.138
+    },
+    "SEMANTICS": {
+      "count": 301,
+      "mean_ms": 0.031106312292358804,
+      "max_ms": 0.211
+    }
+  },
+  "wheel_steady/after/1794313485209525": {
+    "Rasterizer::DoDraw": {
+      "count": 300,
+      "mean_ms": 5.00469,
+      "max_ms": 15.038
+    },
+    "SurfaceFrame::Encode": {
+      "count": 300,
+      "mean_ms": 3.06277,
+      "max_ms": 13.027
+    },
+    "RenderPassGLES::EncodeCommandsInReactor": {
+      "count": 300,
+      "mean_ms": 2.856036666666667,
+      "max_ms": 12.729
+    },
+    "Animator::BeginFrame": {
+      "count": 301,
+      "mean_ms": 1.2535980066445183,
+      "max_ms": 2.979
+    },
+    "LAYOUT": {
+      "count": 301,
+      "mean_ms": 0.004827242524916944,
+      "max_ms": 0.013
+    },
+    "PAINT": {
+      "count": 301,
+      "mean_ms": 0.2414451827242525,
+      "max_ms": 0.843
+    },
+    "COMPOSITING": {
+      "count": 301,
+      "mean_ms": 0.30409302325581394,
+      "max_ms": 0.994
+    },
+    "SEMANTICS": {
+      "count": 301,
+      "mean_ms": 0.03374750830564784,
+      "max_ms": 0.512
+    }
+  },
+  "wheel_steady/after/1794313560628439": {
+    "Rasterizer::DoDraw": {
+      "count": 297,
+      "mean_ms": 16.549824915824917,
+      "max_ms": 21.396
+    },
+    "SurfaceFrame::Encode": {
+      "count": 297,
+      "mean_ms": 14.636713804713805,
+      "max_ms": 19.481
+    },
+    "RenderPassGLES::EncodeCommandsInReactor": {
+      "count": 297,
+      "mean_ms": 14.43230303030303,
+      "max_ms": 19.291
+    },
+    "Animator::BeginFrame": {
+      "count": 298,
+      "mean_ms": 1.2611275167785234,
+      "max_ms": 3.476
+    },
+    "LAYOUT": {
+      "count": 298,
+      "mean_ms": 0.006104026845637584,
+      "max_ms": 0.09
+    },
+    "PAINT": {
+      "count": 298,
+      "mean_ms": 0.25526174496644294,
+      "max_ms": 1.095
+    },
+    "COMPOSITING": {
+      "count": 298,
+      "mean_ms": 0.2579530201342282,
+      "max_ms": 0.99
+    },
+    "SEMANTICS": {
+      "count": 298,
+      "mean_ms": 0.032687919463087245,
+      "max_ms": 0.249
+    }
+  },
+  "number_wheel_spin/before/1794307935246425": {
+    "Rasterizer::DoDraw": {
+      "count": 298,
+      "mean_ms": 7.129671140939597,
+      "max_ms": 15.481
+    },
+    "SurfaceFrame::Encode": {
+      "count": 299,
+      "mean_ms": 5.098789297658863,
+      "max_ms": 13.5
+    },
+    "RenderPassGLES::EncodeCommandsInReactor": {
+      "count": 299,
+      "mean_ms": 3.6416923076923076,
+      "max_ms": 11.963
+    },
+    "Animator::BeginFrame": {
+      "count": 297,
+      "mean_ms": 1.5546531986531986,
+      "max_ms": 3.068
+    },
+    "LAYOUT": {
+      "count": 297,
+      "mean_ms": 0.005683501683501684,
+      "max_ms": 0.116
+    },
+    "PAINT": {
+      "count": 297,
+      "mean_ms": 0.4287710437710438,
+      "max_ms": 1.503
+    },
+    "COMPOSITING": {
+      "count": 297,
+      "mean_ms": 0.35839057239057237,
+      "max_ms": 1.358
+    },
+    "SEMANTICS": {
+      "count": 297,
+      "mean_ms": 0.03461952861952862,
+      "max_ms": 0.231
+    },
+    "CreateGlyphAtlas": {
+      "count": 299,
+      "mean_ms": 0.06216722408026756,
+      "max_ms": 0.171
+    }
+  },
+  "number_wheel_spin/before/1794308053039094": {
+    "Rasterizer::DoDraw": {
+      "count": 296,
+      "mean_ms": 7.606820945945946,
+      "max_ms": 26.632
+    },
+    "SurfaceFrame::Encode": {
+      "count": 297,
+      "mean_ms": 5.51446127946128,
+      "max_ms": 24.498
+    },
+    "RenderPassGLES::EncodeCommandsInReactor": {
+      "count": 297,
+      "mean_ms": 3.9003737373737373,
+      "max_ms": 22.913
+    },
+    "Animator::BeginFrame": {
+      "count": 299,
+      "mean_ms": 1.6398963210702342,
+      "max_ms": 3.453
+    },
+    "LAYOUT": {
+      "count": 299,
+      "mean_ms": 0.006494983277591973,
+      "max_ms": 0.122
+    },
+    "PAINT": {
+      "count": 299,
+      "mean_ms": 0.4439464882943144,
+      "max_ms": 1.343
+    },
+    "COMPOSITING": {
+      "count": 299,
+      "mean_ms": 0.39166220735785956,
+      "max_ms": 1.671
+    },
+    "SEMANTICS": {
+      "count": 299,
+      "mean_ms": 0.03666889632107023,
+      "max_ms": 0.486
+    },
+    "CreateGlyphAtlas": {
+      "count": 297,
+      "mean_ms": 0.0701010101010101,
+      "max_ms": 0.371
+    }
+  },
+  "number_wheel_spin/before/1794308364525262": {
+    "Rasterizer::DoDraw": {
+      "count": 290,
+      "mean_ms": 16.532313793103448,
+      "max_ms": 25.972
+    },
+    "SurfaceFrame::Encode": {
+      "count": 291,
+      "mean_ms": 14.441037800687285,
+      "max_ms": 23.729
+    },
+    "RenderPassGLES::EncodeCommandsInReactor": {
+      "count": 291,
+      "mean_ms": 12.939862542955327,
+      "max_ms": 22.131
+    },
+    "Animator::BeginFrame": {
+      "count": 292,
+      "mean_ms": 1.6041301369863015,
+      "max_ms": 4.018
+    },
+    "LAYOUT": {
+      "count": 293,
+      "mean_ms": 0.008604095563139931,
+      "max_ms": 0.717
+    },
+    "PAINT": {
+      "count": 293,
+      "mean_ms": 0.44895221843003413,
+      "max_ms": 1.725
+    },
+    "COMPOSITING": {
+      "count": 293,
+      "mean_ms": 0.3334675767918089,
+      "max_ms": 0.747
+    },
+    "SEMANTICS": {
+      "count": 293,
+      "mean_ms": 0.03457337883959044,
+      "max_ms": 0.196
+    },
+    "CreateGlyphAtlas": {
+      "count": 292,
+      "mean_ms": 0.06306849315068493,
+      "max_ms": 0.19
+    }
+  },
+  "number_wheel_spin/after/1794313634381578": {
+    "Rasterizer::DoDraw": {
+      "count": 297,
+      "mean_ms": 16.558178451178453,
+      "max_ms": 20.587
+    },
+    "SurfaceFrame::Encode": {
+      "count": 299,
+      "mean_ms": 14.522678929765886,
+      "max_ms": 19.05
+    },
+    "RenderPassGLES::EncodeCommandsInReactor": {
+      "count": 299,
+      "mean_ms": 14.265849498327759,
+      "max_ms": 18.814
+    },
+    "Animator::BeginFrame": {
+      "count": 298,
+      "mean_ms": 1.4505637583892617,
+      "max_ms": 2.632
+    },
+    "LAYOUT": {
+      "count": 299,
+      "mean_ms": 0.007578595317725752,
+      "max_ms": 0.401
+    },
+    "PAINT": {
+      "count": 299,
+      "mean_ms": 0.3588160535117057,
+      "max_ms": 1.15
+    },
+    "COMPOSITING": {
+      "count": 299,
+      "mean_ms": 0.28507023411371235,
+      "max_ms": 0.729
+    },
+    "SEMANTICS": {
+      "count": 299,
+      "mean_ms": 0.034812709030100336,
+      "max_ms": 0.257
+    }
+  },
+  "number_wheel_spin/after/1794313710151659": {
+    "Rasterizer::DoDraw": {
+      "count": 302,
+      "mean_ms": 3.0364403973509932,
+      "max_ms": 3.934
+    },
+    "SurfaceFrame::Encode": {
+      "count": 302,
+      "mean_ms": 0.8683245033112583,
+      "max_ms": 1.2
+    },
+    "RenderPassGLES::EncodeCommandsInReactor": {
+      "count": 302,
+      "mean_ms": 0.5968476821192052,
+      "max_ms": 0.868
+    },
+    "Animator::BeginFrame": {
+      "count": 302,
+      "mean_ms": 1.562158940397351,
+      "max_ms": 3.023
+    },
+    "LAYOUT": {
+      "count": 302,
+      "mean_ms": 0.005718543046357616,
+      "max_ms": 0.107
+    },
+    "PAINT": {
+      "count": 302,
+      "mean_ms": 0.3670927152317881,
+      "max_ms": 1.206
+    },
+    "COMPOSITING": {
+      "count": 302,
+      "mean_ms": 0.38456622516556294,
+      "max_ms": 1.553
+    },
+    "SEMANTICS": {
+      "count": 302,
+      "mean_ms": 0.03538741721854305,
+      "max_ms": 0.217
+    }
+  },
+  "number_wheel_spin/after/1794313785579170": {
+    "Rasterizer::DoDraw": {
+      "count": 302,
+      "mean_ms": 2.985152317880795,
+      "max_ms": 4.244
+    },
+    "SurfaceFrame::Encode": {
+      "count": 302,
+      "mean_ms": 0.8700596026490066,
+      "max_ms": 1.177
+    },
+    "RenderPassGLES::EncodeCommandsInReactor": {
+      "count": 302,
+      "mean_ms": 0.5958211920529801,
+      "max_ms": 0.847
+    },
+    "Animator::BeginFrame": {
+      "count": 301,
+      "mean_ms": 1.4826810631229237,
+      "max_ms": 4.733
+    },
+    "LAYOUT": {
+      "count": 301,
+      "mean_ms": 0.005192691029900332,
+      "max_ms": 0.025
+    },
+    "PAINT": {
+      "count": 301,
+      "mean_ms": 0.35124584717607976,
+      "max_ms": 3.797
+    },
+    "COMPOSITING": {
+      "count": 302,
+      "mean_ms": 0.35419205298013245,
+      "max_ms": 1.075
+    },
+    "SEMANTICS": {
+      "count": 302,
+      "mean_ms": 0.03493046357615894,
+      "max_ms": 0.393
+    }
+  },
+  "capsule_mixing/before/1794307338918934": {
+    "Rasterizer::DoDraw": {
+      "count": 301,
+      "mean_ms": 6.200588039867109,
+      "max_ms": 15.692
+    },
+    "SurfaceFrame::Encode": {
+      "count": 301,
+      "mean_ms": 4.158352159468438,
+      "max_ms": 13.427
+    },
+    "RenderPassGLES::EncodeCommandsInReactor": {
+      "count": 301,
+      "mean_ms": 2.7351063122923587,
+      "max_ms": 11.982
+    },
+    "Animator::BeginFrame": {
+      "count": 301,
+      "mean_ms": 2.3269833887043188,
+      "max_ms": 5.953
+    },
+    "LAYOUT": {
+      "count": 301,
+      "mean_ms": 0.0058305647840531565,
+      "max_ms": 0.025
+    },
+    "PAINT": {
+      "count": 301,
+      "mean_ms": 1.0366112956810631,
+      "max_ms": 2.5
+    },
+    "COMPOSITING": {
+      "count": 301,
+      "mean_ms": 0.40807973421926913,
+      "max_ms": 2.733
+    },
+    "SEMANTICS": {
+      "count": 301,
+      "mean_ms": 0.03744518272425249,
+      "max_ms": 0.447
+    }
+  },
+  "capsule_mixing/before/1794307482879570": {
+    "Rasterizer::DoDraw": {
+      "count": 301,
+      "mean_ms": 5.720262458471761,
+      "max_ms": 16.529
+    },
+    "SurfaceFrame::Encode": {
+      "count": 302,
+      "mean_ms": 3.7919867549668873,
+      "max_ms": 14.118
+    },
+    "RenderPassGLES::EncodeCommandsInReactor": {
+      "count": 302,
+      "mean_ms": 2.4498476821192052,
+      "max_ms": 12.503
+    },
+    "Animator::BeginFrame": {
+      "count": 302,
+      "mean_ms": 2.0719172185430463,
+      "max_ms": 5.269
+    },
+    "LAYOUT": {
+      "count": 302,
+      "mean_ms": 0.00540728476821192,
+      "max_ms": 0.133
+    },
+    "PAINT": {
+      "count": 302,
+      "mean_ms": 0.9379205298013245,
+      "max_ms": 2.516
+    },
+    "COMPOSITING": {
+      "count": 302,
+      "mean_ms": 0.3565960264900662,
+      "max_ms": 1.606
+    },
+    "SEMANTICS": {
+      "count": 302,
+      "mean_ms": 0.033188741721854306,
+      "max_ms": 0.245
+    }
+  },
+  "capsule_mixing/before/1794307751074775": {
+    "Rasterizer::DoDraw": {
+      "count": 300,
+      "mean_ms": 5.760693333333333,
+      "max_ms": 10.193
+    },
+    "SurfaceFrame::Encode": {
+      "count": 301,
+      "mean_ms": 3.73021926910299,
+      "max_ms": 8.169
+    },
+    "RenderPassGLES::EncodeCommandsInReactor": {
+      "count": 301,
+      "mean_ms": 2.3323355481727575,
+      "max_ms": 6.796
+    },
+    "Animator::BeginFrame": {
+      "count": 301,
+      "mean_ms": 2.464591362126246,
+      "max_ms": 5.238
+    },
+    "LAYOUT": {
+      "count": 301,
+      "mean_ms": 0.0058305647840531565,
+      "max_ms": 0.064
+    },
+    "PAINT": {
+      "count": 301,
+      "mean_ms": 1.1601063122923587,
+      "max_ms": 3.25
+    },
+    "COMPOSITING": {
+      "count": 301,
+      "mean_ms": 0.4213720930232558,
+      "max_ms": 2.68
+    },
+    "SEMANTICS": {
+      "count": 301,
+      "mean_ms": 0.03729568106312292,
+      "max_ms": 0.655
+    }
+  },
+  "capsule_mixing/after/1794313856923256": {
+    "Rasterizer::DoDraw": {
+      "count": 301,
+      "mean_ms": 4.030139534883721,
+      "max_ms": 5.218
+    },
+    "SurfaceFrame::Encode": {
+      "count": 301,
+      "mean_ms": 1.8607906976744186,
+      "max_ms": 2.326
+    },
+    "RenderPassGLES::EncodeCommandsInReactor": {
+      "count": 301,
+      "mean_ms": 1.2308471760797342,
+      "max_ms": 1.676
+    },
+    "Animator::BeginFrame": {
+      "count": 301,
+      "mean_ms": 2.2085813953488374,
+      "max_ms": 5.823
+    },
+    "LAYOUT": {
+      "count": 301,
+      "mean_ms": 0.0058372093023255816,
+      "max_ms": 0.021
+    },
+    "PAINT": {
+      "count": 301,
+      "mean_ms": 0.8974352159468438,
+      "max_ms": 2.255
+    },
+    "COMPOSITING": {
+      "count": 301,
+      "mean_ms": 0.3866013289036545,
+      "max_ms": 1.489
+    },
+    "SEMANTICS": {
+      "count": 301,
+      "mean_ms": 0.04606644518272425,
+      "max_ms": 0.577
+    }
+  },
+  "capsule_mixing/after/1794313932872435": {
+    "Rasterizer::DoDraw": {
+      "count": 302,
+      "mean_ms": 3.841913907284768,
+      "max_ms": 5.375
+    },
+    "SurfaceFrame::Encode": {
+      "count": 302,
+      "mean_ms": 1.7553741721854306,
+      "max_ms": 2.603
+    },
+    "RenderPassGLES::EncodeCommandsInReactor": {
+      "count": 302,
+      "mean_ms": 1.1696324503311257,
+      "max_ms": 1.95
+    },
+    "Animator::BeginFrame": {
+      "count": 302,
+      "mean_ms": 2.067754966887417,
+      "max_ms": 5.203
+    },
+    "LAYOUT": {
+      "count": 302,
+      "mean_ms": 0.005178807947019868,
+      "max_ms": 0.017
+    },
+    "PAINT": {
+      "count": 302,
+      "mean_ms": 0.8375562913907285,
+      "max_ms": 1.941
+    },
+    "COMPOSITING": {
+      "count": 302,
+      "mean_ms": 0.3643344370860927,
+      "max_ms": 1.429
+    },
+    "SEMANTICS": {
+      "count": 302,
+      "mean_ms": 0.03849337748344371,
+      "max_ms": 0.236
+    }
+  },
+  "capsule_mixing/after/1794314342104240": {
+    "Rasterizer::DoDraw": {
+      "count": 301,
+      "mean_ms": 3.7015980066445184,
+      "max_ms": 6.542
+    },
+    "SurfaceFrame::Encode": {
+      "count": 301,
+      "mean_ms": 1.7020764119601328,
+      "max_ms": 4.305
+    },
+    "RenderPassGLES::EncodeCommandsInReactor": {
+      "count": 301,
+      "mean_ms": 1.136578073089701,
+      "max_ms": 3.679
+    },
+    "Animator::BeginFrame": {
+      "count": 301,
+      "mean_ms": 1.8193920265780732,
+      "max_ms": 5.774
+    },
+    "LAYOUT": {
+      "count": 301,
+      "mean_ms": 0.0051295681063122925,
+      "max_ms": 0.104
+    },
+    "PAINT": {
+      "count": 301,
+      "mean_ms": 0.7152923588039867,
+      "max_ms": 2.087
+    },
+    "COMPOSITING": {
+      "count": 301,
+      "mean_ms": 0.33106644518272427,
+      "max_ms": 2.333
+    },
+    "SEMANTICS": {
+      "count": 301,
+      "mean_ms": 0.033401993355481725,
+      "max_ms": 0.258
+    }
+  },
+  "lotto_draw/before/1794309329997426": {
+    "Rasterizer::DoDraw": {
+      "count": 273,
+      "mean_ms": 6.083355311355311,
+      "max_ms": 14.229
+    },
+    "SurfaceFrame::Encode": {
+      "count": 275,
+      "mean_ms": 3.980970909090909,
+      "max_ms": 12.019
+    },
+    "RenderPassGLES::EncodeCommandsInReactor": {
+      "count": 275,
+      "mean_ms": 2.5107454545454546,
+      "max_ms": 10.451
+    },
+    "Animator::BeginFrame": {
+      "count": 275,
+      "mean_ms": 3.275901818181818,
+      "max_ms": 6.592
+    },
+    "LAYOUT": {
+      "count": 276,
+      "mean_ms": 0.006992753623188406,
+      "max_ms": 0.194
+    },
+    "BUILD": {
+      "count": 2,
+      "mean_ms": 0.1,
+      "max_ms": 0.168
+    },
+    "PAINT": {
+      "count": 276,
+      "mean_ms": 1.6914746376811594,
+      "max_ms": 4.727
+    },
+    "COMPOSITING": {
+      "count": 276,
+      "mean_ms": 0.47979710144927534,
+      "max_ms": 1.947
+    },
+    "SEMANTICS": {
+      "count": 276,
+      "mean_ms": 0.05659057971014493,
+      "max_ms": 1.11
+    },
+    "CreateGlyphAtlas": {
+      "count": 275,
+      "mean_ms": 0.08444727272727273,
+      "max_ms": 0.366
+    }
+  },
+  "lotto_draw/before/1794309404767165": {
+    "Rasterizer::DoDraw": {
+      "count": 274,
+      "mean_ms": 5.700649635036497,
+      "max_ms": 14.055
+    },
+    "SurfaceFrame::Encode": {
+      "count": 276,
+      "mean_ms": 3.72043115942029,
+      "max_ms": 11.583
+    },
+    "RenderPassGLES::EncodeCommandsInReactor": {
+      "count": 276,
+      "mean_ms": 2.3474311594202897,
+      "max_ms": 10.012
+    },
+    "Animator::BeginFrame": {
+      "count": 275,
+      "mean_ms": 3.114701818181818,
+      "max_ms": 7.136
+    },
+    "LAYOUT": {
+      "count": 275,
+      "mean_ms": 0.0070581818181818185,
+      "max_ms": 0.283
+    },
+    "BUILD": {
+      "count": 2,
+      "mean_ms": 0.141,
+      "max_ms": 0.24
+    },
+    "PAINT": {
+      "count": 275,
+      "mean_ms": 1.6001527272727272,
+      "max_ms": 5.191
+    },
+    "COMPOSITING": {
+      "count": 275,
+      "mean_ms": 0.46308363636363636,
+      "max_ms": 2.145
+    },
+    "SEMANTICS": {
+      "count": 275,
+      "mean_ms": 0.05553818181818182,
+      "max_ms": 0.862
+    },
+    "CreateGlyphAtlas": {
+      "count": 276,
+      "mean_ms": 0.07852898550724638,
+      "max_ms": 0.265
+    }
+  },
+  "lotto_draw/before/1794309488538708": {
+    "Rasterizer::DoDraw": {
+      "count": 275,
+      "mean_ms": 5.911389090909091,
+      "max_ms": 13.255
+    },
+    "SurfaceFrame::Encode": {
+      "count": 275,
+      "mean_ms": 3.952567272727273,
+      "max_ms": 11.203
+    },
+    "RenderPassGLES::EncodeCommandsInReactor": {
+      "count": 275,
+      "mean_ms": 2.535498181818182,
+      "max_ms": 9.737
+    },
+    "Animator::BeginFrame": {
+      "count": 275,
+      "mean_ms": 2.918076363636364,
+      "max_ms": 6.594
+    },
+    "LAYOUT": {
+      "count": 275,
+      "mean_ms": 0.007036363636363637,
+      "max_ms": 0.296
+    },
+    "BUILD": {
+      "count": 2,
+      "mean_ms": 0.149,
+      "max_ms": 0.252
+    },
+    "PAINT": {
+      "count": 275,
+      "mean_ms": 1.4819127272727273,
+      "max_ms": 3.515
+    },
+    "COMPOSITING": {
+      "count": 275,
+      "mean_ms": 0.41903636363636365,
+      "max_ms": 1.965
+    },
+    "SEMANTICS": {
+      "count": 275,
+      "mean_ms": 0.06838545454545454,
+      "max_ms": 1.196
+    },
+    "CreateGlyphAtlas": {
+      "count": 276,
+      "mean_ms": 0.08027173913043478,
+      "max_ms": 0.418
+    }
+  },
+  "lotto_draw/after/1794314421829493": {
+    "Rasterizer::DoDraw": {
+      "count": 275,
+      "mean_ms": 5.21876,
+      "max_ms": 13.83
+    },
+    "SurfaceFrame::Encode": {
+      "count": 275,
+      "mean_ms": 3.14884,
+      "max_ms": 11.535
+    },
+    "RenderPassGLES::EncodeCommandsInReactor": {
+      "count": 276,
+      "mean_ms": 2.2998007246376813,
+      "max_ms": 10.642
+    },
+    "Animator::BeginFrame": {
+      "count": 275,
+      "mean_ms": 2.81864,
+      "max_ms": 6.264
+    },
+    "LAYOUT": {
+      "count": 275,
+      "mean_ms": 0.006578181818181818,
+      "max_ms": 0.314
+    },
+    "BUILD": {
+      "count": 2,
+      "mean_ms": 0.15700000000000003,
+      "max_ms": 0.281
+    },
+    "PAINT": {
+      "count": 275,
+      "mean_ms": 1.3461672727272727,
+      "max_ms": 3.775
+    },
+    "COMPOSITING": {
+      "count": 275,
+      "mean_ms": 0.4343309090909091,
+      "max_ms": 1.751
+    },
+    "SEMANTICS": {
+      "count": 275,
+      "mean_ms": 0.04242909090909091,
+      "max_ms": 0.616
+    },
+    "CreateGlyphAtlas": {
+      "count": 276,
+      "mean_ms": 0.017623188405797102,
+      "max_ms": 0.435
+    }
+  },
+  "lotto_draw/after/1794314496989620": {
+    "Rasterizer::DoDraw": {
+      "count": 269,
+      "mean_ms": 16.149044609665427,
+      "max_ms": 27.178
+    },
+    "SurfaceFrame::Encode": {
+      "count": 271,
+      "mean_ms": 14.068044280442804,
+      "max_ms": 25.16
+    },
+    "RenderPassGLES::EncodeCommandsInReactor": {
+      "count": 271,
+      "mean_ms": 13.249464944649446,
+      "max_ms": 24.35
+    },
+    "Animator::BeginFrame": {
+      "count": 271,
+      "mean_ms": 2.7293542435424354,
+      "max_ms": 5.212
+    },
+    "LAYOUT": {
+      "count": 270,
+      "mean_ms": 0.0070074074074074075,
+      "max_ms": 0.252
+    },
+    "BUILD": {
+      "count": 2,
+      "mean_ms": 0.13,
+      "max_ms": 0.226
+    },
+    "PAINT": {
+      "count": 271,
+      "mean_ms": 1.3468228782287823,
+      "max_ms": 2.294
+    },
+    "COMPOSITING": {
+      "count": 271,
+      "mean_ms": 0.33402583025830257,
+      "max_ms": 1.949
+    },
+    "SEMANTICS": {
+      "count": 271,
+      "mean_ms": 0.04832841328413284,
+      "max_ms": 1.019
+    },
+    "CreateGlyphAtlas": {
+      "count": 271,
+      "mean_ms": 0.017863468634686346,
+      "max_ms": 1.106
+    }
+  },
+  "lotto_draw/after/1794314571366953": {
+    "Rasterizer::DoDraw": {
+      "count": 275,
+      "mean_ms": 4.665625454545455,
+      "max_ms": 7.577
+    },
+    "SurfaceFrame::Encode": {
+      "count": 275,
+      "mean_ms": 2.57272,
+      "max_ms": 5.465
+    },
+    "RenderPassGLES::EncodeCommandsInReactor": {
+      "count": 276,
+      "mean_ms": 1.7126630434782608,
+      "max_ms": 3.036
+    },
+    "Animator::BeginFrame": {
+      "count": 275,
+      "mean_ms": 2.6015636363636365,
+      "max_ms": 6.302
+    },
+    "LAYOUT": {
+      "count": 275,
+      "mean_ms": 0.007410909090909091,
+      "max_ms": 0.525
+    },
+    "BUILD": {
+      "count": 2,
+      "mean_ms": 0.262,
+      "max_ms": 0.475
+    },
+    "PAINT": {
+      "count": 275,
+      "mean_ms": 1.20796,
+      "max_ms": 2.459
+    },
+    "COMPOSITING": {
+      "count": 275,
+      "mean_ms": 0.385,
+      "max_ms": 1.966
+    },
+    "SEMANTICS": {
+      "count": 275,
+      "mean_ms": 0.05325454545454546,
+      "max_ms": 1.03
+    },
+    "CreateGlyphAtlas": {
+      "count": 275,
+      "mean_ms": 0.020345454545454545,
+      "max_ms": 1.209
+    }
+  },
+  "grid_steady/before/1794305776155025": {
+    "Rasterizer::DoDraw": {
+      "count": 297,
+      "mean_ms": 5.8656734006734,
+      "max_ms": 10.581
+    },
+    "SurfaceFrame::Encode": {
+      "count": 298,
+      "mean_ms": 3.8025637583892617,
+      "max_ms": 8.613
+    },
+    "RenderPassGLES::EncodeCommandsInReactor": {
+      "count": 299,
+      "mean_ms": 3.2165083612040135,
+      "max_ms": 8.071
+    },
+    "Animator::BeginFrame": {
+      "count": 298,
+      "mean_ms": 1.49896644295302,
+      "max_ms": 2.884
+    },
+    "LAYOUT": {
+      "count": 298,
+      "mean_ms": 0.0065,
+      "max_ms": 0.165
+    },
+    "PAINT": {
+      "count": 298,
+      "mean_ms": 0.23566442953020134,
+      "max_ms": 0.886
+    },
+    "COMPOSITING": {
+      "count": 298,
+      "mean_ms": 0.4068322147651007,
+      "max_ms": 1.57
+    },
+    "SEMANTICS": {
+      "count": 298,
+      "mean_ms": 0.03795637583892617,
+      "max_ms": 0.235
+    },
+    "CreateGlyphAtlas": {
+      "count": 298,
+      "mean_ms": 0.0304496644295302,
+      "max_ms": 0.103
+    }
+  },
+  "grid_steady/before/1794305881436541": {
+    "Rasterizer::DoDraw": {
+      "count": 298,
+      "mean_ms": 5.457862416107383,
+      "max_ms": 11.233
+    },
+    "SurfaceFrame::Encode": {
+      "count": 299,
+      "mean_ms": 3.489197324414716,
+      "max_ms": 9.294
+    },
+    "RenderPassGLES::EncodeCommandsInReactor": {
+      "count": 299,
+      "mean_ms": 2.9358896321070236,
+      "max_ms": 8.695
+    },
+    "Animator::BeginFrame": {
+      "count": 298,
+      "mean_ms": 1.1724630872483222,
+      "max_ms": 4.239
+    },
+    "LAYOUT": {
+      "count": 298,
+      "mean_ms": 0.0045,
+      "max_ms": 0.012
+    },
+    "PAINT": {
+      "count": 298,
+      "mean_ms": 0.19004362416107382,
+      "max_ms": 3.399
+    },
+    "COMPOSITING": {
+      "count": 298,
+      "mean_ms": 0.3127751677852349,
+      "max_ms": 1.249
+    },
+    "SEMANTICS": {
+      "count": 298,
+      "mean_ms": 0.028365771812080536,
+      "max_ms": 0.423
+    },
+    "CreateGlyphAtlas": {
+      "count": 299,
+      "mean_ms": 0.028377926421404683,
+      "max_ms": 0.179
+    }
+  },
+  "grid_steady/before/1794305983682447": {
+    "Rasterizer::DoDraw": {
+      "count": 298,
+      "mean_ms": 3.5945637583892616,
+      "max_ms": 4.919
+    },
+    "SurfaceFrame::Encode": {
+      "count": 298,
+      "mean_ms": 1.498,
+      "max_ms": 2.207
+    },
+    "RenderPassGLES::EncodeCommandsInReactor": {
+      "count": 299,
+      "mean_ms": 0.9563745819397993,
+      "max_ms": 1.621
+    },
+    "Animator::BeginFrame": {
+      "count": 298,
+      "mean_ms": 1.3367885906040269,
+      "max_ms": 4.595
+    },
+    "LAYOUT": {
+      "count": 298,
+      "mean_ms": 0.005728187919463087,
+      "max_ms": 0.156
+    },
+    "PAINT": {
+      "count": 298,
+      "mean_ms": 0.2071744966442953,
+      "max_ms": 1.185
+    },
+    "COMPOSITING": {
+      "count": 298,
+      "mean_ms": 0.3700536912751678,
+      "max_ms": 1.551
+    },
+    "SEMANTICS": {
+      "count": 298,
+      "mean_ms": 0.037288590604026846,
+      "max_ms": 1.317
+    },
+    "CreateGlyphAtlas": {
+      "count": 298,
+      "mean_ms": 0.02897986577181208,
+      "max_ms": 0.413
+    }
+  },
+  "grid_steady/after/1794314642091899": {
+    "Rasterizer::DoDraw": {
+      "count": 298,
+      "mean_ms": 5.541711409395973,
+      "max_ms": 14.736
+    },
+    "SurfaceFrame::Encode": {
+      "count": 299,
+      "mean_ms": 3.589314381270903,
+      "max_ms": 12.143
+    },
+    "RenderPassGLES::EncodeCommandsInReactor": {
+      "count": 299,
+      "mean_ms": 3.1579799331103677,
+      "max_ms": 11.69
+    },
+    "Animator::BeginFrame": {
+      "count": 298,
+      "mean_ms": 1.3843087248322148,
+      "max_ms": 5.188
+    },
+    "LAYOUT": {
+      "count": 298,
+      "mean_ms": 0.0062583892617449665,
+      "max_ms": 0.226
+    },
+    "PAINT": {
+      "count": 298,
+      "mean_ms": 0.2670234899328859,
+      "max_ms": 1.08
+    },
+    "COMPOSITING": {
+      "count": 298,
+      "mean_ms": 0.34048657718120806,
+      "max_ms": 1.049
+    },
+    "SEMANTICS": {
+      "count": 298,
+      "mean_ms": 0.037845637583892616,
+      "max_ms": 0.342
+    },
+    "CreateGlyphAtlas": {
+      "count": 299,
+      "mean_ms": 0.028474916387959865,
+      "max_ms": 0.139
+    }
+  },
+  "grid_steady/after/1794314716054046": {
+    "Rasterizer::DoDraw": {
+      "count": 298,
+      "mean_ms": 3.469171140939597,
+      "max_ms": 4.888
+    },
+    "SurfaceFrame::Encode": {
+      "count": 298,
+      "mean_ms": 1.3567181208053691,
+      "max_ms": 1.959
+    },
+    "RenderPassGLES::EncodeCommandsInReactor": {
+      "count": 299,
+      "mean_ms": 0.9031471571906354,
+      "max_ms": 1.469
+    },
+    "Animator::BeginFrame": {
+      "count": 298,
+      "mean_ms": 1.5126577181208054,
+      "max_ms": 3.356
+    },
+    "LAYOUT": {
+      "count": 298,
+      "mean_ms": 0.0058355704697986574,
+      "max_ms": 0.012
+    },
+    "PAINT": {
+      "count": 298,
+      "mean_ms": 0.29701677852348995,
+      "max_ms": 1.291
+    },
+    "COMPOSITING": {
+      "count": 298,
+      "mean_ms": 0.38117785234899326,
+      "max_ms": 1.165
+    },
+    "SEMANTICS": {
+      "count": 298,
+      "mean_ms": 0.04251006711409396,
+      "max_ms": 0.786
+    },
+    "CreateGlyphAtlas": {
+      "count": 298,
+      "mean_ms": 0.02879530201342282,
+      "max_ms": 0.149
+    }
+  },
+  "grid_steady/after/1794314791537683": {
+    "Rasterizer::DoDraw": {
+      "count": 297,
+      "mean_ms": 5.842511784511784,
+      "max_ms": 14.653
+    },
+    "SurfaceFrame::Encode": {
+      "count": 298,
+      "mean_ms": 3.777543624161074,
+      "max_ms": 12.523
+    },
+    "RenderPassGLES::EncodeCommandsInReactor": {
+      "count": 299,
+      "mean_ms": 3.30361872909699,
+      "max_ms": 12.073
+    },
+    "Animator::BeginFrame": {
+      "count": 298,
+      "mean_ms": 1.3798322147651008,
+      "max_ms": 4.847
+    },
+    "LAYOUT": {
+      "count": 298,
+      "mean_ms": 0.005644295302013423,
+      "max_ms": 0.068
+    },
+    "PAINT": {
+      "count": 298,
+      "mean_ms": 0.2797986577181208,
+      "max_ms": 1.531
+    },
+    "COMPOSITING": {
+      "count": 298,
+      "mean_ms": 0.3480738255033557,
+      "max_ms": 2.55
+    },
+    "SEMANTICS": {
+      "count": 298,
+      "mean_ms": 0.03374496644295302,
+      "max_ms": 0.414
+    },
+    "CreateGlyphAtlas": {
+      "count": 298,
+      "mean_ms": 0.03006040268456376,
+      "max_ms": 0.1
+    }
+  },
+  "ablation/wheel_raster/1794312634478011": {
+    "Rasterizer::DoDraw": {
+      "count": 300,
+      "mean_ms": 5.24494,
+      "max_ms": 10.451
+    },
+    "SurfaceFrame::Encode": {
+      "count": 301,
+      "mean_ms": 3.263511627906977,
+      "max_ms": 8.618
+    },
+    "RenderPassGLES::EncodeCommandsInReactor": {
+      "count": 301,
+      "mean_ms": 3.0512192691029902,
+      "max_ms": 8.415
+    },
+    "Animator::BeginFrame": {
+      "count": 301,
+      "mean_ms": 1.4196279069767441,
+      "max_ms": 2.74
+    },
+    "LAYOUT": {
+      "count": 301,
+      "mean_ms": 0.0054352159468438535,
+      "max_ms": 0.013
+    },
+    "PAINT": {
+      "count": 301,
+      "mean_ms": 0.2681860465116279,
+      "max_ms": 0.713
+    },
+    "COMPOSITING": {
+      "count": 301,
+      "mean_ms": 0.3526046511627907,
+      "max_ms": 0.921
+    },
+    "SEMANTICS": {
+      "count": 301,
+      "mean_ms": 0.03637541528239203,
+      "max_ms": 0.26
+    }
+  },
+  "ablation/wheel_raster/1794312714447022": {
+    "Rasterizer::DoDraw": {
+      "count": 302,
+      "mean_ms": 4.996218543046358,
+      "max_ms": 14.136
+    },
+    "SurfaceFrame::Encode": {
+      "count": 302,
+      "mean_ms": 3.1059668874172184,
+      "max_ms": 12.076
+    },
+    "RenderPassGLES::EncodeCommandsInReactor": {
+      "count": 302,
+      "mean_ms": 2.907271523178808,
+      "max_ms": 11.878
+    },
+    "Animator::BeginFrame": {
+      "count": 302,
+      "mean_ms": 1.3529238410596027,
+      "max_ms": 2.782
+    },
+    "LAYOUT": {
+      "count": 302,
+      "mean_ms": 0.006847682119205298,
+      "max_ms": 0.303
+    },
+    "PAINT": {
+      "count": 302,
+      "mean_ms": 0.2505894039735099,
+      "max_ms": 0.662
+    },
+    "COMPOSITING": {
+      "count": 302,
+      "mean_ms": 0.351682119205298,
+      "max_ms": 1.131
+    },
+    "SEMANTICS": {
+      "count": 302,
+      "mean_ms": 0.03205629139072848,
+      "max_ms": 0.166
+    }
+  },
+  "ablation/wheel_raster/1794312788194243": {
+    "Rasterizer::DoDraw": {
+      "count": 300,
+      "mean_ms": 4.996393333333334,
+      "max_ms": 11.128
+    },
+    "SurfaceFrame::Encode": {
+      "count": 301,
+      "mean_ms": 3.0397275747508306,
+      "max_ms": 9.162
+    },
+    "RenderPassGLES::EncodeCommandsInReactor": {
+      "count": 301,
+      "mean_ms": 2.8245282392026576,
+      "max_ms": 8.943
+    },
+    "Animator::BeginFrame": {
+      "count": 301,
+      "mean_ms": 1.4320863787375415,
+      "max_ms": 2.706
+    },
+    "LAYOUT": {
+      "count": 301,
+      "mean_ms": 0.005857142857142857,
+      "max_ms": 0.013
+    },
+    "PAINT": {
+      "count": 301,
+      "mean_ms": 0.2656744186046512,
+      "max_ms": 0.78
+    },
+    "COMPOSITING": {
+      "count": 301,
+      "mean_ms": 0.35938205980066446,
+      "max_ms": 1.167
+    },
+    "SEMANTICS": {
+      "count": 301,
+      "mean_ms": 0.037235880398671095,
+      "max_ms": 0.263
+    }
+  },
+  "ablation/wheel_picture/1794312864115392": {
+    "Rasterizer::DoDraw": {
+      "count": 298,
+      "mean_ms": 5.041221476510067,
+      "max_ms": 6.03
+    },
+    "SurfaceFrame::Encode": {
+      "count": 299,
+      "mean_ms": 2.919334448160535,
+      "max_ms": 3.526
+    },
+    "RenderPassGLES::EncodeCommandsInReactor": {
+      "count": 299,
+      "mean_ms": 1.886010033444816,
+      "max_ms": 2.418
+    },
+    "Animator::BeginFrame": {
+      "count": 297,
+      "mean_ms": 1.6586565656565657,
+      "max_ms": 3.194
+    },
+    "LAYOUT": {
+      "count": 297,
+      "mean_ms": 0.006471380471380472,
+      "max_ms": 0.101
+    },
+    "PAINT": {
+      "count": 297,
+      "mean_ms": 0.3856060606060606,
+      "max_ms": 1.163
+    },
+    "COMPOSITING": {
+      "count": 297,
+      "mean_ms": 0.39901346801346804,
+      "max_ms": 1.235
+    },
+    "SEMANTICS": {
+      "count": 298,
+      "mean_ms": 0.04247986577181208,
+      "max_ms": 0.569
+    },
+    "CreateGlyphAtlas": {
+      "count": 299,
+      "mean_ms": 0.09809698996655518,
+      "max_ms": 0.28
+    }
+  },
+  "ablation/wheel_picture/1794312938177742": {
+    "Rasterizer::DoDraw": {
+      "count": 293,
+      "mean_ms": 13.385027303754265,
+      "max_ms": 24.881
+    },
+    "SurfaceFrame::Encode": {
+      "count": 293,
+      "mean_ms": 11.371784982935154,
+      "max_ms": 22.728
+    },
+    "RenderPassGLES::EncodeCommandsInReactor": {
+      "count": 293,
+      "mean_ms": 10.368150170648464,
+      "max_ms": 21.736
+    },
+    "Animator::BeginFrame": {
+      "count": 294,
+      "mean_ms": 1.424656462585034,
+      "max_ms": 2.721
+    },
+    "LAYOUT": {
+      "count": 293,
+      "mean_ms": 0.006679180887372013,
+      "max_ms": 0.24
+    },
+    "PAINT": {
+      "count": 294,
+      "mean_ms": 0.35307823129251703,
+      "max_ms": 0.918
+    },
+    "COMPOSITING": {
+      "count": 294,
+      "mean_ms": 0.3072448979591837,
+      "max_ms": 0.956
+    },
+    "SEMANTICS": {
+      "count": 294,
+      "mean_ms": 0.03457482993197279,
+      "max_ms": 0.297
+    },
+    "CreateGlyphAtlas": {
+      "count": 294,
+      "mean_ms": 0.0958265306122449,
+      "max_ms": 0.339
+    }
+  },
+  "ablation/wheel_picture/1794313011385089": {
+    "Rasterizer::DoDraw": {
+      "count": 293,
+      "mean_ms": 11.953945392491468,
+      "max_ms": 24.038
+    },
+    "SurfaceFrame::Encode": {
+      "count": 294,
+      "mean_ms": 9.991336734693878,
+      "max_ms": 21.742
+    },
+    "RenderPassGLES::EncodeCommandsInReactor": {
+      "count": 294,
+      "mean_ms": 9.027846938775511,
+      "max_ms": 20.686
+    },
+    "Animator::BeginFrame": {
+      "count": 294,
+      "mean_ms": 1.5369659863945577,
+      "max_ms": 3.411
+    },
+    "LAYOUT": {
+      "count": 294,
+      "mean_ms": 0.005819727891156462,
+      "max_ms": 0.017
+    },
+    "PAINT": {
+      "count": 294,
+      "mean_ms": 0.37695918367346937,
+      "max_ms": 1.355
+    },
+    "COMPOSITING": {
+      "count": 295,
+      "mean_ms": 0.3304813559322034,
+      "max_ms": 1.047
+    },
+    "SEMANTICS": {
+      "count": 295,
+      "mean_ms": 0.039471186440677965,
+      "max_ms": 0.388
+    },
+    "CreateGlyphAtlas": {
+      "count": 294,
+      "mean_ms": 0.09183673469387756,
+      "max_ms": 0.212
+    }
+  },
+  "ablation/wheel_no_text/1794313086663358": {
+    "Rasterizer::DoDraw": {
+      "count": 301,
+      "mean_ms": 3.496624584717608,
+      "max_ms": 4.815
+    },
+    "SurfaceFrame::Encode": {
+      "count": 301,
+      "mean_ms": 1.3863554817275747,
+      "max_ms": 2.045
+    },
+    "RenderPassGLES::EncodeCommandsInReactor": {
+      "count": 301,
+      "mean_ms": 0.9347076411960132,
+      "max_ms": 1.301
+    },
+    "Animator::BeginFrame": {
+      "count": 301,
+      "mean_ms": 1.377312292358804,
+      "max_ms": 3.248
+    },
+    "LAYOUT": {
+      "count": 301,
+      "mean_ms": 0.006651162790697674,
+      "max_ms": 0.179
+    },
+    "PAINT": {
+      "count": 301,
+      "mean_ms": 0.28851162790697676,
+      "max_ms": 0.877
+    },
+    "COMPOSITING": {
+      "count": 301,
+      "mean_ms": 0.34250498338870433,
+      "max_ms": 1.538
+    },
+    "SEMANTICS": {
+      "count": 301,
+      "mean_ms": 0.033308970099667774,
+      "max_ms": 0.244
+    }
+  },
+  "ablation/wheel_no_images/1794313161872611": {
+    "Rasterizer::DoDraw": {
+      "count": 297,
+      "mean_ms": 4.539915824915825,
+      "max_ms": 5.646
+    },
+    "SurfaceFrame::Encode": {
+      "count": 298,
+      "mean_ms": 2.4495570469798658,
+      "max_ms": 3.368
+    },
+    "RenderPassGLES::EncodeCommandsInReactor": {
+      "count": 299,
+      "mean_ms": 1.5551337792642141,
+      "max_ms": 2.129
+    },
+    "Animator::BeginFrame": {
+      "count": 297,
+      "mean_ms": 1.607070707070707,
+      "max_ms": 4.614
+    },
+    "LAYOUT": {
+      "count": 297,
+      "mean_ms": 0.006262626262626263,
+      "max_ms": 0.115
+    },
+    "PAINT": {
+      "count": 297,
+      "mean_ms": 0.3674612794612795,
+      "max_ms": 1.358
+    },
+    "COMPOSITING": {
+      "count": 297,
+      "mean_ms": 0.3992693602693603,
+      "max_ms": 1.892
+    },
+    "SEMANTICS": {
+      "count": 298,
+      "mean_ms": 0.04058053691275168,
+      "max_ms": 0.923
+    },
+    "CreateGlyphAtlas": {
+      "count": 298,
+      "mean_ms": 0.09440268456375839,
+      "max_ms": 0.227
+    }
+  }
+}

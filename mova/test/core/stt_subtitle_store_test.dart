@@ -21,6 +21,20 @@ void main() {
     expect(await store.load('https://host/a.mp4'), isNull);
   });
 
+  test('D14 interrupted staging files never replace complete subtitles', () async {
+    final store = MovaFileSttSubtitleStore(dir: MovaFixedSttSubtitleDirProvider(tempDir.path));
+    final cues = [const MovaSttCue(text: 'complete', start: Duration.zero,
+        end: Duration(seconds: 1))];
+    await store.save('source', cues);
+    final target = tempDir.listSync().whereType<File>().single;
+    final staging = await Directory('${target.path}.pending-interrupted').create();
+    await File('${staging.path}/data').writeAsString('partial');
+    expect(await store.load('source'), cues);
+    await store.save('source', cues);
+    expect(await store.load('source'), cues);
+    expect(tempDir.listSync().whereType<Directory>().map((d) => d.path), [staging.path]);
+  });
+
   test('save then load round-trips the cue list', () async {
     final store = MovaFileSttSubtitleStore(dir: MovaFixedSttSubtitleDirProvider(tempDir.path));
     final cues = [

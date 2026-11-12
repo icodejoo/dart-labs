@@ -1,0 +1,27 @@
+[
+  {
+    "ProcessId": 25880,
+    "ParentProcessId": 37952,
+    "CommandLine": "E:\\workspaces\\c66_frontend_bingoplus_m_micro_wt1\\node_modules\\.pnpm\\sass-embedded-win32-x64@1.106.1\\node_modules\\sass-embedded-win32-x64\\dart-sass\\src\\dart.exe E:\\workspaces\\c66_frontend_bingoplus_m_micro_wt1\\node_modules\\.pnpm\\sass-embedded-win32-x64@1.106.1\\node_modules\\sass-embedded-win32-x64\\dart-sass\\src\\sass.snapshot --embedded"
+  },
+  {
+    "ProcessId": 22908,
+    "ParentProcessId": 38380,
+    "CommandLine": "E:\\workspaces\\c66_frontend_bingoplus_m_micro_wt2\\node_modules\\.pnpm\\sass-embedded-win32-x64@1.106.1\\node_modules\\sass-embedded-win32-x64\\dart-sass\\src\\dart.exe E:\\workspaces\\c66_frontend_bingoplus_m_micro_wt2\\node_modules\\.pnpm\\sass-embedded-win32-x64@1.106.1\\node_modules\\sass-embedded-win32-x64\\dart-sass\\src\\sass.snapshot --embedded"
+  },
+  {
+    "ProcessId": 47960,
+    "ParentProcessId": 4828,
+    "CommandLine": "\"E:\\sdk\\flutter\\bin\\cache\\dart-sdk\\bin\\dart.exe\"  pub publish --dry-run "
+  },
+  {
+    "ProcessId": 11820,
+    "ParentProcessId": 47960,
+    "CommandLine": "E:\\sdk\\flutter\\bin\\cache\\dart-sdk\\bin\\dart.exe analyze .\\lib .\\pubspec.yaml"
+  },
+  {
+    "ProcessId": 44520,
+    "ParentProcessId": 11820,
+    "CommandLine": "E:\\sdk\\flutter\\bin\\cache\\dart-sdk\\bin\\dartaotruntime.exe E:\\sdk\\flutter\\bin\\cache\\dart-sdk\\bin\\snapshots\\analysis_server_aot.dart.snapshot --client-id=dart-analyze --disable-server-feature-completion --disable-server-feature-search --disable-status-notification-debouncing --disable-silent-analysis-exceptions --sdk E:\\sdk\\flutter\\bin\\cache\\dart-sdk"
+  }
+]

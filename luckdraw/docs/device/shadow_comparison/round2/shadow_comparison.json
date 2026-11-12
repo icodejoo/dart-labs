@@ -1,0 +1,143 @@
+{
+  "channel_threshold": 32,
+  "radius_darkness_threshold": 2,
+  "width": 1080,
+  "height": 2400,
+  "panels": {
+    "device_1": {
+      "roi_pixels": 299475,
+      "different_pixels_gt32": 318,
+      "different_ratio": 0.0010618582519408965,
+      "mae_rgba": 0.07308873862592871,
+      "shadow_pixels": 13889,
+      "shadow_different_pixels_gt32": 159,
+      "shadow_different_ratio": 0.011447908416732665,
+      "shadow_mae_rgba": 1.2219202246382028,
+      "shadow_observable": true,
+      "scanline": {
+        "physical_y": 586,
+        "fill_left": 205,
+        "fill_right": 380,
+        "skia": {
+          "left_radius_px": 19,
+          "right_radius_px": 19,
+          "peak_darkness": 85.0
+        },
+        "impeller": {
+          "left_radius_px": 20,
+          "right_radius_px": 19,
+          "peak_darkness": 108.77359999999999
+        },
+        "radius_delta_px": 1,
+        "peak_darkness_delta": 23.773599999999988
+      }
+    },
+    "logical_1": {
+      "roi_pixels": 299475,
+      "different_pixels_gt32": 319,
+      "different_ratio": 0.0010651974288337924,
+      "mae_rgba": 0.1278378829618499,
+      "shadow_pixels": 41591,
+      "shadow_different_pixels_gt32": 160,
+      "shadow_different_ratio": 0.00384698612680628,
+      "shadow_mae_rgba": 0.7687360246207112,
+      "shadow_observable": true,
+      "scanline": {
+        "physical_y": 586,
+        "fill_left": 700,
+        "fill_right": 875,
+        "skia": {
+          "left_radius_px": 51,
+          "right_radius_px": 51,
+          "peak_darkness": 88.0
+        },
+        "impeller": {
+          "left_radius_px": 53,
+          "right_radius_px": 52,
+          "peak_darkness": 108.77359999999999
+        },
+        "radius_delta_px": 2,
+        "peak_darkness_delta": 20.773599999999988
+      }
+    },
+    "device_1_5": {
+      "roi_pixels": 299475,
+      "different_pixels_gt32": 478,
+      "different_ratio": 0.0015961265548042408,
+      "mae_rgba": 0.12404457801152016,
+      "shadow_pixels": 30808,
+      "shadow_different_pixels_gt32": 239,
+      "shadow_different_ratio": 0.007757725266164633,
+      "shadow_mae_rgba": 0.9346598286159439,
+      "shadow_observable": true,
+      "scanline": {
+        "physical_y": 1187,
+        "fill_left": 161,
+        "fill_right": 424,
+        "skia": {
+          "left_radius_px": 28,
+          "right_radius_px": 28,
+          "peak_darkness": 87.0
+        },
+        "impeller": {
+          "left_radius_px": 29,
+          "right_radius_px": 28,
+          "peak_darkness": 109.77360000000002
+        },
+        "radius_delta_px": 1,
+        "peak_darkness_delta": 22.773600000000016
+      }
+    },
+    "logical_1_5": {
+      "roi_pixels": 299475,
+      "different_pixels_gt32": 478,
+      "different_ratio": 0.0015961265548042408,
+      "mae_rgba": 0.2586710075966274,
+      "shadow_pixels": 93332,
+      "shadow_different_pixels_gt32": 239,
+      "shadow_different_ratio": 0.002560750867869541,
+      "shadow_mae_rgba": 0.7010296575665367,
+      "shadow_observable": true,
+      "scanline": {
+        "physical_y": 1187,
+        "fill_left": 656,
+        "fill_right": 919,
+        "skia": {
+          "left_radius_px": 77,
+          "right_radius_px": 77,
+          "peak_darkness": 88.0
+        },
+        "impeller": {
+          "left_radius_px": 79,
+          "right_radius_px": 78,
+          "peak_darkness": 108.77359999999999
+        },
+        "radius_delta_px": 2,
+        "peak_darkness_delta": 20.773599999999988
+      }
+    },
+    "grid_3x3": {
+      "roi_pixels": 299475,
+      "different_pixels_gt32": 532,
+      "different_ratio": 0.0017764421070206194,
+      "mae_rgba": 0.5046456298522414,
+      "shadow_pixels": 56058,
+      "shadow_different_pixels_gt32": 316,
+      "shadow_different_ratio": 0.0056370188019551175,
+      "shadow_mae_rgba": 2.5307315637375574,
+      "shadow_observable": true
+    },
+    "slot": {
+      "roi_pixels": 299475,
+      "different_pixels_gt32": 176,
+      "different_ratio": 0.0005876951331496786,
+      "mae_rgba": 0.01311211286417898,
+      "shadow_pixels": 0,
+      "shadow_different_pixels_gt32": 0,
+      "shadow_different_ratio": null,
+      "shadow_mae_rgba": null,
+      "shadow_observable": false,
+      "limitation": "老虎机格子填满滚轮视口，外扩阴影被 clipRect 裁剪；本面板仅比较填充，不能判断阴影一致性"
+    }
+  }
+}

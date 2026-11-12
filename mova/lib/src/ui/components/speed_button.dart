@@ -1,3 +1,5 @@
+import '../style/style.dart';
+
 import 'package:flutter/material.dart';
 
 import '../../core/api.dart';
@@ -41,13 +43,17 @@ class MovaSpeedButtonComponent extends MovaComponent {
 
   @override
   Widget build(BuildContext context, MovaApi api, List<Widget> children) {
-    final theme = api.options.theme;
-    final suffix = api.options.strings.speedSuffix;
+    final theme = MovaPlayerStyle.themeOf(context);
+    final suffix = MovaPlayerStyle.stringsOf(context).speedSuffix;
     return MovaSelect<double>(
       selector: (s) => s.rate,
       builder: (context, rate) {
         return MovaIconButton(
-          icon: Icons.speed_rounded,
+          label: MovaPlayerStyle.stringsOf(context).labelWithValue(
+            MovaPlayerStyle.stringsOf(context).speed,
+            '${_formatRate(rate)}$suffix',
+          ),
+          icon: MovaPlayerStyle.iconsOf(context).speed,
           theme: theme,
           caption: '${_formatRate(rate)}$suffix',
           onPressed: () => api.setRate(_nextRate(rate)),
@@ -78,6 +84,8 @@ class MovaSpeedButtonComponent extends MovaComponent {
   /// 格式化 [rate]，整数档位不带多余的 `.0`（`1x` 而非 `1.0x`），对齐常见
   /// 播放器的倍速文案习惯。
   static String _formatRate(double rate) {
-    return rate == rate.roundToDouble() ? rate.toInt().toString() : rate.toString();
+    return rate == rate.roundToDouble()
+        ? rate.toInt().toString()
+        : rate.toString();
   }
 }

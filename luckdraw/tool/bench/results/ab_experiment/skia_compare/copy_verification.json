@@ -1,0 +1,14 @@
+{
+  "docs/AB_REPORT.md": {
+    "originalBytes": 14592,
+    "appendedBytes": 7566,
+    "prefixPreserved": true,
+    "sha256": "703e254479588f069cf956f4b243fc92e411b1fbad415de3241855670eb56c6a"
+  },
+  "test/ACCEPTANCE.md": {
+    "originalBytes": 335688,
+    "appendedBytes": 1349,
+    "prefixPreserved": true,
+    "sha256": "3e1c1889b8fe61babb52526392835c1cae56e83f0fb877840ac797e999e18ba0"
+  }
+}

@@ -34,7 +34,7 @@ void main() {
     expect(closed, isTrue);
   });
 
-  testWidgets('MovaState.mini true hides MovaDefaultSkin top/bottom/gesture chrome, lock toggle stays', (tester) async {
+  testWidgets('MovaState.mini true hides MovaDefaultSkin top/bottom/gesture chrome and lock toggle', (tester) async {
     final api = FakeMovaApi();
     api.push(const MovaState(mini: true));
     await tester.pumpWidget(MaterialApp(
@@ -42,8 +42,8 @@ void main() {
     ));
     expect(find.byIcon(Icons.fullscreen_rounded), findsNothing, reason: 'top bar hidden while mini');
     expect(find.byType(Slider), findsNothing, reason: 'bottom bar hidden while mini');
-    expect(find.byIcon(Icons.lock_open_rounded), findsOneWidget,
-        reason: 'the persistent layer (lock toggle) stays reachable regardless of mini, same as pip/locked');
+    expect(find.byIcon(Icons.lock_open_rounded), findsNothing,
+        reason: '页面控制条交给小窗后，页面锁定入口也隐藏');
   });
 
   testWidgets('MovaState.mini false leaves MovaDefaultSkin chrome unaffected (closed-state regression)', (tester) async {

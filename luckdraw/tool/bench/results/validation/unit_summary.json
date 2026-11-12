@@ -1,0 +1,22 @@
+{
+  "groups": [
+    {
+      "name": "core",
+      "passed": 451,
+      "runner_elapsed_ms": 105737
+    },
+    {
+      "name": "games",
+      "passed": 363,
+      "runner_elapsed_ms": 80385
+    },
+    {
+      "name": "tools",
+      "passed": 178,
+      "runner_elapsed_ms": 38170
+    }
+  ],
+  "passed": 992,
+  "failed": 0,
+  "skipped": 0
+}

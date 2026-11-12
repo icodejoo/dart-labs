@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math';
 
+import 'package:mova/src/testing/hooks.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mova/src/core/engine.dart';
 import 'package:mova/src/core/events/events.dart';
@@ -121,7 +122,7 @@ Future<_Run> _runSeed(int seed, {int steps = _stepsPerSeed}) async {
 
 Future<void> _session(Random rnd, _Run run, int steps) async {
   final k = FakeKernel();
-  final e = MovaEngine(kernel: k);
+  final e = MovaEngine(fetcher: const MovaTestHttpFetch(), kernel: k);
   final m = _Mirror();
   final events = <MovaEvent>[];
   var eventsDone = false;
@@ -188,6 +189,7 @@ Future<void> _session(Random rnd, _Run run, int steps) async {
         run.trail.add('setFullscreen($v)');
         await e.setFullscreen(v);
         m.fullscreen = v;
+        if (v) m.mini = false; // 进入全屏先收起小窗
       case 13:
         final v = rnd.nextBool();
         run.trail.add('setMini($v)');
@@ -355,7 +357,7 @@ void main() {
       final problems = <String>[];
       final done = Completer<void>();
       final k = FakeKernel();
-      final e = MovaEngine(kernel: k);
+      final e = MovaEngine(fetcher: const MovaTestHttpFetch(), kernel: k);
       runZonedGuarded(
         () async {
           try {

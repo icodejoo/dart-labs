@@ -12,12 +12,24 @@ import 'package:screen_brightness/screen_brightness.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:mova/src/platform_impl/mpv_event_backend_ffi.dart';
 import '../main_coverage_api.dart' as c;
+import 's00c_contract.dart' as s00c;
+import 's00d_contract.dart' as s00d;
+import 's00e_native.dart' as s00e;
+import 's00e_contract.dart' as s00e_contract;
+import 's00d_native.dart' as s00d_native;
+import 's00d_resources.dart' as s00d_resources;
 
 /// Tests newly introduced APIs on the native player, retaining raw readbacks.
 ///
 /// 在原生播放器测试新增接口，并保留属性读回证据。
 Future<void> runNew(Map<String, String> args) async {
   switch (args['case']) {
+    case 's00c': await s00c.run();
+    case 's00d': await s00d.run();
+    case 's00eNative': await s00e.run();
+    case 's00eContract': await s00e_contract.run();
+    case 's00dNative': await s00d_native.run();
+    case 's00dResources': await s00d_resources.audioResources();await feed(resources:true);
     case 'options': await options();
     case 'recovery': await recovery(args);
     case 'live': await live(args);
@@ -110,10 +122,9 @@ Future<void> subtitles() async {
     await a.open(MovaSource(video.path),autoPlay:false);
     final n=p.platform as NativePlayer;
     if(format!='movtext') {
-      final http=HttpClient();
-      final response=await(await http.getUrl(Uri.parse('http://127.0.0.1:18084/test_subtitle.$format'))).close();
-      final bytes=<int>[];await for(final b in response){bytes.addAll(b);}http.close();
-      final sub=File('${Directory.systemTemp.path}/coverage-sub.$format');await sub.writeAsBytes(bytes);
+      // 与视频一样使用已打包的确定性字幕，避免把 HTTP 404 页面当字幕送入内核。
+      final subtitle=await rootBundle.load('assets/test_subtitle.$format');
+      final sub=File('${Directory.systemTemp.path}/coverage-sub.$format');await sub.writeAsBytes(subtitle.buffer.asUint8List(subtitle.offsetInBytes, subtitle.lengthInBytes));
       await n.command(['sub-add',sub.path,'select']);
     }
     await n.setProperty('sid','1');await n.setProperty('sub-visibility','yes');await a.play();
@@ -156,6 +167,11 @@ Future<void> abr() async {
     await c.until(()=>local.whereType<MovaAbrDownShift>().isNotEmpty,seconds:60);
     final down=local.whereType<MovaAbrDownShift>().first;
     c.mark('ABR_REAL',{'before':before,'from':down.from.label,'to':down.to.label,'resets':policy.resets,'state':c.snapshot(a)});
+    await c.until(() => a.state.currentQuality?.uri == down.to.uri);
+    c.mark('CHECK', {'id': 'C4.abrDown', 'pass': down.from.bandwidth == null || down.to.bandwidth == null ? null :
+      down.to.bandwidth! < down.from.bandwidth! && a.state.currentQuality?.uri == down.to.uri,
+      'numbers': {'fromBandwidth': down.from.bandwidth, 'toBandwidth': down.to.bandwidth,
+        'eventUri': down.to.uri, 'stateUri': a.state.currentQuality?.uri, 'policyResets': policy.resets}});
     policy.armed=false;await throttle(false);await a.switchQuality(high);
     await c.until(()=>a.state.duration>Duration.zero&&!a.state.buffering);await c.settle(400);
     c.check('F3.abrBackToBack',c.latest.position.inMilliseconds>=before-200,'beforeStall=$before afterSwitch=${c.latest.position.inMilliseconds}');
@@ -342,7 +358,7 @@ Future<void> tlsProbe() async {
 /// 在关闭会话前释放真实网络卡顿，测量完整卡顿次数和时长。
 Future<void> stallRelease() async {
   final reports=<MovaReportEvent>[];
-  final a=createMovaEngine(audioOnly:true,options:const MovaOpts(report:MovaReportConfig(qoe:true)),reporter:MovaCallbackReporter((r){reports.add(r);c.mark('REPORT',{'name':r.name.value,'params':r.params});}));
+  final a=createMovaEngine(audioOnly:true,options:const MovaOpts(report:MovaReportConfig(qoe:true)),reporter:MovaCallbackReporter((r){reports.add(r);c.mark('REPORT',{'name':r.name.value,'params':r.params,'sessionId':r.sessionId,'reportKind':r.kind.name,'priority':r.priority.name});}));
   c.observe(a);final src=c.source('stall.mp4');await a.open(src);await c.until(()=>a.state.rendered);await c.until(()=>a.state.buffering);
   final start=c.clock.elapsedMilliseconds;await c.settle(4000);
   final h=HttpClient();final key=Uri.parse(src.uri).queryParameters['t']!;
@@ -354,20 +370,40 @@ Future<void> stallRelease() async {
 /// Swipes a three-engine native audio pool, including overlapping requests.
 ///
 /// 连续切换三引擎原生音频池，包含并发切换。
-Future<void> feed() async {
+Future<void> feed({bool resources=false}) async {
+  final resourceBaseline=resources?await s00d_resources.checkpoint('pool.before'):<String,Object?>{};
   final made=<MovaApi>[];
   final pool=MovaFeedEnginePool(engineFactory:(){ final a=createMovaEngine(audioOnly:true); made.add(a); return a; });
   final controller=MovaFeed(pool:pool,loader:(i) async => i<0 || i>150 ? null : MovaFeedItem(source:c.source('vod.mp4?feed=$i')));
   await controller.ensure(0); await controller.activate(0);
   for(var i=1;i<=100;i++) {
     await controller.activate(i);
-    if(i%20==0)c.mark('FEED_SAMPLE',{'index':controller.activeIndex,'engines':made.length,'rss':ProcessInfo.currentRss});
+    if(i%20==0) {
+      c.mark('FEED_SAMPLE',{'index':controller.activeIndex,'engines':made.length,'rss':ProcessInfo.currentRss});
+      if(resources) {s00d_resources.sample('F13.resources.$i',resourceBaseline,await s00d_resources.checkpoint('pool.active.$i',created:made.length,engineCount:pool.engineCount),created:made.length,engineCount:pool.engineCount);}
+    }
   }
   await Future.wait([for(var i=101;i<=120;i++)controller.activate(i)]);
-  c.check('A29.final',controller.activeIndex==120 && made.length==3,'active=${controller.activeIndex} engines=${made.length}');
+  if (resources) {
+    await s00d_resources.checkpoint('pool.concurrent.120', created: made.length, engineCount: pool.engineCount);
+  }
+  c.check('A29.final',controller.activeIndex==120 && made.isNotEmpty && made.length<=pool.size,'active=${controller.activeIndex} engines=${made.length} capacity=${pool.size}');
   c.mark('FEED_ENGINES',{'states':made.map(c.snapshot).toList()});
-  controller.dispose(); await pool.dispose().timeout(const Duration(seconds:20));
-  c.check('A29.dispose',true,'controller and 3 native engines disposed');
+  controller.dispose();
+  if(resources) {
+    await s00d_resources.DisposeFrames().run(()=>pool.dispose().timeout(const Duration(seconds:20)));
+    s00d_resources.sample('F13.resources.disposed',resourceBaseline,await s00d_resources.checkpoint('pool.disposed.0ms',created:made.length,engineCount:pool.engineCount),created:made.length,engineCount:pool.engineCount);
+    // 释放后的稳定窗口另采，不能把逻辑池为零直接当原生解码器已回收。
+    await c.settle(1000);
+    await s00d_resources.checkpoint('pool.disposed.1000ms', created: made.length, engineCount: pool.engineCount);
+    await c.settle(4000);
+    await s00d_resources.checkpoint('pool.disposed.5000ms', created: made.length, engineCount: pool.engineCount);
+  } else {await pool.dispose().timeout(const Duration(seconds:20));}
+  final accepts = <bool>[];
+  for (final engine in made) { accepts.add(await engine.open(c.source())); }
+  c.mark('CHECK', {'id': 'A29.poolReclaimed', 'pass': pool.engineCount == 0 && accepts.every((v) => !v),
+    'numbers': {'engineCount': pool.engineCount, 'accepts': accepts}});
+  c.check('A29.dispose',pool.engineCount == 0 && accepts.every((v) => !v),'pool=${pool.engineCount} postDisposeOpen=$accepts');
 }
 
 /// Exercises real VTT and frame extraction paths with retained images.
@@ -387,13 +423,31 @@ Future<void> preview(Map<String,String> args) async {
       network:blocked?MovaPreviewNet.never:probe==null?MovaPreviewNet.always:MovaPreviewNet.wifiOnly,
       vttUrl:args['mode']=='offline'?'http://127.0.0.1:9/unreachable.vtt':'http://127.0.0.1:18084/${args['mode']=='fallback'?'missing.vtt':'thumbs.vtt'}',vttEnabled:args['mode']!='extract',extractFallback:extract,
       bucket:const Duration(seconds:2),cache:cache)));
-  c.observe(a); await a.open(c.source(),autoPlay:false);
+  c.observe(a);
+  File? localVideo;
+  try {
+  if (args['mode'] == 'offline') {
+    localVideo = File('${Directory.systemTemp.path}/s00c-preview-offline.mp4');
+    final client = HttpClient();
+    try {
+      final response = await (await client.getUrl(Uri.parse(c.source().uri))).close();
+      await response.pipe(localVideo.openWrite());
+    } finally {
+      client.close(force: true);
+    }
+  }
+  final media = localVideo == null ? c.source() : MovaSource(localVideo.uri.toString());
+  await a.open(media,autoPlay:false);
   final thumbs=<MovaThumb?>[]; a.preview.thumbs.listen(thumbs.add);
+  final observed = <int>[];
+  final byteCounts = <int>[];
   for(final sec in [4,8,12,4]) {
     a.preview.requestAt(Duration(seconds:sec));
     if(blocked){await c.settle(500);continue;}
     await c.until(()=>a.preview.current!=null && a.preview.current!.at.inSeconds==sec,seconds:25);
     final t=a.preview.current!;
+    observed.add(t.at.inMilliseconds);
+    byteCounts.add(t.bytes.length);
     c.mark('THUMB',{'requested':sec,'at':t.at.inMilliseconds,'bytes':t.bytes.length,'crop':'${t.crop}','peek':a.preview.peekAt(Duration(seconds:sec))!=null});
     await File('${Directory.systemTemp.path}/coverage-thumb-$sec.jpg').writeAsBytes(t.bytes);
     a.preview.cancel();
@@ -402,7 +456,22 @@ Future<void> preview(Map<String,String> args) async {
     'extractCalls':puller.calls,'writes':cache.writes,'diskHits':cache.diskHits,'memoryHits':cache.memoryHits});
   if(extract){c.check('A30.diskHit',puller.calls==3 && cache.diskHits>=1,'extractCalls=${puller.calls} diskHits=${cache.diskHits}');}
   if(!extract&&!blocked){c.check('N22.crop',cache.writes==0,'cropped VTT writes=${cache.writes}');}
-  await a.preview.clear(); await a.dispose();
+  final mode = args['mode'] ?? 'vtt';
+  final modePass = blocked ? thumbs.whereType<MovaThumb>().isEmpty && puller.calls == 0 :
+    observed.length == 4 && byteCounts.every((n) => n > 0) && memory.length <= 2;
+  c.mark('CHECK', {'id': 'A30.mode.$mode', 'pass': modePass,
+    'numbers': {'observedMs': observed, 'byteCounts': byteCounts,
+      'nonempty': byteCounts.where((n) => n > 0).length, 'memoryEntries': memory.length,
+      'extractCalls': puller.calls, 'diskHits': cache.diskHits, 'writes': cache.writes,
+      'thumbCount': thumbs.whereType<MovaThumb>().length, 'mediaUri': media.uri,
+      'localExists': localVideo == null ? null : await localVideo.exists()}});
+  await a.preview.clear();
+  c.mark('CHECK', {'id': 'A30.clear.$mode', 'pass': a.preview.current == null && memory.length == 0,
+    'numbers': {'currentNull': a.preview.current == null, 'memoryEntries': memory.length}});
+  } finally {
+    await a.dispose();
+    if (localVideo != null && await localVideo.exists()) await localVideo.delete();
+  }
 }
 
 /// Counts real extraction calls while delegating to the native extractor.
@@ -455,11 +524,11 @@ class RetrySttEngine extends MovaNoopSttEngine {
 ///
 /// 验证无引擎阻断及启动失败后可重试。
 Future<void> stt() async {
-  final none=createMovaEngine(audioOnly:true,options:const MovaOpts(stt:MovaSttConfig(enabled:true)));
+  final none=createMovaEngine(options:const MovaOpts(stt:MovaSttConfig(enabled:true)));
   c.observe(none);await none.open(c.source(),autoPlay:false);await none.stt.start();await none.stt.stop();
   c.mark('STT_NO_ENGINE',{'running':none.stt.isRunning,'languages':none.stt.languages});await none.dispose();
   final engine=RetrySttEngine();
-  final a=createMovaEngine(audioOnly:true,options:MovaOpts(stt:MovaSttConfig(enabled:true,engine:engine)));
+  final a=createMovaEngine(options:MovaOpts(stt:MovaSttConfig(enabled:true,engine:engine)));
   c.observe(a);await a.open(c.source(),autoPlay:false);
   try{await a.stt.start();}catch(e){c.mark('STT_EXPECTED_THROW',{'error':'$e','running':a.stt.isRunning});}
   c.check('N22.sttRollback',!a.stt.isRunning,'after first failure running=${a.stt.isRunning}');
@@ -487,7 +556,7 @@ Future<void> qoe(Map<String,String> args) async {
   final reports=<MovaReportEvent>[];
   final local=<MovaEvent>[];
   final a=createMovaEngine(audioOnly:true,options:const MovaOpts(report:MovaReportConfig(qoe:true)),
-    reporter:MovaCallbackReporter((r){reports.add(r);c.mark('REPORT',{'name':r.name.value,'params':r.params});}));
+    reporter:MovaCallbackReporter((r){reports.add(r);c.mark('REPORT',{'name':r.name.value,'params':r.params,'sessionId':r.sessionId,'reportKind':r.kind.name,'priority':r.priority.name});}));
   c.observe(a); a.events.listen(local.add);
   if(mode=='abandoned') {
     unawaited(a.open(c.source('hang'))); await c.settle(30); await a.dispose();
@@ -572,7 +641,7 @@ Future<void> hls(Map<String,String> args) async {
   var qualitySeen = false;
   var gateMs = -1;
   Future<bool> variantReady() async {
-    final path = await native.getProperty('path');
+    final path = (await native.getProperty('path')).split('#').first;
     if (qualitySeen && a.state.duration > Duration.zero && path == expectedUri) {
       if (gateMs < 0) {
         gateMs = c.clock.elapsedMilliseconds;
@@ -598,7 +667,7 @@ Future<void> hls(Map<String,String> args) async {
     final run = iteration;
     pending = pending.then((_) async {
       final p = await position();
-      final path = await native.getProperty('path');
+      final path = (await native.getProperty('path')).split('#').first;
       await variantReady();
       final eligible = gateMs >= 0 && path == expectedUri;
       restarts.add(p);

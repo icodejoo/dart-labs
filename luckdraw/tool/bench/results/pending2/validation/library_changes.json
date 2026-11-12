@@ -1,0 +1,163 @@
+[
+  {
+    "path": "lib/src/capsule/layout/capsule_layout.dart",
+    "kind": "gameplay",
+    "before_sha256": "d6211273c25dcda7d1633c7157f6f31df55f1096b7d7e303150998a746367d7e",
+    "after_sha256": "afddc26d608494cddd6bfdd4061f01c1c4d8f022d6eb52b75193aea01e327bc9",
+    "real_changed_since_handoff": false
+  },
+  {
+    "path": "lib/src/capsule/render/capsule_painter.dart",
+    "kind": "gameplay",
+    "before_sha256": "c815ee6c24e5cfb0d81faaec2a06ab1d161561d395879ff915649e43a93b6920",
+    "after_sha256": "bef11df460e79d48e10e6c14206bc0d2c2ba3fb251e0edbafb535f1196597f1d",
+    "real_changed_since_handoff": false
+  },
+  {
+    "path": "lib/src/core/image/image_resolver.dart",
+    "kind": "core",
+    "before_sha256": "49aba6b6936811e0ae039b3872e06e686b749ba7d2d37a7a7e48b8bf199509ad",
+    "after_sha256": "e8114fcb79cb2e7d9764571050f8df94679c4c7cc8f999585849adfabd33f19b",
+    "real_changed_since_handoff": false
+  },
+  {
+    "path": "lib/src/core/render/cached_picture.dart",
+    "kind": "core",
+    "before_sha256": "f34708ba03d9350778375ed24b59331719bcd2b315ec58ef072131b80fd89765",
+    "after_sha256": "44b4b0fdd11fc8ea137c6f9f3a0d6e0e32bc9898432a8a73fb5f8adf8b5602eb",
+    "real_changed_since_handoff": false
+  },
+  {
+    "path": "lib/src/core/render/paint_helpers.dart",
+    "kind": "core",
+    "before_sha256": "dcdff7a9febd8a45f402ba248b529bc09a884376cd2d29bcc14a2ef63e31289a",
+    "after_sha256": "71cb33e0d3e8b084d78614b03b8a322d541d4119c19fcf223a867f71479eb7e0",
+    "real_changed_since_handoff": false
+  },
+  {
+    "path": "lib/src/core/render/perf_trace.dart",
+    "kind": "core",
+    "before_sha256": "488af86990f02fe94862d89e62a1cf413af5b9f76e50a46e9deffc3390fd803e",
+    "after_sha256": "469f3dffa83496ea647fefc81ecdd753daccb34c7265d98ead3070a9469d46cc",
+    "real_changed_since_handoff": false
+  },
+  {
+    "path": "lib/src/core/render/picture_cache.dart",
+    "kind": "core",
+    "before_sha256": "ffb8a20a2b38c11a73c0df9cce0c5afbc4c33718a5d6dd3d8d4707df12d7513c",
+    "after_sha256": "bede5ce0059edd1b3726ae20c39fd69c91535b616abe81b55ea955c7c9f1f38a",
+    "real_changed_since_handoff": false
+  },
+  {
+    "path": "lib/src/core/text/split_text.dart",
+    "kind": "core",
+    "before_sha256": "196ded81e5c8b7d411c8a9c793c5515a31dffb212d9c43ce1e8de5673ba0fb04",
+    "after_sha256": "3a697b6377439bd236b8212df7d2b9d4c04b2d650310c5b109d87c5a8bdb884b",
+    "real_changed_since_handoff": false
+  },
+  {
+    "path": "lib/src/core/text/text_line.dart",
+    "kind": "core",
+    "before_sha256": "50248ab7dbaf3d3285ed3e37e55ccde383cad81875b458b11dc9705c76f2efb2",
+    "after_sha256": "b6959c4ff6cd945af2f7f6fae781792c2895ab8c5936e38239575a5db2cd60e3",
+    "real_changed_since_handoff": false
+  },
+  {
+    "path": "lib/src/core/text/text_measurer.dart",
+    "kind": "core",
+    "before_sha256": "d9336488874a98b4caad89df85568e0fd1ecb28b87140421c9333cdfdd028a56",
+    "after_sha256": "e0958992a78c9a29bf56e1301ea2921ac9054730a93f703554ef08c2b8fea08c",
+    "real_changed_since_handoff": false
+  },
+  {
+    "path": "lib/src/grid/layout/grid_layout.dart",
+    "kind": "gameplay",
+    "before_sha256": "aac0a0b16754c90efe4625a1a68159cad311fb067fd461a4004734ce05880845",
+    "after_sha256": "81598e305cba514da8ef6655ff0cd1f34295560381a72ed468d29956d0e4fda4",
+    "real_changed_since_handoff": false
+  },
+  {
+    "path": "lib/src/grid/render/grid_painter.dart",
+    "kind": "gameplay",
+    "before_sha256": "e80dca3659cd4c73b3afe818b48d95155d39d27d9e846ba74cda208cf37a3790",
+    "after_sha256": "fc2d949676924576d4240bdad4f20038248082943130f5a2c21283b1f792798a",
+    "real_changed_since_handoff": false
+  },
+  {
+    "path": "lib/src/lots/layout/lots_layout.dart",
+    "kind": "gameplay",
+    "before_sha256": "61402d71a159f1a8accf068ee09f97767de3b74475541e487a0f2ef777b3f40f",
+    "after_sha256": "b1c2da283853b390c9c7fbf57237cf63f2e699367a2a9132699cdf5b5d5f93e9",
+    "real_changed_since_handoff": false
+  },
+  {
+    "path": "lib/src/lots/render/lots_painter.dart",
+    "kind": "gameplay",
+    "before_sha256": "17406f2570000eacc63949758ce10280c8d7c44d73bad8582bc6ee65f180d1d1",
+    "after_sha256": "23e68c94550454d65529f9a05fd02f75800ccec852c01e9f7d8077b2f0257631",
+    "real_changed_since_handoff": false
+  },
+  {
+    "path": "lib/src/lotto/layout/lotto_layout.dart",
+    "kind": "gameplay",
+    "before_sha256": "dd0c6894fd6a5cb97dfc30d40bd9eaa79b702ac24095a08f589b23199aa8018c",
+    "after_sha256": "80cfc05aec1a8f77ff1ef7ec6ac082594d4ebf6f8358b3a99f4e1063e521c82b",
+    "real_changed_since_handoff": false
+  },
+  {
+    "path": "lib/src/lotto/render/lotto_painter.dart",
+    "kind": "gameplay",
+    "before_sha256": "9bdba85c16a5cbc04fd0820c6288964621b0c2dd2dd9974c11c7203981815bee",
+    "after_sha256": "974c379c24906c3ab3459d03e8c652387f6208b101d8a27734fb6c03fc7bbe5f",
+    "real_changed_since_handoff": false
+  },
+  {
+    "path": "lib/src/number_wheel/layout/number_wheel_layout.dart",
+    "kind": "gameplay",
+    "before_sha256": "5e12527268da0998846c3a2d7dbc65b1816e704cc050144d23c99280e7071eb2",
+    "after_sha256": "4eb7b60501bae073f824c3bebaa5b448ef9866e211a6ecad2ede9f46ccb59533",
+    "real_changed_since_handoff": false
+  },
+  {
+    "path": "lib/src/number_wheel/render/number_wheel_painter.dart",
+    "kind": "gameplay",
+    "before_sha256": "4d98eae278ebbb5a5e03d0fc372dbe92e021e166d7b4289d3184ffcbca7be611",
+    "after_sha256": "c8ff2211d29c4cddbb98615c5ecb5bda39a9bdd08cc5039ba814b52ff835162d",
+    "real_changed_since_handoff": false
+  },
+  {
+    "path": "lib/src/slot/layout/slot_layout.dart",
+    "kind": "gameplay",
+    "before_sha256": "a99026f3e45cc3f533a8d9bfb1a17ad80ba20b918b5cb9608e7930d5abb75c54",
+    "after_sha256": "b07b3bbc0b12fc142086a97e2cdc348675517e49ab0dc797d9d54b4d1db5b808",
+    "real_changed_since_handoff": false
+  },
+  {
+    "path": "lib/src/slot/render/slot_atlas.dart",
+    "kind": "gameplay",
+    "before_sha256": "53de274eb696b8ff5ded3b7d7ed16a350ffcf33d67659ff650df3edbb251d95f",
+    "after_sha256": "7f3ca316b32d271bf6242a26c1e1cc228a4b191527793c5e3019cb1d2985a676",
+    "real_changed_since_handoff": false
+  },
+  {
+    "path": "lib/src/slot/render/slot_painter.dart",
+    "kind": "gameplay",
+    "before_sha256": "22c31bf79a36e6207a3a52179d4ea8313e380959bbf3ed0b98d8df9ecc83e977",
+    "after_sha256": "f5102c7223f87e6d4dcbf3dd5a55b49fe84e10958df13767d4c0272dbd782149",
+    "real_changed_since_handoff": false
+  },
+  {
+    "path": "lib/src/wheel/layout/wheel_layout.dart",
+    "kind": "gameplay",
+    "before_sha256": "2fee7935432ebf749c825fb79c3b53350e9b62057ac1b0a037995bbe9c3f052e",
+    "after_sha256": "6c72039420e93c2a8ead2b8bb05d5404ad70ccb0a00b518104e573d8d2f06b71",
+    "real_changed_since_handoff": false
+  },
+  {
+    "path": "lib/src/wheel/render/wheel_painter.dart",
+    "kind": "gameplay",
+    "before_sha256": "8bee6f024f3847e75e3cf6c68273a0ec9fa5ea1eeb7a8267c6e6c1bad2fea14a",
+    "after_sha256": "65e360726ffe622b86c6cb456e5cbe16600c08c4904e61b8a266d06b7b9e1715",
+    "real_changed_since_handoff": false
+  }
+]

@@ -1,14 +1,19 @@
+import '../style/style.dart';
+import '../chrome/chrome.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
 
 import '../../core/api.dart';
+import '../../core/events/events.dart';
 import '../../core/model/source.dart';
 import '../../core/state/progress.dart';
 import '../format.dart';
 import '../scope/selector.dart';
 import '../slots/component.dart';
 import '../slots/slot.dart';
+import '../slots/tree.dart';
 import 'common.dart';
 
 /// Adaptive composite for the bottom control bar, serving both VOD and live
@@ -47,17 +52,43 @@ class MovaBottomBarComponent extends MovaComponent {
 
   @override
   List<MovaComponent> get children => [
-        MovaPositionLabelComponent(), // 0 VOD
-        MovaLiveBadgeComponent(), // 1 live
-        MovaSeekBarComponent(), // 2 shared
-        MovaTimeshiftLabelComponent(), // 3 live
-        MovaDurationLabelComponent(), // 4 VOD
-        MovaBackToLiveComponent(), // 5 live
-      ];
+    MovaPositionLabelComponent(), // 0 VOD
+    MovaLiveBadgeComponent(), // 1 live
+    MovaSeekBarComponent(), // 2 shared
+    MovaTimeshiftLabelComponent(), // 3 live
+    MovaDurationLabelComponent(), // 4 VOD
+    MovaBackToLiveComponent(), // 5 live
+  ];
 
   @override
+  /// Groups patched children by their original layout role.
+  ///
+  /// 按原始布局角色为补丁后的子节点分组。
   Widget build(BuildContext context, MovaApi api, List<Widget> children) {
-    final theme = api.options.theme;
+    final theme = MovaPlayerStyle.themeOf(context);
+    // 自定义插入节点跟随前一个已知节点；移除后不再依赖任何列表下标。
+    final groups = <String, List<Widget>>{};
+    final names = this.children.map((child) => child.name).toSet();
+    String? anchor;
+    for (final child in children) {
+      if (child is MovaBuiltChild && names.contains(child.layoutName)) {
+        anchor = child.layoutName;
+      }
+      if (anchor != null) groups.putIfAbsent(anchor, () => []).add(child);
+    }
+
+    /// 返回 [name] 对应节点及紧随其后的自定义节点，缺失时返回空列表。
+    List<Widget> group(String name) => groups[name] ?? const [];
+
+    /// 只将名为 seekBar 的节点撑开，保留自定义插入内容的自然宽度。
+    List<Widget> seekWidgets() => [
+      for (final child in group(MovaSeekBarComponent.componentName))
+        if (child is MovaBuiltChild &&
+            child.layoutName == MovaSeekBarComponent.componentName)
+          Expanded(child: child)
+        else
+          child,
+    ];
     return MovaSelect<({MovaStreamType type, bool seekable})>(
       selector: (s) => (type: s.type, seekable: s.liveSeekable),
       builder: (context, v) {
@@ -65,19 +96,19 @@ class MovaBottomBarComponent extends MovaComponent {
             ? Row(
                 children: [
                   const SizedBox(width: 8),
-                  children[1], // liveBadge
-                  if (v.seekable) Expanded(child: children[2]) else const Spacer(),
-                  children[3], // timeshift
-                  children[5], // backToLive
+                  ...group(MovaLiveBadgeComponent.componentName),
+                  if (v.seekable) ...seekWidgets() else const Spacer(),
+                  ...group(MovaTimeshiftLabelComponent.componentName),
+                  ...group(MovaBackToLiveComponent.componentName),
                   const SizedBox(width: 4),
                 ],
               )
             : Row(
                 children: [
                   const SizedBox(width: 8),
-                  children[0], // positionLabel
-                  Expanded(child: children[2]), // seekBar
-                  children[4], // durationLabel
+                  ...group(MovaPositionLabelComponent.componentName),
+                  ...seekWidgets(),
+                  ...group(MovaDurationLabelComponent.componentName),
                   const SizedBox(width: 8),
                 ],
               );
@@ -109,13 +140,16 @@ class MovaPositionLabelComponent extends MovaComponent {
 
   @override
   Widget build(BuildContext context, MovaApi api, List<Widget> children) {
-    final theme = api.options.theme;
-    return MovaProgSelect<Duration>(
-      selector: (p) => p.position,
-      builder: (context, position) {
+    final theme = MovaPlayerStyle.themeOf(context);
+    return MovaProgSelect<int>(
+      selector: (p) => p.position.inSeconds,
+      builder: (context, seconds) {
         return Text(
-          formatDuration(position ?? Duration.zero),
-          style: TextStyle(color: Color(theme.textColor), fontSize: theme.timeFontSize),
+          formatDuration(Duration(seconds: seconds ?? 0)),
+          style: TextStyle(
+            color: Color(theme.textColor),
+            fontSize: theme.timeFontSize,
+          ),
         );
       },
     );
@@ -144,13 +178,16 @@ class MovaDurationLabelComponent extends MovaComponent {
 
   @override
   Widget build(BuildContext context, MovaApi api, List<Widget> children) {
-    final theme = api.options.theme;
+    final theme = MovaPlayerStyle.themeOf(context);
     return MovaSelect<Duration>(
       selector: (s) => s.duration,
       builder: (context, duration) {
         return Text(
           formatDuration(duration),
-          style: TextStyle(color: Color(theme.textColor), fontSize: theme.timeFontSize),
+          style: TextStyle(
+            color: Color(theme.textColor),
+            fontSize: theme.timeFontSize,
+          ),
         );
       },
     );
@@ -264,11 +301,17 @@ class _SeekBarState extends State<_SeekBar> {
   /// [_position] 落定后自动解除钉住——拖动进行中时，一次凑巧落在手指当前位置
   /// 附近的进度 tick 绝不能提前把钉住松开。
   bool _awaitingSeek = false;
+  late MovaUiPort _ui;
+  bool _ownsDrag = false;
 
   /// Subscription feeding [_position]; cancelled on dispose.
   ///
   /// 为 [_position] 供数的订阅；在 dispose 时取消。
   StreamSubscription<MovaProg>? _sub;
+  StreamSubscription<MovaEvent>? _events;
+  Timer? _seekTimeout;
+  int _seekGeneration = 0;
+  bool _acceptedSeek = false;
 
   /// How close [_position] must land to a pinned [_dragValue] before the pin
   /// is released back to following the live progress stream.
@@ -277,9 +320,21 @@ class _SeekBarState extends State<_SeekBar> {
   /// 跟随实时进度流。
   static const double _settleToleranceMs = 500;
 
+  /// Follows playback progress and accepted seek targets.
+  ///
+  /// 跟踪播放进度及实际接受的跳转目标。
   @override
   void initState() {
     super.initState();
+    _ui = movaUiOf(context);
+    final api = widget.api;
+    if (api is MovaProgressSource) {
+      _position = (api as MovaProgressSource)
+          .progressValue
+          .position
+          .inMilliseconds
+          .toDouble();
+    }
     _sub = widget.api.progress.listen((p) {
       setState(() {
         _position = p.position.inMilliseconds.toDouble();
@@ -289,27 +344,66 @@ class _SeekBarState extends State<_SeekBar> {
             (_position - drag).abs() < _settleToleranceMs) {
           _dragValue = null;
           _awaitingSeek = false;
+          _seekTimeout?.cancel();
         }
       });
+    });
+    _events = api.events.listen((event) {
+      if (event is MovaSourceChange) {
+        _clearSeek();
+      } else if (_awaitingSeek && event is MovaSeek) {
+        _acceptedSeek = true;
+        setState(() => _dragValue = event.target.inMilliseconds.toDouble());
+      } else if (_awaitingSeek && event is MovaSeeked) {
+        _position = event.position.inMilliseconds.toDouble();
+        _clearSeek();
+      }
+    });
+  }
+
+  /// Releases the local target when seeking ends, fails, or changes source.
+  ///
+  /// 跳转结束、失败或换源时解除本地目标。
+  void _clearSeek() {
+    ++_seekGeneration;
+    _seekTimeout?.cancel();
+    if (!mounted) return;
+    setState(() {
+      _dragValue = null;
+      _awaitingSeek = false;
     });
   }
 
   @override
+  /// Cancels progress, seek events, and the confirmation deadline.
+  ///
+  /// 取消进度、跳转事件订阅及确认期限。
   void dispose() {
     _sub?.cancel();
+    _events?.cancel();
+    _seekTimeout?.cancel();
+    if (_ownsDrag) _ui.setDragging(false);
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = widget.api.options.theme;
+    final theme = MovaPlayerStyle.themeOf(context);
     final max = widget.duration.inMilliseconds.toDouble();
     final enabled = max > 0;
     final value = (_dragValue ?? _position).clamp(0.0, enabled ? max : 0.0);
     return Material(
       type: MaterialType.transparency,
       child: SliderTheme(
-        data: SliderTheme.of(context).copyWith(trackHeight: theme.progressHeight),
+        data: SliderTheme.of(context).copyWith(
+          trackHeight: theme.progressHeight,
+          activeTrackColor: theme.progressColor == null
+              ? null
+              : Color(theme.progressColor!),
+          thumbColor: theme.progressColor == null
+              ? null
+              : Color(theme.progressColor!),
+        ),
         child: Slider(
           value: value,
           min: 0,
@@ -328,37 +422,35 @@ class _SeekBarState extends State<_SeekBar> {
   ///
   /// - [v]: the new slider value in milliseconds / 新滑块值（毫秒）
   void _onChanged(double v) {
+    ++_seekGeneration;
+    _seekTimeout?.cancel();
     setState(() {
       _dragValue = v;
       _awaitingSeek = false;
     });
-    widget.api.setDragging(true, previewAt: Duration(milliseconds: v.round()));
+    _ownsDrag = true;
+    _ui.setDragging(true, previewAt: Duration(milliseconds: v.round()));
   }
 
-  /// Commits the dragged position via [MovaApi.seek] and clears the drag
-  /// preview.
+  /// Commits [v], follows accepted seek events, and bounds confirmation time.
   ///
-  /// Deliberately does *not* clear [_dragValue] here: [MovaApi.seek] pins the
-  /// engine's own progress stream to the target too, but that stream is
-  /// throttled, so clearing the local pin immediately could still flash the
-  /// slider back to the stale pre-seek position for the throttle window.
-  /// [_dragValue] is released once [_position] actually reports something
-  /// close to it (see the `progress` listener in [initState]), so the
-  /// displayed value never regresses.
-  ///
-  /// 通过 [MovaApi.seek] 提交拖动结果，清除拖动预览。
-  ///
-  /// 这里刻意**不**清空 [_dragValue]：[MovaApi.seek] 也会把 engine 自身的进度流
-  /// 钉在目标值上，但那条流带节流，若立刻清掉本地钉住值，滑块仍可能在节流
-  /// 窗口内闪回 seek 前的旧位置。[_dragValue] 只在 [_position] 真的报告出
-  /// 接近目标的值时才释放（见 [initState] 里的 `progress` 监听），因此展示值
-  /// 绝不会倒退。
-  ///
-  /// - [v]: the final slider value in milliseconds / 最终滑块值（毫秒）
-  void _onChangeEnd(double v) {
-    widget.api.seek(Duration(milliseconds: v.round()));
-    widget.api.setDragging(false);
+  /// 提交 [v]，跟随实际接受的跳转事件，并限制等待确认的时间。
+  Future<void> _onChangeEnd(double v) async {
+    final generation = ++_seekGeneration;
+    _acceptedSeek = false;
+    _ownsDrag = false;
+    _ui.setDragging(false);
     setState(() => _awaitingSeek = true);
+    _seekTimeout?.cancel();
+    _seekTimeout = Timer(const Duration(seconds: 3), _clearSeek);
+    try {
+      await widget.api.seek(Duration(milliseconds: v.round()));
+      if (mounted && generation == _seekGeneration && !_acceptedSeek) {
+        _clearSeek();
+      }
+    } on Object {
+      if (mounted && generation == _seekGeneration) _clearSeek();
+    }
   }
 }
 
@@ -392,15 +484,17 @@ class MovaLiveBadgeComponent extends MovaComponent {
 
   @override
   Widget build(BuildContext context, MovaApi api, List<Widget> children) {
-    final theme = api.options.theme;
-    final strings = api.options.strings;
+    final theme = MovaPlayerStyle.themeOf(context);
+    final strings = MovaPlayerStyle.stringsOf(context);
     return MovaSelect<bool>(
       selector: (s) => s.timeshiftBehind == null,
       builder: (context, atEdge) {
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
           decoration: BoxDecoration(
-            color: Color(atEdge ? theme.accentColor : theme.timeshiftBadgeColor),
+            color: Color(
+              atEdge ? theme.accentColor : theme.timeshiftBadgeColor,
+            ),
             borderRadius: BorderRadius.circular(4),
           ),
           child: Text(
@@ -445,7 +539,7 @@ class MovaTimeshiftLabelComponent extends MovaComponent {
 
   @override
   Widget build(BuildContext context, MovaApi api, List<Widget> children) {
-    final theme = api.options.theme;
+    final theme = MovaPlayerStyle.themeOf(context);
     return MovaSelect<Duration?>(
       selector: (s) => s.timeshiftBehind,
       builder: (context, behind) {
@@ -496,10 +590,11 @@ class MovaBackToLiveComponent extends MovaComponent {
 
   @override
   Widget build(BuildContext context, MovaApi api, List<Widget> children) {
-    final theme = api.options.theme;
-    final strings = api.options.strings;
+    final theme = MovaPlayerStyle.themeOf(context);
+    final strings = MovaPlayerStyle.stringsOf(context);
     return MovaIconButton(
-      icon: Icons.sync_rounded,
+      label: strings.labelWithValue(strings.backToLive, strings.backToLive),
+      icon: MovaPlayerStyle.iconsOf(context).backToLive,
       caption: strings.backToLive,
       theme: theme,
       onPressed: api.backToLiveEdge,

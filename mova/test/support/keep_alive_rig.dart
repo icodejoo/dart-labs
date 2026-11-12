@@ -1,3 +1,4 @@
+import 'package:mova/src/testing/hooks.dart';
 import 'package:fake_async/fake_async.dart';
 import 'package:mova/mova.dart';
 
@@ -38,7 +39,7 @@ class KeepAliveRig {
     MovaKeepAliveConfig? keepAlive,
     MovaRecoveryConfig? recovery,
     MovaPipPort? pip,
-  }) : engine = MovaEngine(
+  }) : engine = MovaEngine(fetcher: const MovaTestHttpFetch(),
          kernel: kernel,
          pip: pip,
          options: options.copyWith(

@@ -1,0 +1,169 @@
+[
+  {
+    "scene": "slot_raster",
+    "started_at": "2026-11-10T18:36:31.7605919Z",
+    "attempt": 1,
+    "build_free_physical_kib": 13595512,
+    "binary_sha256": "BE8DC82D81FD89D5CA8E8289D1A930ED76795885404BAC03ADAB7CCBEBA7DC7C",
+    "valid": true,
+    "directory": "slot_raster_1",
+    "clean": true,
+    "ended_at": "2026-11-10T18:38:17.0900331Z"
+  },
+  {
+    "scene": "slot_raster",
+    "started_at": "2026-11-10T18:38:17.6832330Z",
+    "attempt": 2,
+    "binary_sha256": "BE8DC82D81FD89D5CA8E8289D1A930ED76795885404BAC03ADAB7CCBEBA7DC7C",
+    "valid": true,
+    "directory": "slot_raster_2",
+    "clean": true,
+    "ended_at": "2026-11-10T18:39:28.1845193Z"
+  },
+  {
+    "scene": "slot_raster",
+    "started_at": "2026-11-10T18:39:28.7113750Z",
+    "attempt": 3,
+    "binary_sha256": "BE8DC82D81FD89D5CA8E8289D1A930ED76795885404BAC03ADAB7CCBEBA7DC7C",
+    "valid": true,
+    "directory": "slot_raster_3",
+    "clean": true,
+    "ended_at": "2026-11-10T18:40:38.6879211Z"
+  },
+  {
+    "scene": "grid_steady",
+    "started_at": "2026-11-10T18:40:39.2051107Z",
+    "attempt": 1,
+    "binary_sha256": "BE8DC82D81FD89D5CA8E8289D1A930ED76795885404BAC03ADAB7CCBEBA7DC7C",
+    "valid": true,
+    "directory": "grid_steady_1",
+    "clean": true,
+    "ended_at": "2026-11-10T18:41:44.5572940Z"
+  },
+  {
+    "scene": "grid_steady",
+    "started_at": "2026-11-10T18:41:45.1513859Z",
+    "attempt": 2,
+    "binary_sha256": "BE8DC82D81FD89D5CA8E8289D1A930ED76795885404BAC03ADAB7CCBEBA7DC7C",
+    "valid": true,
+    "directory": "grid_steady_2",
+    "clean": true,
+    "ended_at": "2026-11-10T18:42:51.4049477Z"
+  },
+  {
+    "scene": "grid_steady",
+    "started_at": "2026-11-10T18:42:51.9268238Z",
+    "attempt": 3,
+    "binary_sha256": "BE8DC82D81FD89D5CA8E8289D1A930ED76795885404BAC03ADAB7CCBEBA7DC7C",
+    "valid": true,
+    "directory": "grid_steady_3",
+    "clean": true,
+    "ended_at": "2026-11-10T18:43:56.8321781Z"
+  },
+  {
+    "scene": "lotto_draw",
+    "started_at": "2026-11-10T18:43:57.3400499Z",
+    "attempt": 1,
+    "binary_sha256": "BE8DC82D81FD89D5CA8E8289D1A930ED76795885404BAC03ADAB7CCBEBA7DC7C",
+    "valid": true,
+    "directory": "lotto_draw_1",
+    "clean": false,
+    "ended_at": "2026-11-10T18:45:04.7037372Z"
+  },
+  {
+    "scene": "lotto_draw",
+    "started_at": "2026-11-10T18:45:05.2056632Z",
+    "attempt": 2,
+    "error": "drive exceeded five minutes; inspect logs",
+    "valid": false,
+    "directory": "lotto_draw_2",
+    "ended_at": "2026-11-10T18:50:05.8297731Z"
+  },
+  {
+    "scene": "lotto_draw",
+    "started_at": "2026-11-10T18:50:06.3887171Z",
+    "attempt": 3,
+    "binary_sha256": "BE8DC82D81FD89D5CA8E8289D1A930ED76795885404BAC03ADAB7CCBEBA7DC7C",
+    "valid": true,
+    "directory": "lotto_draw_3",
+    "clean": false,
+    "ended_at": "2026-11-10T18:51:15.4549080Z"
+  },
+  {
+    "scene": "lotto_draw",
+    "started_at": "2026-11-10T18:51:15.9866914Z",
+    "attempt": 4,
+    "binary_sha256": "BE8DC82D81FD89D5CA8E8289D1A930ED76795885404BAC03ADAB7CCBEBA7DC7C",
+    "valid": true,
+    "directory": "lotto_draw_4",
+    "clean": true,
+    "ended_at": "2026-11-10T18:52:22.9300094Z"
+  },
+  {
+    "scene": "lotto_draw",
+    "started_at": "2026-11-10T18:52:23.4270424Z",
+    "attempt": 5,
+    "binary_sha256": "BE8DC82D81FD89D5CA8E8289D1A930ED76795885404BAC03ADAB7CCBEBA7DC7C",
+    "valid": true,
+    "directory": "lotto_draw_5",
+    "clean": true,
+    "ended_at": "2026-11-10T18:53:30.5022705Z"
+  },
+  {
+    "scene": "lots_shaking",
+    "started_at": "2026-11-10T18:53:31.0282045Z",
+    "attempt": 1,
+    "binary_sha256": "BE8DC82D81FD89D5CA8E8289D1A930ED76795885404BAC03ADAB7CCBEBA7DC7C",
+    "valid": true,
+    "directory": "lots_shaking_1",
+    "clean": true,
+    "ended_at": "2026-11-10T18:54:33.8220500Z"
+  },
+  {
+    "scene": "lots_shaking",
+    "started_at": "2026-11-10T18:54:34.2963641Z",
+    "attempt": 2,
+    "binary_sha256": "BE8DC82D81FD89D5CA8E8289D1A930ED76795885404BAC03ADAB7CCBEBA7DC7C",
+    "valid": true,
+    "directory": "lots_shaking_2",
+    "clean": true,
+    "ended_at": "2026-11-10T18:55:36.2861999Z"
+  },
+  {
+    "scene": "lots_shaking",
+    "started_at": "2026-11-10T18:55:36.8164014Z",
+    "attempt": 3,
+    "binary_sha256": "BE8DC82D81FD89D5CA8E8289D1A930ED76795885404BAC03ADAB7CCBEBA7DC7C",
+    "valid": true,
+    "directory": "lots_shaking_3",
+    "clean": true,
+    "ended_at": "2026-11-10T18:56:38.6496078Z"
+  },
+  {
+    "scene": "cpu_wheel_steady",
+    "started_at": "2026-11-10T18:56:39.1478811Z",
+    "attempt": 1,
+    "binary_sha256": "BE8DC82D81FD89D5CA8E8289D1A930ED76795885404BAC03ADAB7CCBEBA7DC7C",
+    "valid": true,
+    "directory": "cpu_wheel_steady_1",
+    "ended_at": "2026-11-10T18:57:14.5259799Z"
+  },
+  {
+    "scene": "cpu_wheel_steady",
+    "started_at": "2026-11-10T18:57:15.0764184Z",
+    "attempt": 2,
+    "binary_sha256": "BE8DC82D81FD89D5CA8E8289D1A930ED76795885404BAC03ADAB7CCBEBA7DC7C",
+    "valid": true,
+    "directory": "cpu_wheel_steady_2",
+    "ended_at": "2026-11-10T18:57:50.3519560Z"
+  },
+  {
+    "scene": "cpu_wheel_steady",
+    "started_at": "2026-11-10T18:57:50.8494760Z",
+    "attempt": 3,
+    "binary_sha256": "BE8DC82D81FD89D5CA8E8289D1A930ED76795885404BAC03ADAB7CCBEBA7DC7C",
+    "valid": true,
+    "directory": "cpu_wheel_steady_3",
+    "ended_at": "2026-11-10T18:58:26.4021911Z"
+  }
+]

@@ -1,0 +1,18 @@
+{
+  "recordedAt": "2026-11-10T10:14:46.6077327Z",
+  "serial": "10AE9K17UE0011S",
+  "brand": "vivo",
+  "model": "V2417",
+  "android": "16",
+  "api": "36",
+  "platform": "parrot",
+  "soc": "SM4450",
+  "abi": "arm64-v8a",
+  "memory": "MemTotal:        7638132 kB",
+  "size": "Physical size: 1080x2400",
+  "density": "Physical density: 440",
+  "brightness": "1",
+  "fontScale": "1.0",
+  "lowPower": "0",
+  "environmentTemperature": "未测量室温；仅记录电池温度"
+}

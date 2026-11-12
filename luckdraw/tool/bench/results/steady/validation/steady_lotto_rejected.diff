@@ -1,0 +1,133 @@
+--- a/lib/src/lotto/render/lotto_canvas_renderer.dart
++++ b/lib/src/lotto/render/lotto_canvas_renderer.dart
+@@ -38,6 +38,9 @@
+   /// 表面独享的缓存。
+   final LuckyPictureCache _cache = LuckyPictureCache();
+ 
++  /// 复用低频输入未变的画笔，运动阶段切换不重建球回放参数。
++  LottoPainter? _painter;
++
+   /// 输入变更时失效录制内容，阶段变化保留缓存。
+   @override
+   void didUpdateWidget(covariant _LottoSurface oldWidget) {
+@@ -53,6 +56,14 @@
+         old.textDirection != data.textDirection ||
+         old.images.generation != data.images.generation) {
+       _cache.invalidateAll();
++      _painter = null;
++    } else if (old.hooks != data.hooks ||
++        old.frame != data.frame ||
++        old.frameListenable != data.frameListenable ||
++        old.imagesListenable != data.imagesListenable ||
++        old.images != data.images ||
++        old.layout != data.layout) {
++      _painter = null;
+     }
+   }
+ 
+@@ -62,7 +73,7 @@
+       size: widget.data.layout.size,
+       isComplex: true,
+       willChange: widget.data.isAnimating,
+-      painter: LottoPainter(data: widget.data, cache: _cache));
++      painter: _painter ??= LottoPainter(data: widget.data, cache: _cache));
+ 
+   /// 释放全部 Picture。
+   @override
+--- /dev/null
++++ b/test/lotto/steady_surface_test.dart
+@@ -0,0 +1,94 @@
++import 'package:flutter/widgets.dart';
++import 'package:flutter_test/flutter_test.dart';
++import 'package:luckdraw/extend.dart';
++import 'package:luckdraw/lotto.dart';
++import 'package:luckdraw/src/lotto/render/lotto_painter.dart';
++
++import '../support/lotto_fixtures.dart';
++import 'lotto_painter_test.dart' show currentLottoPainter;
++import 'lotto_render_support.dart';
++import 'lotto_widget_test.dart' show lottoHost;
++
++/// 验证结算期画笔复用及低频输入更新，不改变 Picture 和绘制回调契约。
++void main() {
++  group('Lotto STEADY', () {
++    testWidgets('phase changes reuse prepared balls through settlement',
++        (tester) async {
++      final controller = LottoController();
++      addTearDown(controller.dispose);
++      await tester.pumpWidget(lottoHost(LuckyLotto(
++          config: lottoConfig,
++          controller: controller,
++          width: lottoSize.width,
++          height: lottoSize.height)));
++      final painter = currentLottoPainter(tester);
++      final records = painter.cache.debugRecordCount;
++      expect(controller.play(), isTrue);
++      await tester.pump();
++      expect(currentLottoPainter(tester), same(painter));
++      expect(controller.stopWith(lottoDraw), isTrue);
++      for (var i = 0;
++          i < 200 && controller.phase.value != LuckyPhase.settled;
++          i++) {
++        await tester.pump(lottoStep);
++        expect(currentLottoPainter(tester), same(painter));
++        expect(painter.cache.debugRecordCount, records);
++      }
++      expect(controller.phase.value, LuckyPhase.settled);
++      expect(controller.lastResult!.draw, lottoDraw);
++      await tester.pump();
++      expect(currentLottoPainter(tester), same(painter));
++      expect(tester.widget<CustomPaint>(find.byType(CustomPaint)).willChange,
++          isFalse);
++      await tester.pumpWidget(const SizedBox());
++    });
++
++    testWidgets('replaced hooks and listeners take effect without stale paint',
++        (tester) async {
++      final rig = LottoRig();
++      addTearDown(rig.dispose);
++      final first = ChangeNotifier();
++      final second = ChangeNotifier();
++      addTearDown(first.dispose);
++      addTearDown(second.dispose);
++      final layout = lottoLayout();
++      var oldCalls = 0;
++      var newCalls = 0;
++
++      /// 保持静态输入固定，仅替换绘制钩子与通知来源。
++      Widget view(Listenable listenable, LuckyHooks hooks) =>
++          lottoSnapshot(lottoSurfaceData(
++              config: lottoConfig,
++              layout: layout,
++              frame: rig.controller.frame,
++              listenable: listenable,
++              hooks: hooks));
++
++      final oldHooks = LuckyHooks(beforeDraw: (_, __) => oldCalls++);
++      final newHooks = LuckyHooks(beforeDraw: (_, __) => newCalls++);
++      await tester.pumpWidget(view(first, oldHooks));
++      final oldPainter = tester
++          .widget<CustomPaint>(find.byType(CustomPaint))
++          .painter! as LottoPainter;
++      final records = oldPainter.cache.debugRecordCount;
++      await tester.pumpWidget(view(second, newHooks));
++      final newPainter = tester
++          .widget<CustomPaint>(find.byType(CustomPaint))
++          .painter! as LottoPainter;
++      expect(newPainter, isNot(same(oldPainter)));
++      expect(newPainter.cache, same(oldPainter.cache));
++      expect(newPainter.cache.debugRecordCount, records);
++      final oldCount = oldCalls;
++      final newCount = newCalls;
++      first.notifyListeners();
++      await tester.pump();
++      expect(oldCalls, oldCount);
++      expect(newCalls, newCount);
++      second.notifyListeners();
++      await tester.pump();
++      expect(newCalls, greaterThan(newCount));
++      expect(oldCalls, oldCount);
++      await tester.pumpWidget(const SizedBox());
++    });
++  });
++}

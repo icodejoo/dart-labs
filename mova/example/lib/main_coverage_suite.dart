@@ -1,3 +1,32 @@
+import 'main_cp2_adpaths_verify.dart' as cp2_adpaths;
+import 'main_cp2_adpause_verify.dart' as cp2_adpause;
+import 'main_cp2_adbg_verify.dart' as cp2_adbg;
+import 'main_cp2_pod2_verify.dart' as cp2_pod2;
+import 'main_cp2_playlist3_verify.dart' as cp2_playlist3;
+import 'main_cp2_bgowner_verify.dart' as cp2_bgowner;
+import 'main_cp2_audioonly_bg_verify.dart' as cp2_audioonly_bg;
+import 'main_cp2_qoe_verify.dart' as cp2_qoe;
+import 'verify_auto/cp3_harness.dart';
+import 'verify_auto/cp3_pages_auto.dart';
+import 'main_cp1_wakeswap_verify.dart' as cp1_wakeswap;
+import 'main_cp1_edgepause_verify.dart' as cp1_edgepause;
+import 'main_cp1_errclass_verify.dart' as cp1_errclass;
+import 'main_cp1_probe_verify.dart' as cp1_probe;
+import 'main_cp1_manageauto_verify.dart' as cp1_manageauto;
+import 'main_cp1_bblock_verify.dart' as cp1_bblock;
+import 'main_cp1_pool_verify.dart' as cp1_pool;
+import 'main_cp1_danmaku_verify.dart' as cp1_danmaku;
+import 'main_cp1_recovery_verify.dart' as cp1_recovery;
+import 'main_cp1_dispose120_verify.dart' as cp1_dispose120;
+import 'main_coverage_gap.dart' as gap;
+import 'main_rerun6_coverage_api.dart' as rerun6;
+import 'main_cp0_p02_verify.dart' as cp0_p02;
+import 'verify_auto/s00e_trace.dart';
+import 'main_cp0_pod2_verify.dart' as cp0_pod2;
+import 'main_cp0_bgpause_verify.dart' as cp0_bgpause;
+import 'main_cp0_pauseload_verify.dart' as cp0_pauseload;
+import 'main_cp0_timeshift_verify.dart' as cp0_timeshift;
+import 'main_cp0_pageview_verify.dart' as cp0_pageview;
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
@@ -18,7 +47,7 @@ import 'main_hwdec_matrix_verify.dart' as hwdec;
 ///
 /// 由本地服务选择已有验证页，复用原始事件判据。
 Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized();
+  S00eBinding.ensureTracing();
   final client = HttpClient();
   var group = 'api';
   try {
@@ -32,8 +61,42 @@ Future<void> main() async {
   final parts = group.split('|');
   kit.coverageOnlyOverride = parts.length > 1 ? parts[1] : '';
   kit.coverageRunsOverride = parts.length > 2 ? int.parse(parts[2]) : 5;
+  kit.coverageShotHandshake = parts.length > 3 && parts[3] == 'shots';
   MovaEngine.ensureInitialized();
   switch (parts.first) {
+    case 'cp2-adpaths': cp2_adpaths.main();
+    case 'cp2-adpause': cp2_adpause.main();
+    case 'cp2-adbg': cp2_adbg.main();
+    case 'cp2-pod2': cp2_pod2.main();
+    case 'cp2-playlist3': cp2_playlist3.main();
+    case 'cp2-bgowner': cp2_bgowner.main();
+    case 'cp2-audioonly-bg': cp2_audioonly_bg.main();
+    case 'cp2-qoe': cp2_qoe.main();
+    case 'cp1-wakeswap': cp1_wakeswap.main();
+    case 'cp1-edgepause': cp1_edgepause.main();
+    case 'cp1-errclass': cp1_errclass.main();
+    case 'cp1-probe': cp1_probe.main();
+    case 'cp1-manageauto': cp1_manageauto.main();
+    case 'cp1-bblock': cp1_bblock.main();
+    case 'cp1-pool': cp1_pool.main();
+    case 'cp1-danmaku': cp1_danmaku.main();
+    case 'cp1-recovery': cp1_recovery.main();
+    case 'cp1-dispose120': cp1_dispose120.main();
+    case 'gap': gap.main();
+    case 'cp3-cp1gap': cp3Main('cp1gap', runCp1gap, automatic: true);
+    case 'cp3-fullscreen': cp3Main('fullscreen', runFullscreen, automatic: true);
+    case 'cp3-theme': cp3Main('theme', runTheme, automatic: true);
+    case 'cp3-headers': cp3Main('headers', runHeaders, automatic: true);
+    case 'cp3-feedplayer': cp3Main('feedplayer', runFeedplayer, automatic: true);
+    case 'cp3-c04chrome': cp3Main('c04chrome', runC04chrome, automatic: true);
+    case 'rerun6': rerun6.main();
+
+    case 'cp0-p02': cp0_p02.main();
+    case 'cp0-pod2': cp0_pod2.main();
+    case 'cp0-bgpause': cp0_bgpause.main();
+    case 'cp0-pauseload': cp0_pauseload.main();
+    case 'cp0-timeshift': cp0_timeshift.main();
+    case 'cp0-pageview': cp0_pageview.main();
     case 'he': runApp(const MaterialApp(home: he.HeAutoPage()));
     case 'keepAlive': runApp(const MaterialApp(home: keep_alive.KeepAliveAutoPage()));
     case 'mute': mute.main();

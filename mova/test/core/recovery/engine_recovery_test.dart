@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:mova/src/testing/hooks.dart';
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mova/src/core/engine.dart';
@@ -30,7 +31,7 @@ class _Rig {
   _Rig(
     this.kernel, {
     MovaRecoveryConfig recovery = const MovaRecoveryConfig(startTimeout: Duration(seconds: 10), stallTimeout: Duration(seconds: 10), enabled: true),
-  }) : engine = MovaEngine(
+  }) : engine = MovaEngine(fetcher: const MovaTestHttpFetch(),
          kernel: kernel,
          options: MovaOpts(
            recovery: recovery,
@@ -71,11 +72,71 @@ class _Rig {
 }
 
 void main() {
+  // 首次 open 抛错与首帧超时都须保留 start，且同内容备用地址继承同一点。
+  for (final throws in [false, true]) {
+    for (final failover in [false, true]) {
+      test('P2 首帧前恢复保留起播位置 throws=$throws failover=$failover', () {
+        fakeAsync((async) {
+          final k = FakeKernel();
+          if (throws) k.openError = StateError('open');
+          final r = _Rig(k);
+          r.engine.open(
+            const MovaSource(
+              'https://h/a.m3u8',
+              alternatives: ['https://h/b.m3u8'],
+              start: Duration(seconds: 60),
+            ),
+          );
+          async.flushMicrotasks();
+          if (!throws) async.elapse(const Duration(seconds: 10));
+          k.openError = null;
+          async.elapse(const Duration(seconds: 1));
+          expect(k.openedUris, hasLength(2));
+          if (failover) {
+            // 不给重试首帧，继续失败并切换到备用地址。
+            async.elapse(const Duration(seconds: 10));
+            expect(k.openedUris.last, 'https://h/b.m3u8');
+          }
+          k.emitDuration(const Duration(minutes: 10));
+          async.flushMicrotasks();
+          r.land(async);
+          expect(k.lastSeek, const Duration(seconds: 60));
+          unawaited(r.engine.dispose());
+          async.flushMicrotasks();
+        });
+      });
+    }
+  }
+
+  // 已出画后必须沿用实际续播点，不能退回 source.start。
+  test('P2 已渲染后的恢复仍使用失败位置', () {
+    fakeAsync((async) {
+      // 模拟内核确认起播 seek，再推进真实进度。
+      final k = FakeKernel()..echoSeeks = true;
+      final r = _Rig(k);
+      r.engine.open(
+        const MovaSource('https://h/a.m3u8', start: Duration(seconds: 60)),
+      );
+      async.flushMicrotasks();
+      k.emitDuration(const Duration(minutes: 10));
+      r.land(async);
+      k.emitPosition(const Duration(seconds: 90));
+      async.flushMicrotasks();
+      k.emitBuffering(true);
+      async.flushMicrotasks();
+      async.elapse(const Duration(seconds: 11));
+      k.emitDuration(const Duration(minutes: 10));
+      r.land(async);
+      expect(k.lastSeek, const Duration(seconds: 90));
+      unawaited(r.engine.dispose());
+      async.flushMicrotasks();
+    });
+  });
   const tenSeconds = Duration(seconds: 10);
   const oneSecond = Duration(seconds: 1);
 
   test(
-    '1. disabled (default): open() still throws, no failure events, no stream or timer added',
+    '1. disabled (default): open() still throws, no recovery events or timer, END_FILE still observed',
     () {
       fakeAsync((async) {
         final k = FakeStatsKernel()..openError = StateError('boom');
@@ -91,7 +152,7 @@ void main() {
         expect(thrown, isA<StateError>());
         async.elapse(const Duration(minutes: 5));
         expect(r.failures, isEmpty);
-        expect(k.endFilesSubscribed, isFalse);
+        expect(k.endFilesSubscribed, isTrue);
         expect(async.pendingTimers, isEmpty);
 
         final ok = _Rig(
@@ -270,7 +331,7 @@ void main() {
         final k2 = FakeKernel();
         final quiet = _Rig(
           k2,
-          recovery: const MovaRecoveryConfig(startTimeout: Duration(seconds: 10), stallTimeout: Duration(seconds: 10), 
+          recovery: const MovaRecoveryConfig(startTimeout: Duration(seconds: 10), stallTimeout: Duration(seconds: 10),
             enabled: true,
             liveEndIsFailure: false,
           ),
@@ -358,7 +419,7 @@ void main() {
         final k = FakeKernel();
         final r = _Rig(
           k,
-          recovery: MovaRecoveryConfig(startTimeout: Duration(seconds: 10), stallTimeout: Duration(seconds: 10), 
+          recovery: MovaRecoveryConfig(startTimeout: Duration(seconds: 10), stallTimeout: Duration(seconds: 10),
             enabled: true,
             policy: _ThrowingPolicy(),
           ),

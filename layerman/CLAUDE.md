@@ -18,7 +18,7 @@
   Navigator 的层),叠加 TS 的编排语义(串行/gap/slot/priority/replace/overlap/两阶段关闭)。
 - **0.2.0 外部 presenter**:源码级调研 GetX 4.7 / bot_toast 4.1 / 编排模式后选 **Handle 模式**
   (present 返回 `{dismissed, dismiss}` 双向句柄);生态无先例。四条纪律见技能。
-- **0.3.0 TS-parity**:conditions(`when`/`route`/`requiresAuth`/`setContext`/`dismissWhenUnmet`)、
+- **0.3.0 TS-parity**:conditions(`when`/`route`/`auth`/`setContext`/`dismissWhenUnmet`)、
   cooldown(可插拔存储+注入 now)、`affix`、`beforeClose`、`pauseAll` 全冻结、`resolve`、
   `update`、`clearWhere`。**刻意不做**:stackIndex/isTopmost(自渲染 z 序=插入序)、跨 isolate
   冷却同步(共享 storage 即可)。
@@ -117,6 +117,35 @@
   OverlayManager 这个名字"改成"我们决定保留 Layerman 这个名字"——变成废话)。只有**当前**（未发布的
   0.2.0 条目、以及这条新增的决策记录本身）该用新名字,历史条目一律保持发生时的原名。
 
+- **0.2.2 加固 + 全量架构评审（2026-11-04）**：评审时写了 18 条探针测试，实测确认了一批缺陷
+  （未修的清单见 `ARCHITECTURE.md` §14）。用户选定**路线 A：0.2.2 补丁 → 0.3.0 只新增 API →
+  1.0 收口（破坏性）**。0.2.2 修了 6 项：
+  ①`close(id, 类型不对的结果)` 原来抛 TypeError，且 future 永远挂起 → 现在先校验，不符抛 ArgumentError；
+  ②冷却 hydrate 竞态（`ready()` 前 open 绕过上限；整表写回抹掉其它 id；hydrate 后又覆盖新计数）
+  → 改为门控 + 合并 + 串行写 + 失败上报；
+  ③异步 `beforeClose` 未决时重复 close 会去重；
+  ④`when` 谓词抛异常会被隔离；
+  ⑤`cooldown` 必须传显式 id（debug 断言）；
+  ⑥dispose 后 open 在 debug 断言、release 返回 null。
+  README 的路由配方原来按名字 `popUntil`/`Get.until` 关闭，目标不在栈顶时静默失效，条目永远卡在
+  closing；现在改为保存 Route 对象（栈顶时 pop，被盖住时 `removeRoute`），`dismissed` 用
+  `route.completed`，不再需要 exitDuration 估计值。
+  版本下限：`didChangeTop` 从 Flutter **3.27.0** 才有（commit 88bee39f542），原来的
+  `flutter: ">=1.17.0"` 是错的；`sdk` 从 ^3.12.2 降到 ^3.6.0（分析器已按 3.6 语言版本验证）；
+  `removeRoute` 的 result 参数要 **3.32** 才有，所以配方里不传。
+  ARCHITECTURE.md/.svg 原稿写的是根本不存在的 API，已照代码重写。新增 `layerman-ci.yml`：
+  stable 上跑 analyze + test，3.27.4 上只跑 test，deploy 依赖它。
+  **命名决定（用户指定）**：0.3.0 自带的 Route 型 presenter 叫 **`DialogManager`**（不叫
+  DialogPresenter），全局建一次、持有 navigatorKey；同类的按 `XxxManager` 命名（如
+  `BottomSheetManager`）。0.3.0 待办见 ARCHITECTURE §15。
+
+## 验收基线(2026-11-04,0.2.2)
+
+- `flutter test`：**101 条全绿**（layerman_test 81 + robustness_test 15 + readme_recipe_test 5）；
+  `flutter analyze`（含 example）干净；本机 Flutter 3.47.0 / Dart 3.13.0。
+- 真机集成 17 条本轮**没有重跑**：example 的 Windows runner 会弹出普通窗口抢焦点，而本轮改动
+  不影响 example 的可见流程。要跑先问用户，或者先给 runner 加安静模式。
+
 ## 验收基线(2026-07-04)
 
 - 单测 `flutter test`:**80 全绿**(0.1.0 新增 10 条:pauseOnRoutes 组合语义 3 条 + `OverlayNavigatorObserver`
@@ -161,4 +190,169 @@
 - 与 codejoo 仓库同套习惯:提交落当前分支不新建分支;测试全绿才算完成,展示真实执行输出。
 - example 依赖 get/bot_toast 仅为演示编排;**主包保持零第三方运行时依赖**(cooldown 存储走
   抽象接口,shared_preferences 适配放 README 示例,不进依赖)。
-- 环境:Flutter 3.44.4 / Dart 3.12.2,Windows desktop 可用(集成测试跑真窗口)。
+- 环境：本机 Flutter 3.47.0 / Dart 3.13.0（2026-11-04；之前是 3.44.4 / 3.12.2），Windows desktop
+  可用（集成测试跑真窗口，会抢焦点）。3.47 的 `pub get` 会自动给两份 analysis_options 加
+  `analyzer.exclude`，并改写 example 的 pubspec.lock 和插件注册文件（后者只改换行符）。
+  不是有意为之就别提交这些文件。
+
+
+## 0.3.0 决策与验收记录（2026-11-04）
+
+评审结论采用路线 A：0.2.2 先加固，0.3.0 增量扩展并修复行为，1.0 再收口。
+本批完成永久冷却耗尽丢弃、关闭/解析超时、同 id 串行接管、实时数据、完整观测，
+以及票据/首次结束原因/异步事件、holds、生命周期自动暂停、排队过期与槽位配置。
+观察者默认只接受 PageRoute，可通过 routeFilter 恢复全部路由，contextKey 支持嵌套导航。
+有序插入和 when 上下文视图缓存属于内部优化。发布包通过 .pubignore 排除本文件和 .claude/。
+
+Route 型 presenter 命名遵循用户指定的 `DialogManager`（不叫 DialogPresenter）；
+同类遵循 `XxxManager`，本批有 `BottomSheetManager`，全局建一次，只存配置、每次独立 Route。
+`presentRoute` 留给页面/自定义 Route；builder close 可绑定 manager 经过守卫。
+Flutter 3.27 兼容约束继续保留：removeRoute 不传 result。
+1.0 的 Gate、显式状态机/串行派发、overlap/replace 枚举、route 类型化、phase 枚举，
+等 0.3.0 在真实使用中稳定后再定，不把规划符号写成当前 API。
+
+验收基线（2026-11-04，0.3.0）：
+
+- 单测 `flutter test`：**199 条全绿**（本机 Flutter 3.47.0 / Dart 3.13.0）；`flutter analyze`
+  （含 example）干净。**最低版本 Flutter 3.27.4（Dart 3.6）上同样 199 条全绿**，`pub get` 与 `analyze`
+  也通过——3.27 的验证方式：`git clone --depth 1 --branch 3.27.4 file:///E:/sdk/flutter C:/f327/flutter`
+  （Windows 未开长路径，克隆目录必须很短），把 lib/test/pubspec.yaml 复制到 `C:/f327/pkg`，
+  用 `C:/f327/flutter/bin/flutter pub get --no-example` 再 `flutter test`。
+- 手机真机：华为 STG-AL00 / Android 12（序列号 `7NQBB23606003715`），
+  `cd example && flutter test integration_test/orchestration_test.dart -d 7NQBB23606003715`，
+  **26 条全绿**（原有 17 + 0.3.0 新增 9）。example 已补 Android 平台（`flutter create --platforms=android`）。
+- 手机测试的坑：①同一个 1400×900 视口在手机上排版更高，按钮会落到视口外，点之前用 `tapVisible`
+  （`ensureVisible` 后再点）。②**不要用 `WidgetsBinding.handleAppLifecycleStateChanged(paused)`
+  模拟后台**：paused/hidden/detached 会把全局出帧关掉，真机上 `pump()` 等不到帧会一直挂着，手机屏幕
+  停在 "Test starting..."；演示页和测试都改为调用 `appLifecycle.didChangeAppLifecycleState(...)`
+  （`LayermanLifecycle` 的观察者方法，走同一套 hold 逻辑但不动出帧开关）。普通 `flutter test`
+  里这个坑不会暴露，只有真机才会。
+- Windows 桌面集成测试会抢焦点，不无人值守跑。
+- 并发派 Codex 最多 2 个：3 个并发 + Gradle 守护进程会把本机内存吃光，Codex 被 OOM 杀掉
+  （`memory allocation of 536870912 bytes failed`）。Gradle/Kotlin 守护进程跑完手机测试后要结束。
+
+
+## 1.0.0 决策记录（2026-11-04）
+
+评审路线 A 的三步全部完成：0.2.2 加固、0.3.0 增量扩展、1.0 破坏性类型收口。
+`open` / `submit` 以 `mode: OverlayMode.queue/replace/overlap` 取代两个布尔参数；
+`route` / `pauseOnRoutes` 使用 `RouteMatcher`，`OverlayRecord.phase` 使用 `OverlayPhase`。
+补齐 build 期间推迟 present 与通知、按操作批量通知、空 slot 回收、冷却查询重置与标签。
+
+随机序列不变量测试 `test/fuzz_invariants_test.dart` 作为 1.0 前置安全网，抓到 close 后
+remove / clear / dismiss 超时会重复请求后端 dismiss 的缺陷；非幂等后端可能误关其他弹窗。
+`dismissRequested` 在第一次请求前置位，保证每条目最多请求一次，即使后端抛错也不重试。
+
+Gate 与显式状态机当时未完成；旧的“风险大于收益”解释已在下方发布前复审中撤回。
+未做项、功能缺口与有意决定以 ARCHITECTURE §15 及下方补完记录为准。
+本节取代上文 0.3.0 记录中“1.0 方案待定”的历史规划。
+
+验收基线（1.0.0，2026-11-04）：
+
+- 本机 `flutter test`：**600 条全绿**（Flutter 3.47.0 / Dart 3.13.0）；最低 Flutter 3.27.4（Dart 3.6）上同样 **600 条全绿**，`analyze` 干净。
+- 手机集成 `flutter test integration_test/orchestration_test.dart -d 7NQBB23606003715`：**29 条全绿**（华为 STG-AL00 / Android 12）。
+- 关键 README 示例用 dart analyze 验证，SVG 用 Python XML 解析。
+- 验证流程继续使用手机明确 `-d` 序列号；Windows 桌面抢焦点，不无人值守跑。
+  不用 handleAppLifecycleStateChanged 模拟后台，改调用 LayermanLifecycle 的观察者方法。
+
+
+## 1.0.0 发布前补完（2026-11-04）
+
+1.0.0 尚未发布，本次更新现有版本条目，不另增版本。
+复审结论：Gate / 显式状态机与操作串行派发的旧理由站不住，真实原因是工作量（引擎 2000+ 行），
+属于内部重构，1.x 可随时做。批次 debug 不变量断言和随机序列测试是风险缓解，不是完成重构的替代证明。
+当前 _Entry 为 9 个可变布尔 + 6 个计时器（不含配置与 getter）。
+
+此前漏报项：业务自定义资格扩展点；slot 并发数 / 跨 slot 互斥；显式裁剪 API 与全表 JSON 写回成本；
+冷却按结果计数及周 / 月可插拔规则；后端真正可见回报计数；票据可监听状态；Inspector；
+OverlayRequest<T> 参数对象；同帧导航合并；layerman_getx / layerman_bot_toast 适配包。
+上述均未提供，限制及替代手段逐项列于 ARCHITECTURE §14–15。
+
+用户要求 requiresAuth 改为 auth 判断函数：各业务系统的认证判断不同，还要考虑角色 / 权限，无法枚举。
+函数读取 setContext 任意键，引擎不再读取保留键 auth。when 改为与 route / auth 按 AND 组合，
+避免额外业务条件悄悄绕过路由或权限限制，减少调用方重复写判断。
+
+本批文档同步：迁移对照表、clock / FakeOverlayClock、PresentContext<T>.close、无 manager 参数的
+Route presenter、overlap delay 与取消、debug 批次不变量、清理缺陷修复，以及如实的未做项说明。
+B2 已核实提交及 hydrate 清理路径调用永久上限判断，不再等待被占 slot 的调度扫描。
+保留主入口导出 Material presenter（SDK 内置、不增第三方依赖）；setContext({}) 保留全量重判语义。
+
+验收基线：单测 **782 条全绿**（Flutter 3.47.0；最低 Flutter 3.27.4 上同样 782 条全绿，连续两次干净全量运行），0 个 skip；手机真机 **33 条全绿**（华为 STG-AL00 / Android 12，序列号 7NQBB23606003715）。如实记录一次偶发：3.27.4 有一次全量运行恰好与手机测试的 Gradle 构建并发，fuzz 文件最后一条（overlap 延迟取消）报 did not complete；该用例完全跑在假时间里、无真实时间依赖，单条、整文件、两次干净全量均无法复现，系统也无资源耗尽事件，根因未定。以后做最低版本验证时不要与手机构建并发。
+本次只验证系统临时目录中的 README 关键示例 dart analyze 和 ARCHITECTURE.svg XML；不据历史基线宣称新测试通过。
+
+
+## 1.0.0 发布前新增 suppress / blockedBy（2026-11-04）
+
+用户评估剩余未做项后，选定完成 suppress 与 blockedBy。1.0.0 尚未发布，直接合入现有版本。
+本记录更新此前“跨 slot 互斥 / 冷却按结果计数未提供”的历史结论：按结果调用 suppress 已支持
+“不再提示”；频次计数仍在 present 成功返回后发生，周 / 月可插拔规则、slot 并发数仍未做。
+
+suppress 只约束带 cooldown 的提交，让设置页主动“查看活动”等无 cooldown 打开仍可用；
+因此任何 cooldown（包括 session-only、空配置）都等待 hydrate，因为抑制是持久化状态。
+依赖 session-only 在 ready() 前显示的代码会晚一个存储读取的时间。hydrate 前状态查询
+canShow false / wait null，但永久受阻及 suppressed 仍反映内存已知状态。
+抑制与计数同记录 su，调用及 hydrate 合并只延长不缩短、永久优先，确保“关闭抑制三天，
+不再提示永久抑制”不受调用顺序影响。reset 才能缩短，且会一起清除计数。已激活条目不受影响。
+
+blockedBy 的占用是 serial active（resolving / open / closing 含 exitDuration）或 active overlap；
+gap、appear delay、冷却等待、队列和等待 overlap 不算占用。阻塞只拦新激活，已展示项与 duration
+继续；环不保证公平。解除统一在最外层批次末尾，防止 replace 移走旧项到激活新项的暂态让其他
+slot 插队；只调度 waitingUnblock 的槽及受阻 overlap，不扩大推模式条件重判的触发范围。
+
+验收基线（主会话实测）：单测 **841 条全绿**（Flutter 3.47.0；最低 Flutter 3.27.4 上同样 841 条全绿，
+`analyze` 干净），0 个 skip；手机真机 **38 条全绿**（原有 33 + 新增 5，华为 STG-AL00 / Android 12，
+序列号 7NQBB23606003715）。README 新增示例经临时工程 `dart analyze` 验证，SVG 经 XML 解析。
+随机序列测试里"被阻塞后解除并出场""overlap 被阻塞持有后释放"两项实际只发生 2 次和 1 次，
+这两条路径主要由 blocked_by_test 的确定性用例与不变量 (j)(k) 守住，不靠随机测试。
+
+
+## 1.0.0 发布前代码评审修复（2026-11-04）
+
+用户要求评审全部源码：Codex 两路只读初审（引擎；适配器 + example + test），主会话逐条终审并写探针
+实测取证。Codex 报 9 条全部成立（两条 P0 降为 P2，三条 demo 问题降为 P3），终审另补 7 条漏报；
+用户选择一次全部修完。1.0.0 尚未发布，只更新现有条目。
+
+引擎：判断函数（when / auth / clearWhere 的 test）统一只读，期间所有修改入口（含票据、ctx.close、
+hold.release、dispose）在任何状态变化前抛 StateError（“判断函数内不能修改 Layerman”）；条件异常
+每条目上报一次并按不满足处理，clearWhere test 异常外传。dispose 一开始就置 `_disposing`（isDisposed
+随即为 true），后端回调重入 open / submit 立即以 disposed 结束。串行 delay 绑定属主，属主离队时取消
+计时器并在最外层批次末尾重调度（debug 不变量 l）。maxQueued 移到批次末尾、激活判定之后执行，build
+期间推迟到帧后。resolve 写 data 后重查身份与阶段；update 两侧都是字符串键 Map 时保留
+Map<String, Object?>；日历桶按 now.toLocal()；hydrate 逐条隔离损坏记录并原样写回，同 id 的有效记录
+优先；present 同步结束时 ended 延到 shown 之后。适配器：Route 带内部历史（Drawer、持久底部面板）时
+改用 removeRoute。close / dismiss 只作用于 open 条目（文档写明）。_Entry 仍为 9 个可变布尔 + 6 个计时器。
+
+终审补修（Codex 修复后复核发现）：① `_flush` 原先把 `_unparsed` 展开在有效记录之后，同 id 的损坏原值
+会盖住新写入的计数和永久抑制，重启后“不再提示”失效——已改为有效记录优先并补回归；② A1 的 when / auth
+用例在谓词内断言，失败会被引擎当作条件异常吞掉——改为谓词外再断言没有上报；③ C2 的 replace 分支在旧代码
+上也能通过——改为不合格的 replace 排队项；④ 翻译注释时丢了 OverlayCooldownStorage 的示例，已补回；
+⑤ README 里堆在“编排纪律”末尾的新说明按主题挪回各章节。反向验证：新回归放到修复前的代码上跑，针对原缺陷的
+26 条全部失败。
+
+example：Pause 页改用非模态 entry；ShadSheet 复用公开的 RouteCapture，首帧前 dismiss 不留孤立 sheet；
+toast 检视保存 CancelFunc；update / affix 演示改读 ctx.dataListenable；presentCard 的关闭按钮走
+ctx.close（经过 beforeClose），`_removeRouteDismiss` 在栈顶且无内部历史时 pop、否则 removeRoute，
+保留退场动画；清理 Get.until、String/RegExp 路由参数、按 om:// 名字关闭等过时说明；新增 B2 / B3 / B4
+三条集成用例，update 用例改为断言管理器数据。B4 首轮真机失败是用例只 pump 一帧就断言，toast 退场后
+还需一帧移除，已改为 pumpAndSettle（toast 静止时不排帧，空 dismiss 仍会失败）。
+
+提交前按 git 流程跑了两轮 simplify（先本轮改动，再全部源码，都由 Codex 执行、主会话终审），采纳 8 处
+纯质量清理：抽出 `_cancelDelayTimer`、`_thawDuration` 复用 `_startDuration`、删冗余的 `!overlap` 与重复注释、
+example 的 `_removeRouteDismiss` 直接传 Route、删无用 Builder 与空列表三元、三个测试文件里完全相同的后端与
+flush 提到 `test/support/headless_backend.dart`；用例数不变。没采纳的建议（合并 `_discardActive` 与 `_remove`、
+合并 overlap 提交与释放判定、容量只扫变化的槽位等）都可能改变通知或调度时机。
+
+验收基线（主会话实测）：`flutter analyze`（含 example）干净；`flutter test` **869 条全绿**，0 skip
+（Flutter 3.47.0 / Dart 3.13.0）；手机真机 **41 条全绿**（原有 38 + 新增 3，华为 STG-AL00 /
+Android 12，序列号 7NQBB23606003715）。最低 Flutter 3.27.4 本轮未运行（本地环境已删），新代码只用了
+3.27 已有的 API（willHandlePopInternally、DateTime.toLocal），开 PR 时 CI 的 3.27.4 任务会覆盖。
+
+
+## 合并 layerman-visible（2026-11-06）
+
+“可见确认后才计数”已合入 layerman：冷却计数与 `shown` 事件改在后端 visible 确认后才发生，
+可见前结束的条目只有 queued、ended，不计数。这取代上文“后端真正可见回报计数未提供”的历史结论。
+同时去掉了 `_presenting` / `_finishPresent`（visible 之前才需要暂存 ended），`dispose` 内不再交付暂存事件。
+`PresentedOverlay` 的 `visible` 为必传参数，测试里手写后端要补 `visible: Future<void>.value()`。
+验收：`flutter test` 1146 条全绿、`flutter analyze` 干净（本机 Flutter 3.47.0）；
+最低 Flutter 3.27.4 与手机真机本轮未重跑。

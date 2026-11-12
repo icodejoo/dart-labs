@@ -71,10 +71,12 @@ class _GatedCutoverCtl extends FakeCutoverCtl {
   void Function()? onSettled;
 
   @override
-  Future<bool> cutoverTo(MovaSource source, {Duration at = Duration.zero, double? rate}) async {
-    calls.add('cutoverTo');
-    await gate.future;
-    onSettled?.call();
+  Future<bool> commit({bool waitForReady = false}) async {
+    calls.add('commit');
+    if (preparedSource == _preOpen.source) {
+      await gate.future;
+      onSettled?.call();
+    }
     return commitResult;
   }
 }
@@ -123,7 +125,7 @@ void main() {
         api.push(api.state.copyWith(rendered: true));
         api.pushEvent(const MovaDone());
         _flush(async);
-        expect(cutover.calls, contains('cutoverTo'));
+        expect(cutover.calls.where((call) => call == 'commit'), hasLength(2));
         // Old engine still on screen: its rendered tick must be discarded.
         api.pushProgress(const MovaProg(position: Duration(seconds: 3)));
         _flush(async);

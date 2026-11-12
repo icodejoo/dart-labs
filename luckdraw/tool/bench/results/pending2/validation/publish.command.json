@@ -1,0 +1,11 @@
+{
+  "command": [
+    "dart",
+    "pub",
+    "publish",
+    "--dry-run"
+  ],
+  "cwd": "C:\\ldq\\luckdraw",
+  "exit_code": 0,
+  "seconds": 4.822
+}

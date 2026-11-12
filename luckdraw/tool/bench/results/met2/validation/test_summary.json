@@ -1,0 +1,36 @@
+{
+  "met2-a": {
+    "passed": 552,
+    "skipped": 0,
+    "failed": 0,
+    "files": 62,
+    "sha256": "87e86f23313fd27f4e877c7dfc20195036bffcac0bee32a6b317035e9d5d938e"
+  },
+  "met2-b": {
+    "passed": 130,
+    "skipped": 0,
+    "failed": 0,
+    "files": 31,
+    "sha256": "9e7630ca39de20de438f23ef9529ee640349abe0720e6f75eef594bf1aca27a1"
+  },
+  "met2-c": {
+    "passed": 365,
+    "skipped": 0,
+    "failed": 0,
+    "files": 43,
+    "sha256": "d9700dbdfb6afc3522f9ed7edc594b9a8d5334fb0ee4cc750e91fccc2d1ade28"
+  },
+  "met2-d": {
+    "passed": 23,
+    "skipped": 0,
+    "failed": 0,
+    "files": 4,
+    "sha256": "246e5f3cab18e9479230d7da20a5f9186a1e4b5d8ebd2ce37519835c2e76a94a"
+  },
+  "total": {
+    "passed": 1070,
+    "files": 140,
+    "skipped": 0,
+    "failed": 0
+  }
+}

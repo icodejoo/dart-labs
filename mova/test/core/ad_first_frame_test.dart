@@ -169,6 +169,9 @@ void main() {
         final c = MovaAds(api, cutover: cutover);
         c.load(_content);
         _flush(async);
+        // 首次正片加载先落定；本例只门控广告结束后的回正片提交。
+        cutover.release(false);
+        _flush(async);
         api.push(api.state.copyWith(rate: 2.0));
         api.pushProgress(const MovaProg(position: Duration(seconds: 31)));
         _flush(async);

@@ -1,0 +1,18 @@
+{
+  "command": [
+    "flutter",
+    "test",
+    "--no-pub",
+    "--concurrency=1",
+    "--coverage",
+    "--coverage-path=coverage/steady-b.lcov",
+    "--reporter=json",
+    "test/lots",
+    "test/lotto",
+    "test/number_wheel",
+    "test/parity"
+  ],
+  "cwd": "C:\\ldq\\luckdraw",
+  "exit_code": 0,
+  "seconds": 36.24
+}

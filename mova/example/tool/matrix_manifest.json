@@ -214,6 +214,35 @@
       "fast": true
     },
     {
+      "id": "s00c-native",
+      "description": "S00c 原生窗口方向、系统栏与 PiP pinned 读回",
+      "why": "逐阶段保留 dumpsys 与真实关闭控件定位；未知格式不推断 PASS",
+      "argv": [
+        "{python}",
+        "{tool}/coverage_s00c.py",
+        "--name",
+        "{prefix}s00c-native",
+        "--pip"
+      ],
+      "timeout": 600,
+      "dependencies": [
+        "services",
+        "build",
+        "api-launch"
+      ],
+      "covers": [
+        "A14",
+        "A16",
+        "A18",
+        "N9",
+        "A15",
+        "F5"
+      ],
+      "evidence_prefix": "{prefix}s00c-native",
+      "screen_on": true,
+      "fast": false
+    },
+    {
       "id": "api",
       "description": "运行普通/代理 API、hooks、恢复、预览、QoE 等批量子项",
       "why": "核验真实事件/状态及原生读回，沿用上一轮自动检查点并保留原始证据。",
@@ -293,7 +322,8 @@
         "E.MovaRateChange",
         "E.MovaPreviewBlock",
         "E.MovaSttBlock",
-        "E.MovaErrorEvent"
+        "E.MovaErrorEvent",
+        "A15"
       ],
       "evidence_prefix": "{prefix}rerun-batch15-",
       "screen_on": true,
@@ -999,6 +1029,195 @@
       "fast": false
     },
     {
+      "id": "cp0-autotier",
+      "description": "CP0 P1-3 mpv auto 三档 HLS 限速五轮及不限速对照",
+      "why": "默认引擎，不手选 ABR；记录原生档位和缓存状态，无产品通过线",
+      "covers": [],
+      "dependencies": [
+        "build"
+      ],
+      "argv": [
+        "{python}",
+        "{tool}/coverage_cp0.py",
+        "autotier",
+        "--run-id",
+        "{run_id}",
+        "--runs",
+        "5",
+        "--timeout",
+        "1200"
+      ],
+      "evidence_prefix": "{prefix}cp0-autotier",
+      "screen_on": true,
+      "fast": false,
+      "timeout": 2400,
+      "native_driver": true,
+      "cp0_driver": true,
+      "result_path": "{evidence}/{prefix}cp0-autotier.json"
+    },
+    {
+      "id": "cp0-p02",
+      "description": "CP0 p02 独立基线场景",
+      "why": "统一编排计划 §4.0；只记录真实事件数字，无产品通过线",
+      "covers": [],
+      "dependencies": [
+        "build"
+      ],
+      "argv": [
+        "{python}",
+        "{tool}/coverage_cp0.py",
+        "p02",
+        "--run-id",
+        "{run_id}",
+        "--runs",
+        "10",
+        "--timeout",
+        "1800"
+      ],
+      "evidence_prefix": "{prefix}cp0-p02",
+      "screen_on": true,
+      "fast": false,
+      "timeout": 1900,
+      "native_driver": true,
+      "cp0_driver": true,
+      "result_path": "{evidence}/{prefix}cp0-p02.json"
+    },
+    {
+      "id": "cp0-pod2",
+      "description": "CP0 pod2 独立基线场景",
+      "why": "统一编排计划 §4.0；只记录真实事件数字，无产品通过线",
+      "covers": [],
+      "dependencies": [
+        "build"
+      ],
+      "argv": [
+        "{python}",
+        "{tool}/coverage_cp0.py",
+        "pod2",
+        "--run-id",
+        "{run_id}",
+        "--runs",
+        "10",
+        "--timeout",
+        "1800"
+      ],
+      "evidence_prefix": "{prefix}cp0-pod2",
+      "screen_on": true,
+      "fast": false,
+      "timeout": 1900,
+      "native_driver": true,
+      "cp0_driver": true,
+      "result_path": "{evidence}/{prefix}cp0-pod2.json"
+    },
+    {
+      "id": "cp0-bgpause",
+      "description": "CP0 bgpause 独立基线场景",
+      "why": "统一编排计划 §4.0；只记录真实事件数字，无产品通过线",
+      "covers": [],
+      "dependencies": [
+        "build"
+      ],
+      "argv": [
+        "{python}",
+        "{tool}/coverage_cp0.py",
+        "bgpause",
+        "--run-id",
+        "{run_id}",
+        "--runs",
+        "5",
+        "--timeout",
+        "1800"
+      ],
+      "evidence_prefix": "{prefix}cp0-bgpause",
+      "screen_on": true,
+      "fast": false,
+      "timeout": 1900,
+      "native_driver": true,
+      "cp0_driver": true,
+      "result_path": "{evidence}/{prefix}cp0-bgpause.json"
+    },
+    {
+      "id": "cp0-pauseload",
+      "description": "CP0 pauseload 独立基线场景",
+      "why": "统一编排计划 §4.0；只记录真实事件数字，无产品通过线",
+      "covers": [],
+      "dependencies": [
+        "build"
+      ],
+      "argv": [
+        "{python}",
+        "{tool}/coverage_cp0.py",
+        "pauseload",
+        "--run-id",
+        "{run_id}",
+        "--runs",
+        "3",
+        "--timeout",
+        "1800"
+      ],
+      "evidence_prefix": "{prefix}cp0-pauseload",
+      "screen_on": true,
+      "fast": false,
+      "timeout": 1900,
+      "native_driver": true,
+      "cp0_driver": true,
+      "result_path": "{evidence}/{prefix}cp0-pauseload.json"
+    },
+    {
+      "id": "cp0-timeshift",
+      "description": "CP0 timeshift 独立基线场景",
+      "why": "统一编排计划 §4.0；只记录真实事件数字，无产品通过线",
+      "covers": [],
+      "dependencies": [
+        "build"
+      ],
+      "argv": [
+        "{python}",
+        "{tool}/coverage_cp0.py",
+        "timeshift",
+        "--run-id",
+        "{run_id}",
+        "--runs",
+        "3",
+        "--timeout",
+        "1800"
+      ],
+      "evidence_prefix": "{prefix}cp0-timeshift",
+      "screen_on": true,
+      "fast": false,
+      "timeout": 1900,
+      "native_driver": true,
+      "cp0_driver": true,
+      "result_path": "{evidence}/{prefix}cp0-timeshift.json"
+    },
+    {
+      "id": "cp0-pageview",
+      "description": "CP0 pageview 独立基线场景",
+      "why": "统一编排计划 §4.0；只记录真实事件数字，无产品通过线",
+      "covers": [],
+      "dependencies": [
+        "build"
+      ],
+      "argv": [
+        "{python}",
+        "{tool}/coverage_cp0.py",
+        "pageview",
+        "--run-id",
+        "{run_id}",
+        "--runs",
+        "3",
+        "--timeout",
+        "1800"
+      ],
+      "evidence_prefix": "{prefix}cp0-pageview",
+      "screen_on": true,
+      "fast": false,
+      "timeout": 1900,
+      "native_driver": true,
+      "cp0_driver": true,
+      "result_path": "{evidence}/{prefix}cp0-pageview.json"
+    },
+    {
       "id": "gap-prepare",
       "description": "生成长 GOP/HLS/裁剪格式夹具，构建独立 gap release 包",
       "why": "补验收矩阵 §4.2 / §5.2 真机缺口；独立验证页和 L 日志，未运行不得认定通过。",
@@ -1330,7 +1549,11 @@
         "build",
         "gap-prepare"
       ],
-      "covers": [],
+      "covers": [
+        "U2",
+        "C10",
+        "N16"
+      ],
       "covers_ext": [
         "S1",
         "S2",
@@ -1485,6 +1708,1137 @@
       "fast": false
     },
     {
+      "id": "cp1-wakeswap",
+      "description": "CP1 wakeswap 独立验证（未上机）",
+      "why": "统一编排 §4 CP1；缺原生证据 BLOCKED；不比较 CP0",
+      "covers": [],
+      "dependencies": [
+        "build"
+      ],
+      "argv": [
+        "{python}",
+        "{tool}/coverage_cp1.py",
+        "wakeswap",
+        "--run-id",
+        "{run_id}",
+        "--runs",
+        "10",
+        "--timeout",
+        "7200"
+      ],
+      "evidence_prefix": "{prefix}cp1-wakeswap",
+      "screen_on": true,
+      "fast": false,
+      "timeout": 7300,
+      "native_driver": true,
+      "cp1_driver": true,
+      "result_path": "{evidence}/{prefix}cp1-wakeswap.json"
+    },
+    {
+      "id": "cp1-edgepause",
+      "description": "CP1 edgepause 独立验证（未上机）",
+      "why": "统一编排 §4 CP1；缺原生证据 BLOCKED；不比较 CP0",
+      "covers": [],
+      "dependencies": [
+        "build"
+      ],
+      "argv": [
+        "{python}",
+        "{tool}/coverage_cp1.py",
+        "edgepause",
+        "--run-id",
+        "{run_id}",
+        "--runs",
+        "10",
+        "--timeout",
+        "7200"
+      ],
+      "evidence_prefix": "{prefix}cp1-edgepause",
+      "screen_on": true,
+      "fast": false,
+      "timeout": 7300,
+      "native_driver": true,
+      "cp1_driver": true,
+      "result_path": "{evidence}/{prefix}cp1-edgepause.json"
+    },
+    {
+      "id": "cp1-errclass",
+      "description": "CP1 errclass 独立验证（未上机）",
+      "why": "统一编排 §4 CP1；缺原生证据 BLOCKED；不比较 CP0",
+      "covers": [],
+      "dependencies": [
+        "build"
+      ],
+      "argv": [
+        "{python}",
+        "{tool}/coverage_cp1.py",
+        "errclass",
+        "--run-id",
+        "{run_id}",
+        "--runs",
+        "5",
+        "--timeout",
+        "7200"
+      ],
+      "evidence_prefix": "{prefix}cp1-errclass",
+      "screen_on": true,
+      "fast": false,
+      "timeout": 7300,
+      "native_driver": true,
+      "cp1_driver": true,
+      "result_path": "{evidence}/{prefix}cp1-errclass.json"
+    },
+    {
+      "id": "cp1-probe",
+      "description": "CP1 probe 独立验证（未上机）",
+      "why": "统一编排 §4 CP1；缺原生证据 BLOCKED；不比较 CP0",
+      "covers": [],
+      "dependencies": [
+        "build"
+      ],
+      "argv": [
+        "{python}",
+        "{tool}/coverage_cp1.py",
+        "probe",
+        "--run-id",
+        "{run_id}",
+        "--runs",
+        "10",
+        "--timeout",
+        "7200"
+      ],
+      "evidence_prefix": "{prefix}cp1-probe",
+      "screen_on": true,
+      "fast": false,
+      "timeout": 7300,
+      "native_driver": true,
+      "cp1_driver": true,
+      "result_path": "{evidence}/{prefix}cp1-probe.json"
+    },
+    {
+      "id": "cp1-manageauto",
+      "description": "CP1 manageauto 独立验证（未上机）",
+      "why": "统一编排 §4 CP1；缺原生证据 BLOCKED；不比较 CP0",
+      "covers": [],
+      "dependencies": [
+        "build"
+      ],
+      "argv": [
+        "{python}",
+        "{tool}/coverage_cp1.py",
+        "manageauto",
+        "--run-id",
+        "{run_id}",
+        "--runs",
+        "5",
+        "--timeout",
+        "7200"
+      ],
+      "evidence_prefix": "{prefix}cp1-manageauto",
+      "screen_on": true,
+      "fast": false,
+      "timeout": 7300,
+      "native_driver": true,
+      "cp1_driver": true,
+      "result_path": "{evidence}/{prefix}cp1-manageauto.json"
+    },
+    {
+      "id": "cp1-bblock",
+      "description": "CP1 bblock 独立验证（未上机）",
+      "why": "统一编排 §4 CP1；缺原生证据 BLOCKED；不比较 CP0",
+      "covers": [],
+      "dependencies": [
+        "build"
+      ],
+      "argv": [
+        "{python}",
+        "{tool}/coverage_cp1.py",
+        "bblock",
+        "--run-id",
+        "{run_id}",
+        "--runs",
+        "5",
+        "--timeout",
+        "7200"
+      ],
+      "evidence_prefix": "{prefix}cp1-bblock",
+      "screen_on": true,
+      "fast": false,
+      "timeout": 7300,
+      "native_driver": true,
+      "cp1_driver": true,
+      "result_path": "{evidence}/{prefix}cp1-bblock.json"
+    },
+    {
+      "id": "cp1-pool",
+      "description": "CP1 pool 独立验证（未上机）",
+      "why": "统一编排 §4 CP1；缺原生证据 BLOCKED；不比较 CP0",
+      "covers": [],
+      "dependencies": [
+        "build"
+      ],
+      "argv": [
+        "{python}",
+        "{tool}/coverage_cp1.py",
+        "pool",
+        "--run-id",
+        "{run_id}",
+        "--runs",
+        "5",
+        "--timeout",
+        "7200"
+      ],
+      "evidence_prefix": "{prefix}cp1-pool",
+      "screen_on": true,
+      "fast": false,
+      "timeout": 7300,
+      "native_driver": true,
+      "cp1_driver": true,
+      "result_path": "{evidence}/{prefix}cp1-pool.json"
+    },
+    {
+      "id": "cp1-danmaku",
+      "description": "CP1 danmaku 独立验证（未上机）",
+      "why": "统一编排 §4 CP1；缺原生证据 BLOCKED；不比较 CP0",
+      "covers": [],
+      "dependencies": [
+        "build"
+      ],
+      "argv": [
+        "{python}",
+        "{tool}/coverage_cp1.py",
+        "danmaku",
+        "--run-id",
+        "{run_id}",
+        "--runs",
+        "5",
+        "--timeout",
+        "7200"
+      ],
+      "evidence_prefix": "{prefix}cp1-danmaku",
+      "screen_on": true,
+      "fast": false,
+      "timeout": 7300,
+      "native_driver": true,
+      "cp1_driver": true,
+      "result_path": "{evidence}/{prefix}cp1-danmaku.json"
+    },
+    {
+      "id": "cp1-recovery",
+      "description": "CP1 recovery 独立验证（未上机）",
+      "why": "统一编排 §4 CP1；缺原生证据 BLOCKED；不比较 CP0",
+      "covers": [],
+      "dependencies": [
+        "build"
+      ],
+      "argv": [
+        "{python}",
+        "{tool}/coverage_cp1.py",
+        "recovery",
+        "--run-id",
+        "{run_id}",
+        "--runs",
+        "10",
+        "--timeout",
+        "7200"
+      ],
+      "evidence_prefix": "{prefix}cp1-recovery",
+      "screen_on": true,
+      "fast": false,
+      "timeout": 7300,
+      "native_driver": true,
+      "cp1_driver": true,
+      "result_path": "{evidence}/{prefix}cp1-recovery.json"
+    },
+    {
+      "id": "cp1-dispose120",
+      "description": "CP1 dispose120 独立验证（未上机）",
+      "why": "统一编排 §4 CP1；缺原生证据 BLOCKED；不比较 CP0",
+      "covers": [],
+      "dependencies": [
+        "build"
+      ],
+      "argv": [
+        "{python}",
+        "{tool}/coverage_cp1.py",
+        "dispose120",
+        "--run-id",
+        "{run_id}",
+        "--runs",
+        "120",
+        "--timeout",
+        "7200"
+      ],
+      "evidence_prefix": "{prefix}cp1-dispose120",
+      "screen_on": true,
+      "fast": false,
+      "timeout": 7300,
+      "native_driver": true,
+      "cp1_driver": true,
+      "result_path": "{evidence}/{prefix}cp1-dispose120.json"
+    },
+    {
+      "id": "cp1-keepalive-s7s14",
+      "description": "CP1 S7/S14 各五次与宿主采图（未上机，视觉复核前BLOCKED）",
+      "why": "统一编排 §4 CP1；缺原生证据 BLOCKED；不比较 CP0",
+      "covers": [],
+      "dependencies": [
+        "build"
+      ],
+      "argv": [
+        "{python}",
+        "{tool}/coverage_cp1.py",
+        "keepalive-s7s14",
+        "--run-id",
+        "{run_id}",
+        "--runs",
+        "5",
+        "--timeout",
+        "7200"
+      ],
+      "evidence_prefix": "{prefix}cp1-keepalive-s7s14",
+      "screen_on": true,
+      "fast": false,
+      "timeout": 7300,
+      "native_driver": true,
+      "cp1_driver": true,
+      "result_path": "{evidence}/{prefix}cp1-keepalive-s7s14.json"
+    },
+    {
+      "id": "s00e-offline-widgets",
+      "description": "S00e 无设备单文件 widgets",
+      "why": "保留组件树或公开契约 CHECK；缺字段及旧快照未知值不得 PASS",
+      "argv": [
+        "{python}",
+        "{tool}/coverage_s00e_offline.py",
+        "widgets",
+        "--output",
+        "{evidence}/{prefix}s00e-offline-widgets.json"
+      ],
+      "timeout": 300,
+      "dependencies": [],
+      "covers": [
+        "C3",
+        "U4",
+        "U5",
+        "U6",
+        "U7",
+        "U9"
+      ],
+      "evidence_prefix": "{prefix}s00e-offline-widgets",
+      "screen_on": false,
+      "fast": false
+    },
+    {
+      "id": "s00e-offline-contract",
+      "description": "S00e 无设备单文件 contract",
+      "why": "保留组件树或公开契约 CHECK；缺字段及旧快照未知值不得 PASS",
+      "argv": [
+        "{python}",
+        "{tool}/coverage_s00e_offline.py",
+        "contract",
+        "--output",
+        "{evidence}/{prefix}s00e-offline-contract.json"
+      ],
+      "timeout": 300,
+      "dependencies": [],
+      "covers": [
+        "A5",
+        "A6",
+        "A7",
+        "A17",
+        "A20",
+        "A32",
+        "C4",
+        "U2",
+        "U3",
+        "F4",
+        "F8",
+        "N6",
+        "N8",
+        "N19",
+        "N23",
+        "E.MovaErrorEvent"
+      ],
+      "evidence_prefix": "{prefix}s00e-offline-contract",
+      "screen_on": false,
+      "fast": false
+    },
+    {
+      "id": "s00e-native",
+      "description": "S00e 原生与宿主采集握手",
+      "why": "实际系统读回、纹理调用、资源边界和错误隔离；未上机",
+      "argv": [
+        "{python}",
+        "{tool}/coverage_s00e.py",
+        "--name",
+        "{prefix}s00e-native"
+      ],
+      "timeout": 1000,
+      "dependencies": [
+        "services",
+        "build",
+        "api-launch"
+      ],
+      "covers": [
+        "A7",
+        "A13",
+        "C3",
+        "U1",
+        "U6",
+        "U9",
+        "F9",
+        "F12",
+        "F13",
+        "F14",
+        "N12",
+        "N13"
+      ],
+      "evidence_prefix": "{prefix}s00e-native",
+      "screen_on": true,
+      "fast": false
+    },
+    {
+      "id": "cp2-adpaths",
+      "description": "CP2 adpaths 独立验证页（未上机）",
+      "why": "总计划§4 CP2；逐CHECK核对次数，缺证据BLOCKED",
+      "covers": [],
+      "dependencies": [
+        "build"
+      ],
+      "argv": [
+        "{python}",
+        "{tool}/coverage_cp2.py",
+        "adpaths",
+        "--run-id",
+        "{run_id}",
+        "--runs",
+        "5",
+        "--timeout",
+        "7200"
+      ],
+      "evidence_prefix": "{prefix}cp2-adpaths",
+      "screen_on": true,
+      "fast": false,
+      "timeout": 7300,
+      "native_driver": true,
+      "cp2_driver": true,
+      "result_path": "{evidence}/{prefix}cp2-adpaths.json"
+    },
+    {
+      "id": "cp2-adpause",
+      "description": "CP2 adpause 独立验证页（未上机）",
+      "why": "总计划§4 CP2；逐CHECK核对次数，缺证据BLOCKED",
+      "covers": [],
+      "dependencies": [
+        "build"
+      ],
+      "argv": [
+        "{python}",
+        "{tool}/coverage_cp2.py",
+        "adpause",
+        "--run-id",
+        "{run_id}",
+        "--runs",
+        "10",
+        "--timeout",
+        "7200"
+      ],
+      "evidence_prefix": "{prefix}cp2-adpause",
+      "screen_on": true,
+      "fast": false,
+      "timeout": 7300,
+      "native_driver": true,
+      "cp2_driver": true,
+      "result_path": "{evidence}/{prefix}cp2-adpause.json"
+    },
+    {
+      "id": "cp2-adbg",
+      "description": "CP2 adbg 独立验证页（未上机）",
+      "why": "总计划§4 CP2；逐CHECK核对次数，缺证据BLOCKED",
+      "covers": [],
+      "dependencies": [
+        "build"
+      ],
+      "argv": [
+        "{python}",
+        "{tool}/coverage_cp2.py",
+        "adbg",
+        "--run-id",
+        "{run_id}",
+        "--runs",
+        "10",
+        "--timeout",
+        "7200"
+      ],
+      "evidence_prefix": "{prefix}cp2-adbg",
+      "screen_on": true,
+      "fast": false,
+      "timeout": 7300,
+      "native_driver": true,
+      "cp2_driver": true,
+      "result_path": "{evidence}/{prefix}cp2-adbg.json"
+    },
+    {
+      "id": "cp2-pod2",
+      "description": "CP2 pod2 独立验证页（未上机）",
+      "why": "总计划§4 CP2；逐CHECK核对次数，缺证据BLOCKED",
+      "covers": [],
+      "dependencies": [
+        "build"
+      ],
+      "argv": [
+        "{python}",
+        "{tool}/coverage_cp2.py",
+        "pod2",
+        "--run-id",
+        "{run_id}",
+        "--runs",
+        "10",
+        "--timeout",
+        "7200"
+      ],
+      "evidence_prefix": "{prefix}cp2-pod2",
+      "screen_on": true,
+      "fast": false,
+      "timeout": 7300,
+      "native_driver": true,
+      "cp2_driver": true,
+      "result_path": "{evidence}/{prefix}cp2-pod2.json"
+    },
+    {
+      "id": "cp2-playlist3",
+      "description": "CP2 playlist3 独立验证页（未上机）",
+      "why": "总计划§4 CP2；逐CHECK核对次数，缺证据BLOCKED",
+      "covers": [],
+      "dependencies": [
+        "build"
+      ],
+      "argv": [
+        "{python}",
+        "{tool}/coverage_cp2.py",
+        "playlist3",
+        "--run-id",
+        "{run_id}",
+        "--runs",
+        "5",
+        "--timeout",
+        "7200"
+      ],
+      "evidence_prefix": "{prefix}cp2-playlist3",
+      "screen_on": true,
+      "fast": false,
+      "timeout": 7300,
+      "native_driver": true,
+      "cp2_driver": true,
+      "result_path": "{evidence}/{prefix}cp2-playlist3.json"
+    },
+    {
+      "id": "cp2-bgowner",
+      "description": "CP2 bgowner 独立验证页（未上机）",
+      "why": "总计划§4 CP2；逐CHECK核对次数，缺证据BLOCKED",
+      "covers": [],
+      "dependencies": [
+        "build"
+      ],
+      "argv": [
+        "{python}",
+        "{tool}/coverage_cp2.py",
+        "bgowner",
+        "--run-id",
+        "{run_id}",
+        "--runs",
+        "5",
+        "--timeout",
+        "7200"
+      ],
+      "evidence_prefix": "{prefix}cp2-bgowner",
+      "screen_on": true,
+      "fast": false,
+      "timeout": 7300,
+      "native_driver": true,
+      "cp2_driver": true,
+      "result_path": "{evidence}/{prefix}cp2-bgowner.json"
+    },
+    {
+      "id": "cp2-audioonly-bg",
+      "description": "CP2 audioonly-bg 独立验证页（未上机）",
+      "why": "总计划§4 CP2；逐CHECK核对次数，缺证据BLOCKED",
+      "covers": [],
+      "dependencies": [
+        "build"
+      ],
+      "argv": [
+        "{python}",
+        "{tool}/coverage_cp2.py",
+        "audioonly-bg",
+        "--run-id",
+        "{run_id}",
+        "--runs",
+        "10",
+        "--timeout",
+        "7200"
+      ],
+      "evidence_prefix": "{prefix}cp2-audioonly-bg",
+      "screen_on": true,
+      "fast": false,
+      "timeout": 7300,
+      "native_driver": true,
+      "cp2_driver": true,
+      "result_path": "{evidence}/{prefix}cp2-audioonly-bg.json"
+    },
+    {
+      "id": "cp2-qoe",
+      "description": "CP2 qoe 独立验证页（未上机）",
+      "why": "总计划§4 CP2；逐CHECK核对次数，缺证据BLOCKED",
+      "covers": [],
+      "dependencies": [
+        "build"
+      ],
+      "argv": [
+        "{python}",
+        "{tool}/coverage_cp2.py",
+        "qoe",
+        "--run-id",
+        "{run_id}",
+        "--runs",
+        "5",
+        "--timeout",
+        "7200"
+      ],
+      "evidence_prefix": "{prefix}cp2-qoe",
+      "screen_on": true,
+      "fast": false,
+      "timeout": 7300,
+      "native_driver": true,
+      "cp2_driver": true,
+      "result_path": "{evidence}/{prefix}cp2-qoe.json"
+    },
+    {
+      "id": "cp2-rate",
+      "description": "CP2 rate 复用既有页别名（未上机）",
+      "why": "总计划§4 CP2；逐CHECK核对次数，缺证据BLOCKED",
+      "covers": [],
+      "dependencies": [
+        "services",
+        "build"
+      ],
+      "argv": [
+        "{python}",
+        "{tool}/coverage_cp2.py",
+        "rate",
+        "--run-id",
+        "{run_id}",
+        "--runs",
+        "5",
+        "--timeout",
+        "7200"
+      ],
+      "evidence_prefix": "{prefix}cp2-rate",
+      "screen_on": true,
+      "fast": false,
+      "timeout": 7300,
+      "native_driver": true,
+      "cp2_driver": true,
+      "result_path": "{evidence}/{prefix}cp2-rate.json",
+      "cp2_alias": true
+    },
+    {
+      "id": "cp2-warmmute",
+      "description": "CP2 warmmute 复用既有页别名（未上机）",
+      "why": "总计划§4 CP2；逐CHECK核对次数，缺证据BLOCKED",
+      "covers": [],
+      "dependencies": [
+        "services",
+        "build"
+      ],
+      "argv": [
+        "{python}",
+        "{tool}/coverage_cp2.py",
+        "warmmute",
+        "--run-id",
+        "{run_id}",
+        "--runs",
+        "5",
+        "--timeout",
+        "7200"
+      ],
+      "evidence_prefix": "{prefix}cp2-warmmute",
+      "screen_on": true,
+      "fast": false,
+      "timeout": 7300,
+      "native_driver": true,
+      "cp2_driver": true,
+      "result_path": "{evidence}/{prefix}cp2-warmmute.json",
+      "cp2_alias": true
+    },
+    {
+      "id": "cp2-v9",
+      "description": "CP2 v9 复用既有页别名（未上机）",
+      "why": "总计划§4 CP2；逐CHECK核对次数，缺证据BLOCKED",
+      "covers": [],
+      "dependencies": [
+        "services",
+        "build"
+      ],
+      "argv": [
+        "{python}",
+        "{tool}/coverage_cp2.py",
+        "v9",
+        "--run-id",
+        "{run_id}",
+        "--runs",
+        "5",
+        "--timeout",
+        "7200"
+      ],
+      "evidence_prefix": "{prefix}cp2-v9",
+      "screen_on": true,
+      "fast": false,
+      "timeout": 7300,
+      "native_driver": true,
+      "cp2_driver": true,
+      "result_path": "{evidence}/{prefix}cp2-v9.json",
+      "cp2_alias": true
+    },
+    {
+      "id": "cp2-pip",
+      "description": "CP2 pip 复用既有页别名（未上机）",
+      "why": "总计划§4 CP2；逐CHECK核对次数，缺证据BLOCKED",
+      "covers": [],
+      "dependencies": [
+        "services",
+        "build"
+      ],
+      "argv": [
+        "{python}",
+        "{tool}/coverage_cp2.py",
+        "pip",
+        "--run-id",
+        "{run_id}",
+        "--runs",
+        "5",
+        "--timeout",
+        "7200"
+      ],
+      "evidence_prefix": "{prefix}cp2-pip",
+      "screen_on": true,
+      "fast": false,
+      "timeout": 7300,
+      "native_driver": true,
+      "cp2_driver": true,
+      "result_path": "{evidence}/{prefix}cp2-pip.json",
+      "cp2_alias": true
+    },
+    {
+      "id": "cp2-liveedge",
+      "description": "CP2 liveedge 复用既有页别名（未上机）",
+      "why": "总计划§4 CP2；逐CHECK核对次数，缺证据BLOCKED",
+      "covers": [],
+      "dependencies": [
+        "services",
+        "build"
+      ],
+      "argv": [
+        "{python}",
+        "{tool}/coverage_cp2.py",
+        "liveedge",
+        "--run-id",
+        "{run_id}",
+        "--runs",
+        "5",
+        "--timeout",
+        "7200"
+      ],
+      "evidence_prefix": "{prefix}cp2-liveedge",
+      "screen_on": true,
+      "fast": false,
+      "timeout": 7300,
+      "native_driver": true,
+      "cp2_driver": true,
+      "result_path": "{evidence}/{prefix}cp2-liveedge.json",
+      "cp2_alias": true
+    },
+    {
+      "id": "cp2-events",
+      "description": "CP2 events 复用既有页别名（未上机）",
+      "why": "总计划§4 CP2；逐CHECK核对次数，缺证据BLOCKED",
+      "covers": [],
+      "dependencies": [
+        "services",
+        "build"
+      ],
+      "argv": [
+        "{python}",
+        "{tool}/coverage_cp2.py",
+        "events",
+        "--run-id",
+        "{run_id}",
+        "--runs",
+        "5",
+        "--timeout",
+        "7200"
+      ],
+      "evidence_prefix": "{prefix}cp2-events",
+      "screen_on": true,
+      "fast": false,
+      "timeout": 7300,
+      "native_driver": true,
+      "cp2_driver": true,
+      "result_path": "{evidence}/{prefix}cp2-events.json",
+      "cp2_alias": true
+    },
+    {
+      "id": "cp3-fullscreen",
+      "description": "CP3 fullscreen",
+      "why": "CP3 C17 后合并前自动判据",
+      "covers": [],
+      "dependencies": [
+        "build"
+      ],
+      "argv": [
+        "{python}",
+        "{tool}/coverage_cp3.py",
+        "fullscreen",
+        "--run-id",
+        "{run_id}",
+        "--runs",
+        "5",
+        "--timeout",
+        "7200"
+      ],
+      "timeout": 7400,
+      "evidence_prefix": "{prefix}cp3-fullscreen",
+      "screen_on": true,
+      "fast": false,
+      "native_driver": true,
+      "cp3_driver": true,
+      "result_path": "{evidence}/{prefix}cp3-fullscreen.json"
+    },
+    {
+      "id": "cp3-theme",
+      "description": "CP3 theme",
+      "why": "CP3 C17 后合并前自动判据",
+      "covers": [],
+      "dependencies": [
+        "build"
+      ],
+      "argv": [
+        "{python}",
+        "{tool}/coverage_cp3.py",
+        "theme",
+        "--run-id",
+        "{run_id}",
+        "--runs",
+        "10",
+        "--timeout",
+        "7200"
+      ],
+      "timeout": 7400,
+      "evidence_prefix": "{prefix}cp3-theme",
+      "screen_on": true,
+      "fast": false,
+      "native_driver": true,
+      "cp3_driver": true,
+      "result_path": "{evidence}/{prefix}cp3-theme.json"
+    },
+    {
+      "id": "cp3-headers",
+      "description": "CP3 headers",
+      "why": "CP3 C17 后合并前自动判据",
+      "covers": [],
+      "dependencies": [
+        "build"
+      ],
+      "argv": [
+        "{python}",
+        "{tool}/coverage_cp3.py",
+        "headers",
+        "--run-id",
+        "{run_id}",
+        "--runs",
+        "5",
+        "--timeout",
+        "7200"
+      ],
+      "timeout": 7400,
+      "evidence_prefix": "{prefix}cp3-headers",
+      "screen_on": true,
+      "fast": false,
+      "native_driver": true,
+      "cp3_driver": true,
+      "result_path": "{evidence}/{prefix}cp3-headers.json"
+    },
+    {
+      "id": "cp3-feedplayer",
+      "description": "CP3 feedplayer",
+      "why": "CP3 C17 后合并前自动判据",
+      "covers": [],
+      "dependencies": [
+        "build"
+      ],
+      "argv": [
+        "{python}",
+        "{tool}/coverage_cp3.py",
+        "feedplayer",
+        "--run-id",
+        "{run_id}",
+        "--runs",
+        "5",
+        "--timeout",
+        "7200"
+      ],
+      "timeout": 7400,
+      "evidence_prefix": "{prefix}cp3-feedplayer",
+      "screen_on": true,
+      "fast": false,
+      "native_driver": true,
+      "cp3_driver": true,
+      "result_path": "{evidence}/{prefix}cp3-feedplayer.json"
+    },
+    {
+      "id": "cp3-c04chrome",
+      "description": "CP3 c04chrome",
+      "why": "CP3 C17 后合并前自动判据",
+      "covers": [],
+      "dependencies": [
+        "build"
+      ],
+      "argv": [
+        "{python}",
+        "{tool}/coverage_cp3.py",
+        "c04chrome",
+        "--run-id",
+        "{run_id}",
+        "--runs",
+        "5",
+        "--timeout",
+        "7200"
+      ],
+      "timeout": 7400,
+      "evidence_prefix": "{prefix}cp3-c04chrome",
+      "screen_on": true,
+      "fast": false,
+      "native_driver": true,
+      "cp3_driver": true,
+      "result_path": "{evidence}/{prefix}cp3-c04chrome.json"
+    },
+    {
+      "id": "cp3-cp1gap-bottom",
+      "description": "CP1 底栏专属补丁夹具",
+      "why": "CP3 C17 后合并前自动判据",
+      "covers": [],
+      "dependencies": [
+        "build"
+      ],
+      "argv": [
+        "{python}",
+        "{tool}/coverage_cp3.py",
+        "cp1gap",
+        "--run-id",
+        "{run_id}",
+        "--runs",
+        "5",
+        "--timeout",
+        "7200"
+      ],
+      "timeout": 7400,
+      "evidence_prefix": "{prefix}cp3-cp1gap",
+      "screen_on": true,
+      "fast": false,
+      "native_driver": true,
+      "cp3_driver": true,
+      "result_path": "{evidence}/{prefix}cp3-cp1gap.json"
+    },
+    {
+      "id": "cp3-precise-normal",
+      "description": "CP3 precise-normal",
+      "why": "CP3 C17 后合并前自动判据",
+      "covers": [],
+      "dependencies": [
+        "build"
+      ],
+      "argv": [
+        "{python}",
+        "{tool}/coverage_cp3.py",
+        "precise-normal",
+        "--run-id",
+        "{run_id}",
+        "--runs",
+        "60",
+        "--timeout",
+        "7200"
+      ],
+      "timeout": 7400,
+      "evidence_prefix": "{prefix}cp3-precise-normal",
+      "screen_on": true,
+      "fast": false,
+      "native_driver": true,
+      "cp3_driver": true,
+      "result_path": "{evidence}/{prefix}cp3-precise-normal.json"
+    },
+    {
+      "id": "cp3-precise-paused",
+      "description": "CP3 precise-paused",
+      "why": "CP3 C17 后合并前自动判据",
+      "covers": [],
+      "dependencies": [
+        "build"
+      ],
+      "argv": [
+        "{python}",
+        "{tool}/coverage_cp3.py",
+        "precise-paused",
+        "--run-id",
+        "{run_id}",
+        "--runs",
+        "60",
+        "--timeout",
+        "7200"
+      ],
+      "timeout": 7400,
+      "evidence_prefix": "{prefix}cp3-precise-paused",
+      "screen_on": true,
+      "fast": false,
+      "native_driver": true,
+      "cp3_driver": true,
+      "result_path": "{evidence}/{prefix}cp3-precise-paused.json"
+    },
+    {
+      "id": "cp3-precise-cutover",
+      "description": "CP3 precise-cutover",
+      "why": "CP3 C17 后合并前自动判据",
+      "covers": [],
+      "dependencies": [
+        "build"
+      ],
+      "argv": [
+        "{python}",
+        "{tool}/coverage_cp3.py",
+        "precise-cutover",
+        "--run-id",
+        "{run_id}",
+        "--runs",
+        "160",
+        "--timeout",
+        "7200"
+      ],
+      "timeout": 7400,
+      "evidence_prefix": "{prefix}cp3-precise-cutover",
+      "screen_on": true,
+      "fast": false,
+      "native_driver": true,
+      "cp3_driver": true,
+      "result_path": "{evidence}/{prefix}cp3-precise-cutover.json"
+    },
+    {
+      "id": "cp3-r2-subtitles",
+      "description": "CP3 repaired subtitles fixture revalidation",
+      "why": "Only repaired APK fixtures; original per-command counts",
+      "argv": [
+        "{python}",
+        "{tool}/cp3_r2_legacy.py",
+        "subtitles"
+      ],
+      "timeout": 1800,
+      "dependencies": [
+        "services",
+        "build",
+        "api-launch"
+      ],
+      "covers": [],
+      "evidence_prefix": "{prefix}cp3-r2-",
+      "screen_on": true,
+      "fast": false
+    },
+    {
+      "id": "cp3-r2-pool",
+      "description": "CP3 repaired pool fixture revalidation",
+      "why": "Only repaired APK fixtures; original per-command counts",
+      "argv": [
+        "{python}",
+        "{tool}/cp3_r2_legacy.py",
+        "pool"
+      ],
+      "timeout": 1800,
+      "dependencies": [
+        "services",
+        "build",
+        "api-launch"
+      ],
+      "covers": [],
+      "evidence_prefix": "{prefix}cp3-r2-",
+      "screen_on": true,
+      "fast": false
+    },
+    {
+      "id": "cp3-r2-stt",
+      "description": "CP3 repaired stt fixture revalidation",
+      "why": "Only repaired APK fixtures; original per-command counts",
+      "argv": [
+        "{python}",
+        "{tool}/cp3_r2_legacy.py",
+        "stt"
+      ],
+      "timeout": 1800,
+      "dependencies": [
+        "services",
+        "build",
+        "api-launch"
+      ],
+      "covers": [],
+      "evidence_prefix": "{prefix}cp3-r2-",
+      "screen_on": true,
+      "fast": false
+    },
+    {
+      "id": "cp3-r2-receipt",
+      "description": "CP3 repaired receipt fixture revalidation",
+      "why": "Only repaired APK fixtures; original per-command counts",
+      "argv": [
+        "{python}",
+        "{tool}/cp3_r2_legacy.py",
+        "receipt"
+      ],
+      "timeout": 1800,
+      "dependencies": [
+        "services",
+        "build",
+        "api-launch"
+      ],
+      "covers": [],
+      "evidence_prefix": "{prefix}cp3-r2-",
+      "screen_on": true,
+      "fast": false
+    },
+    {
+      "id": "cp3-r2-s3s6",
+      "description": "S3 default keepDecoding and S6 explicit pause",
+      "why": "Three runs per original scenario; unrelated keepAlive scenes excluded",
+      "argv": [
+        "{python}",
+        "{tool}/coverage_suite_device.py",
+        "keepAlive",
+        "--only",
+        "S3,S6",
+        "--runs",
+        "3",
+        "--timeout",
+        "1200",
+        "--name",
+        "{prefix}cp3-r2-s3s6"
+      ],
+      "timeout": 1320,
+      "dependencies": [
+        "services",
+        "build"
+      ],
+      "covers": [],
+      "evidence_prefix": "{prefix}cp3-r2-s3s6",
+      "screen_on": true,
+      "fast": false
+    },
+    {
       "id": "gap-screen",
       "description": "睡眠/锁屏/唤醒原生音频时间线，安全锁需人工解锁",
       "why": "补验收矩阵 §4.2 / §5.2 真机缺口；独立验证页和 L 日志，未运行不得认定通过。",
@@ -1565,5 +2919,100 @@
     ],
     "signing": "Android SDK build-tools zipalign / apksigner + ~/.android/debug.keystore",
     "install": "adb install -r; pull installed APK; sha256 + lastUpdateTime"
+  },
+  "aliases": {
+    "cp3-full": {
+      "batches": [
+        "api-launch",
+        "s00c-native",
+        "api",
+        "followups",
+        "hls-native",
+        "he-firstframe",
+        "he-recovery",
+        "keepalive-core",
+        "existing-pages",
+        "widgets",
+        "ui",
+        "gesture-pip",
+        "interactive",
+        "final-api",
+        "final-tls",
+        "final-tls-probe",
+        "final-hls",
+        "final-abr",
+        "extras",
+        "live-inputs",
+        "native-inputs",
+        "he-v6-final",
+        "manual-ready",
+        "safe-visual",
+        "safe-transition",
+        "touch-mini",
+        "touch-preview",
+        "cp0-autotier",
+        "cp0-p02",
+        "cp0-pod2",
+        "cp0-bgpause",
+        "cp0-pauseload",
+        "cp0-timeshift",
+        "cp0-pageview",
+        "gap-prepare",
+        "gap-assumptions",
+        "gap-lifecycle",
+        "gap-local",
+        "gap-formats",
+        "gap-random",
+        "gap-focus",
+        "gap-network",
+        "gap-skin",
+        "perf-regular",
+        "perf-soak",
+        "perf-audio",
+        "cp1-wakeswap",
+        "cp1-edgepause",
+        "cp1-errclass",
+        "cp1-probe",
+        "cp1-manageauto",
+        "cp1-bblock",
+        "cp1-pool",
+        "cp1-danmaku",
+        "cp1-recovery",
+        "cp1-dispose120",
+        "cp1-keepalive-s7s14",
+        "s00e-native",
+        "cp3-fullscreen",
+        "cp3-theme",
+        "cp3-headers",
+        "cp3-feedplayer",
+        "cp3-c04chrome",
+        "cp3-cp1gap-bottom",
+        "cp3-precise-normal",
+        "cp3-precise-paused",
+        "cp3-precise-cutover"
+      ],
+      "source": "Android manifest snapshot 2026-11-05; source argv counts unchanged; build/GSM/Windows excluded; gap-screen needs owner unlock, manual exclusion",
+      "count": "67 unique source batches once; manual-ready is an automatic API readiness dependency"
+    },
+    "cp3-cp1gap": {
+      "batches": [
+        "cp1-edgepause",
+        "cp1-bblock",
+        "cp1-danmaku",
+        "gap-skin",
+        "cp3-cp1gap-bottom"
+      ],
+      "source": "CP1 BLOCKED rows; measurements only, historical blockers remain",
+      "count": "20 / 10 / 5 / source skin counts"
+    },
+    "cp3-f3": {
+      "batches": [
+        "cp3-precise-normal",
+        "cp3-precise-paused",
+        "cp3-precise-cutover"
+      ],
+      "source": "cp0_android_extra.run_one + cp1_reduce_extra precise criteria; rerun6",
+      "count": "60 + 60 + 160 = 280"
+    }
   }
 }

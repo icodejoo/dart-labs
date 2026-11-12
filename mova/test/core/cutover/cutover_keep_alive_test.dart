@@ -32,6 +32,7 @@ MovaCutoverEngine _build(List<FakeMovaApi> made, {bool plain = false}) {
 ///
 /// 把影子引擎预热到就绪并返回它（工厂造出的第二个引擎）。
 Future<FakeMovaApi> _warm(MovaCutoverEngine api, List<FakeMovaApi> made) async {
+  made.first.push(made.first.state.copyWith(playbackIntent: true));
   await api.prepare(const MovaSource('https://host/content.mp4'), at: const Duration(seconds: 5), cue: _cue);
   await settle();
   final shadow = made[1];

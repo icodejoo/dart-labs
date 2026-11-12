@@ -1,0 +1,6 @@
+{
+  "ProcessId": 35852,
+  "ParentProcessId": 50008,
+  "CreationDate": "2026-11-10T20:08:26.811226+08:00",
+  "CommandLine": "E:\\sdk\\jdk\\openjdk-21.0.5+11\\bin\\java.exe --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.lang.invoke=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED --add-opens=java.prefs/java.util.prefs=ALL-UNNAMED --add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED --add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED --add-opens=java.prefs/java.util.prefs=ALL-UNNAMED --add-opens=java.base/java.nio.charset=ALL-UNNAMED --add-opens=java.base/java.net=ALL-UNNAMED --add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED --add-opens=java.xml/javax.xml.namespace=ALL-UNNAMED -XX:MaxMetaspaceSize=384m -XX:ReservedCodeCacheSize=128m -XX:HeapDumpPath=C:/ldp/perf_logs/luckdraw_perf.hprof -Xmx1024m -Dfile.encoding=UTF-8 -Duser.country=CN -Duser.language=zh -Duser.variant -cp C:\\Users\\jelon\\.gradle\\wrapper\\dists\\gradle-8.14.3-all\\10utluxaxniiv4wxiphsi49nj\\gradle-8.14.3\\lib\\gradle-daemon-main-8.14.3.jar -javaagent:C:\\Users\\jelon\\.gradle\\wrapper\\dists\\gradle-8.14.3-all\\10utluxaxniiv4wxiphsi49nj\\gradle-8.14.3\\lib\\agents\\gradle-instrumentation-agent-8.14.3.jar org.gradle.launcher.daemon.bootstrap.GradleDaemon 8.14.3"
+}

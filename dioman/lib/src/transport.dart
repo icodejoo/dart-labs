@@ -8,6 +8,35 @@ import 'response.dart';
 /// 全部 HTTP 状态交给工厂，不让 Dio 构造 badResponse。
 bool _acceptStatus(int? _) => true;
 
+/// 只保存原解码器和 HTTP 快照，避免响应配置持有整个传输作用域。
+class _ResponseDecoder {
+  /// 保存调用方解码器。
+  _ResponseDecoder(this.decoder);
+
+  /// 原始解码器，未提供时使用 Dio 的默认文本规则。
+  final ResponseDecoder? decoder;
+
+  /// Dio 解码抛错时用于补回 HTTP 元信息。
+  Response<dynamic>? response;
+
+  /// 先保存响应快照，再执行原解码或默认解码。
+  FutureOr<String?> call(
+      List<int> bytes, RequestOptions request, ResponseBody body) {
+    response = Response<dynamic>(
+        requestOptions: request,
+        statusCode: body.statusCode,
+        headers: Headers.fromMap(body.headers));
+    if (decoder != null) return decoder!(bytes, request, body);
+    if (bytes.isEmpty &&
+        request.responseType == ResponseType.json &&
+        Transformer.isJsonMimeType(
+            body.headers[Headers.contentTypeHeader]?.first)) {
+      return null;
+    }
+    return utf8.decode(bytes, allowMalformed: true);
+  }
+}
+
 /// 递归克隆 JSON 请求体；FormData 使用 Dio 的 clone，其他类型保留身份。
 Object? _clone(Object? value, DiomanLogger log) {
   if (value is Map) return value.map((k, v) => MapEntry(k, _clone(v, log)));
@@ -25,7 +54,7 @@ Object? _clone(Object? value, DiomanLogger log) {
 Future<DiomanResponse<dynamic>>
     diomanTransport<R extends DiomanResponse<dynamic>>(
         Dio dio, DiomanContext<R> ctx) async {
-  Response<dynamic>? decodingResponse;
+  _ResponseDecoder? decoding;
   try {
     final cancelled = ctx.cancelled();
     if (cancelled != null) return cancelled;
@@ -37,22 +66,8 @@ Future<DiomanResponse<dynamic>>
     final options = ctx.request.toRequestOptions()
       ..validateStatus = _acceptStatus
       ..cancelToken = ctx.cancelToken;
-    final decoder = options.responseDecoder;
-    // Dio 解码抛错时会丢弃 Response；用本次局部闭包保留 HTTP 元信息。
-    options.responseDecoder = (bytes, request, body) {
-      decodingResponse = Response<dynamic>(
-          requestOptions: request,
-          statusCode: body.statusCode,
-          headers: Headers.fromMap(body.headers));
-      if (decoder != null) return decoder(bytes, request, body);
-      if (bytes.isEmpty &&
-          request.responseType == ResponseType.json &&
-          Transformer.isJsonMimeType(
-              body.headers[Headers.contentTypeHeader]?.first)) {
-        return null;
-      }
-      return utf8.decode(bytes, allowMalformed: true);
-    };
+    decoding = _ResponseDecoder(options.responseDecoder);
+    options.responseDecoder = decoding.call;
     if (ctx.replayable) options.data = _clone(options.data, ctx.log);
     final raw = await dio.fetch<dynamic>(options);
     return ctx.factory
@@ -60,7 +75,7 @@ Future<DiomanResponse<dynamic>>
   } catch (e, s) {
     final error =
         e is DioException && e.error is FormatException && e.response == null
-            ? e.copyWith(response: decodingResponse)
+            ? e.copyWith(response: decoding?.response)
             : e;
     return ctx.factory.normalize(ctx.request,
         error: error, stack: s, cancelled: ctx.isCancelled);

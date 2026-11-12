@@ -31,6 +31,16 @@ abstract class MovaBrightPort {
   Future<void> set(double value);
 }
 
+/// 亮度端口的可选还原能力，用于恢复应用覆盖或交还系统亮度控制。
+///
+/// 示例：`if (port is MovaBrightRestore) await port.restore(initialBrightness);`
+abstract interface class MovaBrightRestore {
+  /// 用 [initialBrightness] 还原进入播放器前的亮度，返回完成通知。
+  ///
+  /// 示例：`await port.restore(0.6)`；支持系统控制的端口可清除应用覆盖。
+  Future<void> restore(double initialBrightness);
+}
+
 /// A port for reading and writing the device's system media volume, as a
 /// percentage in `[0, 100]`.
 ///
