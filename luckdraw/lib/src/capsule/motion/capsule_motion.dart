@@ -249,6 +249,7 @@ final class CapsuleMotion extends LuckyMotion<CapsuleConfig, CapsuleLayout,
     _startSpeed = phase == LuckyPhase.idleSpinning
         ? _config.options.motion.idleSpinSpeed
         : 0;
+    if (phase == LuckyPhase.settled) _driver?.reset();
     _clear();
     _activeMotion = _config.options.motion;
     _frameCount = 0;
@@ -264,6 +265,7 @@ final class CapsuleMotion extends LuckyMotion<CapsuleConfig, CapsuleLayout,
     if (!_ready || phase != LuckyPhase.idle && phase != LuckyPhase.settled) {
       return false;
     }
+    if (phase == LuckyPhase.settled) _driver?.reset();
     _clear();
     frame.phase = LuckyPhase.idleSpinning;
     frame.stage = CapsuleStage.mixing;

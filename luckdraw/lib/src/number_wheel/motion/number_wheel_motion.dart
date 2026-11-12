@@ -48,7 +48,7 @@ final class NumberWheelMotion extends LuckyMotion<NumberWheelConfig,
   /// 已应用配置。
   NumberWheelConfig _config = const NumberWheelConfig(pockets: []);
 
-  /// 运动中待应用的结构配置。
+  /// 运动中待应用的偏移角配置，只保留最新一份。
   NumberWheelConfig? _queuedConfig;
 
   /// 待应用配置对应的几何。
@@ -107,13 +107,17 @@ final class NumberWheelMotion extends LuckyMotion<NumberWheelConfig,
   void configure(NumberWheelConfig config, NumberWheelLayout? layout) {
     assert(config.options.motion.accelerationTime > Duration.zero);
     assert(config.options.motion.decelerationTime > Duration.zero);
+    // 已有排队配置时，后来的同条目数配置覆盖它，避免结算时旧配置反盖新配置。
     if (phase.isMoving &&
         _config.pockets.length == config.pockets.length &&
-        _config.options.offsetDegree != config.options.offsetDegree) {
+        (_queuedConfig != null ||
+            _config.options.offsetDegree != config.options.offsetDegree)) {
       _queuedConfig = config;
       _queuedLayout = layout;
       return;
     }
+    _queuedConfig = null;
+    _queuedLayout = null;
     if (_config.pockets.length != config.pockets.length && phase.isMoving) {
       final report = phase != LuckyPhase.idleSpinning;
       reset();
@@ -189,8 +193,14 @@ final class NumberWheelMotion extends LuckyMotion<NumberWheelConfig,
     frame.targetIndex = _pending = -1;
     _elapsed = 0;
     _result = null;
-    _queuedConfig = null;
-    _queuedLayout = null;
+    // 本局被取消或重置时，排队的偏移角配置不能丢，静止后立即应用。
+    final queued = _queuedConfig;
+    if (queued != null) {
+      final layout = _queuedLayout;
+      _queuedConfig = null;
+      _queuedLayout = null;
+      configure(queued, layout);
+    }
   }
 
   /// 只在进入减速时求解一次位移。
@@ -294,8 +304,6 @@ final class NumberWheelMotion extends LuckyMotion<NumberWheelConfig,
     if (phase == LuckyPhase.settled && _queuedConfig != null) {
       final queued = _queuedConfig!;
       final layout = _queuedLayout;
-      _queuedConfig = null;
-      _queuedLayout = null;
       configure(queued, layout);
     }
     if (before != phase) events |= LuckyMotionEvents.phaseChanged;

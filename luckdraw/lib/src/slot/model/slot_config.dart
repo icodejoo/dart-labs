@@ -104,3 +104,14 @@ final class SlotConfig {
       Object.hashAll(paylines),
       paylinePredicate);
 }
+
+/// 比较几何结构；减速中的这类变更应排队到结算后。
+bool slotStructureChanged(SlotConfig a, SlotConfig b) =>
+    a.prizes.length != b.prizes.length ||
+    a.reels.length != b.reels.length ||
+    a.options.mode != b.options.mode ||
+    a.options.rowSpacing != b.options.rowSpacing ||
+    a.options.colSpacing != b.options.colSpacing ||
+    a.options.cellAspectRatio != b.options.cellAspectRatio ||
+    !listEquals([for (final r in a.reels) r.order?.join(',')],
+        [for (final r in b.reels) r.order?.join(',')]);

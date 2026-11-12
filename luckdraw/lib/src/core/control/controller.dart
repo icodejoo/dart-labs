@@ -199,6 +199,16 @@ abstract class LuckyController<C extends Object, L extends LuckyLayout,
       _queued = (config: config, layout: layout);
     } else {
       motion.configure(config, layout);
+      _afterConfigure();
+    }
+  }
+
+  /// 应用配置后收尾：motion 在配置中取消本局时同步阶段、交付结果并完成未决调用。
+  void _afterConfigure() {
+    final result = motion.takeResult();
+    if (result != null || _phase.value != motion.phase) {
+      _afterCommand(result, _pending, fromIdle: false);
+    } else {
       _syncClock();
     }
   }

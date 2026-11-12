@@ -143,7 +143,9 @@ final class LottoMotion
     config.validate();
     _available = layout != null && !layout.isEmpty;
     if (!_available) {
-      _config ??= config;
+      // 号码池未变时先吸收选项变化；池变化要等布局到位后随缓冲一并重建。
+      final current = _config;
+      if (current == null || _samePools(current, config)) _config = config;
       return;
     }
     final changed = _config == null || !_samePools(_config!, config);
@@ -492,12 +494,14 @@ final class LottoMotion
       if (elapsed < 0) continue;
       if (!_started[i]) {
         _started[i] = true;
-        if (physics == null) {
-          _excluded[p][b] = true;
-          _fromX[i] = frame.x[p][b];
-          _fromY[i] = frame.y[p][b];
-          frame.slotOf[p][b] = _slotOfDraw[i];
-        }
+        // 起飞位置始终记录：飞行中途物理与参数化驱动互换时，插值仍从真实起点出发。
+        _fromX[i] = frame.x[p][b];
+        _fromY[i] = frame.y[p][b];
+      }
+      if (physics == null) {
+        // 已起飞的球由飞行轨迹接管；物理中途换成参数化驱动时也要移出搅拌。
+        _excluded[p][b] = true;
+        frame.slotOf[p][b] = _slotOfDraw[i];
       }
       final progress = luckyUnit(elapsed / luckyMs(options.ballFlightTime));
       frame.flight[i] = progress;

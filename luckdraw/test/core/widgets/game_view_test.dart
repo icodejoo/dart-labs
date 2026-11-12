@@ -1082,6 +1082,22 @@ void main() {
       controller.play();
       expect(calls.last, 'afterStart');
     });
+    testWidgets('onReady and afterInit fire once across relayouts',
+        (tester) async {
+      var ready = 0, init = 0;
+      Widget build(double width) => _root(LuckyGameView(
+          game: _CounterGame(probe),
+          config: 1,
+          controller: controller,
+          width: width,
+          height: 100,
+          hooks: LuckyHooks(afterInit: () => init++),
+          onReady: () => ready++));
+      await tester.pumpWidget(build(100));
+      await tester.pumpWidget(build(120));
+      await tester.pumpWidget(build(140));
+      expect((ready, init), (1, 1));
+    });
     testWidgets(
         'without tap callbacks no gesture recognizer is attached (#153)',
         (tester) async {

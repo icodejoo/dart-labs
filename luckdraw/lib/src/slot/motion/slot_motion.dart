@@ -107,8 +107,7 @@ final class SlotMotion
   @override
   void configure(SlotConfig config, SlotLayout? layout) {
     final replan = phase == LuckyPhase.decelerating &&
-        (_config.prizes.length != config.prizes.length ||
-            _config.reels != config.reels);
+        slotStructureChanged(_config, config);
     final oldSpacing = _layout?.cellAndSpacing ?? 0;
     _config = config;
     _layout = layout;

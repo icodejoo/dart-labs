@@ -45,12 +45,12 @@ class NumberWheelController extends LuckyMotionController<
     return stop(index);
   }
 
-  /// 开始并异步等待号码；null 使用 picker，最短时长按有效时间计算。
+  /// 开始并异步等待号码；null 作废本局，最短时长按有效时间计算。
   Future<LuckyResult<NumberWheelPocket>> playUntil(
           FutureOr<int?> Function() resolveNumber,
           {Duration minSpinDuration = Duration.zero}) =>
       runPlayUntil(resolveNumber, minSpinDuration,
-          (number) => number == null ? stop() : stopNumber(number));
+          (number) => number == null ? cancel() : stopNumber(number));
 
   /// 创建空奖品的作废结果。
   @override

@@ -313,8 +313,13 @@ class _LuckyGameViewState<
   /// 转发给当前图片错误回调。
   void _imageError(LuckyImageError error) => widget.onImageError?.call(error);
 
-  /// 全部图片有结论后触发就绪钩子。
+  /// 是否已触发过就绪钩子；重新布局引发的图片刷新不重复触发。
+  bool _readyFired = false;
+
+  /// 全部图片首次有结论后触发就绪钩子，仅一次。
   void _ready() {
+    if (_readyFired) return;
+    _readyFired = true;
     widget.hooks.afterInit?.call();
     widget.onReady?.call();
   }

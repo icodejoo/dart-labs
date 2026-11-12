@@ -1,7 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
-
 import '../../core/control/motion_controller.dart';
 import '../../core/motion/phase.dart';
 import '../../core/picker/pick_index.dart';
@@ -9,17 +7,6 @@ import '../layout/slot_layout.dart';
 import '../model/slot_config.dart';
 import '../model/slot_result.dart';
 import '../motion/slot_motion.dart';
-
-/// 比较几何结构；减速中的这类变更应排队到结算后。
-bool slotStructureChanged(SlotConfig a, SlotConfig b) =>
-    a.prizes.length != b.prizes.length ||
-    a.reels.length != b.reels.length ||
-    a.options.mode != b.options.mode ||
-    a.options.rowSpacing != b.options.rowSpacing ||
-    a.options.colSpacing != b.options.colSpacing ||
-    a.options.cellAspectRatio != b.options.cellAspectRatio ||
-    !listEquals([for (final r in a.reels) r.order?.join(',')],
-        [for (final r in b.reels) r.order?.join(',')]);
 
 /// 类型化控制器；调用方拥有时须 dispose，可 attachHeadless 注入手动时钟。
 class SlotController extends LuckyMotionController<SlotConfig, SlotLayout,

@@ -31,11 +31,12 @@ class LotsController extends LuckyMotionController<LotsConfig, LotsLayout,
     return commitCommand(_motion.stop(target ?? -1));
   }
 
-  /// 开始并等待异步下标；null 使用 picker，最短时长按有效时间计算。
+  /// 开始并等待异步下标；null 作废本局，最短时长按有效时间计算。
   Future<LuckyResult<LotsStick>> playUntil(
           FutureOr<int?> Function() resolveIndex,
           {Duration minSpinDuration = Duration.zero}) =>
-      runPlayUntil(resolveIndex, minSpinDuration, stop);
+      runPlayUntil(resolveIndex, minSpinDuration,
+          (index) => index == null ? cancel() : stop(index));
 
   /// 空奖品的作废结果。
   @override
