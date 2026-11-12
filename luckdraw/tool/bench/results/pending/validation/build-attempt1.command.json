@@ -1,0 +1,6 @@
+{
+  "command": "flutter build apk --profile --no-pub --target=integration_test/pending_bench_test.dart --dart-define=LUCKDRAW_TIMELINE=true",
+  "workers_max": 2,
+  "exit_code": 1,
+  "seconds": 56.372
+}

@@ -330,6 +330,13 @@ void main() {
     shadow.pushProgress(ready);
     await settleOperations();
     expect(active.calls.last, 'pause');
+    active.push(active.state.copyWith(duration: const Duration(seconds: 40)));
+    // 换指副产物：位置还在 30s，不在片尾，MovaDone 必须继续被吞。
+    await done(active);
+    expect(playlist.currentIndex, 0);
+    // 真正播到片尾后的 MovaDone 才是自然结束。
+    active.pushProgress(const MovaProg(position: Duration(milliseconds: 39500)));
+    await settleOperations();
     await done(active);
     expect(playlist.currentIndex, 1);
     pause.complete();

@@ -1,0 +1,2 @@
+
+STEADY (2026-11-11), one vivo V2417: instrumented grid/slot/lotto still fail the frozen gates; lots passes this run's three rounds. Wheel process / UI+platform / Raster CPU medians are 39.291% / 14.931% / 18.299%. A lotto preparation-reuse candidate showed no stable net benefit and was reverted. See the [STEADY report](https://github.com/icodejoo/dart-labs/blob/main/luckdraw/tool/bench/results/steady/REPORT.md); the following INSTR/MET2 records retain their historical scope.

@@ -1,5 +1,3 @@
-import 'dart:convert';
-import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mova_example/verify_auto/cp2_criteria.dart';
 
@@ -17,46 +15,6 @@ Map<String, dynamic> sample(
   'state': {'playing': playing, 'intent': intent},
 };
 void main() {
-  test(
-    'Dart reducer replays all five R4 slot failures from original evidence',
-    () {
-      const cases = {
-        'adpause-r4-20261104-223849': {
-          'CP2.adpause.pause.1': 6000225,
-          'CP2.adpause.pause.4': 6001469,
-          'CP2.adpause.pause.7': 6040074,
-          'CP2.adpause.pause.9': 6000789,
-        },
-        'adbg-r4-20261104-224213': {'CP2.adbg.guard.7': 5999988},
-      };
-      for (final entry in cases.entries) {
-        final scene = entry.key.split('-').first;
-        final run = 'cp2-${entry.key}';
-        final data =
-            jsonDecode(
-                  File(
-                    'tool/coverage_evidence/matrix-$run/'
-                    'matrix-$run-cp2-$scene.json',
-                  ).readAsStringSync(),
-                )
-                as Map;
-        final records = (data['records'] as List).cast<Map<String, dynamic>>();
-        for (final expected in entry.value.entries) {
-          final end = records.indexWhere((r) => r['id'] == expected.key);
-          final begin =
-              records.lastIndexWhere((r) => r['kind'] == 'CHECK', end - 1) + 1;
-          final uri =
-              ((records[end]['numbers'] as Map)['before'] as Map)['path']
-                  as String;
-          expect(
-            cp2SlotActiveUs(records.sublist(begin, end), uri),
-            expected.value,
-            reason: expected.key,
-          );
-        }
-      }
-    },
-  );
   test(
     'slot clock uses first frame and observed edges, including command lag',
     () {

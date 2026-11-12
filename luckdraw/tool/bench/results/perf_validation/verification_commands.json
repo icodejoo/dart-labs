@@ -1,0 +1,44 @@
+{
+  "copy": {
+    "regular_files": 245,
+    "core_applied": false,
+    "shared_appended": [
+      "test/ACCEPTANCE.md (PERF-01–26)",
+      "CHANGELOG.md (PERF补充)"
+    ]
+  },
+  "copy_validation": [
+    {
+      "command": "dart format --output=none --set-exit-if-changed lib/src/wheel/render lib/src/grid/render lib/src/number_wheel/render lib/src/capsule/render lib/src/lotto/render test/wheel test/grid test/number_wheel test/capsule test/lotto test/perf test/core/foundation/models_test.dart test/core/render/perf_cache_test.dart",
+      "exit_code": 0,
+      "output": "Formatted 67 files (0 changed)"
+    },
+    {
+      "command": "flutter test test/perf test/wheel/perf_wheel_test.dart test/core/render/perf_cache_test.dart --no-pub --concurrency=1 --reporter=json",
+      "exit_code": 1,
+      "output": "Compile failed: lib/src/core/render/cached_picture.dart absent; LuckyCacheMode.auto and cache extensions await core_patch.diff"
+    },
+    {
+      "command": "dart run tool/check_imports.dart",
+      "exit_code": 0,
+      "output": "PASS: 144 lib files; IMP-R1…R12"
+    },
+    {
+      "command": "dart run tool/check_acceptance.dart",
+      "exit_code": 0,
+      "output": "PASS: 1468 references resolve; 1069 registered tests all mapped"
+    }
+  ],
+  "copy_root": "C:/ldp/luckdraw",
+  "unit_groups": [
+    "flutter test test/core test/testing --no-pub --concurrency=1 --reporter=json --coverage --coverage-path=coverage/PERF_core.lcov",
+    "flutter test test/wheel test/grid test/slot test/capsule test/number_wheel test/lots test/lotto test/perf --no-pub --concurrency=1 --reporter=json --coverage --coverage-path=coverage/PERF_games.lcov",
+    "flutter test test/parity --no-pub --concurrency=1 --reporter=json --coverage --coverage-path=coverage/PERF_parity.lcov",
+    "flutter test test/tool test/compat test/example_pages_test.dart --no-pub --concurrency=1 --reporter=json --coverage --coverage-path=coverage/PERF_tools.lcov",
+    "python tool/bench/merge_perf_validation.py",
+    "dart run tool/coverage.dart --min=100 --lcov=coverage/PERF.lcov",
+    "dart run tool/check_imports.dart",
+    "dart run tool/check_acceptance.dart",
+    "dart run tool/check_acceptance.dart --from-json coverage/perf_logs/merged.jsonl"
+  ]
+}

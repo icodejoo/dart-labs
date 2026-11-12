@@ -1,0 +1,114 @@
+{
+  "device": "10AE9K17UE0011S",
+  "repeat": 3,
+  "files": [
+    "capsule_flow_test.dart",
+    "grid_flow_test.dart",
+    "lever_flow_test.dart",
+    "lifecycle_test.dart",
+    "lots_flow_test.dart",
+    "lotto_flow_test.dart",
+    "number_wheel_flow_test.dart",
+    "resize_test.dart",
+    "route_test.dart",
+    "slot_flow_test.dart",
+    "wheel_flow_test.dart"
+  ],
+  "total": 11,
+  "passed": 11,
+  "failed": 0,
+  "passRate": 1.0,
+  "elapsedMs": 748362,
+  "complete": false,
+  "success": false,
+  "runs": [
+    {
+      "file": "capsule_flow_test.dart",
+      "attempt": 1,
+      "exitCode": 0,
+      "elapsedMs": 100653,
+      "timedOut": false,
+      "passed": true
+    },
+    {
+      "file": "capsule_flow_test.dart",
+      "attempt": 2,
+      "exitCode": 0,
+      "elapsedMs": 66693,
+      "timedOut": false,
+      "passed": true
+    },
+    {
+      "file": "capsule_flow_test.dart",
+      "attempt": 3,
+      "exitCode": 0,
+      "elapsedMs": 61979,
+      "timedOut": false,
+      "passed": true
+    },
+    {
+      "file": "grid_flow_test.dart",
+      "attempt": 1,
+      "exitCode": 0,
+      "elapsedMs": 60975,
+      "timedOut": false,
+      "passed": true
+    },
+    {
+      "file": "grid_flow_test.dart",
+      "attempt": 2,
+      "exitCode": 0,
+      "elapsedMs": 60028,
+      "timedOut": false,
+      "passed": true
+    },
+    {
+      "file": "grid_flow_test.dart",
+      "attempt": 3,
+      "exitCode": 0,
+      "elapsedMs": 57894,
+      "timedOut": false,
+      "passed": true
+    },
+    {
+      "file": "lever_flow_test.dart",
+      "attempt": 1,
+      "exitCode": 0,
+      "elapsedMs": 77092,
+      "timedOut": false,
+      "passed": true
+    },
+    {
+      "file": "lever_flow_test.dart",
+      "attempt": 2,
+      "exitCode": 0,
+      "elapsedMs": 55536,
+      "timedOut": false,
+      "passed": true
+    },
+    {
+      "file": "lever_flow_test.dart",
+      "attempt": 3,
+      "exitCode": 0,
+      "elapsedMs": 65871,
+      "timedOut": false,
+      "passed": true
+    },
+    {
+      "file": "lifecycle_test.dart",
+      "attempt": 1,
+      "exitCode": 0,
+      "elapsedMs": 69062,
+      "timedOut": false,
+      "passed": true
+    },
+    {
+      "file": "lifecycle_test.dart",
+      "attempt": 2,
+      "exitCode": 0,
+      "elapsedMs": 72579,
+      "timedOut": false,
+      "passed": true
+    }
+  ]
+}

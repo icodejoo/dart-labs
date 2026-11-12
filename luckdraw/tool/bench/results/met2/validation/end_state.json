@@ -1,0 +1,23 @@
+{
+  "git_log": [
+    "443589a3 merge: 合并 mova（链接与分支口径指向 mova 分支）",
+    "f0b64ae1 docs(mova): 链接与分支口径从 main 改为 mova 分支"
+  ],
+  "new_commits": false,
+  "own_dart_flutter_tester_orphans": [],
+  "unrelated_dart_processes_preserved": [
+    {
+      "ProcessId": 25880,
+      "ParentProcessId": 37952,
+      "CommandLine": "E:\\workspaces\\c66_frontend_bingoplus_m_micro_wt1\\node_modules\\.pnpm\\sass-embedded-win32-x64@1.106.1\\node_modules\\sass-embedded-win32-x64\\dart-sass\\src\\dart.exe E:\\workspaces\\c66_frontend_bingoplus_m_micro_wt1\\node_modules\\.pnpm\\sass-embedded-win32-x64@1.106.1\\node_modules\\sass-embedded-win32-x64\\dart-sass\\src\\sass.snapshot --embedded"
+    },
+    {
+      "ProcessId": 22908,
+      "ParentProcessId": 38380,
+      "CommandLine": "E:\\workspaces\\c66_frontend_bingoplus_m_micro_wt2\\node_modules\\.pnpm\\sass-embedded-win32-x64@1.106.1\\node_modules\\sass-embedded-win32-x64\\dart-sass\\src\\dart.exe E:\\workspaces\\c66_frontend_bingoplus_m_micro_wt2\\node_modules\\.pnpm\\sass-embedded-win32-x64@1.106.1\\node_modules\\sass-embedded-win32-x64\\dart-sass\\src\\sass.snapshot --embedded"
+    }
+  ],
+  "device_adb_gradle_build_used": false,
+  "delegated_agents": false,
+  "git_add_commit_push_used": false
+}

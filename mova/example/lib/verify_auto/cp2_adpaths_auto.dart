@@ -4,6 +4,12 @@ import 'cp2_harness.dart';
 import 'cp2_common.dart';
 import 'cp2_criteria.dart';
 
+/// HLS resume tolerance: one keyframe interval of the fixture (1s GOP), because an HLS seek
+/// lands on the keyframe at or before the target.
+///
+/// HLS 续播容差：素材的一个关键帧间隔（GOP 1 秒）——HLS seek 落在目标处或之前的关键帧上。
+const int kHlsResumeToleranceMs = 1000;
+
 Future<void> runAdpaths(Cp2Harness h) async {
   for (final format in ['mp4', 'hls']) {
     for (final path in ['pre', 'mid', 'post', 'pod']) {
@@ -72,7 +78,7 @@ Future<void> runAdpaths(Cp2Harness h) async {
             'postCriterion':'natural EOF then idle; no content resume is scheduled'},
             missing: path != 'post' && error == null ? 'missing native resume target/readback' : null,
             pass: lifecycle && increasing && epochs.length-1 >= expectedSwaps && frames.length == breaks.length &&
-              completed.length == breaks.length && (path == 'post' ? ended == 1 : error != null && error.abs()<=500));
+              completed.length == breaks.length && (path == 'post' ? ended == 1 : error != null && error.abs() <= (format == 'hls' ? kHlsResumeToleranceMs : 500)));
         } finally {
           sampling=false; await sampler; await sub.cancel(); await endSub.cancel(); await ads.dispose(); await h.release();
         }

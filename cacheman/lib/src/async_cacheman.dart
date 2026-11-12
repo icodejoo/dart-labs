@@ -209,6 +209,10 @@ abstract class AsyncCacheman {
   /// 可选 adapter 在序列化前转换；raw 忽略它。
   /// Example / 示例：`cache.write('names', ['Ada'], adapter: ValueAdapter.listOf<String>())`.
   /// 按毫秒 TTL 或 DateTime/整数绝对过期时间写入。
+  /// With sliding, ttl takes precedence and expireAt only sets the first expiry;
+  /// past expireAt restarts from now, and renewal may extend beyond expireAt.
+  /// sliding 下 ttl 优先，expireAt 只决定首次过期时间；过去的 expireAt 会从现在
+  /// 重新起算；续期可能使实际过期时间超过原 expireAt。
   /// Example / 示例：`await cache.write('report', 'text', ttl: 60000)`.
   Future<void> write<T>(String key, T value,
       {int? ttl, Object? expireAt, ValueAdapter<T>? adapter}) async {

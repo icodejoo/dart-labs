@@ -1,0 +1,13 @@
+{
+  "name": "design-invariants",
+  "args": [
+    "flutter",
+    "test",
+    "test/tool/design_invariants_test.dart",
+    "--no-pub",
+    "--concurrency=1",
+    "--reporter=expanded"
+  ],
+  "exitCode": 0,
+  "elapsedSeconds": 2.956
+}

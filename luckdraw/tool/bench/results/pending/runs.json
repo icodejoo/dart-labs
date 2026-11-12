@@ -1,0 +1,532 @@
+[
+  {
+    "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+    "directory": "blank_first_frame_1",
+    "valid": true,
+    "error": null,
+    "scene": "blank_first_frame",
+    "attempt": 1,
+    "ended_at": "2026-11-10T16:36:30.1364337Z",
+    "started_at": "2026-11-10T16:36:11.1473627Z"
+  },
+  {
+    "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+    "directory": "blank_first_frame_2",
+    "valid": true,
+    "error": null,
+    "scene": "blank_first_frame",
+    "attempt": 2,
+    "ended_at": "2026-11-10T16:36:48.075883Z",
+    "started_at": "2026-11-10T16:36:30.9648947Z"
+  },
+  {
+    "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+    "directory": "blank_first_frame_3",
+    "valid": true,
+    "error": null,
+    "scene": "blank_first_frame",
+    "attempt": 3,
+    "ended_at": "2026-11-10T16:37:06.0874813Z",
+    "started_at": "2026-11-10T16:36:48.9193228Z"
+  },
+  {
+    "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+    "directory": "wheel_first_frame_1",
+    "valid": true,
+    "error": null,
+    "scene": "wheel_first_frame",
+    "attempt": 1,
+    "ended_at": "2026-11-10T16:37:24.2838232Z",
+    "started_at": "2026-11-10T16:37:06.8818297Z"
+  },
+  {
+    "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+    "directory": "wheel_first_frame_2",
+    "valid": false,
+    "error": "flutter drive失败: 1",
+    "scene": "wheel_first_frame",
+    "attempt": 2,
+    "ended_at": "2026-11-10T16:37:41.9078171Z",
+    "started_at": "2026-11-10T16:37:25.0944681Z"
+  },
+  {
+    "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+    "directory": "wheel_first_frame_3",
+    "valid": true,
+    "error": null,
+    "scene": "wheel_first_frame",
+    "attempt": 3,
+    "ended_at": "2026-11-10T16:37:59.3484434Z",
+    "started_at": "2026-11-10T16:37:42.7554451Z"
+  },
+  {
+    "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+    "directory": "wheel_first_frame_4",
+    "valid": false,
+    "error": "flutter drive失败: 1",
+    "scene": "wheel_first_frame",
+    "attempt": 4,
+    "ended_at": "2026-11-10T16:38:16.5778935Z",
+    "started_at": "2026-11-10T16:38:00.1832109Z"
+  },
+  {
+    "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+    "directory": "wheel_first_frame_5",
+    "valid": false,
+    "error": "flutter drive失败: 1",
+    "scene": "wheel_first_frame",
+    "attempt": 5,
+    "ended_at": "2026-11-10T16:38:33.529174Z",
+    "started_at": "2026-11-10T16:38:17.4633073Z"
+  },
+  {
+    "directory": "grid_first_frame_1",
+    "valid": false,
+    "error": "flutter drive失败: 1",
+    "attempt": 1,
+    "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+    "ended_at": "2026-11-10T16:39:33.2951643Z",
+    "scene": "grid_first_frame",
+    "started_at": "2026-11-10T16:39:16.6530826Z"
+  },
+  {
+    "directory": "grid_first_frame_2",
+    "valid": false,
+    "error": "flutter drive失败: 1",
+    "attempt": 2,
+    "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+    "ended_at": "2026-11-10T16:39:50.7873309Z",
+    "scene": "grid_first_frame",
+    "started_at": "2026-11-10T16:39:34.1328711Z"
+  },
+  {
+    "directory": "grid_first_frame_3",
+    "valid": false,
+    "error": "flutter drive失败: 1",
+    "attempt": 3,
+    "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+    "ended_at": "2026-11-10T16:40:08.7005092Z",
+    "scene": "grid_first_frame",
+    "started_at": "2026-11-10T16:39:51.5935562Z"
+  },
+  {
+    "directory": "grid_first_frame_4",
+    "valid": true,
+    "error": null,
+    "attempt": 4,
+    "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+    "ended_at": "2026-11-10T16:40:27.5637610Z",
+    "scene": "grid_first_frame",
+    "started_at": "2026-11-10T16:40:09.5815761Z"
+  },
+  {
+    "directory": "grid_first_frame_5",
+    "valid": false,
+    "error": "flutter drive失败: 1",
+    "attempt": 5,
+    "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+    "ended_at": "2026-11-10T16:40:45.7064020Z",
+    "scene": "grid_first_frame",
+    "started_at": "2026-11-10T16:40:28.3645274Z"
+  },
+  {
+    "directory": "slot_first_frame_1",
+    "valid": true,
+    "error": null,
+    "attempt": 1,
+    "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+    "ended_at": "2026-11-10T16:41:03.9229486Z",
+    "scene": "slot_first_frame",
+    "started_at": "2026-11-10T16:40:46.5768002Z"
+  },
+  {
+    "directory": "slot_first_frame_2",
+    "valid": true,
+    "error": null,
+    "attempt": 2,
+    "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+    "ended_at": "2026-11-10T16:41:22.1001844Z",
+    "scene": "slot_first_frame",
+    "started_at": "2026-11-10T16:41:04.8169256Z"
+  },
+  {
+    "directory": "slot_first_frame_3",
+    "valid": true,
+    "error": null,
+    "attempt": 3,
+    "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+    "ended_at": "2026-11-10T16:41:40.1572342Z",
+    "scene": "slot_first_frame",
+    "started_at": "2026-11-10T16:41:22.8826673Z"
+  },
+  {
+    "directory": "cpu_wheel_steady_1",
+    "valid": false,
+    "error": "flutter drive失败: 1",
+    "attempt": 1,
+    "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+    "ended_at": "2026-11-10T16:42:00.6435065Z",
+    "scene": "cpu_wheel_steady",
+    "started_at": "2026-11-10T16:41:40.9517067Z"
+  },
+  {
+    "directory": "cpu_wheel_steady_2",
+    "valid": false,
+    "error": "flutter drive失败: 1",
+    "attempt": 2,
+    "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+    "ended_at": "2026-11-10T16:42:19.8191613Z",
+    "scene": "cpu_wheel_steady",
+    "started_at": "2026-11-10T16:42:01.4202369Z"
+  },
+  {
+    "directory": "cpu_wheel_steady_3",
+    "valid": false,
+    "error": "flutter drive失败: 1",
+    "attempt": 3,
+    "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+    "ended_at": "2026-11-10T16:42:40.1903279Z",
+    "scene": "cpu_wheel_steady",
+    "started_at": "2026-11-10T16:42:20.7057466Z"
+  },
+  {
+    "directory": "cpu_wheel_steady_4",
+    "valid": false,
+    "error": "flutter drive失败: 1",
+    "attempt": 4,
+    "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+    "ended_at": "2026-11-10T16:43:00.1182520Z",
+    "scene": "cpu_wheel_steady",
+    "started_at": "2026-11-10T16:42:40.9486238Z"
+  },
+  {
+    "directory": "cpu_wheel_steady_5",
+    "valid": false,
+    "error": "flutter drive失败: 1",
+    "attempt": 5,
+    "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+    "ended_at": "2026-11-10T16:43:19.8681555Z",
+    "scene": "cpu_wheel_steady",
+    "started_at": "2026-11-10T16:43:01.0306777Z"
+  },
+  {
+    "directory": "cpu_grid_steady_1",
+    "valid": false,
+    "error": "flutter drive失败: 1",
+    "attempt": 1,
+    "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+    "ended_at": "2026-11-10T16:43:39.9126851Z",
+    "scene": "cpu_grid_steady",
+    "started_at": "2026-11-10T16:43:20.6955577Z"
+  },
+  {
+    "directory": "cpu_grid_steady_2",
+    "valid": false,
+    "error": "flutter drive失败: 1",
+    "attempt": 2,
+    "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+    "ended_at": "2026-11-10T16:44:01.1330154Z",
+    "scene": "cpu_grid_steady",
+    "started_at": "2026-11-10T16:43:40.8692086Z"
+  },
+  {
+    "directory": "cpu_grid_steady_3",
+    "valid": false,
+    "error": "flutter drive失败: 1",
+    "attempt": 3,
+    "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+    "ended_at": "2026-11-10T16:44:22.3844201Z",
+    "scene": "cpu_grid_steady",
+    "started_at": "2026-11-10T16:44:02.5151337Z"
+  },
+  {
+    "directory": "cpu_grid_steady_4",
+    "valid": false,
+    "error": "flutter drive失败: 1",
+    "attempt": 4,
+    "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+    "ended_at": "2026-11-10T16:44:44.1539494Z",
+    "scene": "cpu_grid_steady",
+    "started_at": "2026-11-10T16:44:23.8767135Z"
+  },
+  {
+    "directory": "cpu_grid_steady_5",
+    "valid": false,
+    "error": "flutter drive失败: 1",
+    "attempt": 5,
+    "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+    "ended_at": "2026-11-10T16:45:06.1417855Z",
+    "scene": "cpu_grid_steady",
+    "started_at": "2026-11-10T16:44:45.6666693Z"
+  },
+  {
+    "directory": "cpu_slot_steady_1",
+    "valid": false,
+    "error": "flutter drive失败: 1",
+    "attempt": 1,
+    "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+    "ended_at": "2026-11-10T16:45:27.2318424Z",
+    "scene": "cpu_slot_steady",
+    "started_at": "2026-11-10T16:45:07.3852690Z"
+  },
+  {
+    "directory": "cpu_slot_steady_2",
+    "valid": false,
+    "error": "flutter drive失败: 1",
+    "attempt": 2,
+    "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+    "ended_at": "2026-11-10T16:45:50.7147226Z",
+    "scene": "cpu_slot_steady",
+    "started_at": "2026-11-10T16:45:29.0589686Z"
+  },
+  {
+    "directory": "cpu_slot_steady_3",
+    "valid": false,
+    "error": "flutter drive失败: 1",
+    "attempt": 3,
+    "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+    "ended_at": "2026-11-10T16:46:11.8010777Z",
+    "scene": "cpu_slot_steady",
+    "started_at": "2026-11-10T16:45:51.5740153Z"
+  },
+  {
+    "directory": "cpu_slot_steady_4",
+    "valid": false,
+    "error": "flutter drive失败: 1",
+    "attempt": 4,
+    "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+    "ended_at": "2026-11-10T16:46:32.4510646Z",
+    "scene": "cpu_slot_steady",
+    "started_at": "2026-11-10T16:46:12.9263138Z"
+  },
+  {
+    "directory": "cpu_slot_steady_5",
+    "valid": false,
+    "error": "flutter drive失败: 1",
+    "attempt": 5,
+    "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+    "ended_at": "2026-11-10T16:46:54.2456373Z",
+    "scene": "cpu_slot_steady",
+    "started_at": "2026-11-10T16:46:33.9401585Z"
+  },
+  {
+    "directory": "cpu_capsule_mixing_1",
+    "valid": false,
+    "error": "flutter drive失败: 1",
+    "attempt": 1,
+    "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+    "ended_at": "2026-11-10T16:47:13.4873741Z",
+    "scene": "cpu_capsule_mixing",
+    "started_at": "2026-11-10T16:46:55.7482661Z"
+  },
+  {
+    "directory": "cpu_capsule_mixing_2",
+    "valid": false,
+    "error": "flutter drive失败: 1",
+    "attempt": 2,
+    "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+    "ended_at": "2026-11-10T16:47:32.2306117Z",
+    "scene": "cpu_capsule_mixing",
+    "started_at": "2026-11-10T16:47:14.7317288Z"
+  },
+  {
+    "directory": "cpu_capsule_mixing_3",
+    "valid": false,
+    "error": "flutter drive失败: 1",
+    "attempt": 3,
+    "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+    "ended_at": "2026-11-10T16:47:51.8807911Z",
+    "scene": "cpu_capsule_mixing",
+    "started_at": "2026-11-10T16:47:33.5436156Z"
+  },
+  {
+    "directory": "cpu_capsule_mixing_4",
+    "valid": false,
+    "error": "flutter drive失败: 1",
+    "attempt": 4,
+    "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+    "ended_at": "2026-11-10T16:48:10.4455735Z",
+    "scene": "cpu_capsule_mixing",
+    "started_at": "2026-11-10T16:47:52.7436728Z"
+  },
+  {
+    "directory": "cpu_capsule_mixing_5",
+    "valid": false,
+    "error": "flutter drive失败: 1",
+    "attempt": 5,
+    "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+    "ended_at": "2026-11-10T16:48:30.3960870Z",
+    "scene": "cpu_capsule_mixing",
+    "started_at": "2026-11-10T16:48:12.0758331Z"
+  },
+  {
+    "directory": "cpu_lotto_draw_1",
+    "valid": false,
+    "error": "flutter drive失败: 1",
+    "attempt": 1,
+    "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+    "ended_at": "2026-11-10T16:48:49.6127600Z",
+    "scene": "cpu_lotto_draw",
+    "started_at": "2026-11-10T16:48:31.9826750Z"
+  },
+  {
+    "directory": "cpu_lotto_draw_2",
+    "valid": false,
+    "error": "flutter drive失败: 1",
+    "attempt": 2,
+    "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+    "ended_at": "2026-11-10T16:49:12.5241568Z",
+    "scene": "cpu_lotto_draw",
+    "started_at": "2026-11-10T16:48:51.0630889Z"
+  },
+  {
+    "directory": "cpu_lotto_draw_3",
+    "valid": false,
+    "error": "flutter drive失败: 1",
+    "attempt": 3,
+    "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+    "ended_at": "2026-11-10T16:49:30.3573007Z",
+    "scene": "cpu_lotto_draw",
+    "started_at": "2026-11-10T16:49:13.7052055Z"
+  },
+  {
+    "directory": "cpu_lotto_draw_4",
+    "valid": false,
+    "error": "flutter drive失败: 1",
+    "attempt": 4,
+    "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+    "ended_at": "2026-11-10T16:49:49.2813044Z",
+    "scene": "cpu_lotto_draw",
+    "started_at": "2026-11-10T16:49:31.5032931Z"
+  },
+  {
+    "directory": "cpu_lotto_draw_5",
+    "valid": false,
+    "error": "flutter drive失败: 1",
+    "attempt": 5,
+    "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+    "ended_at": "2026-11-10T16:50:09.6734082Z",
+    "scene": "cpu_lotto_draw",
+    "started_at": "2026-11-10T16:49:50.6628078Z"
+  },
+  {
+    "directory": "slot_raster_1",
+    "valid": true,
+    "error": null,
+    "attempt": 1,
+    "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+    "ended_at": "2026-11-10T16:51:14.4340301Z",
+    "scene": "slot_raster",
+    "started_at": "2026-11-10T16:50:10.7341326Z"
+  },
+  {
+    "directory": "slot_raster_2",
+    "valid": true,
+    "error": null,
+    "attempt": 2,
+    "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+    "ended_at": "2026-11-10T16:52:18.0684152Z",
+    "scene": "slot_raster",
+    "started_at": "2026-11-10T16:51:15.4151335Z"
+  },
+  {
+    "directory": "slot_raster_3",
+    "valid": true,
+    "error": null,
+    "attempt": 3,
+    "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+    "ended_at": "2026-11-10T16:53:22.3808026Z",
+    "scene": "slot_raster",
+    "started_at": "2026-11-10T16:52:18.8566917Z"
+  },
+  {
+    "directory": "grid_steady_1",
+    "valid": true,
+    "error": null,
+    "attempt": 1,
+    "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+    "ended_at": "2026-11-10T16:54:27.0657227Z",
+    "scene": "grid_steady",
+    "started_at": "2026-11-10T16:53:23.2283869Z"
+  },
+  {
+    "directory": "grid_steady_2",
+    "valid": true,
+    "error": null,
+    "attempt": 2,
+    "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+    "ended_at": "2026-11-10T16:55:31.1011667Z",
+    "scene": "grid_steady",
+    "started_at": "2026-11-10T16:54:27.8991776Z"
+  },
+  {
+    "directory": "grid_steady_3",
+    "valid": true,
+    "error": null,
+    "attempt": 3,
+    "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+    "ended_at": "2026-11-10T16:56:35.0184751Z",
+    "scene": "grid_steady",
+    "started_at": "2026-11-10T16:55:31.8460737Z"
+  },
+  {
+    "directory": "lotto_draw_1",
+    "valid": true,
+    "error": null,
+    "attempt": 1,
+    "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+    "ended_at": "2026-11-10T16:57:42.0274093Z",
+    "scene": "lotto_draw",
+    "started_at": "2026-11-10T16:56:35.7979217Z"
+  },
+  {
+    "directory": "lotto_draw_2",
+    "valid": true,
+    "error": null,
+    "attempt": 2,
+    "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+    "ended_at": "2026-11-10T16:58:48.8877425Z",
+    "scene": "lotto_draw",
+    "started_at": "2026-11-10T16:57:42.8222821Z"
+  },
+  {
+    "directory": "lotto_draw_3",
+    "valid": true,
+    "error": null,
+    "attempt": 3,
+    "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+    "ended_at": "2026-11-10T16:59:56.3294110Z",
+    "scene": "lotto_draw",
+    "started_at": "2026-11-10T16:58:49.7170586Z"
+  },
+  {
+    "directory": "lots_shaking_1",
+    "valid": true,
+    "error": null,
+    "attempt": 1,
+    "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+    "ended_at": "2026-11-10T17:00:58.5604116Z",
+    "scene": "lots_shaking",
+    "started_at": "2026-11-10T16:59:57.1582463Z"
+  },
+  {
+    "directory": "lots_shaking_2",
+    "valid": true,
+    "error": null,
+    "attempt": 2,
+    "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+    "ended_at": "2026-11-10T17:02:00.5167050Z",
+    "scene": "lots_shaking",
+    "started_at": "2026-11-10T17:00:59.3769017Z"
+  },
+  {
+    "directory": "lots_shaking_3",
+    "valid": true,
+    "error": null,
+    "attempt": 3,
+    "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+    "ended_at": "2026-11-10T17:03:03.1833361Z",
+    "scene": "lots_shaking",
+    "started_at": "2026-11-10T17:02:01.2547750Z"
+  }
+]

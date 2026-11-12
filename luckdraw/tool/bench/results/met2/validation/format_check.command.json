@@ -1,0 +1,14 @@
+{
+  "command": [
+    "dart",
+    "format",
+    "--output=none",
+    "--set-exit-if-changed",
+    "lib",
+    "test",
+    "tool"
+  ],
+  "cwd": "E:\\workspaces\\dart-labs\\luckdraw",
+  "exit_code": 0,
+  "seconds": 1.883
+}

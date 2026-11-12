@@ -1,0 +1,336 @@
+{
+  "conclusion": "与后端无关",
+  "detail": "Skia 也出现 Raster 平均>10ms的高档轮次，按预定规则判定“与后端无关”；本样本排除了“高档只发生在 Impeller GLES”的解释，但不能证明两后端耗时分布相同。高档的剩余原因无法由本次数据解释，不能归因于 luckdraw 或设备驱动缺陷。",
+  "launchCount": 6,
+  "validCount": 6,
+  "groups": {
+    "S": {
+      "metrics": {
+        "Raster平均 ms": {
+          "values": [
+            4.726588039867111,
+            4.288504983388709,
+            16.627806666666668
+          ],
+          "median": 4.726588039867111,
+          "range": 12.33930168327796
+        },
+        "Raster p90 ms": {
+          "values": [
+            6.144,
+            5.843,
+            17.535
+          ],
+          "median": 6.144,
+          "range": 11.692
+        },
+        "Raster p99 ms": {
+          "values": [
+            7.216,
+            7.449,
+            21.879
+          ],
+          "median": 7.449,
+          "range": 14.663
+        },
+        "掉帧率 %": {
+          "values": [
+            0.0,
+            0.0,
+            34.0
+          ],
+          "median": 0.0,
+          "range": 34.0
+        },
+        "UI平均 ms": {
+          "values": [
+            0.9763920265780726,
+            1.0266146179402005,
+            1.0160833333333328
+          ],
+          "median": 1.0160833333333328,
+          "range": 0.05022259136212792
+        }
+      },
+      "high": 1,
+      "low": 2,
+      "count": 3
+    },
+    "I": {
+      "metrics": {
+        "Raster平均 ms": {
+          "values": [
+            5.246524916943516,
+            5.13828239202658,
+            5.134146179401998
+          ],
+          "median": 5.13828239202658,
+          "range": 0.11237873754151817
+        },
+        "Raster p90 ms": {
+          "values": [
+            6.598,
+            6.565,
+            6.195
+          ],
+          "median": 6.565,
+          "range": 0.4029999999999996
+        },
+        "Raster p99 ms": {
+          "values": [
+            9.651,
+            9.02,
+            10.241
+          ],
+          "median": 9.651,
+          "range": 1.221
+        },
+        "掉帧率 %": {
+          "values": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "median": 0.0,
+          "range": 0.0
+        },
+        "UI平均 ms": {
+          "values": [
+            1.151395348837209,
+            1.0991495016611295,
+            0.9770332225913617
+          ],
+          "median": 1.0991495016611295,
+          "range": 0.17436212624584735
+        }
+      },
+      "high": 0,
+      "low": 3,
+      "count": 3
+    }
+  },
+  "evidence": [
+    {
+      "label": "S1",
+      "backend": {
+        "requested": "skia",
+        "impeller_enabled": false,
+        "verified": true,
+        "verified_by": "ext.ui.window.impellerEnabled",
+        "raw_response": {
+          "type": "Success",
+          "enabled": false
+        },
+        "recorded_at": "2026-11-10T14:03:51.376951Z"
+      },
+      "backendLogLines": [
+        "[+2146 ms] executing: E:\\sdk\\android\\platform-tools\\adb.exe -s 10AE9K17UE0011S shell am start -a android.intent.action.MAIN -c android.intent.category.LAUNCHER -f 0x20000000 --ez enable-dart-profiling true --es route /wheel_default --ez enable-impeller false --ez start-paused true com.example.luckdraw_bench/com.example.luckdraw_bench.MainActivity",
+        "[ +155 ms] All tests passed. Backend verified: skia/false"
+      ],
+      "surfaceFlingerRefresh": "60.00 Hz",
+      "compositionLines": [
+        "Build configuration: [sf PRESENT_TIME_OFFSET=0 FORCE_HWC_FOR_RBG_TO_YUV=1 MAX_VIRT_DISPLAY_DIM=4096 RUNNING_WITHOUT_SYNC_FRAMEWORK=0 NUM_FRAMEBUFFER_SURFACE_BUFFERS=3]",
+        "Display 4630946231300050817 (HWC display 0): port=129 pnpId=QCM displayName=\"\"",
+        "Device supports wide color: 0",
+        "       HWC min duration:         0 ns",
+        "    activeMode={id=1, hwcId=1, resolution=1080x2400, vsyncRate=60.00 Hz, dpi=397.57x393.29, group=0, vrrConfig=N/A, supportedHdrTypes=INVALID}",
+        "        {id=0, hwcId=0, resolution=1080x2400, vsyncRate=120.00 Hz, dpi=397.57x393.29, group=0, vrrConfig=N/A, supportedHdrTypes=INVALID}",
+        "        {id=1, hwcId=1, resolution=1080x2400, vsyncRate=60.00 Hz, dpi=397.57x393.29, group=0, vrrConfig=N/A, supportedHdrTypes=INVALID}",
+        "    HWC missed frame count: 16411"
+      ],
+      "temperatures": [
+        "28.3",
+        "28.5"
+      ],
+      "surfaceFlingerDelaySeconds": 5.8e-05,
+      "restSeconds": 60.001667,
+      "renderPassGlesTimelineEvents": 0
+    },
+    {
+      "label": "I1",
+      "backend": {
+        "requested": "impeller",
+        "impeller_enabled": true,
+        "verified": true,
+        "verified_by": "ext.ui.window.impellerEnabled",
+        "raw_response": {
+          "type": "Success",
+          "enabled": true
+        },
+        "recorded_at": "2026-11-10T14:06:02.189014Z"
+      },
+      "backendLogLines": [
+        "[  +13 ms] executing: E:\\sdk\\android\\platform-tools\\adb.exe -s 10AE9K17UE0011S shell am start -a android.intent.action.MAIN -c android.intent.category.LAUNCHER -f 0x20000000 --ez enable-dart-profiling true --es route /wheel_default --ez enable-impeller true --ez start-paused true com.example.luckdraw_bench/com.example.luckdraw_bench.MainActivity",
+        "[  +40 ms] All tests passed. Backend verified: impeller/true",
+        "         1794319701.288 20951 20985 I flutter : [IMPORTANT:flutter/shell/platform/android/android_context_vk_impeller.cc(62)] Using the Impeller rendering backend (Vulkan).",
+        "         1794319701.301 20951 20985 I flutter : [IMPORTANT:flutter/shell/platform/android/android_context_gl_impeller.cc(104)] Using the Impeller rendering backend (OpenGLES)."
+      ],
+      "surfaceFlingerRefresh": "60.00 Hz",
+      "compositionLines": [
+        "Build configuration: [sf PRESENT_TIME_OFFSET=0 FORCE_HWC_FOR_RBG_TO_YUV=1 MAX_VIRT_DISPLAY_DIM=4096 RUNNING_WITHOUT_SYNC_FRAMEWORK=0 NUM_FRAMEBUFFER_SURFACE_BUFFERS=3]",
+        "Display 4630946231300050817 (HWC display 0): port=129 pnpId=QCM displayName=\"\"",
+        "Device supports wide color: 0",
+        "       HWC min duration:         0 ns",
+        "    activeMode={id=1, hwcId=1, resolution=1080x2400, vsyncRate=60.00 Hz, dpi=397.57x393.29, group=0, vrrConfig=N/A, supportedHdrTypes=INVALID}",
+        "        {id=0, hwcId=0, resolution=1080x2400, vsyncRate=120.00 Hz, dpi=397.57x393.29, group=0, vrrConfig=N/A, supportedHdrTypes=INVALID}",
+        "        {id=1, hwcId=1, resolution=1080x2400, vsyncRate=60.00 Hz, dpi=397.57x393.29, group=0, vrrConfig=N/A, supportedHdrTypes=INVALID}",
+        "    HWC missed frame count: 16413"
+      ],
+      "temperatures": [
+        "28.6",
+        "28.7"
+      ],
+      "surfaceFlingerDelaySeconds": 4.4e-05,
+      "restSeconds": 60.001755,
+      "renderPassGlesTimelineEvents": 603
+    },
+    {
+      "label": "S2",
+      "backend": {
+        "requested": "skia",
+        "impeller_enabled": false,
+        "verified": true,
+        "verified_by": "ext.ui.window.impellerEnabled",
+        "raw_response": {
+          "type": "Success",
+          "enabled": false
+        },
+        "recorded_at": "2026-11-10T14:08:12.462959Z"
+      },
+      "backendLogLines": [
+        "[  +14 ms] executing: E:\\sdk\\android\\platform-tools\\adb.exe -s 10AE9K17UE0011S shell am start -a android.intent.action.MAIN -c android.intent.category.LAUNCHER -f 0x20000000 --ez enable-dart-profiling true --es route /wheel_default --ez enable-impeller false --ez start-paused true com.example.luckdraw_bench/com.example.luckdraw_bench.MainActivity",
+        "[   +3 ms] All tests passed. Backend verified: skia/false"
+      ],
+      "surfaceFlingerRefresh": "60.00 Hz",
+      "compositionLines": [
+        "Build configuration: [sf PRESENT_TIME_OFFSET=0 FORCE_HWC_FOR_RBG_TO_YUV=1 MAX_VIRT_DISPLAY_DIM=4096 RUNNING_WITHOUT_SYNC_FRAMEWORK=0 NUM_FRAMEBUFFER_SURFACE_BUFFERS=3]",
+        "Display 4630946231300050817 (HWC display 0): port=129 pnpId=QCM displayName=\"\"",
+        "Device supports wide color: 0",
+        "       HWC min duration:         0 ns",
+        "    activeMode={id=1, hwcId=1, resolution=1080x2400, vsyncRate=60.00 Hz, dpi=397.57x393.29, group=0, vrrConfig=N/A, supportedHdrTypes=INVALID}",
+        "        {id=0, hwcId=0, resolution=1080x2400, vsyncRate=120.00 Hz, dpi=397.57x393.29, group=0, vrrConfig=N/A, supportedHdrTypes=INVALID}",
+        "        {id=1, hwcId=1, resolution=1080x2400, vsyncRate=60.00 Hz, dpi=397.57x393.29, group=0, vrrConfig=N/A, supportedHdrTypes=INVALID}",
+        "    HWC missed frame count: 16419"
+      ],
+      "temperatures": [
+        "28.6",
+        "28.5"
+      ],
+      "surfaceFlingerDelaySeconds": 2.6e-05,
+      "restSeconds": 60.001666,
+      "renderPassGlesTimelineEvents": 0
+    },
+    {
+      "label": "I2",
+      "backend": {
+        "requested": "impeller",
+        "impeller_enabled": true,
+        "verified": true,
+        "verified_by": "ext.ui.window.impellerEnabled",
+        "raw_response": {
+          "type": "Success",
+          "enabled": true
+        },
+        "recorded_at": "2026-11-10T14:10:22.752625Z"
+      },
+      "backendLogLines": [
+        "[  +15 ms] executing: E:\\sdk\\android\\platform-tools\\adb.exe -s 10AE9K17UE0011S shell am start -a android.intent.action.MAIN -c android.intent.category.LAUNCHER -f 0x20000000 --ez enable-dart-profiling true --es route /wheel_default --ez enable-impeller true --ez start-paused true com.example.luckdraw_bench/com.example.luckdraw_bench.MainActivity",
+        "[  +11 ms] All tests passed. Backend verified: impeller/true",
+        "         1794319962.012 22159 22190 I flutter : [IMPORTANT:flutter/shell/platform/android/android_context_vk_impeller.cc(62)] Using the Impeller rendering backend (Vulkan).",
+        "         1794319962.019 22159 22190 I flutter : [IMPORTANT:flutter/shell/platform/android/android_context_gl_impeller.cc(104)] Using the Impeller rendering backend (OpenGLES)."
+      ],
+      "surfaceFlingerRefresh": "60.00 Hz",
+      "compositionLines": [
+        "Build configuration: [sf PRESENT_TIME_OFFSET=0 FORCE_HWC_FOR_RBG_TO_YUV=1 MAX_VIRT_DISPLAY_DIM=4096 RUNNING_WITHOUT_SYNC_FRAMEWORK=0 NUM_FRAMEBUFFER_SURFACE_BUFFERS=3]",
+        "Display 4630946231300050817 (HWC display 0): port=129 pnpId=QCM displayName=\"\"",
+        "Device supports wide color: 0",
+        "       HWC min duration:         0 ns",
+        "    activeMode={id=1, hwcId=1, resolution=1080x2400, vsyncRate=60.00 Hz, dpi=397.57x393.29, group=0, vrrConfig=N/A, supportedHdrTypes=INVALID}",
+        "        {id=0, hwcId=0, resolution=1080x2400, vsyncRate=120.00 Hz, dpi=397.57x393.29, group=0, vrrConfig=N/A, supportedHdrTypes=INVALID}",
+        "        {id=1, hwcId=1, resolution=1080x2400, vsyncRate=60.00 Hz, dpi=397.57x393.29, group=0, vrrConfig=N/A, supportedHdrTypes=INVALID}",
+        "    HWC missed frame count: 16425"
+      ],
+      "temperatures": [
+        "28.6",
+        "28.6"
+      ],
+      "surfaceFlingerDelaySeconds": 2.3e-05,
+      "restSeconds": 60.001715,
+      "renderPassGlesTimelineEvents": 603
+    },
+    {
+      "label": "S3",
+      "backend": {
+        "requested": "skia",
+        "impeller_enabled": false,
+        "verified": true,
+        "verified_by": "ext.ui.window.impellerEnabled",
+        "raw_response": {
+          "type": "Success",
+          "enabled": false
+        },
+        "recorded_at": "2026-11-10T14:12:32.772965Z"
+      },
+      "backendLogLines": [
+        "[  +15 ms] executing: E:\\sdk\\android\\platform-tools\\adb.exe -s 10AE9K17UE0011S shell am start -a android.intent.action.MAIN -c android.intent.category.LAUNCHER -f 0x20000000 --ez enable-dart-profiling true --es route /wheel_default --ez enable-impeller false --ez start-paused true com.example.luckdraw_bench/com.example.luckdraw_bench.MainActivity",
+        "[   +8 ms] All tests passed. Backend verified: skia/false"
+      ],
+      "surfaceFlingerRefresh": "60.00 Hz",
+      "compositionLines": [
+        "Build configuration: [sf PRESENT_TIME_OFFSET=0 FORCE_HWC_FOR_RBG_TO_YUV=1 MAX_VIRT_DISPLAY_DIM=4096 RUNNING_WITHOUT_SYNC_FRAMEWORK=0 NUM_FRAMEBUFFER_SURFACE_BUFFERS=3]",
+        "Display 4630946231300050817 (HWC display 0): port=129 pnpId=QCM displayName=\"\"",
+        "Device supports wide color: 0",
+        "       HWC min duration:         0 ns",
+        "    activeMode={id=1, hwcId=1, resolution=1080x2400, vsyncRate=60.00 Hz, dpi=397.57x393.29, group=0, vrrConfig=N/A, supportedHdrTypes=INVALID}",
+        "        {id=0, hwcId=0, resolution=1080x2400, vsyncRate=120.00 Hz, dpi=397.57x393.29, group=0, vrrConfig=N/A, supportedHdrTypes=INVALID}",
+        "        {id=1, hwcId=1, resolution=1080x2400, vsyncRate=60.00 Hz, dpi=397.57x393.29, group=0, vrrConfig=N/A, supportedHdrTypes=INVALID}",
+        "    HWC missed frame count: 16438"
+      ],
+      "temperatures": [
+        "28.4",
+        "28.6"
+      ],
+      "surfaceFlingerDelaySeconds": 3.8e-05,
+      "restSeconds": 60.002188,
+      "renderPassGlesTimelineEvents": 0
+    },
+    {
+      "label": "I3",
+      "backend": {
+        "requested": "impeller",
+        "impeller_enabled": true,
+        "verified": true,
+        "verified_by": "ext.ui.window.impellerEnabled",
+        "raw_response": {
+          "type": "Success",
+          "enabled": true
+        },
+        "recorded_at": "2026-11-10T14:14:45.077045Z"
+      },
+      "backendLogLines": [
+        "[  +13 ms] executing: E:\\sdk\\android\\platform-tools\\adb.exe -s 10AE9K17UE0011S shell am start -a android.intent.action.MAIN -c android.intent.category.LAUNCHER -f 0x20000000 --ez enable-dart-profiling true --es route /wheel_default --ez enable-impeller true --ez start-paused true com.example.luckdraw_bench/com.example.luckdraw_bench.MainActivity",
+        "[ +160 ms] All tests passed. Backend verified: impeller/true",
+        "         1794320223.846 24033 24060 I flutter : [IMPORTANT:flutter/shell/platform/android/android_context_vk_impeller.cc(62)] Using the Impeller rendering backend (Vulkan).",
+        "         1794320223.888 24033 24060 I flutter : [IMPORTANT:flutter/shell/platform/android/android_context_gl_impeller.cc(104)] Using the Impeller rendering backend (OpenGLES)."
+      ],
+      "surfaceFlingerRefresh": "60.00 Hz",
+      "compositionLines": [
+        "Build configuration: [sf PRESENT_TIME_OFFSET=0 FORCE_HWC_FOR_RBG_TO_YUV=1 MAX_VIRT_DISPLAY_DIM=4096 RUNNING_WITHOUT_SYNC_FRAMEWORK=0 NUM_FRAMEBUFFER_SURFACE_BUFFERS=3]",
+        "Display 4630946231300050817 (HWC display 0): port=129 pnpId=QCM displayName=\"\"",
+        "Device supports wide color: 0",
+        "       HWC min duration:         0 ns",
+        "    activeMode={id=1, hwcId=1, resolution=1080x2400, vsyncRate=60.00 Hz, dpi=397.57x393.29, group=0, vrrConfig=N/A, supportedHdrTypes=INVALID}",
+        "        {id=0, hwcId=0, resolution=1080x2400, vsyncRate=120.00 Hz, dpi=397.57x393.29, group=0, vrrConfig=N/A, supportedHdrTypes=INVALID}",
+        "        {id=1, hwcId=1, resolution=1080x2400, vsyncRate=60.00 Hz, dpi=397.57x393.29, group=0, vrrConfig=N/A, supportedHdrTypes=INVALID}",
+        "    HWC missed frame count: 16445"
+      ],
+      "temperatures": [
+        "28.5",
+        "28.7"
+      ],
+      "surfaceFlingerDelaySeconds": 6.1e-05,
+      "restSeconds": 60.002082,
+      "renderPassGlesTimelineEvents": 604
+    }
+  ]
+}

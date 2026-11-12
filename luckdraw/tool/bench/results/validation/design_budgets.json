@@ -1,0 +1,73 @@
+{
+  "wheel_steady": {
+    "average_frame_build_time_millis": 1,
+    "90th_percentile_frame_build_time_millis": 2,
+    "average_frame_rasterizer_time_millis": 5,
+    "90th_percentile_frame_rasterizer_time_millis": 8,
+    "dropped_frame_ratio": 0.005,
+    "new_gen_gc_over_reference": 1
+  },
+  "wheel_first_frame": {
+    "first_frame_ui_millis": 4
+  },
+  "grid_steady": {
+    "average_frame_build_time_millis": 0.6,
+    "90th_percentile_frame_build_time_millis": 1.5,
+    "average_frame_rasterizer_time_millis": 4,
+    "90th_percentile_frame_rasterizer_time_millis": 7,
+    "dropped_frame_ratio": 0.005,
+    "new_gen_gc_over_reference": 1
+  },
+  "slot_steady": {
+    "average_frame_build_time_millis": 1,
+    "90th_percentile_frame_build_time_millis": 2,
+    "average_frame_rasterizer_time_millis": 5,
+    "90th_percentile_frame_rasterizer_time_millis": 8,
+    "dropped_frame_ratio": 0.005,
+    "new_gen_gc_over_reference": 1
+  },
+  "slot_raster": {
+    "average_frame_build_time_millis": 1,
+    "90th_percentile_frame_build_time_millis": 2,
+    "average_frame_rasterizer_time_millis": 5,
+    "90th_percentile_frame_rasterizer_time_millis": 8,
+    "dropped_frame_ratio": 0.005,
+    "new_gen_gc_over_reference": 1
+  },
+  "capsule_mixing": {
+    "average_frame_build_time_millis": 1.5,
+    "90th_percentile_frame_build_time_millis": 3,
+    "average_frame_rasterizer_time_millis": 5,
+    "90th_percentile_frame_rasterizer_time_millis": 8,
+    "dropped_frame_ratio": 0.005,
+    "new_gen_gc_over_reference": 1
+  },
+  "number_wheel_spin": {
+    "average_frame_build_time_millis": 1,
+    "90th_percentile_frame_build_time_millis": 2,
+    "average_frame_rasterizer_time_millis": 5,
+    "90th_percentile_frame_rasterizer_time_millis": 8,
+    "dropped_frame_ratio": 0.005,
+    "new_gen_gc_over_reference": 1
+  },
+  "lots_shaking": {
+    "average_frame_build_time_millis": 1,
+    "90th_percentile_frame_build_time_millis": 2,
+    "average_frame_rasterizer_time_millis": 5,
+    "90th_percentile_frame_rasterizer_time_millis": 8,
+    "dropped_frame_ratio": 0.005,
+    "new_gen_gc_over_reference": 1
+  },
+  "lotto_draw": {
+    "average_frame_build_time_millis": 1.5,
+    "90th_percentile_frame_build_time_millis": 3,
+    "average_frame_rasterizer_time_millis": 6,
+    "90th_percentile_frame_rasterizer_time_millis": 9,
+    "dropped_frame_ratio": 0.005,
+    "new_gen_gc_over_reference": 1
+  },
+  "memory_cycles": {
+    "rss_delta_bytes": 12582912,
+    "rss_growth_bytes": 2097152
+  }
+}

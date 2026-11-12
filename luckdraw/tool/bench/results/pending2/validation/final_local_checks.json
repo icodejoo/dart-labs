@@ -1,0 +1,26 @@
+{
+  "completion": "PARTIAL",
+  "copy_full_tests": 1108,
+  "real_tool_tests": 223,
+  "coverage": "6878/6878 (100.00%)",
+  "publish_warnings": 0,
+  "phone": {
+    "settings_match_requested": false,
+    "settings_written_by_this_session": false,
+    "bench_installed_current_user": false,
+    "unlocked": true,
+    "stay_on": 0,
+    "awake": true,
+    "brightness_mode": 0,
+    "brightness": 1,
+    "screen_on": true,
+    "checked_at": "2026-11-10T18:20:04.5409880Z"
+  },
+  "uncompleted": [
+    "真实lib待核心/玩法补丁合并",
+    "wheel CPU完整链路2/5不足三轮",
+    "完整开奖CPU未测",
+    "wheel/grid未达到原4ms目标",
+    "stay_on实测0而非2，未擅自改设置"
+  ]
+}

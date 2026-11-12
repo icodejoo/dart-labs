@@ -202,8 +202,10 @@ Decrypted snapshot of every owned entry, `{ "namespace:key": value }` — see `l
 `jsonEncode`/`jsonDecode`-compatible serializer that additionally round-trips `DateTime` / `Duration` /
 `Set` / `BigInt` / `Uri` / `RegExp`. Pass `Jsonx.encode`/`Jsonx.decode<T>` (wrapped to the
 `CacheEntity <-> String` shape) as `CachemanOptions.serialize`/`deserialize` — `decode<T>` casts the
-result to `T` (e.g. `Jsonx.decode<Map<String, dynamic>>(s)`). Not round-trippable, by design: custom
-`Enum`s and `Map`s with non-`String` keys — see `lib/src/jsonx.dart`'s doc comment.
+result to `T` (e.g. `Jsonx.decode<Map<String, dynamic>>(s)`). Enum encoding throws
+`JsonUnsupportedObjectError`; define a custom `toJson` or use `ValueAdapter` to convert it to `name`.
+Maps with non-String keys cannot be encoded. DateTime stores `[microsecondsSinceEpoch, isUtc]`
+to preserve the instant across timezones; legacy ISO 8601 strings remain readable.
 
 ## Error handling
 
@@ -284,7 +286,7 @@ final profile = cache.readWith<Profile>('profile', adapter: profiles);
 // AsyncCacheman：同样的适配器，write / readWith 须 await。
 ```
 
-## Migration from 0.6 to the next release (planned 0.7.0)
+## Migration from 0.6 to 0.7.0
 
 - Change raw exception checks such as `error is FormatException` to
   `error is CorruptEntryError && error.cause is FormatException`; other failures also inspect cause.

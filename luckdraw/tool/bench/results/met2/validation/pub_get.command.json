@@ -1,0 +1,11 @@
+{
+  "command": [
+    "flutter",
+    "pub",
+    "get",
+    "--no-example"
+  ],
+  "cwd": "E:\\workspaces\\dart-labs\\luckdraw",
+  "exit_code": 0,
+  "seconds": 1.686
+}

@@ -1,0 +1,173 @@
+{
+  "generated_at": "2026-11-10T17:03:50.552898+00:00",
+  "generated_by": "DEVFIN independent audit; assess_pending.dart rejected incomplete original rounds",
+  "collection_status": "未通过：冷首帧driver不足及CPU0/5",
+  "cold_frames": {
+    "blank_first_frame": {
+      "all_samples_ms": [
+        2.883,
+        2.835,
+        3.469
+      ],
+      "primary_samples_ms": [
+        2.883,
+        2.835,
+        3.469
+      ],
+      "primary_policy": "按启动顺序固定前3份完整设备FrameTiming，不按耗时挑轮；driver失败原样保留",
+      "driver_valid_rounds": 3,
+      "raw_frame_timing_rounds": 3,
+      "median_ms": 2.883,
+      "range_ms": 0.6339999999999999
+    },
+    "wheel_first_frame": {
+      "all_samples_ms": [
+        47.238,
+        40.97,
+        37.118,
+        43.736,
+        41.703
+      ],
+      "primary_samples_ms": [
+        47.238,
+        40.97,
+        37.118
+      ],
+      "primary_policy": "按启动顺序固定前3份完整设备FrameTiming，不按耗时挑轮；driver失败原样保留",
+      "driver_valid_rounds": 2,
+      "raw_frame_timing_rounds": 5,
+      "median_ms": 40.97,
+      "range_ms": 10.119999999999997,
+      "increment_ms": 38.086999999999996,
+      "increment_budget_ms": 41.896,
+      "original_design_target_ms": 4,
+      "gap_to_design": 8.521749999999999,
+      "status": "已标定未达设计目标"
+    },
+    "grid_first_frame": {
+      "all_samples_ms": [
+        10.024,
+        13.403,
+        31.592,
+        36.518,
+        23.392
+      ],
+      "primary_samples_ms": [
+        10.024,
+        13.403,
+        31.592
+      ],
+      "primary_policy": "按启动顺序固定前3份完整设备FrameTiming，不按耗时挑轮；driver失败原样保留",
+      "driver_valid_rounds": 1,
+      "raw_frame_timing_rounds": 5,
+      "median_ms": 13.403,
+      "range_ms": 21.567999999999998,
+      "increment_ms": 10.52,
+      "increment_budget_ms": 11.572,
+      "original_design_target_ms": 4,
+      "gap_to_design": 1.63,
+      "status": "已标定未达设计目标"
+    },
+    "slot_first_frame": {
+      "all_samples_ms": [
+        3.128,
+        2.577,
+        7.338
+      ],
+      "primary_samples_ms": [
+        3.128,
+        2.577,
+        7.338
+      ],
+      "primary_policy": "按启动顺序固定前3份完整设备FrameTiming，不按耗时挑轮；driver失败原样保留",
+      "driver_valid_rounds": 3,
+      "raw_frame_timing_rounds": 3,
+      "median_ms": 3.128,
+      "range_ms": 4.761,
+      "increment_ms": 0.2450000000000001,
+      "increment_budget_ms": 0.27,
+      "original_design_target_ms": 4,
+      "gap_to_design": -0.93875,
+      "status": "已标定"
+    }
+  },
+  "cpu": {
+    "cpu_wheel_steady": {
+      "valid_rounds": 0,
+      "attempts": 5,
+      "round_medians": [],
+      "medians": null,
+      "errors": [
+        "FormatException: cpuinfo 主进程必须唯一: com.example.luckdraw_bench\n",
+        "FormatException: cpuinfo 主进程必须唯一: com.example.luckdraw_bench\n",
+        "FormatException: top 缺少线程列头\n",
+        "FormatException: cpuinfo 主进程必须唯一: com.example.luckdraw_bench\n",
+        "FormatException: cpuinfo 主进程必须唯一: com.example.luckdraw_bench\n"
+      ],
+      "status": "不确定：有效轮不足3"
+    },
+    "cpu_grid_steady": {
+      "valid_rounds": 0,
+      "attempts": 5,
+      "round_medians": [],
+      "medians": null,
+      "errors": [
+        "FormatException: top 缺少线程列头\n",
+        "FormatException: top 缺少线程列头\n",
+        "FormatException: top 缺少线程列头\n",
+        "FormatException: top 缺少线程列头\n",
+        "FormatException: top 缺少线程列头\n"
+      ],
+      "status": "不确定：有效轮不足3"
+    },
+    "cpu_slot_steady": {
+      "valid_rounds": 0,
+      "attempts": 5,
+      "round_medians": [],
+      "medians": null,
+      "errors": [
+        "FormatException: top 缺少线程列头\n",
+        "FormatException: top 缺少线程列头\n",
+        "FormatException: top 缺少线程列头\n",
+        "FormatException: top 缺少线程列头\n",
+        "FormatException: top 缺少线程列头\n"
+      ],
+      "status": "不确定：有效轮不足3"
+    },
+    "cpu_capsule_mixing": {
+      "valid_rounds": 0,
+      "attempts": 5,
+      "round_medians": [],
+      "medians": null,
+      "errors": [
+        "FormatException: top 缺少线程列头\n",
+        "FormatException: top 缺少线程列头\n",
+        "FormatException: top 缺少线程列头\n",
+        "FormatException: top 缺少线程列头\n",
+        "FormatException: top 缺少线程列头\n"
+      ],
+      "status": "不确定：有效轮不足3"
+    },
+    "cpu_lotto_draw": {
+      "valid_rounds": 0,
+      "attempts": 5,
+      "round_medians": [],
+      "medians": null,
+      "errors": [
+        "FormatException: cpuinfo 主进程必须唯一: com.example.luckdraw_bench\n",
+        "FormatException: cpuinfo 主进程必须唯一: com.example.luckdraw_bench\n",
+        "FormatException: cpuinfo 主进程必须唯一: com.example.luckdraw_bench\n",
+        "FormatException: cpuinfo 主进程必须唯一: com.example.luckdraw_bench\n",
+        "FormatException: cpuinfo 主进程必须唯一: com.example.luckdraw_bench\n"
+      ],
+      "status": "不确定：有效轮不足3"
+    }
+  },
+  "frame_results": {
+    "grid_steady": "失败",
+    "slot_raster": "失败",
+    "lots_shaking": "不确定",
+    "lotto_draw": "失败"
+  },
+  "delivery_passed": true
+}

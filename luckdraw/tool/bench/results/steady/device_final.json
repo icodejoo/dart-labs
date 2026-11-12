@@ -1,0 +1,16 @@
+{
+  "brightness": "1",
+  "stay_on": "2",
+  "screen_on": true,
+  "android": "16",
+  "package_path": "",
+  "uninstall_output": "Failure [DELETE_FAILED_INTERNAL_ERROR]",
+  "at": "2026-11-10T19:15:22.1344383Z",
+  "brightness_mode": "0",
+  "awake": true,
+  "packages": "",
+  "unlocked": true,
+  "uninstall_exit": 1,
+  "reverse": "",
+  "screen_on_source": "dumpsys display: Display State=ON (Android16 dumpsys power has no state=ON field)"
+}

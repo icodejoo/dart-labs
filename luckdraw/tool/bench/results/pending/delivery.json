@@ -1,0 +1,194 @@
+[
+  {
+    "path": "grid_steady_1/grid_steady_1794329665198380.timeline_summary.json",
+    "fps": 60.004361778856214,
+    "frame_count": 301.0,
+    "expected": 300.97812,
+    "ratio": 1.0000726963142703,
+    "passed": true
+  },
+  {
+    "path": "grid_steady_1/grid_steady_reference_1794329665198380.timeline_summary.json",
+    "fps": 60.072681957858514,
+    "frame_count": 301.0,
+    "expected": 300.63581999999997,
+    "ratio": 1.0012113659643087,
+    "passed": true
+  },
+  {
+    "path": "grid_steady_2/grid_steady_1794329729062446.timeline_summary.json",
+    "fps": 60.050725905544,
+    "frame_count": 301.0,
+    "expected": 300.74574,
+    "ratio": 1.0008454317590667,
+    "passed": true
+  },
+  {
+    "path": "grid_steady_2/grid_steady_reference_1794329729062446.timeline_summary.json",
+    "fps": 60.04492796902719,
+    "frame_count": 301.0,
+    "expected": 300.77478,
+    "ratio": 1.0007487994837865,
+    "passed": true
+  },
+  {
+    "path": "grid_steady_3/grid_steady_1794329793070451.timeline_summary.json",
+    "fps": 59.96256025390658,
+    "frame_count": 301.0,
+    "expected": 301.18793999999997,
+    "ratio": 0.9993760042317764,
+    "passed": true
+  },
+  {
+    "path": "grid_steady_3/grid_steady_reference_1794329793070451.timeline_summary.json",
+    "fps": 60.089339472427575,
+    "frame_count": 301.0,
+    "expected": 300.55248,
+    "ratio": 1.0014889912071263,
+    "passed": true
+  },
+  {
+    "path": "slot_raster_1/slot_raster_1794329472493568.timeline_summary.json",
+    "fps": 60.093526290119165,
+    "frame_count": 301.0,
+    "expected": 300.53154,
+    "ratio": 1.001558771501986,
+    "passed": true
+  },
+  {
+    "path": "slot_raster_1/slot_raster_reference_1794329472493568.timeline_summary.json",
+    "fps": 60.10124163973758,
+    "frame_count": 301.0,
+    "expected": 300.49296,
+    "ratio": 1.0016873606622931,
+    "passed": true
+  },
+  {
+    "path": "slot_raster_2/slot_raster_1794329536093547.timeline_summary.json",
+    "fps": 59.99583417629806,
+    "frame_count": 301.0,
+    "expected": 301.0209,
+    "ratio": 0.9999305696049677,
+    "passed": true
+  },
+  {
+    "path": "slot_raster_2/slot_raster_reference_1794329536093547.timeline_summary.json",
+    "fps": 60.026547288953836,
+    "frame_count": 301.0,
+    "expected": 300.86688,
+    "ratio": 1.0004424548158974,
+    "passed": true
+  },
+  {
+    "path": "slot_raster_3/slot_raster_1794329600601145.timeline_summary.json",
+    "fps": 60.00298619512692,
+    "frame_count": 301.0,
+    "expected": 300.98501999999996,
+    "ratio": 1.000049769918782,
+    "passed": true
+  },
+  {
+    "path": "slot_raster_3/slot_raster_reference_1794329600601145.timeline_summary.json",
+    "fps": 60.15920003053929,
+    "frame_count": 301.0,
+    "expected": 300.20346,
+    "ratio": 1.0026533338423214,
+    "passed": true
+  },
+  {
+    "path": "lots_shaking_1/lots_shaking_1794330056579720.timeline_summary.json",
+    "fps": 60.024919315341016,
+    "frame_count": 301.0,
+    "expected": 300.87504,
+    "ratio": 1.0004153219223502,
+    "passed": true
+  },
+  {
+    "path": "lots_shaking_1/lots_shaking_reference_1794330056579720.timeline_summary.json",
+    "fps": 60.053709164475336,
+    "frame_count": 301.0,
+    "expected": 300.7308,
+    "ratio": 1.0008951527412557,
+    "passed": true
+  },
+  {
+    "path": "lots_shaking_2/lots_shaking_1794330118442721.timeline_summary.json",
+    "fps": 60.01039116806538,
+    "frame_count": 301.0,
+    "expected": 300.94788,
+    "ratio": 1.000173186134423,
+    "passed": true
+  },
+  {
+    "path": "lots_shaking_2/lots_shaking_reference_1794330118442721.timeline_summary.json",
+    "fps": 60.11708651427951,
+    "frame_count": 301.0,
+    "expected": 300.41376,
+    "ratio": 1.0019514419046582,
+    "passed": true
+  },
+  {
+    "path": "lots_shaking_3/lots_shaking_1794330181265081.timeline_summary.json",
+    "fps": 60.03301217333864,
+    "frame_count": 301.0,
+    "expected": 300.83448,
+    "ratio": 1.0005502028889774,
+    "passed": true
+  },
+  {
+    "path": "lots_shaking_3/lots_shaking_reference_1794330181265081.timeline_summary.json",
+    "fps": 60.08984329926379,
+    "frame_count": 301.0,
+    "expected": 300.54996,
+    "ratio": 1.0014973883210632,
+    "passed": true
+  },
+  {
+    "path": "lotto_draw_1/lotto_draw_1794329860308168.timeline_summary.json",
+    "fps": 60.06138086404987,
+    "frame_count": 579.0,
+    "expected": 578.40828,
+    "ratio": 1.0010230144008312,
+    "passed": true
+  },
+  {
+    "path": "lotto_draw_1/lotto_draw_reference_1794329860308168.timeline_summary.json",
+    "fps": 60.00822571226873,
+    "frame_count": 301.0,
+    "expected": 300.95874,
+    "ratio": 1.000137095204479,
+    "passed": true
+  },
+  {
+    "path": "lotto_draw_2/lotto_draw_1794329927044718.timeline_summary.json",
+    "fps": 59.991905755306384,
+    "frame_count": 579.0,
+    "expected": 579.07812,
+    "ratio": 0.999865095921773,
+    "passed": true
+  },
+  {
+    "path": "lotto_draw_2/lotto_draw_reference_1794329927044718.timeline_summary.json",
+    "fps": 60.10795068432203,
+    "frame_count": 301.0,
+    "expected": 300.45942,
+    "ratio": 1.0017991780720337,
+    "passed": true
+  },
+  {
+    "path": "lotto_draw_3/lotto_draw_1794329994232063.timeline_summary.json",
+    "fps": 60.036009162801484,
+    "frame_count": 579.0,
+    "expected": 578.6527199999999,
+    "ratio": 1.0006001527133581,
+    "passed": true
+  },
+  {
+    "path": "lotto_draw_3/lotto_draw_reference_1794329994232063.timeline_summary.json",
+    "fps": 60.00840516399241,
+    "frame_count": 301.0,
+    "expected": 300.95784000000003,
+    "ratio": 1.00014008606654,
+    "passed": true
+  }
+]

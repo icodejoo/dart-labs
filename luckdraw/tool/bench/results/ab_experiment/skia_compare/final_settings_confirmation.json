@@ -1,0 +1,14 @@
+{
+  "verifiedAt": "2026-11-10T14:15:39.942601+00:00",
+  "settings": {
+    "mode": "0",
+    "brightness": "1",
+    "stayon": "2"
+  },
+  "expected": {
+    "mode": "0",
+    "brightness": "1",
+    "stayon": "2"
+  },
+  "unchanged": true
+}

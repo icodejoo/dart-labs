@@ -1,0 +1,154 @@
+--- a/luckdraw/lib/src/core/foundation/options.dart
++++ b/luckdraw/lib/src/core/foundation/options.dart
+@@ -10,6 +10,9 @@
+ 
+   /// 使用受最大边长约束的位图。
+   raster,
++
++  /// 运动时使用受限位图，静止时回放矢量；不支持位图的段保持矢量。
++  auto,
+ }
+ 
+ /// 文字的系统缩放策略。
+@@ -28,7 +31,7 @@
+ final class LuckyPerformanceOptions {
+   /// 创建配置，未指定的可选字段使用声明的默认值。
+   const LuckyPerformanceOptions(
+-      {this.cacheMode = LuckyCacheMode.picture,
++      {this.cacheMode = LuckyCacheMode.auto,
+       this.maxRasterSide = kLuckyDefaultMaxRasterSide,
+       this.pauseWhenHidden = true,
+       this.filterQuality = FilterQuality.low});
+--- a/luckdraw/lib/src/core/render/picture_cache.dart
++++ b/luckdraw/lib/src/core/render/picture_cache.dart
+@@ -22,7 +22,7 @@
+   final Map<int, ui.Picture> _pictures = {};
+ 
+   /// 已栅格化图片与对应像素尺寸。
+-  final Map<int, (ui.Image, int, int)> _rasters = {};
++  final Map<int, (ui.Image, int, int, double, ui.Offset)> _rasters = {};
+ 
+   /// 累计录制次数。
+   int _records = 0;
+@@ -30,6 +30,11 @@
+   /// 累计录制次数，失效不会清零。
+   @visibleForTesting
+   int get debugRecordCount => _records;
++
++  /// 当前缓存位图的 RGBA 字节总数，不包含引擎或驱动的附加内存。
++  @visibleForTesting
++  int get debugRasterBytes => _rasters.values
++      .fold(0, (bytes, raster) => bytes + raster.$2 * raster.$3 * 4);
+ 
+   /// 返回 [id] 对应显示列表，首次调用 [record] 录制。
+   ui.Picture picture(int id, void Function(ui.Canvas canvas) record) {
+@@ -49,12 +54,15 @@
+     return result;
+   }
+ 
+-  /// 返回逻辑尺寸乘像素比的位图；picture 模式、零尺寸或超限时返回 null。
++  /// 返回物理像素位图；picture 模式、零尺寸或超限时返回 null。
++  ///
++  /// [origin] 是逻辑坐标中的左上角；例如负坐标球体可传其包围盒原点。
+   ui.Image? raster(int id, ui.Size logicalSize, double devicePixelRatio,
+-      void Function(ui.Canvas canvas) record) {
++      void Function(ui.Canvas canvas) record,
++      {ui.Offset origin = ui.Offset.zero}) {
+     final width = (logicalSize.width * devicePixelRatio).ceil();
+     final height = (logicalSize.height * devicePixelRatio).ceil();
+-    if (mode != LuckyCacheMode.raster ||
++    if (mode == LuckyCacheMode.picture ||
+         width <= 0 ||
+         height <= 0 ||
+         width > maxRasterSide ||
+@@ -62,15 +70,23 @@
+       return null;
+     }
+     final old = _rasters[id];
+-    if (old != null && old.$2 == width && old.$3 == height) return old.$1;
+-    old?.$1.dispose();
++    if (old != null &&
++        old.$2 == width &&
++        old.$3 == height &&
++        old.$4 == devicePixelRatio &&
++        old.$5 == origin) {
++      return old.$1;
++    }
+     final recorder = ui.PictureRecorder();
+-    final canvas = ui.Canvas(recorder)..scale(devicePixelRatio);
++    final canvas = ui.Canvas(recorder)
++      ..scale(devicePixelRatio)
++      ..translate(-origin.dx, -origin.dy);
+     canvas.drawPicture(picture(id, record));
+     final scaled = recorder.endRecording();
+     try {
+       final result = scaled.toImageSync(width, height);
+-      _rasters[id] = (result, width, height);
++      _rasters[id] = (result, width, height, devicePixelRatio, origin);
++      old?.$1.dispose();
+       return result;
+     } finally {
+       scaled.dispose();
+--- /dev/null
++++ b/luckdraw/lib/src/core/render/cached_picture.dart
+@@ -0,0 +1,60 @@
++import 'dart:ui' as ui;
++
++import '../foundation/options.dart';
++import 'picture_cache.dart';
++
++/// 低频准备的矢量及位图回放参数；原生资源由传入缓存统一拥有。
++final class LuckyCachedPicture {
++  /// 录制 [id]，按 [bounds] 与 [devicePixelRatio] 准备位图。
++  ///
++  /// [bounds] 须包含绘制内容及抗锯齿边缘；超出缓存上限时回退矢量。
++  LuckyCachedPicture(
++      LuckyPictureCache cache,
++      int id,
++      this.bounds,
++      double devicePixelRatio,
++      void Function(ui.Canvas) record,
++      LuckyPerformanceOptions performance)
++      : picture = cache.picture(id, record),
++        mode = performance.cacheMode,
++        _paint = (ui.Paint()..filterQuality = performance.filterQuality) {
++    cache
++      ..mode = mode
++      ..maxRasterSide = performance.maxRasterSide;
++    _image = cache.raster(id, bounds.size, devicePixelRatio, record,
++        origin: bounds.topLeft);
++    final image = _image;
++    _source = image == null
++        ? ui.Rect.zero
++        : ui.Rect.fromLTWH(
++            0, 0, image.width.toDouble(), image.height.toDouble());
++  }
++
++  /// 原始矢量显示列表，停下后保持文字锐利。
++  final ui.Picture picture;
++
++  /// 与录制内容同坐标系的位图目标区域。
++  final ui.Rect bounds;
++
++  /// 本段使用的缓存策略。
++  final LuckyCacheMode mode;
++
++  /// 受缓存边长限制的纹理。
++  late final ui.Image? _image;
++
++  /// 低频准备的纹理源区域。
++  late final ui.Rect _source;
++
++  /// 跨帧复用的采样画笔。
++  final ui.Paint _paint;
++
++  /// 按 [isMoving] 选择缓存回放，不创建绘制对象或离屏图层。
++  void paint(ui.Canvas canvas, {required bool isMoving}) {
++    final image = _image;
++    if (image != null && (mode == LuckyCacheMode.raster || isMoving)) {
++      canvas.drawImageRect(image, _source, bounds, _paint);
++    } else {
++      canvas.drawPicture(picture);
++    }
++  }
++}

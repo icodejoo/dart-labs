@@ -1,0 +1,625 @@
+--- a/lib/src/core/image/image_resolver.dart
++++ b/lib/src/core/image/image_resolver.dart
+@@ -5,6 +5,7 @@
+ import 'package:flutter/painting.dart';
+ 
+ import '../foundation/image.dart';
++import '../render/perf_trace.dart';
+ import 'image_set.dart';
+ 
+ /// 解码尺寸滞回的放大上界（ARCHITECTURE §8.3）。
+@@ -86,35 +87,40 @@
+   /// [devicePixelRatio] 必须为正有限值；旧请求的迟到转换产物会被释放。
+   void update(List<LuckyImageRequest> requests,
+       ImageConfiguration configuration, double devicePixelRatio) {
+-    assert(!_disposed);
+-    assert(devicePixelRatio > 0 && devicePixelRatio.isFinite);
+-    _updating = true;
+-    _ready = false;
+-    _generation++;
+-    final old = Map<LuckyImageSlot, _ImageEntry>.of(_entries);
+-    _entries.clear();
+-    for (final request in requests) {
+-      assert(!_entries.containsKey(request.slot));
+-      final previous = old.remove(request.slot);
+-      if (previous != null &&
+-          previous.reusable(request, configuration, devicePixelRatio)) {
+-        _entries[request.slot] = previous;
+-      } else {
+-        previous?.dispose();
+-        _entries[request.slot] =
+-            _ImageEntry(request, configuration, devicePixelRatio);
+-      }
+-    }
+-    for (final entry in old.values) {
+-      entry.dispose();
+-    }
+-    for (final entry in _entries.values) {
+-      if (!entry.started) {
+-        _listen(entry, entry.request.provider, false);
+-      }
+-    }
+-    _updating = false;
+-    _checkReady();
++    luckyTraceStart('luckdraw.image.update');
++    try {
++      assert(!_disposed);
++      assert(devicePixelRatio > 0 && devicePixelRatio.isFinite);
++      _updating = true;
++      _ready = false;
++      _generation++;
++      final old = Map<LuckyImageSlot, _ImageEntry>.of(_entries);
++      _entries.clear();
++      for (final request in requests) {
++        assert(!_entries.containsKey(request.slot));
++        final previous = old.remove(request.slot);
++        if (previous != null &&
++            previous.reusable(request, configuration, devicePixelRatio)) {
++          _entries[request.slot] = previous;
++        } else {
++          previous?.dispose();
++          _entries[request.slot] =
++              _ImageEntry(request, configuration, devicePixelRatio);
++        }
++      }
++      for (final entry in old.values) {
++        entry.dispose();
++      }
++      for (final entry in _entries.values) {
++        if (!entry.started) {
++          _listen(entry, entry.request.provider, false);
++        }
++      }
++      _updating = false;
++      _checkReady();
++    } finally {
++      luckyTraceEnd();
++    }
+   }
+ 
+   /// 是否仍然拥有该请求。
+--- a/lib/src/core/render/cached_picture.dart
++++ b/lib/src/core/render/cached_picture.dart
+@@ -1,6 +1,7 @@
+ import 'dart:ui' as ui;
+ 
+ import '../foundation/options.dart';
++import 'perf_trace.dart';
+ import 'picture_cache.dart';
+ 
+ /// 低频准备的矢量及位图回放参数；原生资源由传入缓存统一拥有。
+@@ -24,10 +25,15 @@
+     _image = cache.raster(id, bounds.size, devicePixelRatio, record,
+         origin: bounds.topLeft);
+     final image = _image;
+-    _source = image == null
+-        ? ui.Rect.zero
+-        : ui.Rect.fromLTWH(
+-            0, 0, image.width.toDouble(), image.height.toDouble());
++    luckyTraceStart('luckdraw.raster.prepare');
++    try {
++      _source = image == null
++          ? ui.Rect.zero
++          : ui.Rect.fromLTWH(
++              0, 0, image.width.toDouble(), image.height.toDouble());
++    } finally {
++      luckyTraceEnd();
++    }
+   }
+ 
+   /// 原始矢量显示列表，停下后保持文字锐利。
+--- a/lib/src/core/render/paint_helpers.dart
++++ b/lib/src/core/render/paint_helpers.dart
+@@ -8,6 +8,7 @@
+ import '../foundation/shadow.dart';
+ import '../text/text_line.dart';
+ import '../text/text_measurer.dart';
++import 'perf_trace.dart';
+ 
+ /// 录制阶段先绘制偏移阴影，再绘制 [fill]；[dpr] 用于设备空间模糊。
+ void paintLuckyFill(Canvas canvas, Path path, LuckyFill fill, Rect bounds,
+@@ -77,7 +78,12 @@
+         textDirection: textDirection,
+         textScaler: textScale);
+     try {
+-      painter.layout();
++      luckyTraceStart(kLuckyTextPainterLayoutTrace, layouts: 1);
++      try {
++        painter.layout();
++      } finally {
++        luckyTraceEnd();
++      }
+       final baseline =
+           painter.computeDistanceToActualBaseline(TextBaseline.alphabetic);
+       painter.paint(canvas, Offset(line.x, line.baselineY - baseline));
+--- a/lib/src/core/render/perf_trace.dart
++++ b/lib/src/core/render/perf_trace.dart
+@@ -3,14 +3,20 @@
+ /// 编译期控制 Timeline 打点，默认关闭，可用 dart-define 开启。
+ const bool _traceEnabled = bool.fromEnvironment('LUCKDRAW_TIMELINE');
+ 
++/// 单次 TextPainter.layout 事件名；arguments.layouts 记录调用数。
++const String kLuckyTextPainterLayoutTrace = 'luckdraw.text.painter.layout';
++
+ /// 开始名为 [name] 的同步性能片段；默认构建不打点。
+-void luckyTraceStart(String name) {
++@pragma('vm:prefer-inline')
++void luckyTraceStart(String name, {int layouts = 0}) {
+   if (_traceEnabled) {
+-    developer.Timeline.startSync(name); // coverage:ignore-line COV-01
++    developer.Timeline.startSync(name, // coverage:ignore-line COV-01
++        arguments: {'layouts': layouts}); // coverage:ignore-line COV-02
+   }
+ }
+ 
+ /// 结束最近一次性能片段；默认构建不打点。
++@pragma('vm:prefer-inline')
+ void luckyTraceEnd() {
+   if (_traceEnabled) {
+     developer.Timeline.finishSync(); // coverage:ignore-line COV-01
+--- a/lib/src/core/render/picture_cache.dart
++++ b/lib/src/core/render/picture_cache.dart
+@@ -4,6 +4,7 @@
+ 
+ import '../foundation/constants.dart';
+ import '../foundation/options.dart';
++import 'perf_trace.dart';
+ 
+ /// 按整数段缓存录制结果；例如 `cache.picture(0, record)`。
+ final class LuckyPictureCache {
+@@ -38,20 +39,25 @@
+ 
+   /// 返回 [id] 对应显示列表，首次调用 [record] 录制。
+   ui.Picture picture(int id, void Function(ui.Canvas canvas) record) {
+-    final cached = _pictures[id];
+-    if (cached != null) return cached;
+-    final recorder = ui.PictureRecorder();
+-    final canvas = ui.Canvas(recorder);
++    luckyTraceStart('luckdraw.picture.record');
+     try {
+-      record(canvas);
+-    } on Object {
+-      recorder.endRecording().dispose();
+-      rethrow;
++      final cached = _pictures[id];
++      if (cached != null) return cached;
++      final recorder = ui.PictureRecorder();
++      final canvas = ui.Canvas(recorder);
++      try {
++        record(canvas);
++      } on Object {
++        recorder.endRecording().dispose();
++        rethrow;
++      }
++      final result = recorder.endRecording();
++      _pictures[id] = result;
++      _records++;
++      return result;
++    } finally {
++      luckyTraceEnd();
+     }
+-    final result = recorder.endRecording();
+-    _pictures[id] = result;
+-    _records++;
+-    return result;
+   }
+ 
+   /// 返回物理像素位图；picture 模式、零尺寸或超限时返回 null。
+@@ -60,36 +66,41 @@
+   ui.Image? raster(int id, ui.Size logicalSize, double devicePixelRatio,
+       void Function(ui.Canvas canvas) record,
+       {ui.Offset origin = ui.Offset.zero}) {
+-    final width = (logicalSize.width * devicePixelRatio).ceil();
+-    final height = (logicalSize.height * devicePixelRatio).ceil();
+-    if (mode == LuckyCacheMode.picture ||
+-        width <= 0 ||
+-        height <= 0 ||
+-        width > maxRasterSide ||
+-        height > maxRasterSide) {
+-      return null;
+-    }
+-    final old = _rasters[id];
+-    if (old != null &&
+-        old.$2 == width &&
+-        old.$3 == height &&
+-        old.$4 == devicePixelRatio &&
+-        old.$5 == origin) {
+-      return old.$1;
+-    }
+-    final recorder = ui.PictureRecorder();
+-    final canvas = ui.Canvas(recorder)
+-      ..scale(devicePixelRatio)
+-      ..translate(-origin.dx, -origin.dy);
+-    canvas.drawPicture(picture(id, record));
+-    final scaled = recorder.endRecording();
++    luckyTraceStart('luckdraw.raster.build');
+     try {
+-      final result = scaled.toImageSync(width, height);
+-      _rasters[id] = (result, width, height, devicePixelRatio, origin);
+-      old?.$1.dispose();
+-      return result;
++      final width = (logicalSize.width * devicePixelRatio).ceil();
++      final height = (logicalSize.height * devicePixelRatio).ceil();
++      if (mode == LuckyCacheMode.picture ||
++          width <= 0 ||
++          height <= 0 ||
++          width > maxRasterSide ||
++          height > maxRasterSide) {
++        return null;
++      }
++      final old = _rasters[id];
++      if (old != null &&
++          old.$2 == width &&
++          old.$3 == height &&
++          old.$4 == devicePixelRatio &&
++          old.$5 == origin) {
++        return old.$1;
++      }
++      final recorder = ui.PictureRecorder();
++      final canvas = ui.Canvas(recorder)
++        ..scale(devicePixelRatio)
++        ..translate(-origin.dx, -origin.dy);
++      canvas.drawPicture(picture(id, record));
++      final scaled = recorder.endRecording();
++      try {
++        final result = scaled.toImageSync(width, height);
++        _rasters[id] = (result, width, height, devicePixelRatio, origin);
++        old?.$1.dispose();
++        return result;
++      } finally {
++        scaled.dispose();
++      }
+     } finally {
+-      scaled.dispose();
++      luckyTraceEnd();
+     }
+   }
+ 
+--- a/lib/src/core/text/split_text.dart
++++ b/lib/src/core/text/split_text.dart
+@@ -1,4 +1,5 @@
+ import '../foundation/constants.dart';
++import '../render/perf_trace.dart';
+ 
+ /// 测量 [text] 的单行宽度，返回逻辑像素数。
+ typedef LuckyTextWidth = double Function(String text);
+@@ -10,30 +11,35 @@
+ List<String> splitLuckyText(String text, LuckyTextWidth measure,
+     double Function(int finishedLines) maxWidthOf,
+     {int? lineClamp}) {
+-  // 上游 index.ts:155-188；IMP-06 仅把 UTF-16 码元迭代改为码点。
+-  final clamp = lineClamp == null || lineClamp <= 0 ? -1 : lineClamp;
+-  var str = '';
+-  final lines = <String>[];
+-  final endWidth = measure(kLuckyEllipsis);
+-  for (final rune in text.runes) {
+-    final ch = String.fromCharCode(rune);
+-    str += ch;
+-    var currWidth = measure(str);
+-    final maxWidth = maxWidthOf(lines.length);
+-    if (clamp == lines.length + 1) currWidth += endWidth;
+-    if (maxWidth < 0) return lines;
+-    if (currWidth > maxWidth) {
+-      lines.add(str.substring(0, str.length - ch.length));
+-      str = ch;
++  luckyTraceStart('luckdraw.text.split');
++  try {
++    // 上游 index.ts:155-188；IMP-06 仅把 UTF-16 码元迭代改为码点。
++    final clamp = lineClamp == null || lineClamp <= 0 ? -1 : lineClamp;
++    var str = '';
++    final lines = <String>[];
++    final endWidth = measure(kLuckyEllipsis);
++    for (final rune in text.runes) {
++      final ch = String.fromCharCode(rune);
++      str += ch;
++      var currWidth = measure(str);
++      final maxWidth = maxWidthOf(lines.length);
++      if (clamp == lines.length + 1) currWidth += endWidth;
++      if (maxWidth < 0) return lines;
++      if (currWidth > maxWidth) {
++        lines.add(str.substring(0, str.length - ch.length));
++        str = ch;
++      }
++      if (clamp == lines.length) {
++        lines[lines.length - 1] += kLuckyEllipsis;
++        return lines;
++      }
+     }
+-    if (clamp == lines.length) {
+-      lines[lines.length - 1] += kLuckyEllipsis;
+-      return lines;
+-    }
++    if (str.isNotEmpty) lines.add(str);
++    if (lines.isEmpty) lines.add(text);
++    return lines;
++  } finally {
++    luckyTraceEnd();
+   }
+-  if (str.isNotEmpty) lines.add(str);
+-  if (lines.isEmpty) lines.add(text);
+-  return lines;
+ }
+ 
+ /// 删除 [text] 中的换行符 `\n`，保留回车；例如 `'a\nb'` 返回 `'ab'`。
+--- a/lib/src/core/text/text_line.dart
++++ b/lib/src/core/text/text_line.dart
+@@ -3,6 +3,7 @@
+ 
+ import '../foundation/constants.dart';
+ import '../foundation/text.dart';
++import '../render/perf_trace.dart';
+ import 'split_text.dart';
+ import 'text_measurer.dart';
+ 
+@@ -41,44 +42,49 @@
+     required double Function(int finishedLines, double fontY) maxWidthOf,
+     bool dropEmptyLines = false,
+     bool wrap = true}) {
+-  final size = override?.fontSize ?? text.fontSize ?? defaults.fontSize;
+-  final style = TextStyle(
+-      color: override?.color ?? text.color ?? defaults.color,
+-      fontSize: size.truncateToDouble(),
+-      fontFamily:
+-          override?.fontFamily ?? text.fontFamily ?? defaults.fontFamily,
+-      fontFamilyFallback: override?.fontFamilyFallback ??
+-          text.fontFamilyFallback ??
+-          defaults.fontFamilyFallback,
+-      fontWeight:
+-          override?.fontWeight ?? text.fontWeight ?? defaults.fontWeight);
+-  // 上游 grid.ts:443-462：激活字号不参与行高回退。
+-  final lineHeight = override?.lineHeight ??
+-      text.lineHeight ??
+-      defaults.lineHeight ??
+-      text.fontSize ??
+-      defaults.fontSize;
+-  final top = text.top?.resolve(topBase) ?? 0;
+-  final left = text.left?.resolve(leftBase) ?? 0;
++  luckyTraceStart('luckdraw.text.layout');
++  try {
++    final size = override?.fontSize ?? text.fontSize ?? defaults.fontSize;
++    final style = TextStyle(
++        color: override?.color ?? text.color ?? defaults.color,
++        fontSize: size.truncateToDouble(),
++        fontFamily:
++            override?.fontFamily ?? text.fontFamily ?? defaults.fontFamily,
++        fontFamilyFallback: override?.fontFamilyFallback ??
++            text.fontFamilyFallback ??
++            defaults.fontFamilyFallback,
++        fontWeight:
++            override?.fontWeight ?? text.fontWeight ?? defaults.fontWeight);
++    // 上游 grid.ts:443-462：激活字号不参与行高回退。
++    final lineHeight = override?.lineHeight ??
++        text.lineHeight ??
++        defaults.lineHeight ??
++        text.fontSize ??
++        defaults.fontSize;
++    final top = text.top?.resolve(topBase) ?? 0;
++    final left = text.left?.resolve(leftBase) ?? 0;
+ 
+-  /// 返回第 i 行相对容器顶的基线。
+-  double fontY(int i) => top + (i + 1) * lineHeight;
+-  final lines = wrap && (text.wordWrap ?? defaults.wordWrap)
+-      ? splitLuckyText(removeLineBreaks(text.text),
+-          (s) => measurer.measure(s, style), (i) => maxWidthOf(i, fontY(i)),
+-          lineClamp: text.lineClamp ?? defaults.lineClamp)
+-      : text.text.split('\n');
+-  final filtered =
+-      dropEmptyLines ? lines.where((s) => s.isNotEmpty).toList() : lines;
+-  return [
+-    for (var i = 0; i < filtered.length; i++)
+-      LuckyTextLine(
+-          filtered[i],
+-          box.left +
+-              (box.width - measurer.measure(filtered[i], style)) /
+-                  kLuckyHalfDivisor +
+-              left,
+-          box.top + fontY(i),
+-          style)
+-  ];
++    /// 返回第 i 行相对容器顶的基线。
++    double fontY(int i) => top + (i + 1) * lineHeight;
++    final lines = wrap && (text.wordWrap ?? defaults.wordWrap)
++        ? splitLuckyText(removeLineBreaks(text.text),
++            (s) => measurer.measure(s, style), (i) => maxWidthOf(i, fontY(i)),
++            lineClamp: text.lineClamp ?? defaults.lineClamp)
++        : text.text.split('\n');
++    final filtered =
++        dropEmptyLines ? lines.where((s) => s.isNotEmpty).toList() : lines;
++    return [
++      for (var i = 0; i < filtered.length; i++)
++        LuckyTextLine(
++            filtered[i],
++            box.left +
++                (box.width - measurer.measure(filtered[i], style)) /
++                    kLuckyHalfDivisor +
++                left,
++            box.top + fontY(i),
++            style)
++    ];
++  } finally {
++    luckyTraceEnd();
++  }
+ }
+--- a/lib/src/core/text/text_measurer.dart
++++ b/lib/src/core/text/text_measurer.dart
+@@ -1,5 +1,7 @@
+ import 'package:flutter/foundation.dart';
+ import 'package:flutter/painting.dart';
++
++import '../render/perf_trace.dart';
+ 
+ /// 将 Canvas 单行文字中的空白码点转换为空格；不改变原始分行内容。
+ String normalizeLuckyCanvasText(String text) =>
+@@ -19,6 +21,9 @@
+ 
+ /// 样式缓存上限；超出时整体清空，限制本地文字资源占用。
+ const int _maxStyles = 32;
++
++/// 单次布局中保留的精确文字宽度上限，限制长文本带来的缓存占用。
++const int _maxWidths = 256;
+ 
+ /// 使用 TextPainter 测量；默认不缩放、从左向右整形。
+ ///
+@@ -40,6 +45,9 @@
+   /// 按解析后的样式复用资源。
+   final Map<TextStyle, TextPainter> _painters = {};
+ 
++  /// 原始文本和样式的精确测量结果；方向与缩放由实例固定。
++  final Map<(String, TextStyle), double> _widths = {};
++
+   /// 仅供测试检查复用与释放；返回当前缓存资源的只读快照。
+   @visibleForTesting
+   List<TextPainter> get debugPainters => List.unmodifiable(_painters.values);
+@@ -57,13 +65,26 @@
+     }
+     painter.text =
+         TextSpan(text: normalizeLuckyCanvasText(text), style: resolved);
+-    painter.layout();
++    luckyTraceStart(kLuckyTextPainterLayoutTrace, layouts: 1);
++    try {
++      painter.layout();
++    } finally {
++      luckyTraceEnd();
++    }
+     return painter;
+   }
+ 
+   /// 返回单行宽度，包含尾随空格，字号向零截断。
+   @override
+-  double measure(String text, TextStyle style) => _layout(text, style).width;
++  double measure(String text, TextStyle style) {
++    final key = (text, style);
++    final cached = _widths[key];
++    if (cached != null) return cached;
++    final width = _layout(text, style).width;
++    if (_widths.length >= _maxWidths) _widths.clear();
++    _widths[key] = width;
++    return width;
++  }
+ 
+   /// 返回行顶到字母基线的距离。
+   @override
+@@ -77,5 +98,6 @@
+       painter.dispose();
+     }
+     _painters.clear();
++    _widths.clear();
+   }
+ }
+--- /dev/null
++++ b/test/core/text/instr_text_equivalence_test.dart
+@@ -0,0 +1,114 @@
++import 'dart:math' as math;
++
++import 'package:flutter/painting.dart';
++import 'package:flutter_test/flutter_test.dart';
++import 'package:luckdraw/extend.dart';
++
++import 'package:luckdraw/src/core/text/text_measurer.dart'
++    show normalizeLuckyCanvasText;
++
++/// 与优化前相同，每次完整整形而不缓存宽度，返回精确宽度。
++double _referenceWidth(
++    String text, TextStyle style, TextDirection direction, TextScaler scaler) {
++  final painter = TextPainter(
++      text: TextSpan(
++          text: normalizeLuckyCanvasText(text),
++          style: style.copyWith(fontSize: style.fontSize?.truncateToDouble())),
++      textDirection: direction,
++      textScaler: scaler)
++    ..layout();
++  try {
++    return painter.width;
++  } finally {
++    painter.dispose();
++  }
++}
++
++/// 随机、字体整形和换行边界保持逐位一致，缓存只减少重复布局。
++void main() {
++  group('TextPainterMeasurer INSTR', () {
++    test(
++        'cached widths and lineClamp match uncached multilingual and emoji shaping',
++        () {
++      final random = math.Random(20261111);
++      const pieces = [
++        'a',
++        'V',
++        'fi',
++        ' ',
++        '中',
++        '文',
++        'אב',
++        'مرحبا',
++        '😀',
++        '👩‍💻',
++        'é',
++        '\n',
++        '\t',
++        '🇨🇳'
++      ];
++      const style = TextStyle(
++          fontFamily: 'Roboto',
++          fontSize: 20.9,
++          fontFamilyFallback: ['sans-serif']);
++      for (final direction in [TextDirection.ltr, TextDirection.rtl]) {
++        for (final scaler in [
++          TextScaler.noScaling,
++          const TextScaler.linear(1.3)
++        ]) {
++          final measurer =
++              TextPainterMeasurer(textDirection: direction, textScaler: scaler);
++          try {
++            for (var sample = 0; sample < 70; sample++) {
++              final text = List.generate(random.nextInt(15),
++                  (_) => pieces[random.nextInt(pieces.length)]).join();
++
++              /// 优化前每次完整整形的测量结果。
++              double reference(String value) =>
++                  _referenceWidth(value, style, direction, scaler);
++
++              /// 新实现返回同一文本和样式的精确宽度。
++              double cached(String value) => measurer.measure(value, style);
++              expect(cached(text), reference(text));
++              for (final clamp in [null, -1, 0, 1, 2, 4]) {
++                final width = random.nextInt(120).toDouble() - 5;
++
++                /// 每行逐渐缩窄以覆盖边界和提前返回。
++                double maxWidth(int line) => width - line * 3;
++                expect(
++                    splitLuckyText(text, cached, maxWidth, lineClamp: clamp),
++                    splitLuckyText(text, reference, maxWidth,
++                        lineClamp: clamp));
++              }
++            }
++          } finally {
++            measurer.dispose();
++          }
++        }
++      }
++    });
++    test(
++        'repeated width hits avoid layout and dispose invalidates the bounded cache',
++        () {
++      final measurer = TextPainterMeasurer();
++      addTearDown(measurer.dispose);
++      const style = TextStyle(fontFamily: 'Roboto', fontSize: 20);
++      final first = measurer.measure('cached', style);
++      measurer.measure('last layout', style);
++      expect(measurer.measure('cached', style), first);
++      expect((measurer.debugPainters.single.text! as TextSpan).text,
++          'last layout');
++      for (var index = 0; index < 260; index++) {
++        expect(
++            measurer.measure('text $index', style),
++            _referenceWidth(
++                'text $index', style, TextDirection.ltr, TextScaler.noScaling));
++      }
++      final old = measurer.debugPainters.single;
++      measurer.dispose();
++      expect(old.debugDisposed, isTrue);
++      expect(measurer.measure('cached', style), first);
++      expect(measurer.debugPainters.single, isNot(same(old)));
++    });
++  });
++}
