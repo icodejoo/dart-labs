@@ -1,3 +1,7 @@
+## 1.0.3
+
+- Shorten the pubspec description to meet the pub.dev length limit.
+
 ## 1.0.2
 
 - Docs only: rewrote README wording in plain language and added a Chinese README (README.zh-CN.md).
