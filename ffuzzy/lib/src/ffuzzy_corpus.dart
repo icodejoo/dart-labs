@@ -111,101 +111,111 @@ List<T> dartSearchRaws<T>(List<T> items, String Function(T) stringOf, int mode,
 
 // 管理共享语料状态，由平台子类提供引擎桥接。
 abstract base class FuzzyCorpusProtected<T> {
+  /// 以默认选项 [options] 和文本提取函数 [stringOf_] 创建语料库状态。
   FuzzyCorpusProtected({
     required this.options,
     required this.stringOf_,
   });
 
+  /// 语料库默认搜索选项。
   final FuzzyOptions options;
 
+  /// 条目文本提取函数。
   // ignore: non_constant_identifier_names
   final String Function(T) stringOf_;
 
   // ── Protected state ───────────────────────────────────────────────────────
 
+  /// 宿主条目列表。
   // ignore: non_constant_identifier_names
   final List<T> items_ = [];
+  /// 各条目的附加键，无附加键为 null。
   // ignore: non_constant_identifier_names
   final List<List<FuzzyKey>?> keys_ = [];
+  /// 是否已销毁。
   // ignore: non_constant_identifier_names
   bool disposed_ = false;
+  /// 平台语料库是否已释放。
   // ignore: non_constant_identifier_names
   bool freed_ = false;
+  /// 在途异步搜索数。
   // ignore: non_constant_identifier_names
   int inFlight_ = 0;
+  /// 是否正在异步构建。
   // ignore: non_constant_identifier_names
   bool building_ = false;
+  /// 空闲时完成的等待器。
   // ignore: non_constant_identifier_names
   Completer<void>? idle_;
-  // 网页引擎就绪前仅缓存宿主条目。
+  /// 网页引擎就绪前仅缓存宿主条目；true 表示构造时 C 后端尚未就绪（仅网页）。
   // ignore: non_constant_identifier_names
   bool cDeferred_ =
-      false; // true when constructed before C backend is ready (web only)
+      false;
 
   // ── Bridge (C / WASM) — implemented by platform subclass ─────────────────
 
-  // 新增原始键，失败时抛错并阻止宿主提交条目。
+  /// 新增原始键，失败时抛错并阻止宿主提交条目。
   void cAdd_(Uint8List bytes);
-  // 写入原始文本和附加键，失败抛错。
+  /// 写入原始文本和附加键，失败抛错。
   void cAddKeyed_(Uint8List primary, List<FuzzyKey> keys);
-  // 清空平台索引。
+  /// 清空平台索引。
   void cClear_();
-  // 释放平台语料库。
+  /// 释放平台语料库。
   void cFree_();
 
-  // 执行指定模式的同步搜索。
+  /// 执行指定模式的同步搜索。
   List<FuzzyHit<T>> search_(int mode, String q, FuzzyOptions o);
-  // 读取指定模式的原始条目。
+  /// 读取指定模式的原始条目。
   List<T> searchRaws_(int mode, String q, FuzzyOptions o);
-  // 执行异步搜索并跟踪在途调用。
+  /// 执行异步搜索并跟踪在途调用。
   Future<List<FuzzyHit<T>>> searchAsync_(int mode, String q, FuzzyOptions o);
-  // 异步读取指定模式的原始条目。
+  /// 异步读取指定模式的原始条目。
   Future<List<T>> searchRawsAsync_(int mode, String q, FuzzyOptions o);
-  // 执行编辑距离搜索并按需读取高亮。
+  /// 执行编辑距离搜索并按需读取高亮。
   List<FuzzyHit<T>> searchEdit_(String q, int maxDist, FuzzyOptions o);
 
   // C-side bridges — always implemented by platform subclass.
-  // 执行子序列与近似结果合并搜索。
+  /// 执行子序列与近似结果合并搜索。
   List<FuzzyHit<T>> searchMerge_(String q, int maxDist, FuzzyOptions o);
-  // 无子序列命中时执行近似搜索。
+  /// 无子序列命中时执行近似搜索。
   List<FuzzyHit<T>> searchFallback_(String q, int maxDist, FuzzyOptions o);
-  // 分别读取子序列与近似搜索结果。
+  /// 分别读取子序列与近似搜索结果。
   FuzzyDualResult<T> searchDualC_(String q, int maxDist, FuzzyOptions o);
 
   // Async counterparts of searchEdit_/searchMerge_/searchFallback_/searchDualC_
   // above. On native these genuinely offload to a worker isolate (like
   // searchAsync_); on web, WASM calls are inherently synchronous, so these
   // just await engine readiness before calling the sync path.
-  // 异步执行编辑距离搜索。
+  /// 异步执行编辑距离搜索。
   Future<List<FuzzyHit<T>>> searchEditAsync_(
       String q, int maxDist, FuzzyOptions o);
-  // 异步执行合并搜索。
+  /// 异步执行合并搜索。
   Future<List<FuzzyHit<T>>> searchMergeAsync_(
       String q, int maxDist, FuzzyOptions o);
-  // 异步执行回退搜索。
+  /// 异步执行回退搜索。
   Future<List<FuzzyHit<T>>> searchFallbackAsync_(
       String q, int maxDist, FuzzyOptions o);
-  // 异步执行双路搜索。
+  /// 异步执行双路搜索。
   Future<FuzzyDualResult<T>> searchDualAsync_(
       String q, int maxDist, FuzzyOptions o);
 
   // Lazy-init hooks — web overrides to trigger _ensureReady(); FFI is always ready (no-op).
-  // 同步检查并补建延迟索引。
+  /// 同步检查并补建延迟索引。
   // ignore: non_constant_identifier_names
   void syncEnsureReady_() {}
-  // 等待平台引擎就绪并检查语料库生命周期。
+  /// 等待平台引擎就绪并检查语料库生命周期。
   // ignore: non_constant_identifier_names
   Future<void> asyncEnsureReady_() async {}
 
   // ── Shared internals ──────────────────────────────────────────────────────
 
-  // 拒绝已销毁或正在构建的语料库操作。
+  /// 拒绝已销毁或正在构建的语料库操作。
   void check_() {
     if (disposed_) throw StateError(_disposedMessage);
     if (building_) throw StateError('FuzzyCorpus used while build in progress');
   }
 
-  // 检查修改权限，拒绝在途搜索期间修改。
+  /// 检查修改权限，拒绝在途搜索期间修改。
   void checkMutate_() {
     check_();
     if (inFlight_ > 0) {
@@ -214,7 +224,7 @@ abstract base class FuzzyCorpusProtected<T> {
     }
   }
 
-  // 空闲时通知等待资源释放的调用方。
+  /// 空闲时通知等待资源释放的调用方。
   void signalIfIdle_() {
     if (inFlight_ == 0 && !building_ && idle_ != null) {
       idle_!.complete();
@@ -222,7 +232,7 @@ abstract base class FuzzyCorpusProtected<T> {
     }
   }
 
-  // 合并本次覆盖项与语料库默认选项。
+  /// 合并本次覆盖项与语料库默认选项。
   FuzzyOptions eff_(FuzzyCase? cm, FuzzyNorm? nm, bool? par, int? th, int? lim,
           bool? hl, FuzzyScoring? sc) =>
       options.copyWith(
@@ -234,7 +244,7 @@ abstract base class FuzzyCorpusProtected<T> {
           highlight: hl,
           scoring: sc);
 
-  // 提取文本后复查生命周期，再写入平台索引。
+  /// 提取文本后复查生命周期，再写入平台索引。
   void nAdd_(T item, List<FuzzyKey>? keys) {
     final bytes = toUtf8(stringOf_(item));
     if (disposed_) throw StateError(_disposedMessage);
@@ -245,7 +255,7 @@ abstract base class FuzzyCorpusProtected<T> {
     }
   }
 
-  // 重建平台索引，失败时将宿主截断到已提交条目。
+  /// 重建平台索引，失败时将宿主截断到已提交条目。
   void rebuild_() {
     cClear_();
     for (var i = 0; i < items_.length; i++) {

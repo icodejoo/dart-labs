@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.6.4
+
+Metadata and docs only; no code changes.
+
+- Shortened the pubspec `description` to fit the pub.dev 60-180 character guideline.
+- Added dartdoc comments to the `FuzzyCorpus` members inherited from its base class.
+
 ## 0.6.3
 
 Full code review fixes; no breaking Dart API changes.
