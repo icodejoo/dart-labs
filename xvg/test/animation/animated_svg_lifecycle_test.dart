@@ -247,12 +247,7 @@ void main() {
 
       await tester.pumpWidget(
         const MaterialApp(
-          home: XvgAnimated.string(
-            _spinner,
-            width: 24,
-            height: 24,
-            maxFps: 15,
-          ),
+          home: XvgAnimated.string(_spinner, width: 24, height: 24, maxFps: 15),
         ),
       );
 
