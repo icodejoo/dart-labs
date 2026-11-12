@@ -1,3 +1,7 @@
+## 0.1.2
+
+- Docs only: rewrote README wording in plain language.
+
 ## 0.1.1
 
 - Fix: `refetchOnResume` now actually takes effect — every `useQuery`/`useInfiniteQuery`
