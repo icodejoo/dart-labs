@@ -1,3 +1,7 @@
+## 0.5.1
+
+- Docs: pubspec `homepage` and `repository` now point to the package directory on the `main` branch.
+
 ## 0.5.0
 
 - **Breaking: public API renamed across the board. Old names are removed with no `@Deprecated` aliases** (`lib/src/deprecated_names.dart` is deleted, including the earlier `*Controller`/`Swap*`/`Standby*` class aliases; the member-level `@Deprecated` aliases are deleted too, see the list below). Migration table:

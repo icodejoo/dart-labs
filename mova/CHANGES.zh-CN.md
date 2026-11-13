@@ -1,3 +1,7 @@
+## 0.5.1
+
+- 文档：pubspec 的 `homepage` 与 `repository` 改为指向 `main` 分支下的包目录。
+
 ## 0.5.0
 
 - **破坏性变更：公开 API 全量改名，旧名直接删除，不保留 `@Deprecated` 别名**（删除 `lib/src/deprecated_names.dart`，此前的 `*Controller`/`Swap*`/`Standby*` 类别名一并移除；成员级 `@Deprecated` 别名也一并删除，见下方清单）。迁移对照：
