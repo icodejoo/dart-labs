@@ -413,10 +413,10 @@ class Xvg extends StatefulWidget {
   final XvgTheme? theme;
 
   /// Animation quality/performance trade-off, forwarded to
-  /// [XvgAnimated.string]; ignored for a static source (the static path
+  /// [AnimatedXvg.string]; ignored for a static source (the static path
   /// renders a cached `ui.Picture` and has no per-frame sampling to degrade).
   ///
-  /// 动画的画质/性能取舍，转发给 [XvgAnimated.string]；静态源忽略此参数
+  /// 动画的画质/性能取舍，转发给 [AnimatedXvg.string]；静态源忽略此参数
   /// （静态路径渲染的是缓存好的 `ui.Picture`，没有逐帧采样可降级）。
   final XvgAnimationQuality? quality;
 
@@ -443,9 +443,9 @@ class Xvg extends StatefulWidget {
   /// Instance fps: null follows [Xvg.fps], positive values cap sampling,
   /// zero freezes at the first frame, and infinity is unlimited, ignoring global.
   /// Negative values and NaN assert. Ignored for static sources and [animation].
-  /// Shared controllers follow [XvgAnimated.fps] coordination rules.
+  /// Shared controllers follow [AnimatedXvg.fps] coordination rules.
   /// 实例帧率：null 跟随全局，正数限速，0 冻结首帧，infinity 不限速且忽略全局。
-  /// 负数和 NaN 触发断言；静态源与外部 animation 忽略；共享规则见 XvgAnimated。
+  /// 负数和 NaN 触发断言；静态源与外部 animation 忽略；共享规则见 AnimatedXvg。
   final double? _fps;
 
   /// Called when an animated source and its embedded images are ready.
@@ -536,7 +536,7 @@ class _XvgState extends State<Xvg> {
   @override
   Widget build(BuildContext context) {
     if (_animated) {
-      final child = XvgAnimated.string(
+      final child = AnimatedXvg.string(
         widget.source,
         width: widget.width,
         height: widget.height,
@@ -563,7 +563,7 @@ class _XvgState extends State<Xvg> {
           ? child
           : ColorFiltered(colorFilter: widget.colorFilter!, child: child);
     }
-    return XvgStatic(
+    return StaticXvg(
       widget.source,
       width: widget.width,
       height: widget.height,
@@ -699,9 +699,9 @@ class _AsyncXvg extends StatefulWidget {
   /// Instance fps: null follows [Xvg.fps], positive values cap sampling,
   /// zero freezes at the first frame, and infinity is unlimited, ignoring global.
   /// Negative values and NaN assert. Ignored for static sources and [animation].
-  /// Shared controllers follow [XvgAnimated.fps] coordination rules.
+  /// Shared controllers follow [AnimatedXvg.fps] coordination rules.
   /// 实例帧率：null 跟随全局，正数限速，0 冻结首帧，infinity 不限速且忽略全局。
-  /// 负数和 NaN 触发断言；静态源与外部 animation 忽略；共享规则见 XvgAnimated。
+  /// 负数和 NaN 触发断言；静态源与外部 animation 忽略；共享规则见 AnimatedXvg。
   final double? fps;
 
   /// Called when an animated source and its embedded images are ready.

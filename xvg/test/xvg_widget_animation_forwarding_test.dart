@@ -370,8 +370,8 @@ void main() {
             await tester.pump();
             await tester.pump();
             final actual = animated
-                ? tester.widget<XvgAnimated>(find.byType(XvgAnimated)).pixelSnap
-                : tester.widget<XvgStatic>(find.byType(XvgStatic)).pixelSnap;
+                ? tester.widget<AnimatedXvg>(find.byType(AnimatedXvg)).pixelSnap
+                : tester.widget<StaticXvg>(find.byType(StaticXvg)).pixelSnap;
             expect(actual, mode);
             await tester.pumpWidget(const SizedBox());
             SvgSourceLoader.instance.clear();
@@ -412,7 +412,7 @@ void main() {
         await tester.pump();
         expect(loaded, hasLength(1));
         expect(controller.info, loaded.single);
-        final child = tester.widget<XvgAnimated>(find.byType(XvgAnimated));
+        final child = tester.widget<AnimatedXvg>(find.byType(AnimatedXvg));
         expect(child.controller, same(controller));
         expect(child.fps, 30);
         expect(child.theme, theme);
@@ -497,7 +497,7 @@ void main() {
         );
         await tester.pump();
         await tester.pump();
-        expect(find.byType(XvgStatic), findsOneWidget);
+        expect(find.byType(StaticXvg), findsOneWidget);
         expect(loaded, 0);
         expect(events, 0);
         expect(controller.info, isNull);
@@ -531,7 +531,7 @@ void main() {
         await tester.pump();
         await tester.pump(_step);
         expect(_time(tester), Duration.zero);
-        final child = tester.widget<XvgAnimated>(find.byType(XvgAnimated));
+        final child = tester.widget<AnimatedXvg>(find.byType(AnimatedXvg));
         expect(child.autoplay, false);
         expect(child.playbackRate, 2);
         await tester.pumpWidget(

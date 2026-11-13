@@ -68,7 +68,7 @@ void main() {
   testWidgets('animated icon builds no redundant sizing layer', (tester) async {
     await tester.pumpWidget(
       const Center(
-        child: XvgAnimated.string(_animatedSource, width: 32, height: 32),
+        child: AnimatedXvg.string(_animatedSource, width: 32, height: 32),
       ),
     );
     await tester.pump(const Duration(milliseconds: 16));
@@ -84,11 +84,11 @@ void main() {
     // computeSizeForNoChild` -> `constraints.constrain(preferredSize)`），因此再
     // 用同尺寸的 `SizedBox` 包一层，是加了一层不可能改变结果的层级。
     expect(
-      _renderChain(tester, find.byType(XvgAnimated)),
+      _renderChain(tester, find.byType(AnimatedXvg)),
       isNot(contains('RenderConstrainedBox')),
     );
     expect(
-      _widgetChain(tester, find.byType(XvgAnimated)),
+      _widgetChain(tester, find.byType(AnimatedXvg)),
       isNot(contains('SizedBox')),
     );
   });
@@ -96,11 +96,11 @@ void main() {
   testWidgets('static icon builds no redundant sizing layer', (tester) async {
     await tester.runAsync(Xvg.ensureInitialized);
     await tester.pumpWidget(
-      const Center(child: XvgStatic(_staticSource, width: 32, height: 32)),
+      const Center(child: StaticXvg(_staticSource, width: 32, height: 32)),
     );
     await tester.pump();
     expect(
-      _renderChain(tester, find.byType(XvgStatic)),
+      _renderChain(tester, find.byType(StaticXvg)),
       isNot(contains('RenderConstrainedBox')),
     );
   });
@@ -138,7 +138,7 @@ void main() {
           alignment: Alignment.topLeft,
           child: ConstrainedBox(
             constraints: constraints,
-            child: const XvgAnimated.string(
+            child: const AnimatedXvg.string(
               _animatedSource,
               width: 32,
               height: 32,

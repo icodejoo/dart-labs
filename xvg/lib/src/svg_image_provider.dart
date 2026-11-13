@@ -26,11 +26,11 @@ import 'svg_source_sniffer.dart';
 /// Oversampling factor applied on top of the device's own pixel density when
 /// rasterizing an SVG image provider — see `_resolveSize`'s doc comment (on
 /// `_SvgImageStreamCompleter`) for why an offscreen `toImage` snapshot needs
-/// this and a direct-to-surface [XvgAnimated]/[XvgStatic] paint doesn't.
+/// this and a direct-to-surface [AnimatedXvg]/[StaticXvg] paint doesn't.
 ///
 /// 通过 SVG image provider 光栅化时，在设备自身像素密度之上再叠加的超采样倍数
 /// ——为什么离屏 `toImage` 快照需要它、而直接画上表面的
-/// [XvgAnimated]/[XvgStatic] 不需要，见 `_SvgImageStreamCompleter` 上
+/// [AnimatedXvg]/[StaticXvg] 不需要，见 `_SvgImageStreamCompleter` 上
 /// `_resolveSize` 的文档注释。
 const _supersample = 2;
 
@@ -1010,7 +1010,7 @@ class _SvgImageStreamCompleter extends ImageStreamCompleter {
   /// dimensions are that logical size scaled by the view's
   /// `devicePixelRatio`, paired with a matching [ImageInfo.scale] so the
   /// rasterized image is exactly as sharp on a high-DPI display as
-  /// [XvgAnimated]/[XvgStatic] are — painting and [ui.Picture.toImage] both
+  /// [AnimatedXvg]/[StaticXvg] are — painting and [ui.Picture.toImage] both
   /// at the *logical* size then relying on Flutter to stretch the result up
   /// to fill the physical pixels would reproduce exactly the visible
   /// aliasing/blur this guards against.
@@ -1024,7 +1024,7 @@ class _SvgImageStreamCompleter extends ImageStreamCompleter {
   /// 光栅*逻辑*尺寸的解析优先级：显式 [width]/[height] 优先，其次按宽高比推导
   /// 缺失的那一半，最后落到 [SchedulerBinding] 的主视图兜底。返回的像素尺寸是
   /// 该逻辑尺寸乘上视图的 `devicePixelRatio`，并配一个对应的 [ImageInfo.scale]，
-  /// 使光栅化出的图像在高 DPI 屏幕上跟 [XvgAnimated]/[XvgStatic] 一样清晰——
+  /// 使光栅化出的图像在高 DPI 屏幕上跟 [AnimatedXvg]/[StaticXvg] 一样清晰——
   /// 若只按*逻辑*尺寸去画+ [ui.Picture.toImage]，再让 Flutter 把结果拉伸填满
   /// 物理像素，正好会重现这里要规避的锯齿/模糊。
   ///
@@ -1058,7 +1058,7 @@ class _SvgImageStreamCompleter extends ImageStreamCompleter {
     // compositing smooth the result — a supersampling AA pass. This matters
     // specifically because this image comes from `ui.Picture.toImage`, an
     // *offscreen* render target: unlike the main swapchain surface
-    // `XvgAnimated`/`XvgStatic` paint onto directly (which the engine gives
+    // `AnimatedXvg`/`StaticXvg` paint onto directly (which the engine gives
     // MSAA), an ad-hoc offscreen target rasterizes each frame's vector edges
     // single-sample, i.e. aliased, regardless of how correctly its overall
     // pixel *density* matches the device — raising the density alone (the
@@ -1068,7 +1068,7 @@ class _SvgImageStreamCompleter extends ImageStreamCompleter {
     // 在设备自身像素密度之上再超采样 [_supersample] 倍，再让 Flutter 合成阶段
     // 正常的（双线性过滤）降采样把结果磨平——相当于一次超采样抗锯齿。这里之所以
     // 单独需要它：这张图来自 `ui.Picture.toImage`，是一个*离屏*渲染目标——不同于
-    // `XvgAnimated`/`XvgStatic` 直接画上去、引擎会给 MSAA 的主 swapchain 表面，
+    // `AnimatedXvg`/`StaticXvg` 直接画上去、引擎会给 MSAA 的主 swapchain 表面，
     // 临时搭建的离屏目标本就按单样本（即有锯齿）光栅化每一帧的矢量边缘，跟它整体
     // 像素*密度*对不对没关系——只把密度提高（上面乘 devicePixelRatio 那步）能让
     // 图像更清晰，但不会让一条压根没做多重采样的边缘变平滑。

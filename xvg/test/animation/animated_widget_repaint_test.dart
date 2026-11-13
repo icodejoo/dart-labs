@@ -1,4 +1,4 @@
-// Guards the 2026-08-26 optimization that stopped [XvgAnimated] calling
+// Guards the 2026-08-26 optimization that stopped [AnimatedXvg] calling
 // setState once per Ticker tick.
 //
 // The timeline position is now published through a [ValueNotifier] wired to
@@ -10,7 +10,7 @@
 // per-icon cost, which in the 1000-animated-icon benchmark is the single
 // largest number there — hence a test rather than a comment.
 //
-// 守护 2026-08-26 那项优化：[XvgAnimated] 不再每次 Ticker tick 调用一次
+// 守护 2026-08-26 那项优化：[AnimatedXvg] 不再每次 Ticker tick 调用一次
 // setState。
 //
 // 时间线位置现在通过一个绑定到 [AnimatedSvgPainter] `clock` 的 [ValueNotifier]
@@ -48,7 +48,7 @@ const _spinner =
 // 的——setState 只会把自己的 element 标脏，祖先的 build 两种情况下都不会重跑。
 Finder _svgCustomPaint() => find
     .descendant(
-      of: find.byType(XvgAnimated),
+      of: find.byType(AnimatedXvg),
       matching: find.byType(CustomPaint),
     )
     .first;

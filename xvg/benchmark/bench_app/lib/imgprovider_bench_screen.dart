@@ -1,7 +1,7 @@
 // Benchmark for the `SvgImageProvider` family (StringXvg et al.), the ONE
 // code path in xvg affected by the `_supersample` constant in
 // lib/src/svg_image_provider.dart — every other benchmark in this app uses
-// XvgStatic/SvgPicture.string, which never goes near it. xvg-vs-xvg only:
+// StaticXvg/SvgPicture.string, which never goes near it. xvg-vs-xvg only:
 // flutter_svg has no equivalent offscreen-`toImage` ImageProvider, so there
 // is nothing to compare against on the other side.
 //
@@ -14,7 +14,7 @@
 //
 // `SvgImageProvider` 家族（StringXvg 等）的基准——这是 xvg 里唯一受
 // lib/src/svg_image_provider.dart 里 `_supersample` 常量影响的代码路径；本应用
-// 其它所有基准都用 XvgStatic/SvgPicture.string，完全碰不到它。仅 xvg 对
+// 其它所有基准都用 StaticXvg/SvgPicture.string，完全碰不到它。仅 xvg 对
 // xvg：flutter_svg 没有等价的离屏 `toImage` ImageProvider，另一侧无可比对象。
 //
 // 直接通过 `ImageProvider.resolve` 测冷光栅化开销（不需要组件树——不管光栅化

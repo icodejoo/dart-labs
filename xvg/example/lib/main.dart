@@ -48,7 +48,7 @@ const String kRotationMarkerSvg =
     '</rect></svg>';
 
 // A static (no `<animate>`) filled path using `currentColor` — exercises the
-// Rust static path's new `currentColor` substitution via `XvgStatic`'s
+// Rust static path's new `currentColor` substitution via `StaticXvg`'s
 // `theme` param, resolved through `parse_svg`'s `current_color` FFI arg.
 const String kStaticCurrentColorSvg =
     '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">'

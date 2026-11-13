@@ -45,7 +45,7 @@ Widget _scene({
       children: [
         TickerMode(
           enabled: ticker,
-          child: XvgAnimated.string(
+          child: AnimatedXvg.string(
             _source,
             key: _first,
             fps: fps,
@@ -55,7 +55,7 @@ Widget _scene({
           ),
         ),
         if (shared)
-          XvgAnimated.string(
+          AnimatedXvg.string(
             _source,
             key: _second,
             controller: controller,
@@ -186,7 +186,7 @@ void main() {
         throwsAssertionError,
       );
       expect(
-        () => XvgAnimated.string(_source, fps: invalid),
+        () => AnimatedXvg.string(_source, fps: invalid),
         throwsAssertionError,
       );
       expect(() => Xvg.string(_source, fps: invalid), throwsAssertionError);
@@ -566,7 +566,7 @@ void main() {
       ),
     );
     await tester.pump();
-    expect(tester.widget<XvgAnimated>(find.byType(XvgAnimated)).fps, 0);
+    expect(tester.widget<AnimatedXvg>(find.byType(AnimatedXvg)).fps, 0);
     expect(SharedAnimationClock.instance.subscriberCount, 0);
     await tester.pumpWidget(
       const Directionality(
@@ -575,7 +575,7 @@ void main() {
       ),
     );
     expect(
-      tester.widget<XvgAnimated>(find.byType(XvgAnimated)).fps,
+      tester.widget<AnimatedXvg>(find.byType(AnimatedXvg)).fps,
       double.infinity,
     );
     expect(SharedAnimationClock.instance.subscriberCount, 1);

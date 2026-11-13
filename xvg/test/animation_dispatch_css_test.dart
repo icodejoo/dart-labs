@@ -31,7 +31,7 @@ AnimatedSvgPainter _painterOf(WidgetTester tester) =>
             .widget<CustomPaint>(
               find
                   .descendant(
-                    of: find.byType(XvgAnimated),
+                    of: find.byType(AnimatedXvg),
                     matching: find.byType(CustomPaint),
                   )
                   .first,
@@ -58,24 +58,24 @@ void main() {
       '<set attributeName="opacity" to="1" begin="2s"/></svg>',
     ),
   }.entries) {
-    testWidgets('${entry.key} 自动建出 XvgAnimated', (tester) async {
+    testWidgets('${entry.key} 自动建出 AnimatedXvg', (tester) async {
       await tester.pumpWidget(Center(child: Xvg.string(entry.value)));
-      expect(find.byType(XvgAnimated), findsOneWidget);
-      expect(find.byType(XvgStatic), findsNothing);
+      expect(find.byType(AnimatedXvg), findsOneWidget);
+      expect(find.byType(StaticXvg), findsNothing);
       expect(tester.takeException(), isNull);
     });
   }
 
-  testWidgets('静态 SVG 自动建出 XvgStatic', (tester) async {
+  testWidgets('静态 SVG 自动建出 StaticXvg', (tester) async {
     await tester.pumpWidget(const Center(child: Xvg.string(_staticSource)));
-    expect(find.byType(XvgStatic), findsOneWidget);
-    expect(find.byType(XvgAnimated), findsNothing);
+    expect(find.byType(StaticXvg), findsOneWidget);
+    expect(find.byType(AnimatedXvg), findsNothing);
     expect(tester.takeException(), isNull);
   });
 
   testWidgets('CSS 检测、编译与 ticker 在 500ms 后推进透明度轨道', (tester) async {
     await tester.pumpWidget(const Center(child: Xvg.string(_cssSource)));
-    expect(find.byType(XvgAnimated), findsOneWidget);
+    expect(find.byType(AnimatedXvg), findsOneWidget);
     await tester.pump(const Duration(milliseconds: 16));
     final painter = _painterOf(tester);
     final track = painter.root.children.single.animations.single;

@@ -358,7 +358,7 @@ Widget spinner() => const Xvg.string(
 
 * 检测只是简单的文本匹配，不做语义判断。一个静态 SVG 只要含有 `<set>` 标签或
   一条没被引用的 `@keyframes` 规则，仍会被路由到动画引擎（能正确渲染，只是不走
-  Rust 路径）。想明确指定路径，请用 `XvgStatic` / `XvgAnimated`。
+  Rust 路径）。想明确指定路径，请用 `StaticXvg` / `AnimatedXvg`。
 * 动画文档默认隐式播放（`autoplay: true`，速率 `1.0`），遵循 `TickerMode`（使用
   同一时钟的控件全部被禁用时暂停；单独 `Offstage` 不暂停）与 `timeDilation`，
   有限文档停在最后一帧（`fill="freeze"` 会保留结束状态）。
@@ -685,7 +685,7 @@ Xvg.fps.value = null;
 Xvg.string(svg, fps: double.infinity);
 ```
 
-`XvgAnimated.string` 使用相同参数和全局设置。解除冻结后保留原播放意图，
+`AnimatedXvg.string` 使用相同参数和全局设置。解除冻结后保留原播放意图，
 `autoplay: false` 不会被误启动。共享 controller 时，只要还有挂载控件具备播放资格，
 就继续播放，冻结控件也跟随共享时间；仅在**全部挂载控件有效 fps 都为 0** 时，
 控制器才回到首帧并暂停。正数上限取挂载控件中最宽松的值，与 `quality` 取较大除数。
@@ -720,14 +720,14 @@ Widget qualityExamples(String svgSource) {
 
 ## 仅静态 / 仅动画组件
 
-`XvgStatic` 与 `XvgAnimated` 是 `Xvg` 分发到的两个渲染器，导出给已经明确知道
+`StaticXvg` 与 `AnimatedXvg` 是 `Xvg` 分发到的两个渲染器，导出给已经明确知道
 自己需要哪一个的调用方（例如事先已知全是静态的图标集）。
 
 ```dart
 import 'package:flutter/widgets.dart';
 import 'package:xvg/xvg.dart';
 
-Widget staticOnly(String svg) => XvgStatic(
+Widget staticOnly(String svg) => StaticXvg(
   svg,
   width: 24,
   height: 24,
@@ -736,12 +736,12 @@ Widget staticOnly(String svg) => XvgStatic(
 );
 
 Widget animatedOnly(String svg) =>
-    XvgAnimated.string(svg, width: 24, height: 24, fps: 30);
+    AnimatedXvg.string(svg, width: 24, height: 24, fps: 30);
 ```
 
-`XvgStatic` 没有动画或控制器相关参数，其 `alignment` 类型是 `AlignmentGeometry`；
+`StaticXvg` 没有动画或控制器相关参数，其 `alignment` 类型是 `AlignmentGeometry`；
 `errorBuilder` 的类型是 `Widget Function(BuildContext, Object, StackTrace)`。
-`XvgAnimated.string` 接受与 `Xvg.string` 相同的动画、画质与回调参数。
+`AnimatedXvg.string` 接受与 `Xvg.string` 相同的动画、画质与回调参数。
 
 ## 混合格式图片迁移
 
@@ -792,9 +792,9 @@ SVG 动画在没有监听者时暂停，遵循 `timeDilation`，有限文档停�
 | 符号 | 类别 | 用途 |
 | --- | --- | --- |
 | `Xvg` | 组件 | 入口组件，负责选渲染器。`Xvg.string` 构造函数；`Xvg.asset`、`Xvg.network`、`Xvg.file`、`Xvg.memory` 静态工厂；`Xvg.ensureInitialized()`。 |
-| `XvgStatic` | 组件 | Rust（`usvg`）静态渲染器。参数：`source`、`pixelSnap`、`width`、`height`、`fit`、`alignment`、`colorFilter`、`theme`、`errorBuilder`。 |
+| `StaticXvg` | 组件 | Rust（`usvg`）静态渲染器。参数：`source`、`pixelSnap`、`width`、`height`、`fit`、`alignment`、`colorFilter`、`theme`、`errorBuilder`。 |
 | `RustXvgPictureCache` | 类 | 进程级 LRU，缓存录制好的静态 picture。`instance`、`maximumSize`（200）、`onParseMiss`、`getOrRender`、`getOrRenderAsync`、`peek`、`clear`、`length`、`approximateBytesUsed`。 |
-| `XvgAnimated` | 组件 | Dart 侧 SMIL / CSS `@keyframes` 渲染器。`XvgAnimated.string`，动画、画质与回调参数同 `Xvg.string`。 |
+| `AnimatedXvg` | 组件 | Dart 侧 SMIL / CSS `@keyframes` 渲染器。`AnimatedXvg.string`，动画、画质与回调参数同 `Xvg.string`。 |
 | `XvgDocumentCache` | 类 | 进程级缓存，缓存已解析的动画文档。`instance`、`maximumSize`（1000）、`getOrParse`、`getOrParseAsync`、`prewarm`、`clear`、`length`。 |
 | `XvgTheme` | 类 | `currentColor` 解析（`const XvgTheme({Color currentColor})`，默认黑色）。按值相等。 |
 | `XvgAnimationInfo` | 类 | 只读的时长信息：`settleTime`、`loops`、`loopPeriod`、`naturalDuration`。 |

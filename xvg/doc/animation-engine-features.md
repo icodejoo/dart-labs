@@ -370,7 +370,7 @@
 - 静态图片逐张解码,坏图跳过,录制失败也释放已解码图片。Picture 淘汰仅移除缓存引用,不 dispose 仍可能被使用的 Picture。
 - 静态冷加载按帧计时,异常工作也计入预算;排队按源与颜色去重,执行前跳过已卸载的调用方。
 - 动画文档缓存保留随机淘汰策略,运行时缩小上限会持续淘汰至满足限制;含图片的文档不共享。本 State 独占的解码图片在换源、卸载及过期解码完成时释放,解码失败仍展示文档并启动时钟。
-- 帧率控制：`Xvg.*` / `XvgAnimated.string` 的 `fps` 为 `double?`，null 跟随全局 `Xvg.fps.value`（全局 null 不限速）；正数限制采样/重绘帧率；0 冻结首帧；`double.infinity` 不限速且无视全局；负数和 NaN 触发调试断言。实例与全局变化实时生效，正数沿用刷新率跳帧除数。全部挂载控件冻结时才归零暂停，解除后保留播放意图，`autoplay: false` 不会被启动；共享控制器存在非冻结控件时，冻结控件仍跟随共享时间。外部 `animation` 驱动和静态源忽略，不读取系统减少动画设置。回归见 `test/animation/fps_test.dart`。
+- 帧率控制：`Xvg.*` / `AnimatedXvg.string` 的 `fps` 为 `double?`，null 跟随全局 `Xvg.fps.value`（全局 null 不限速）；正数限制采样/重绘帧率；0 冻结首帧；`double.infinity` 不限速且无视全局；负数和 NaN 触发调试断言。实例与全局变化实时生效，正数沿用刷新率跳帧除数。全部挂载控件冻结时才归零暂停，解除后保留播放意图，`autoplay: false` 不会被启动；共享控制器存在非冻结控件时，冻结控件仍跟随共享时间。外部 `animation` 驱动和静态源忽略，不读取系统减少动画设置。回归见 `test/animation/fps_test.dart`。
 - 动画在 `TickerMode` 关闭时暂停采样,恢复后进度连续。被 Navigator 覆盖的路由、`TabBarView` 的非当前页等祖先关闭 `TickerMode` 的场景都会触发;单独的 `Offstage` 不会关闭 `TickerMode`,因此不会暂停。回归见 `test/animation/ticker_mode_test.dart`。
 - `playbackRate` 运行中切换会累计已播放的虚拟时间并重设基线,时间线保持连续。替换文本布局缓存时释放旧 `TextPainter`。
 

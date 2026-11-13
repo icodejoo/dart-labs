@@ -41,13 +41,13 @@ const _unthrottledDivisor = 1;
 /// 不计入共享时钟并发，也不参与跳帧降级；大量并发推荐用 controller/隐式模式。
 ///
 /// ```dart
-/// XvgAnimated.string(svgSource, width: 48, height: 48)
+/// AnimatedXvg.string(svgSource, width: 48, height: 48)
 /// ```
-class XvgAnimated extends StatefulWidget {
+class AnimatedXvg extends StatefulWidget {
   /// Creates the animated renderer from a raw SVG string.
   ///
   /// 用原始 SVG 字符串创建动画渲染组件。
-  const XvgAnimated.string(
+  const AnimatedXvg.string(
     this.source, {
     super.key,
     this.pixelSnap = XvgPixelSnap.auto,
@@ -233,7 +233,7 @@ class XvgAnimated extends StatefulWidget {
 
   /// Creates the renderer state. / 创建渲染状态。
   @override
-  State<XvgAnimated> createState() => _XvgAnimatedState();
+  State<AnimatedXvg> createState() => _XvgAnimatedState();
 }
 
 /// Overrides embedded-image decoding in lifecycle tests.
@@ -245,7 +245,7 @@ Future<void> Function(SvgDocument)? debugResolveAnimatedImages;
 /// Owns source readiness and binds the painter to controller time.
 ///
 /// 管理源就绪状态，并把绘制器绑定到控制器时间。
-class _XvgAnimatedState extends State<XvgAnimated> {
+class _XvgAnimatedState extends State<AnimatedXvg> {
   /// Current parsed source, absent after a parsing failure. / 当前解析结果，解析失败时为空。
   SvgDocument? _document;
 
@@ -428,7 +428,7 @@ class _XvgAnimatedState extends State<XvgAnimated> {
   ///
   /// 应用源、驱动方或映射时长切换，以及隐式播放设置。
   @override
-  void didUpdateWidget(XvgAnimated oldWidget) {
+  void didUpdateWidget(AnimatedXvg oldWidget) {
     super.didUpdateWidget(oldWidget);
     final sourceChanged = oldWidget.source != widget.source;
     final controllerChanged =

@@ -151,9 +151,9 @@ void main() {
     final mountedSources = sources.take(_mountedIcons).toList();
 
     /// Builds a screenful of icons, optionally with the redundant sizing layer
-    /// that `XvgAnimated` used to wrap its `CustomPaint` in reintroduced.
+    /// that `AnimatedXvg` used to wrap its `CustomPaint` in reintroduced.
     ///
-    /// 构建一屏图标，可选地重新引入 `XvgAnimated` 此前套在 `CustomPaint` 外面的那层
+    /// 构建一屏图标，可选地重新引入 `AnimatedXvg` 此前套在 `CustomPaint` 外面的那层
     /// 冗余定尺寸层。
     ///
     /// [extraSizingLayer] — true adds one `SizedBox` (hence one

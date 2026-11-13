@@ -35,17 +35,17 @@ const _spinner =
     'values="0 12 12;360 12 12" dur="1s" repeatCount="indefinite"/>'
     '</circle></svg>';
 
-/// The timeline position [XvgAnimated] instance [index] is currently
+/// The timeline position [AnimatedXvg] instance [index] is currently
 /// painting, read off the painter the same way
 /// `shared_animation_clock_test.dart` does.
 ///
-/// 第 [index] 个 [XvgAnimated] 实例当前正在绘制的时间线位置，读取方式与
+/// 第 [index] 个 [AnimatedXvg] 实例当前正在绘制的时间线位置，读取方式与
 /// `shared_animation_clock_test.dart` 一致。
 Duration _clockAt(int index, WidgetTester tester) {
   final paint = tester.widget<CustomPaint>(
     find
         .descendant(
-          of: find.byType(XvgAnimated).at(index),
+          of: find.byType(AnimatedXvg).at(index),
           matching: find.byType(CustomPaint),
         )
         .first,
@@ -58,7 +58,7 @@ Widget _grid(int count, {XvgAnimationQuality? quality}) => MaterialApp(
     mainAxisSize: MainAxisSize.min,
     children: [
       for (var i = 0; i < count; i++)
-        XvgAnimated.string(_spinner, width: 4, height: 4, quality: quality),
+        AnimatedXvg.string(_spinner, width: 4, height: 4, quality: quality),
     ],
   ),
 );

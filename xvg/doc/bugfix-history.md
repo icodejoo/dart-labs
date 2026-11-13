@@ -8,7 +8,7 @@
 
 ### 1. `<image>` base64 PNG 完全不显示 —— 根因是 example 的 base64 数据本身损坏,不是引擎 bug
 
-逐字节核实:`example/lib/main.dart` 里 `kEmbeddedImageSvg` 手打的 base64 字符串解码后 IDAT zlib 流只还原出 3 字节,而 1x1 RGBA PNG 至少需要 5 字节(1 filter + 4 通道)——数据被截断/打错。usvg 解析嵌入位图时需要先解出其固有尺寸,遇到损坏的 PNG 数据会导致整个 `parse_svg` 返回 `Err`,而 `XvgStatic` 在没有 `errorBuilder` 时的兜底就是渲染一个空白 `SizedBox`——这就是"完全不显示"的表现,但触发原因是数据损坏而非渲染逻辑缺陷。
+逐字节核实:`example/lib/main.dart` 里 `kEmbeddedImageSvg` 手打的 base64 字符串解码后 IDAT zlib 流只还原出 3 字节,而 1x1 RGBA PNG 至少需要 5 字节(1 filter + 4 通道)——数据被截断/打错。usvg 解析嵌入位图时需要先解出其固有尺寸,遇到损坏的 PNG 数据会导致整个 `parse_svg` 返回 `Err`,而 `StaticXvg` 在没有 `errorBuilder` 时的兜底就是渲染一个空白 `SizedBox`——这就是"完全不显示"的表现,但触发原因是数据损坏而非渲染逻辑缺陷。
 
 **修复**:把 `kEmbeddedImageSvg` 的 base64 换成 `rust/src/api/svg.rs` 测试里已验证过的合法 1x1 PNG(`iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==`)。引擎侧的 `<image>` 解析/解码/绘制链路本身未发现问题(`rust/src/api/svg.rs::convert_image`、`rust_static_svg.dart::getOrRenderAsync/_decodeImage` 代码审查 + 既有测试均覆盖过合法数据路径,行为正确)。
 
@@ -40,7 +40,7 @@
 
 ## 动画路径 `feGaussianBlur` 完全未实现(2026-08-25,像素验证补齐时发现)
 
-在补齐"像素级验证结果"表格第 11 项(feGaussianBlur)的动画侧像素断言时,发现此前"动画路径消费该 sigma 走的是同一套静态 Picture 缓存路径"这个判断是**误判**:动画路径(`XvgAnimated`/`AnimatedSvgPainter`)与静态路径(`XvgStatic`/Rust usvg)是两条完全独立的渲染管线,前者从不经过后者的 Picture 缓存,`filter` 属性在动画路径里此前是被直接丢弃的——不是"结构性证据薄弱",是**功能缺失**。
+在补齐"像素级验证结果"表格第 11 项(feGaussianBlur)的动画侧像素断言时,发现此前"动画路径消费该 sigma 走的是同一套静态 Picture 缓存路径"这个判断是**误判**:动画路径(`AnimatedXvg`/`AnimatedSvgPainter`)与静态路径(`StaticXvg`/Rust usvg)是两条完全独立的渲染管线,前者从不经过后者的 Picture 缓存,`filter` 属性在动画路径里此前是被直接丢弃的——不是"结构性证据薄弱",是**功能缺失**。
 
 **修复**(最小范围实现,非泛化 filter 系统):
 
@@ -198,10 +198,10 @@ canvas.clipRect(Rect.fromLTWH(0, 0, intrinsicSize.width, intrinsicSize.height));
 - 现象:华为 STG-AL00 / Impeller GLES 上,部分 mask 图标(黑色挖空边与视口边界 x=0/x=24 重合、白色区域伸出视口)在视口边界那一列像素出现淡灰竖线。
 - 根因(后续实验确认):图标落在**非整数物理像素**时,两条重合边各自抗锯齿后叠加(conflation)。图标 93.6px、偏移 13.2px 有线,改为 96px、偏移 12px 后消失;flutter_svg 与 xvg 静态路径同样出现;Chrome 因排版取整而没有。本条的裁剪修改**不能**消除该线;硬矩形视口裁剪(`doAntiAlias: false`)试过无效,已撤回。绘制期用 `canvas.getTransform()` 对齐也无效(RepaintBoundary 内只有图层局部坐标,滚动只移动图层不重绘)。解决方案改为合成阶段(`addToScene`)对齐,另行实现。
 - 保留的修改:`AnimatedSvgPainter` 在节点变换之后、opacity/mask/filter 图层之前安装元素裁剪,按相反顺序恢复。原先元素裁剪装在 mask 内容图层内、opacity 图层也先于元素裁剪开启,恢复这些图层时父级合成状态不含元素自身的裁剪。不增加 `saveLayer`;精确 mask 仍为两个离屏通道,可近似 mask 仍为零个。
-- 回归:`offscreen_viewport_clip_test.dart` 使用原创最小 SVG,在 200×200 画布中央绘制 96×96 图标,采样 61 秒冻结状态,检查全部视口外围完整像素。覆盖透明/不透明背景、亚像素偏移、精确/近似 mask、元素裁剪、模糊、opacity、变换与实际 `XvgStatic` 绘制器。像素测试修改前已通过;真实 Canvas 委托的图层入口裁剪审计修改前失败、修改后通过。
+- 回归:`offscreen_viewport_clip_test.dart` 使用原创最小 SVG,在 200×200 画布中央绘制 96×96 图标,采样 61 秒冻结状态,检查全部视口外围完整像素。覆盖透明/不透明背景、亚像素偏移、精确/近似 mask、元素裁剪、模糊、opacity、变换与实际 `StaticXvg` 绘制器。像素测试修改前已通过;真实 Canvas 委托的图层入口裁剪审计修改前失败、修改后通过。
 - 外部只读语料:通过 `XVG_MASK_EDGE_SAMPLES` 显式启用,144 个官方 line-md SVG 在修改前后均为动画 0/144、静态 0/144 个越界图标,外围非背景像素均为 0。第三方源文件没有入库。
 - 帧基线:先以 `XVG_CSS_FRAME_RECORD` 录制修改前状态,再用 `XVG_CSS_FRAME_BASELINE` 对比;55 个 CSS SVG × 8 个时刻共 440 帧 RGBA 全部逐字节相同,无视口内外差异。前后 JSON 的 SHA-256 均为 `218d4c0e7e90bf40fe51bd123487e2a077f5a5bc4cc65be960d3e49e98c2f740`。
-- 最终检查:PATH 带 `prebuilt/windows/x64` 的 `flutter test --concurrency=1` 共 1793 项通过、5 项跳过、0 失败;跳过项为缺少浏览器参考帧的两项、未启用的大文档计时与路径基准各一项,以及原有写死 `skip: true` 的静态控件层级测试。新增 `XvgStatic` 像素对照实际执行。`dart analyze lib test` 为 0 问题,改动 Dart 文件格式化与 `git diff --check` 通过;本工作区无残留 `flutter_tester`,原有未提交文件哈希保留(CHANGELOG 仅追加本条变更)。
+- 最终检查:PATH 带 `prebuilt/windows/x64` 的 `flutter test --concurrency=1` 共 1793 项通过、5 项跳过、0 失败;跳过项为缺少浏览器参考帧的两项、未启用的大文档计时与路径基准各一项,以及原有写死 `skip: true` 的静态控件层级测试。新增 `StaticXvg` 像素对照实际执行。`dart analyze lib test` 为 0 问题,改动 Dart 文件格式化与 `git diff --check` 通过;本工作区无残留 `flutter_tester`,原有未提交文件哈希保留(CHANGELOG 仅追加本条变更)。
 
 ### 2026-11-05:合成阶段像素对齐
 
@@ -216,7 +216,7 @@ canvas.clipRect(Rect.fromLTWH(0, 0, intrinsicSize.width, intrinsicSize.height));
 - 现象:动画绘制器把 mask 内容的 `fill-opacity`、`stroke-opacity`、元素/组 `opacity`、颜色 alpha 及其动画当作完全不透明,例如白色 `fill-opacity=".3"` 的液体应为 30% 覆盖度,却显示为纯黑。本条是动画路径的同类问题;上方「亮度 mask 忽略内容 alpha(老问题,已修)」记录的是静态路径。
 - 根因:亮度 `ColorFilter.matrix` 读取非预乘 RGB,原先透明内容层中的 RGB 不含 alpha;`.3` 的解析与 mask 转 clip 的半透明拒绝判定均正确。
 - 修复:`AnimatedSvgPainter._applyMaskLayer` 在现有亮度 mask 内容层开头执行一次 `drawColor(black, BlendMode.src)`,将内容合成到不透明黑底后再取亮度,覆盖度为亮度 × 内容 alpha(也保留抗锯齿覆盖率)。沿用既有亮度系数及色彩空间处理,与静态路径语义一致。`mask-type="alpha"` 不铺黑底;可近似 mask 仍直接走 clip。没有新增 `saveLayer`,精确 mask 仍为两个离屏通道。
-- 复现:`mask_content_opacity_test.dart` 的原有 16 项修复前 5 通过、11 失败,修复后全部通过;另补不透明斜边抗锯齿、fill/stroke 颜色 alpha 动画,共 21 项通过。覆盖继承、组内重叠、组合不透明度、灰度 × alpha、半透明黑色覆盖白色、两种近似开关及 0/1/2/61 秒采样。10 个实际 `XvgStatic` 像素对照的全部 RGBA 通道差均不超过 2/255,alpha mask 与裁剪近似测试保持通过。
+- 复现:`mask_content_opacity_test.dart` 的原有 16 项修复前 5 通过、11 失败,修复后全部通过;另补不透明斜边抗锯齿、fill/stroke 颜色 alpha 动画,共 21 项通过。覆盖继承、组内重叠、组合不透明度、灰度 × alpha、半透明黑色覆盖白色、两种近似开关及 0/1/2/61 秒采样。10 个实际 `StaticXvg` 像素对照的全部 RGBA 通道差均不超过 2/255,alpha mask 与裁剪近似测试保持通过。
 - 基线:修改前先用 `XVG_CSS_FRAME_BASELINE` 核实当前代码与已有基线的 440 帧逐字节一致。修改后 55 个外部只读 CSS SVG × 8 个时刻,412 帧逐字节不变、4 个样本的 28 帧变化。基线 SHA-256 为 `218d4c0e7e90bf40fe51bd123487e2a077f5a5bc4cc65be960d3e49e98c2f740`,修改后为 `4e8038e2126a0e0877e820a01364f8b827e95bce72d91c49f625155fa04ef16e`。第三方素材没有入库。
 - 以下四个样本均未显式设置 mask 内容半透明属性,变化来自光栅抗锯齿产生的分数 alpha,同属内容 alpha 丢失的修正。差异像素按 RGBA 任一通道改变计数;时刻顺序为 0/250/500/990/1010/1500/5000/61000ms。
 

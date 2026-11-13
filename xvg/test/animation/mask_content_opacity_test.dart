@@ -108,9 +108,9 @@ void main() {
       .7,
     ),
   ]) {
-    testWidgets('luminance mask $name matches XvgStatic', (tester) async {
+    testWidgets('luminance mask $name matches StaticXvg', (tester) async {
       final source = _source('$content$_hole');
-      await tester.pumpWidget(Center(child: XvgStatic(source)));
+      await tester.pumpWidget(Center(child: StaticXvg(source)));
       final painter = tester
           .widgetList<CustomPaint>(find.byType(CustomPaint))
           .singleWhere((widget) => widget.painter != null)
@@ -143,14 +143,14 @@ void main() {
     });
   }
 
-  testWidgets('opaque mask retains antialiased alpha and matches XvgStatic', (
+  testWidgets('opaque mask retains antialiased alpha and matches StaticXvg', (
     tester,
   ) async {
     // Raster coverage contributes alpha even without an opacity attribute.
     // 即使没有 opacity 属性，抗锯齿的光栅覆盖率仍贡献 alpha。
     const content = '<path $_white d="M10 35H90V90L10 80Z"/>';
     final source = _source(content);
-    await tester.pumpWidget(Center(child: XvgStatic(source)));
+    await tester.pumpWidget(Center(child: StaticXvg(source)));
     final painter = tester
         .widgetList<CustomPaint>(find.byType(CustomPaint))
         .singleWhere((widget) => widget.painter != null)

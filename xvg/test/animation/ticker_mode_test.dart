@@ -57,7 +57,7 @@ Widget _scene(
     children: [
       TickerMode(
         enabled: first,
-        child: XvgAnimated.string(
+        child: AnimatedXvg.string(
           source,
           key: const ValueKey('first'),
           playbackRate: rate,
@@ -68,7 +68,7 @@ Widget _scene(
       if (second != null)
         TickerMode(
           enabled: second,
-          child: const XvgAnimated.string(_source, key: ValueKey('second')),
+          child: const AnimatedXvg.string(_source, key: ValueKey('second')),
         ),
     ],
   ),

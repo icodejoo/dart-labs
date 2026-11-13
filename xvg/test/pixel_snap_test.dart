@@ -38,14 +38,14 @@ const _plain =
 
 Widget _icon(bool animated, XvgPixelSnap mode, {String source = _svg}) =>
     animated
-    ? XvgAnimated.string(
+    ? AnimatedXvg.string(
         source == _svg ? _animatedSvg : source,
         width: _iconExtent,
         height: _iconExtent,
         autoplay: false,
         pixelSnap: mode,
       )
-    : XvgStatic(
+    : StaticXvg(
         source,
         width: _iconExtent,
         height: _iconExtent,
@@ -214,14 +214,14 @@ void main() {
         _view(tester);
         for (final alignment in [Alignment.center, Alignment.bottomRight]) {
           final icon = animated
-              ? XvgAnimated.string(
+              ? AnimatedXvg.string(
                   _animatedSvg,
                   width: _iconExtent,
                   height: 145.8,
                   alignment: alignment,
                   autoplay: false,
                 )
-              : XvgStatic(
+              : StaticXvg(
                   _svg,
                   width: _iconExtent,
                   height: 145.8,
@@ -532,7 +532,7 @@ void main() {
                   (i) => Positioned(
                     left: (i % 13) * 10 + 0.2,
                     top: (i ~/ 13) * 10 + 0.2,
-                    child: XvgStatic(
+                    child: StaticXvg(
                       mode == XvgPixelSnap.auto ? _plain : _svg,
                       width: 9.6,
                       height: 9.6,

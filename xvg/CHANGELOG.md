@@ -1,3 +1,7 @@
+## Unreleased
+
+- **Breaking**: `XvgStatic` renamed to `StaticXvg` and `XvgAnimated` renamed to `AnimatedXvg` (Flutter-style naming; no deprecated aliases). `Xvg` is unchanged.
+
 ## 0.2.0
 
 - **Breaking**: `maxFps` renamed to `fps`: null follows global; 0 freezes at the first frame; `double.infinity` is unlimited and ignores global.

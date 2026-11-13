@@ -373,7 +373,7 @@ What to know:
 * Detection is a plain text match, not a semantic check. A static SVG that
   merely contains a `<set>` tag or an unused `@keyframes` rule is still routed to
   the animated engine (it renders correctly, just not on the Rust path).
-  Use `XvgStatic` / `XvgAnimated` to pick a path explicitly.
+  Use `StaticXvg` / `AnimatedXvg` to pick a path explicitly.
 * Animated documents play implicitly (`autoplay: true`, rate `1.0`), follow
   `TickerMode` (paused when every widget using a clock is disabled; `Offstage`
   alone does not pause) and `timeDilation`, and stop on their last frame when
@@ -729,7 +729,7 @@ Xvg.fps.value = null;
 Xvg.string(svg, fps: double.infinity);
 ```
 
-`XvgAnimated.string` uses the same parameter and global setting. Unfreezing
+`AnimatedXvg.string` uses the same parameter and global setting. Unfreezing
 preserves playback intent: `autoplay: false` stays paused. Shared controllers
 continue while an attached widget remains eligible; a frozen widget follows
 shared time. Only when **all attached widgets have effective fps 0** does the
@@ -770,7 +770,7 @@ Widget qualityExamples(String svgSource) {
 
 ## Static-only / animated-only widgets
 
-`XvgStatic` and `XvgAnimated` are the two renderers `Xvg` dispatches to,
+`StaticXvg` and `AnimatedXvg` are the two renderers `Xvg` dispatches to,
 exported for callers who already know which one they need (e.g. an icon set
 known ahead of time to be all-static).
 
@@ -778,7 +778,7 @@ known ahead of time to be all-static).
 import 'package:flutter/widgets.dart';
 import 'package:xvg/xvg.dart';
 
-Widget staticOnly(String svg) => XvgStatic(
+Widget staticOnly(String svg) => StaticXvg(
   svg,
   width: 24,
   height: 24,
@@ -787,12 +787,12 @@ Widget staticOnly(String svg) => XvgStatic(
 );
 
 Widget animatedOnly(String svg) =>
-    XvgAnimated.string(svg, width: 24, height: 24, fps: 30);
+    AnimatedXvg.string(svg, width: 24, height: 24, fps: 30);
 ```
 
-`XvgStatic` takes no animation or controller parameters and its `alignment` is
+`StaticXvg` takes no animation or controller parameters and its `alignment` is
 an `AlignmentGeometry`; its `errorBuilder` is
-`Widget Function(BuildContext, Object, StackTrace)`. `XvgAnimated.string` accepts the
+`Widget Function(BuildContext, Object, StackTrace)`. `AnimatedXvg.string` accepts the
 same animation, quality and callback parameters as `Xvg.string`.
 
 ## Migrating mixed-format images
@@ -848,9 +848,9 @@ Everything exported by `package:xvg/xvg.dart`:
 | Symbol | Kind | Purpose |
 | --- | --- | --- |
 | `Xvg` | widget | Entry widget that picks the renderer. `Xvg.string` constructor; `Xvg.asset`, `Xvg.network`, `Xvg.file`, `Xvg.memory` static factories; `Xvg.ensureInitialized()`. |
-| `XvgStatic` | widget | Rust (`usvg`) static renderer. Parameters: `source`, `pixelSnap`, `width`, `height`, `fit`, `alignment`, `colorFilter`, `theme`, `errorBuilder`. |
+| `StaticXvg` | widget | Rust (`usvg`) static renderer. Parameters: `source`, `pixelSnap`, `width`, `height`, `fit`, `alignment`, `colorFilter`, `theme`, `errorBuilder`. |
 | `RustXvgPictureCache` | class | Process-wide LRU of recorded static pictures. `instance`, `maximumSize` (200), `onParseMiss`, `getOrRender`, `getOrRenderAsync`, `peek`, `clear`, `length`, `approximateBytesUsed`. |
-| `XvgAnimated` | widget | Dart-side SMIL / CSS `@keyframes` renderer. `XvgAnimated.string` with the animation, quality and callback parameters of `Xvg.string`. |
+| `AnimatedXvg` | widget | Dart-side SMIL / CSS `@keyframes` renderer. `AnimatedXvg.string` with the animation, quality and callback parameters of `Xvg.string`. |
 | `XvgDocumentCache` | class | Process-wide cache of parsed animated documents. `instance`, `maximumSize` (1000), `getOrParse`, `getOrParseAsync`, `prewarm`, `clear`, `length`. |
 | `XvgTheme` | class | `currentColor` resolution (`const XvgTheme({Color currentColor})`, default black). Value equality. |
 | `XvgAnimationInfo` | class | Read-only duration facts: `settleTime`, `loops`, `loopPeriod`, `naturalDuration`. |

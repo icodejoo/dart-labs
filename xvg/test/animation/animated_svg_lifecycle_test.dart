@@ -1,11 +1,11 @@
-// Regression tests for XvgAnimated's three lifecycle-control additions:
+// Regression tests for AnimatedXvg's three lifecycle-control additions:
 // `onAnimationStart`/`onAnimationComplete`/`onAnimationLoop`, `fps`, and
 // `playbackRate`. Each hooks into an existing, already-computed piece of
 // state (SvgDocument.totalDuration/hasIndefiniteLoop, the shared clock's
 // frame-divisor gate) rather than introducing new timing machinery, so these
 // tests exist to lock down the wiring, not to re-verify SMIL timing itself.
 //
-// XvgAnimated 三项生命周期控制新增的回归测试：
+// AnimatedXvg 三项生命周期控制新增的回归测试：
 // `onAnimationStart`/`onAnimationComplete`/`onAnimationLoop`、`fps`、
 // `playbackRate`。每一项都挂在已有的、已经算好的状态上（
 // SvgDocument.totalDuration/hasIndefiniteLoop、共享时钟的跳帧除数门控），而非
@@ -59,7 +59,7 @@ Duration _clockOf(WidgetTester tester) {
   final paint = tester.widget<CustomPaint>(
     find
         .descendant(
-          of: find.byType(XvgAnimated),
+          of: find.byType(AnimatedXvg),
           matching: find.byType(CustomPaint),
         )
         .first,
@@ -77,7 +77,7 @@ void main() {
       var startCount = 0;
       await tester.pumpWidget(
         MaterialApp(
-          home: XvgAnimated.string(
+          home: AnimatedXvg.string(
             _spinner,
             width: 24,
             height: 24,
@@ -101,7 +101,7 @@ void main() {
       var completeCount = 0;
       await tester.pumpWidget(
         MaterialApp(
-          home: XvgAnimated.string(
+          home: AnimatedXvg.string(
             _quickFlash,
             width: 24,
             height: 24,
@@ -130,7 +130,7 @@ void main() {
       var completeCount = 0;
       await tester.pumpWidget(
         MaterialApp(
-          home: XvgAnimated.string(
+          home: AnimatedXvg.string(
             _spinner,
             width: 24,
             height: 24,
@@ -152,7 +152,7 @@ void main() {
         await tester.pumpWidget(
           MaterialApp(
             home: Builder(
-              builder: (context) => XvgAnimated.string(
+              builder: (context) => AnimatedXvg.string(
                 source,
                 width: 24,
                 height: 24,
@@ -166,7 +166,7 @@ void main() {
         await tester.pumpWidget(
           MaterialApp(
             home: Builder(
-              builder: (context) => XvgAnimated.string(
+              builder: (context) => AnimatedXvg.string(
                 source,
                 width: 24,
                 height: 24,
@@ -192,7 +192,7 @@ void main() {
         final iterations = <int>[];
         await tester.pumpWidget(
           MaterialApp(
-            home: XvgAnimated.string(
+            home: AnimatedXvg.string(
               _indefiniteWithFinitePeriod,
               width: 24,
               height: 24,
@@ -223,7 +223,7 @@ void main() {
       var loopCount = 0;
       await tester.pumpWidget(
         MaterialApp(
-          home: XvgAnimated.string(
+          home: AnimatedXvg.string(
             _spinner,
             width: 24,
             height: 24,
@@ -247,7 +247,7 @@ void main() {
 
       await tester.pumpWidget(
         const MaterialApp(
-          home: XvgAnimated.string(_spinner, width: 24, height: 24, fps: 15),
+          home: AnimatedXvg.string(_spinner, width: 24, height: 24, fps: 15),
         ),
       );
 
@@ -278,7 +278,7 @@ void main() {
 
       await tester.pumpWidget(
         const MaterialApp(
-          home: XvgAnimated.string(_spinner, width: 24, height: 24),
+          home: AnimatedXvg.string(_spinner, width: 24, height: 24),
         ),
       );
 
@@ -297,7 +297,7 @@ void main() {
     ) async {
       await tester.pumpWidget(
         const MaterialApp(
-          home: XvgAnimated.string(
+          home: AnimatedXvg.string(
             _spinner,
             width: 24,
             height: 24,
@@ -325,7 +325,7 @@ void main() {
       var completeCount = 0;
       await tester.pumpWidget(
         MaterialApp(
-          home: XvgAnimated.string(
+          home: AnimatedXvg.string(
             _quickFlash,
             width: 24,
             height: 24,

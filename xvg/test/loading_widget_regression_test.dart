@@ -120,7 +120,7 @@ void main() {
   testWidgets('rate changes preserve virtual time', (tester) async {
     Widget w(double rate) => Directionality(
       textDirection: TextDirection.ltr,
-      child: XvgAnimated.string(spin, playbackRate: rate),
+      child: AnimatedXvg.string(spin, playbackRate: rate),
     );
     Duration time() =>
         (tester.widget<CustomPaint>(find.byType(CustomPaint)).painter
@@ -146,9 +146,9 @@ void main() {
     a.gate.complete(spin);
     await tester.pump();
     await tester.pump();
-    expect(find.byType(XvgAnimated), findsOneWidget);
+    expect(find.byType(AnimatedXvg), findsOneWidget);
     await tester.pumpWidget(w(b));
-    expect(find.byType(XvgAnimated), findsOneWidget);
+    expect(find.byType(AnimatedXvg), findsOneWidget);
     b.gate.complete(spin);
     await tester.pump();
   });

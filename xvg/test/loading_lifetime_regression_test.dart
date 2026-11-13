@@ -195,7 +195,7 @@ void main() {
     ui.Image.onDispose = disposed.add;
     Widget w(String source) => Directionality(
       textDirection: TextDirection.ltr,
-      child: XvgAnimated.string(source),
+      child: AnimatedXvg.string(source),
     );
     await tester.runAsync(() async {
       await tester.pumpWidget(w(imageSvg));
@@ -232,7 +232,7 @@ void main() {
       await tester.pumpWidget(
         Directionality(
           textDirection: TextDirection.ltr,
-          child: XvgAnimated.string(
+          child: AnimatedXvg.string(
             imageSvg,
             onAnimationStart: () => started++,
           ),
