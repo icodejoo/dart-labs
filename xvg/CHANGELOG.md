@@ -1,3 +1,7 @@
+## 0.3.1
+
+- Docs: pubspec `homepage` and `repository` now point to the package directory on the `main` branch.
+
 ## 0.3.0
 
 - Fix: macOS builds failed at CodeSign when consuming the package from pub.dev because pub expands the framework's symlinks. The package now ships only `Versions/A`, and the podspec recreates the versioned-bundle symlinks at `pod install`. The archive no longer contains three copies of the binary.
