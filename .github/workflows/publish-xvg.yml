@@ -59,6 +59,17 @@ jobs:
         working-directory: xvg
         run: flutter pub publish --dry-run
 
+      # subosito/flutter-action 不会像 dart-lang/setup-dart 那样配置 pub.dev 的 OIDC 令牌，
+      # 不配的话 pub publish 会等交互式谷歌授权直到超时。这里手动换取令牌交给 pub。
+      - name: Configure pub.dev OIDC token
+        run: |
+          token=$(curl -sSf -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=https://pub.dev" | jq -r .value)
+          test -n "$token" && [ "$token" != null ] || { echo "::error::failed to get OIDC token"; exit 1; }
+          echo "::add-mask::$token"
+          echo "PUB_TOKEN=$token" >> "$GITHUB_ENV"
+          flutter pub token add https://pub.dev --env-var PUB_TOKEN
+
       - name: Publish
         working-directory: xvg
         run: flutter pub publish --force
