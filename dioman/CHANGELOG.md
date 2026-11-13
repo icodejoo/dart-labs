@@ -1,3 +1,7 @@
+## 0.8.4
+
+- Docs: pubspec `homepage` and `repository` now point to the package directory on the `main` branch.
+
 ## 0.8.3
 
 - Docs only: rewrote README wording in plain language; the package archive drops internal reports, archives and scripts (12 MB to under 1 MB).
