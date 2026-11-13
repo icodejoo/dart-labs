@@ -13,6 +13,22 @@ const TextStyle _style = TextStyle(fontFamily: 'Roboto', fontSize: 20);
 /// 指定的绘制基线。
 const double _baseline = 50;
 
+/// 绘制必须使用实际段落，不能查询只按样式计算的缓存基线。
+class _RejectCachedBaseline implements LuckyTextMeasurer {
+  /// 本测试只验证绘制阶段，不应重新测量宽度。
+  @override
+  double measure(String text, TextStyle style) =>
+      throw StateError('绘制不应重新测量宽度');
+
+  /// 即使平台字体的空格与 emoji 基线相同，也能检出错误的缓存依赖。
+  @override
+  double baseline(TextStyle style) => throw StateError('绘制必须使用实际段落基线');
+
+  /// 测试替身不持有原生资源。
+  @override
+  void dispose() {}
+}
+
 /// 记录引擎收到的段落和实际字母基线。
 class _ParagraphCanvas implements Canvas {
   /// 每次绘制的实际基线。
@@ -95,14 +111,7 @@ void main() {
       final style = _style.copyWith(fontFamilyFallback: [family]);
       final measurer = TextPainterMeasurer();
       addTearDown(measurer.dispose);
-      final painter = TextPainter(
-          text: TextSpan(text: 'a😀', style: style),
-          textDirection: TextDirection.ltr)
-        ..layout();
-      addTearDown(painter.dispose);
-      expect(painter.computeDistanceToActualBaseline(TextBaseline.alphabetic),
-          isNot(closeTo(measurer.baseline(style), 0.001)));
-      for (final cache in [measurer, null]) {
+      for (final cache in [measurer, _RejectCachedBaseline(), null]) {
         final canvas = _ParagraphCanvas();
         paintLuckyTextLines(
             canvas, [LuckyTextLine('a😀', 0, _baseline, style)], cache);

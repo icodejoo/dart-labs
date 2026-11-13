@@ -9,7 +9,7 @@
 
 - `playbackRate`(必须 >0,运行中修改会重设基线,时间线连续)
 - `onAnimationStart` / `onAnimationComplete` / `onAnimationLoop(int)`
-- `maxFps`、`quality`、`theme`
+- `fps`、`quality`、`theme`
 
 缺口:
 

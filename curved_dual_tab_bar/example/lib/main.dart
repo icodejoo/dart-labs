@@ -8,7 +8,7 @@ import 'demo_palette.dart';
 const demoProject = 'curved_dual_tab_bar';
 
 /// 与包 pubspec.yaml 同步，并由 widget 测试校验的当前版本。
-const demoVersion = '0.2.4';
+const demoVersion = '0.2.5';
 
 /// 包源码目录的外链。
 const demoGithubUrl =

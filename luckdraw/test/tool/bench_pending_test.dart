@@ -8,6 +8,15 @@ import '../../tool/bench/metrics.dart';
 import '../../tool/bench/pending_metrics.dart';
 import '../../tool/bench/pending_scene.dart';
 
+/// 以 UTF-8 解码子进程输出，避免 Windows 系统编码把中文断言文本读成乱码。
+Future<ProcessResult> _runUtf8(String executable, List<String> arguments,
+        {Map<String, String>? environment, bool runInShell = false}) =>
+    Process.run(executable, arguments,
+        environment: environment,
+        runInShell: runInShell,
+        stdoutEncoding: utf8,
+        stderrEncoding: utf8);
+
 /// 夹具包名，故意包含点以检验正则转义。
 const String _package = 'com.example.luckdraw_bench';
 
@@ -164,7 +173,7 @@ void main() {
     });
     test('parses nested async trace events and joins engine frame identities',
         () async {
-      final result = await Process.run(
+      final result = await _runUtf8(
           'python', ['tool/bench/analyze_frames.py', '--self-test']);
       expect(result.exitCode, 0, reason: '${result.stdout}\n${result.stderr}');
       expect('${result.stderr}', contains('OK'));
@@ -202,7 +211,7 @@ void main() {
         () async {
       final script =
           File('tool/bench/run_pending_device_checks.ps1').absolute.path;
-      final syntax = await Process.run('pwsh', [
+      final syntax = await _runUtf8('pwsh', [
         '-NoProfile',
         '-Command',
         r'$tokens=$null; $errors=$null; [System.Management.Automation.Language.Parser]::ParseInput([IO.File]::ReadAllText($env:PEND_TEST_SCRIPT),[ref]$tokens,[ref]$errors) | Out-Null; if($errors.Count){$errors | Out-String | Write-Error; exit 1}'
@@ -210,7 +219,7 @@ void main() {
         'PEND_TEST_SCRIPT': script
       });
       expect(syntax.exitCode, 0, reason: '${syntax.stderr}');
-      final result = await Process.run('pwsh', [
+      final result = await _runUtf8('pwsh', [
         '-NoProfile',
         '-File',
         script,
@@ -287,7 +296,7 @@ void main() {
       }
       File('${directory.path}/runs.json')
           .writeAsStringSync(jsonEncode(records));
-      final result = await Process.run(
+      final result = await _runUtf8(
           'dart', ['run', 'tool/bench/assess_pending.dart', directory.path]);
       expect(result.exitCode, 1, reason: '${result.stderr}');
       final report = jsonDecode(
@@ -307,7 +316,7 @@ void main() {
           (report['lots_shaking']! as Map<String, Object?>)['status'], '不确定');
       expect(File('${directory.path}/REPORT.md').readAsStringSync(),
           contains('不等于达到最初设计目标'));
-      final repeated = await Process.run(
+      final repeated = await _runUtf8(
           'dart', ['run', 'tool/bench/assess_pending.dart', directory.path]);
       expect(repeated.exitCode, 1);
       expect('${repeated.stderr}', contains('comparison 必须为空'));
@@ -328,7 +337,7 @@ void main() {
         }
       }
       final output = '${directory.path}/assessment.json';
-      final result = await Process.run('dart', [
+      final result = await _runUtf8('dart', [
         'run',
         'tool/bench/compare.dart',
         '--input=${directory.path}',
@@ -343,7 +352,7 @@ void main() {
       expect((scenes['slot_raster']! as Map<String, Object?>)[kBenchStatus],
           kBenchFail);
       for (final selection in ['', 'unknown', 'slot_raster,slot_raster']) {
-        final bad = await Process.run('dart',
+        final bad = await _runUtf8('dart',
             ['run', 'tool/bench/compare.dart', '--scenarios=$selection']);
         expect(bad.exitCode, 1);
         expect('${bad.stderr}', contains('scenarios'));

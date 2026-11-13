@@ -112,7 +112,7 @@ const Xvg.string(
   Duration? animationSpan,
   bool autoplay = true,
   double playbackRate = 1.0,
-  double? maxFps,
+  double? fps,
   ValueChanged<XvgAnimationInfo>? onLoaded,
   void Function(Object error, StackTrace stackTrace)? onError,
   ImageErrorWidgetBuilder? errorBuilder,
@@ -272,14 +272,14 @@ class _RemoteStringIconState extends State<RemoteStringIcon> {
 | `animationSpan` | `null` | 对应 `animation` 的 0..1 的时长；`null` 使用文档自然时长。 |
 | `autoplay` | `true` | 是否启动隐式播放（未传 `controller`/`animation` 时）。传 `animation` 时必须保持 `true`。 |
 | `playbackRate` | `1.0` | 隐式播放的有限有符号速率；负值倒放，`0` 暂停。传 `controller` 或 `animation` 时必须保持 `1.0`。 |
-| `maxFps` | `null` | 正的采样/重绘帧率上限；传 `animation` 时忽略。 |
+| `fps` | `null` | null 跟随 `Xvg.fps`；正数限制采样/重绘帧率；0 冻结首帧；`double.infinity` 不限速且无视全局。外部 `animation` 与静态源忽略。 |
 | `onLoaded` | `null` | 动画源（及其内嵌图片）就绪时回调，携带 `XvgAnimationInfo`。静态源永不调用。 |
 | `onError` | `null` | 接收加载、解析、时长映射错误。静态源的失败在帧结束后通知，每次源/主题变更一次。 |
 | `errorBuilder` | `null` | 失败时的替代内容（`ImageErrorWidgetBuilder`，与 `Image.errorBuilder` 相同）。 |
 | `onEvent` | `null` | 播放及元素 begin/end/repeat 事件（`XvgAnimationEvent`）。 |
 | `onAnimationStart` / `onAnimationComplete` / `onAnimationLoop` | `null` | 首次 tick / 有限文档自然完成 / 已知周期穿越（轮次从一开始）。传 `animation` 时不调用。 |
 
-非法组合在调试构建中会触发 `assert`：非正的 `maxFps`、非有限的 `playbackRate`、
+非法组合在调试构建中会触发 `assert`：负数或 NaN 的 `fps`、非有限的 `playbackRate`、
 `controller` 与 `animation` 同时给出、给 `controller` 配了非默认 `playbackRate`、
 给 `animation` 配了非默认 `autoplay` 或 `playbackRate`。
 
@@ -364,7 +364,7 @@ Widget spinner() => const Xvg.string(
   有限文档停在最后一帧（`fill="freeze"` 会保留结束状态）。
 * 要共享、可跳转的控制，用 `controller`；要由自己的 Flutter `AnimationController`
   驱动，用 `animation`。这两种都用来代替隐式播放；见[动画播放](#动画播放)。
-* `onLoaded`、`onEvent`、`quality`、`maxFps`、`autoplay` 以及 controller /
+* `onLoaded`、`onEvent`、`quality`、`fps`、`autoplay` 以及 controller /
   animation / 各类动画回调只对动画源有意义；静态源会忽略它们，也不挂任何监听器
   或控制器。
 * `colorFilter` 与 `theme` 在两条路径上表现一致。
@@ -472,7 +472,7 @@ Future<void> tuneCaches(List<String> bigIllustrations) async {
   文档可用 `XvgDocumentCache.getOrParseAsync` 与 `prewarm`，它们会把无图片的大源
   交给常驻 worker isolate。
 * **大量并发动画图标：** 保留默认的 `XvgAnimationQuality`（并发超过 24 个图标后
-  自适应跳帧）或限制 `maxFps`；必须逐帧精确的主图标用 `XvgAnimationQuality.exact`。
+  自适应跳帧）或限制 `fps`；必须逐帧精确的主图标用 `XvgAnimationQuality.exact`。
 * **ImageProvider 的光栅结果**使用 Flutter 的 `ImageCache`，不走上述缓存。
 
 ### 常见坑
@@ -538,7 +538,7 @@ List<Widget> recolor() => const [
 ## 动画播放
 
 `Xvg.string/asset/network/file/memory` 五个入口都接受 `controller`、`animation`、
-`animationSpan`、`autoplay`、`playbackRate`、`maxFps`、`onLoaded`、`onError`、
+`animationSpan`、`autoplay`、`playbackRate`、`fps`、`onLoaded`、`onError`、
 `errorBuilder`、`onEvent`、`onAnimationStart`、`onAnimationComplete` 与
 `onAnimationLoop`，以及 `theme`、`quality`、`colorFilter`。
 
@@ -620,7 +620,7 @@ Widget driven(String svgSource, AnimationController myAnimationController) {
 `autoplay` 和 `playbackRate` 保持默认。请观察驱动方的 `AnimationStatus` 来获知
 开始/完成：该模式下 xvg 既不发这两类事件，也不调用 `onAnimationStart` /
 `onAnimationComplete`。`onEvent` 在隐式、controller、animation 三种模式下都有效。
-驱动方负责 vsync 与 TickerMode；这类实例绕过共享时钟的并发计数与跳帧（`maxFps`
+驱动方负责 vsync 与 TickerMode；这类实例绕过共享时钟的并发计数与跳帧（实例及全局 `fps`
 被忽略）。大量并发 SVG 时优先用 controller/隐式播放。释放传入的 Flutter
 AnimationController 后会保留最后一帧；xvg 会在替换或卸载时移除自己的监听器。
 
@@ -662,6 +662,36 @@ void observe(XvgAnimationController controller) {
   controller.addCue(const Duration(seconds: 1), () => debugPrint('t = 1 s'));
 }
 ```
+
+### 全局帧率 Xvg.fps
+
+`fps` 类型为 `double?`：null 跟随实时全局 `Xvg.fps.value`，正数限制采样/重绘帧率，
+0 冻结在首帧，`double.infinity` 不限速且无视全局。负数和 NaN 在 debug 下触发断言。
+实例与全局均为 null 时，播放行为与原先一致；全局 null 或 infinity 表示不限速。
+实例与全局变化最迟在下一次 pump/帧生效。
+
+```dart
+// 启动时设置全局初始值……
+await Xvg.ensureInitialized(fps: 60);
+
+// ……运行时随时修改。业务自行监听低端设备、低内存等信号，再设置全局帧率。
+Xvg.fps.value = 10;
+
+// 冻结全部跟随全局的动画，再恢复播放。
+Xvg.fps.value = 0;
+Xvg.fps.value = null;
+
+// 此实例始终不限速，即使全局已冻结或限速。
+Xvg.string(svg, fps: double.infinity);
+```
+
+`XvgAnimated.string` 使用相同参数和全局设置。解除冻结后保留原播放意图，
+`autoplay: false` 不会被误启动。共享 controller 时，只要还有挂载控件具备播放资格，
+就继续播放，冻结控件也跟随共享时间；仅在**全部挂载控件有效 fps 都为 0** 时，
+控制器才回到首帧并暂停。正数上限取挂载控件中最宽松的值，与 `quality` 取较大除数。
+选定片段也会冻结到文档零时刻，解除冻结后先恢复片段边界再播放。
+单独关闭 TickerMode 仍停在当前帧。外部 `animation` 驱动忽略实例及全局 fps，
+驱动策略由调用方负责；静态源也忽略。库不读取系统减少动画设置。
 
 ## 动画画质
 
@@ -706,7 +736,7 @@ Widget staticOnly(String svg) => XvgStatic(
 );
 
 Widget animatedOnly(String svg) =>
-    XvgAnimated.string(svg, width: 24, height: 24, maxFps: 30);
+    XvgAnimated.string(svg, width: 24, height: 24, fps: 30);
 ```
 
 `XvgStatic` 没有动画或控制器相关参数，其 `alignment` 类型是 `AlignmentGeometry`；

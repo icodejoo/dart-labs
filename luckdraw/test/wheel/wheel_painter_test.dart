@@ -12,6 +12,20 @@ import 'wheel_render_support.dart';
 /// 可重复使用的内存图片配置，不进行真实资源加载。
 const AssetImage _provider = AssetImage('wheel-test.png');
 
+/// 在绘制当时读取透明度，避免旧版录制画布保留可变 Paint 引用。
+final class _ImageAlphaCanvas extends TestRecordingCanvas {
+  /// 各次图片绘制实际使用的八位透明度。
+  final List<int> imageAlphas = [];
+
+  /// 在共享画笔被后续绘制复位前记录透明度。
+  @override
+  void drawImageRect(ui.Image image, Rect src, Rect dst, Paint paint) {
+    imageAlphas.add(colorAlpha8(paint.color));
+    super.noSuchMethod(
+        Invocation.method(#drawImageRect, [image, src, dst, paint]));
+  }
+}
+
 /// 可按内容版本主动失效的静态用户层。
 final class _RefreshLayer extends LuckyLayer<WheelLayout, WheelFrame> {
   /// 创建固定在奖品下方的静态层。
@@ -228,14 +242,14 @@ void main() {
       canvas.expectBalancedWithoutSaveLayer();
     });
     testWidgets('image opacity is applied without saveLayer', (tester) async {
+      const opaqueAlpha = 255;
       final config = _imageConfig(opacity: 0.5);
       final harness = WheelPainterHarness(
           config: config, images: await _images(tester, config));
-      final canvas = TestRecordingCanvas();
+      final canvas = _ImageAlphaCanvas();
       harness.painter.debugRecordSegments(canvas);
-      final paints =
-          _arguments(canvas, #drawImageRect).map((args) => args.last! as Paint);
-      expect(paints.map((paint) => colorAlpha8(paint.color)), contains(128));
+      expect(canvas.imageAlphas,
+          [opaqueAlpha, opaqueAlpha, opaqueAlpha, 128, opaqueAlpha]);
       canvas.expectBalancedWithoutSaveLayer();
     });
     testWidgets(

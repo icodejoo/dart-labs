@@ -36,6 +36,9 @@ const String _reportPath = 'tool/treeshake/apk_measurement.json';
 /// 两个后端的预算文件路径。
 const String _budgetPath = 'tool/treeshake/budgets.json';
 
+/// 本轮 CI 校准记录，未构建的探针沿用 APK/APK2 原预算。
+const String _ciCalibration = '_ciCalibration';
+
 /// 包大小字段。
 const String _packageBytes = 'measuredLuckdrawBytes';
 
@@ -132,7 +135,11 @@ void main() {
     test('APK budgets equal measured package bytes times safety margin', () {
       final report = _read(_reportPath);
       final records = report[_probeKey]! as Map<String, Object?>;
-      final budgetEntries = _read(_budgetPath)[_apk]! as Map<String, Object?>;
+      final budgetJson = _read(_budgetPath);
+      final budgetEntries = budgetJson[_apk]! as Map<String, Object?>;
+      final calibration = budgetJson[_ciCalibration]! as Map<String, Object?>;
+      final ciProbes = calibration[_apk]! as Map<String, Object?>;
+      expect(ciProbes.keys, unorderedEquals(_initialProbes));
       for (final probe in kTreeshakeProbes) {
         final budget = _record(budgetEntries, probe);
         final record = _record(records, probe);
@@ -140,7 +147,21 @@ void main() {
         expect(budget[_packageBytes], record[_packageBytes], reason: probe);
         expect(budget[_aotBytes], record[_aotBytes], reason: probe);
         expect(budget[_date], record[_date] ?? report[_date], reason: probe);
-        expect(budget[_limit], apkBudgetBytes(record[_packageBytes]! as int),
+        final previousBudget = apkBudgetBytes(record[_packageBytes]! as int);
+        final ciRecord = ciProbes[probe] as Map<String, Object?>?;
+        final ciMeasured = ciRecord?['measuredBytes'] as int?;
+        if (ciRecord != null) {
+          expect(ciRecord['previousBudgetBytes'], previousBudget,
+              reason: probe);
+          expect(
+              checkBudget(probe, ciMeasured!, budget[_limit]! as int), isEmpty,
+              reason: probe);
+        }
+        expect(
+            budget[_limit],
+            ciMeasured != null && ciMeasured > previousBudget
+                ? apkBudgetBytes(ciMeasured)
+                : previousBudget,
             reason: probe);
       }
       expect(_record(budgetEntries, _baseline)[_limit], 0);

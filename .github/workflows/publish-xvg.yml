@@ -1,0 +1,64 @@
+name: Publish xvg
+
+# 在 Linux runner 上发布 xvg 到 pub.dev。
+# 不要在 Windows 上 `pub publish`：macOS 预编译 framework 里的符号链接
+# （Versions/Current、xvg、Resources）会被压成普通文本文件，发布出去的包在 macOS 上链接失败。
+#
+# 触发：推送形如 `xvg-v0.1.4` 的标签，且标签版本必须等于 xvg/pubspec.yaml 的 version。
+# 前置（pub.dev 后台一次性设置）：xvg → Admin → Automated publishing →
+#   Enable publishing from GitHub Actions，仓库 icodejoo/dart-labs，Tag pattern `xvg-v{{version}}`。
+
+on:
+  push:
+    tags:
+      - 'xvg-v[0-9]+.[0-9]+.[0-9]+*'
+
+env:
+  FLUTTER_VERSION: '3.47.0'
+
+jobs:
+  publish:
+    name: Publish to pub.dev
+    runs-on: ubuntu-latest
+    environment: pub.dev
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      - name: Check tag matches pubspec version
+        working-directory: xvg
+        run: |
+          tag_version="${GITHUB_REF_NAME#xvg-v}"
+          pubspec_version=$(grep -m1 '^version:' pubspec.yaml | awk '{print $2}')
+          test "$tag_version" = "$pubspec_version" \
+            || { echo "::error::tag $tag_version != pubspec $pubspec_version"; exit 1; }
+
+      # 符号链接必须是真链接，且能解析到真实文件。
+      - name: Check macOS framework symlinks
+        working-directory: xvg
+        run: |
+          fw=macos/xvg.framework
+          for l in "$fw/Versions/Current" "$fw/xvg" "$fw/Resources"; do
+            test -L "$l" || { echo "::error::$l is not a symlink"; exit 1; }
+          done
+          test "$fw/xvg" -ef "$fw/Versions/A/xvg" \
+            || { echo "::error::$fw/xvg does not resolve to Versions/A/xvg"; exit 1; }
+
+      - name: Check prebuilt artifacts match Rust sources
+        working-directory: xvg
+        run: dart run tool/check_prebuilt.dart
+
+      - name: Dry run
+        working-directory: xvg
+        run: flutter pub publish --dry-run
+
+      - name: Publish
+        working-directory: xvg
+        run: flutter pub publish --force

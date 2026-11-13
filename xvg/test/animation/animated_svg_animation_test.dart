@@ -403,7 +403,7 @@ void main() {
         XvgAnimated.string(
           _source,
           animation: animation,
-          maxFps: 1,
+          fps: 1,
           quality: const XvgAnimationQuality(
             frameSkipThreshold: 0,
             maxFrameDivisor: 4,
