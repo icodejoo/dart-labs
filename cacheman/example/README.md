@@ -1,5 +1,15 @@
 # cacheman example / 交互示例
 
+Since 0.8.0, `Cacheman()` defaults to memory. This demo explicitly uses the app-owned
+[`GetStorageCache`](lib/get_storage_cache.dart) adapter through `demoCache` for persistence.
+Copy that adapter into your app and add get_storage there if you need the same backend.
+`box` exposes the raw GetStorage handle; `Cacheman.container` now refers to default memory.
+
+0.8.0 起，`Cacheman()` 默认只用内存。本示例通过 `demoCache` 显式使用应用自有的
+[`GetStorageCache`](lib/get_storage_cache.dart) 持久化；需要相同后端时，把适配器复制到应用里，
+并在应用添加 get_storage。原始句柄是 `box`，`Cacheman.container` 已改为默认内存。
+
+
 Current package: **0.7.1** (from `../pubspec.yaml`). This app uses `path: ..`,
 Flutter 3.47.0, and a complete, local copy of the [shared demo kit](lib/demo_kit/README.md).
 No third-party dependencies were added.
@@ -112,11 +122,13 @@ widget 测试覆盖全部页面的双语与明暗、两种视口、实际存储�
 
 The workflow is absent from this sparse worktree; its tracked `origin/main` copy was inspected
 read-only. `deploy-cacheman.yml` uses the exact build command above; no workflow change is needed.
-The pre-existing Wasm dry-run warning comes from get_storage's dart:html backend; the release
-JavaScript build succeeds. This does not claim WebAssembly support.
+The demo's Wasm dry-run warning comes from its chosen get_storage adapter's dart:html backend.
+The release JavaScript build succeeds. The main cacheman package no longer depends on get_storage;
+choose a Wasm-compatible adapter when targeting Wasm.
 
 工作树未检出 workflow，已只读核对 origin/main 中的部署文件；命令和子路径一致，无需修改。
-get_storage 的 dart:html 会触发既有 Wasm 探测告警，不影响 JavaScript release 构建。
+示例自选 get_storage 的 dart:html 会触发 Wasm 探测告警，不影响 JavaScript release 构建；
+主包已移除该依赖，目标为 Wasm 的应用应选择兼容后端。
 
 Chrome DevTools MCP is unavailable in this session. Real-browser smoke tests and viewport screenshots
 were not performed; no existing user tab was touched and no preview server was started.

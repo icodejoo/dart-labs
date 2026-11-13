@@ -12,6 +12,7 @@ import 'svg_theme.dart';
 import 'xvg_animation_controller.dart';
 import 'xvg_animation_info.dart';
 import 'xvg_animation_quality.dart';
+import 'xvg_fps.dart';
 
 /// Default automatic playback speed. / 默认自动播放速率。
 const _normalPlaybackRate = 1.0;
@@ -40,13 +41,13 @@ const _unthrottledDivisor = 1;
 /// 不计入共享时钟并发，也不参与跳帧降级；大量并发推荐用 controller/隐式模式。
 ///
 /// ```dart
-/// XvgAnimated.string(svgSource, width: 48, height: 48)
+/// AnimatedXvg.string(svgSource, width: 48, height: 48)
 /// ```
-class XvgAnimated extends StatefulWidget {
+class AnimatedXvg extends StatefulWidget {
   /// Creates the animated renderer from a raw SVG string.
   ///
   /// 用原始 SVG 字符串创建动画渲染组件。
-  const XvgAnimated.string(
+  const AnimatedXvg.string(
     this.source, {
     super.key,
     this.pixelSnap = XvgPixelSnap.auto,
@@ -56,7 +57,7 @@ class XvgAnimated extends StatefulWidget {
     this.alignment = Alignment.center,
     this.theme,
     this.quality,
-    this.maxFps,
+    this.fps,
     this.playbackRate = _normalPlaybackRate,
     this.controller,
     this.animation,
@@ -69,7 +70,7 @@ class XvgAnimated extends StatefulWidget {
     this.onAnimationComplete,
     this.onAnimationLoop,
     this.onEvent,
-  }) : assert(maxFps == null || maxFps > 0, 'maxFps must be positive'),
+  }) : assert(fps == null || fps >= 0, fpsValidationMessage),
        assert(
          playbackRate > double.negativeInfinity &&
              playbackRate < double.infinity,
@@ -136,17 +137,18 @@ class XvgAnimated extends StatefulWidget {
   /// 全部画质需求都按有离屏图层计算。
   final XvgAnimationQuality? quality;
 
-  /// Requested sampling and repaint cap; null imposes no additional cap.
-  /// A shared [controller] uses the most permissive mounted widget cap, so a
-  /// higher cap or null on another widget can override this request. The
-  /// resulting cap and [quality] are combined using the larger frame divisor.
-  ///
-  /// 请求的时间线采样和重绘频率上限；null 表示不额外限制。共用 [controller] 时
-  /// 采用挂载控件中最宽松的上限，因此其它控件的更高上限或 null 可覆盖本请求。
-  /// 最终上限与 [quality] 取更大的跳帧除数。
-  /// Ignored with [animation]; sampling follows its notifications.
-  /// 传入 [animation] 时不生效，采样跟随其通知。
-  final double? maxFps;
+  /// Sampling/repaint cap: null follows the live global Xvg.fps; positive
+  /// values cap sampling, zero freezes at the first frame, and infinity is
+  /// unlimited and ignores global. Negative values and NaN assert in debug.
+  /// A shared [controller] uses the most permissive cap and freezes only when
+  /// all mounted widgets freeze; otherwise frozen widgets follow shared time.
+  /// Unfreezing preserves playback intent, including autoplay false.
+  /// The cap and [quality] use the larger divisor. Ignored with [animation].
+  /// 采样/重绘上限：null 跟随实时全局 Xvg.fps，正数限速，0 冻结首帧，
+  /// infinity 不限速且忽略全局；负数和 NaN 在调试时触发断言。
+  /// 共享控制器取最宽松上限，仅全部挂载控件冻结时归零暂停，否则跟随共享时间。
+  /// 解冻保留原播放意图（含 autoplay false）；与画质取较大除数；外部 animation 忽略。
+  final double? fps;
 
   /// Finite playback speed when [controller] is null: negative reverses and
   /// zero pauses. Rate changes preserve the current time. With [controller],
@@ -231,7 +233,7 @@ class XvgAnimated extends StatefulWidget {
 
   /// Creates the renderer state. / 创建渲染状态。
   @override
-  State<XvgAnimated> createState() => _XvgAnimatedState();
+  State<AnimatedXvg> createState() => _XvgAnimatedState();
 }
 
 /// Overrides embedded-image decoding in lifecycle tests.
@@ -243,7 +245,7 @@ Future<void> Function(SvgDocument)? debugResolveAnimatedImages;
 /// Owns source readiness and binds the painter to controller time.
 ///
 /// 管理源就绪状态，并把绘制器绑定到控制器时间。
-class _XvgAnimatedState extends State<XvgAnimated> {
+class _XvgAnimatedState extends State<AnimatedXvg> {
   /// Current parsed source, absent after a parsing failure. / 当前解析结果，解析失败时为空。
   SvgDocument? _document;
 
@@ -273,6 +275,9 @@ class _XvgAnimatedState extends State<XvgAnimated> {
   /// Current inherited visibility. / 当前继承的可见状态。
   bool _tickerModeEnabled = false;
 
+  /// Resolved zero-fps freeze, excluding external drivers. / 已解析的零帧率冻结状态。
+  bool _frozen = false;
+
   /// Whether parsing and embedded image decoding have finished.
   /// 解析和内嵌图片解码是否完成。
   bool _imagesReady = true;
@@ -296,6 +301,7 @@ class _XvgAnimatedState extends State<XvgAnimated> {
   @override
   void initState() {
     super.initState();
+    xvgFpsNotifier.addListener(_updatePlaybackEligibility);
     _bindController();
     _parseAndStart();
   }
@@ -399,22 +405,30 @@ class _XvgAnimatedState extends State<XvgAnimated> {
     }
   }
 
-  /// Reports inherited TickerMode to the controller. / 将继承的 TickerMode 告知控制器。
+  /// Tracks inherited visibility. / 跟踪继承的可见性。
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     // ignore: deprecated_member_use
-    final enabled = TickerMode.of(context);
-    if (enabled == _tickerModeEnabled) return;
-    _tickerModeEnabled = enabled;
-    _controller.setVisible(this, enabled);
+    _tickerModeEnabled = TickerMode.of(context);
+    _updatePlaybackEligibility();
+  }
+
+  /// Applies live preferences through the controller's visibility path.
+  /// 通过控制器的可见性通路应用实时偏好。
+  void _updatePlaybackEligibility() {
+    _frozen =
+        widget.animation == null &&
+        resolveFps(instance: widget.fps, global: xvgFpsNotifier.value) == 0;
+    final eligible = _tickerModeEnabled && !_frozen;
+    _controller.setVisible(this, eligible, frozen: _frozen);
   }
 
   /// Applies source/driver/span swaps and implicit playback settings.
   ///
   /// 应用源、驱动方或映射时长切换，以及隐式播放设置。
   @override
-  void didUpdateWidget(XvgAnimated oldWidget) {
+  void didUpdateWidget(AnimatedXvg oldWidget) {
     super.didUpdateWidget(oldWidget);
     final sourceChanged = oldWidget.source != widget.source;
     final controllerChanged =
@@ -442,6 +456,7 @@ class _XvgAnimatedState extends State<XvgAnimated> {
         }
       }
     }
+    _updatePlaybackEligibility();
     if (sourceChanged) {
       final previous = _document;
       if (_ownsImages && previous != null) _disposeImages(previous);
@@ -580,7 +595,8 @@ class _XvgAnimatedState extends State<XvgAnimated> {
     _controller.attach(
       this,
       document: document,
-      visible: _tickerModeEnabled,
+      visible: _tickerModeEnabled && !_frozen,
+      frozen: _frozen,
       quality: _quality,
       fpsDivisor: _fpsDivisor,
     );
@@ -611,11 +627,11 @@ class _XvgAnimatedState extends State<XvgAnimated> {
   ///
   /// 把实时显示刷新率和帧率上限转换为除数。
   int _fpsDivisor() {
-    final maxFps = widget.maxFps;
-    if (maxFps == null) return _unthrottledDivisor;
+    final fps = resolveFps(instance: widget.fps, global: xvgFpsNotifier.value);
+    if (fps == null || fps == 0) return _unthrottledDivisor;
     final refreshRate = View.of(context).display.refreshRate;
     if (refreshRate <= 0) return _unthrottledDivisor;
-    return max(_unthrottledDivisor, (refreshRate / maxFps).round());
+    return max(_unthrottledDivisor, (refreshRate / fps).round());
   }
 
   /// Resolves paint-time mask approximation using subscriber concurrency.
@@ -642,6 +658,7 @@ class _XvgAnimatedState extends State<XvgAnimated> {
   /// Releases playback and owned images. / 释放播放绑定及自有图片。
   @override
   void dispose() {
+    xvgFpsNotifier.removeListener(_updatePlaybackEligibility);
     _parseGeneration++;
     _unbindController();
     final document = _document;
@@ -670,6 +687,7 @@ class _XvgAnimatedState extends State<XvgAnimated> {
       painter: AnimatedSvgPainter(
         root: document.root,
         intrinsicSize: Size(document.width, document.height),
+        rootViewBoxTransform: document.rootViewBoxTransform,
         clock: _controller.time,
         theme: widget.theme ?? const XvgTheme(),
         fit: widget.fit,

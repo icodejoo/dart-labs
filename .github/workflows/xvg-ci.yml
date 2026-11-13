@@ -571,28 +571,116 @@ jobs:
       - name: Enable macOS desktop
         run: flutter config --enable-macos-desktop
 
-      # TODO(migration): remove this guard once the macOS framework is
-      # committed. The three symlinks are checked too (`-L`): a Windows
-      # checkout with core.symlinks=false materialises them as plain text
-      # files, which would break codesign in a way nothing else here catches.
+      # Git/pub ship only Versions/A; the podspec restores links at pod install.
+      # Reject tracked links and expanded copies before the consuming build.
       #
-      # TODO(migration)：macOS framework 提交后删除此守卫。三个符号链接也一并检查
-      # （`-L`）：Windows 上 core.symlinks=false 的检出会把它们落成普通文本文件，
-      # 那会在别处都发现不了的地方搞垮 codesign。
+      # git/pub 只分发 Versions/A，podspec 在 pod install 时恢复链接。
+      # 下游构建前拒绝入库的链接及其展开副本。
       - name: Check prebuilt macOS framework exists
         id: guard
         run: |
           fw=xvg/macos/xvg.framework
-          if [ -f "$fw/Versions/A/xvg" ] \
+          for path in "$fw/Versions/Current" "$fw/xvg" "$fw/Resources"; do
+            test -z "$(git ls-files -- "$path")" \
+              && test ! -e "$path" && test ! -L "$path" \
+              || { echo "::error::$path must not ship in git/pub"; exit 1; }
+          done
+          if [ -f "$fw/Versions/A/xvg" ] && [ ! -L "$fw/Versions/A/xvg" ] \
              && [ -f "$fw/Versions/A/Resources/Info.plist" ] \
-             && [ -L "$fw/Versions/Current" ] \
-             && [ -L "$fw/xvg" ] \
-             && [ -L "$fw/Resources" ]; then
+             && [ ! -L "$fw/Versions/A/Resources/Info.plist" ]; then
             echo "present=true" >> "$GITHUB_OUTPUT"
           else
-            echo "present=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::xvg/macos/xvg.framework not committed (or its symlinks are missing) — run the xvg-prebuilt workflow to produce it."
+            echo "::error::xvg.framework must contain the real Versions/A binary and Info.plist"
+            ls -l "$fw" "$fw/Versions" || true
+            exit 1
           fi
+
+      - name: Check macOS podspec syntax and link repair
+        working-directory: xvg
+        run: |
+          ruby -c macos/xvg.podspec
+          ruby <<'RUBY'
+          require 'fileutils'
+          require 'tmpdir'
+
+          # 接受完整 podspec 的 CocoaPods DSL，只在临时目录执行链接修复。
+          module Pod
+            class Spec
+              # 为每次求值创建独立的 DSL 接收对象。
+              def self.new
+                yield allocate
+              end
+
+              # 忽略与链接修复无关的 pod 属性和依赖声明。
+              def method_missing(_name, *_args); end
+
+              # 声明该临时 DSL 对象支持任意 pod 属性。
+              def respond_to_missing?(_name, _private = false)
+                true
+              end
+            end
+          end
+
+          source = File.read('macos/xvg.podspec')
+          links = {
+            'Versions/Current' => 'A',
+            'xvg' => 'Versions/Current/xvg',
+            'Resources' => 'Versions/Current/Resources'
+          }
+          %w[missing expanded correct incorrect].each do |state|
+            Dir.mktmpdir('xvg-podspec-') do |temp|
+              package = File.join(temp, 'cache/xvg')
+              macos = File.join(package, 'macos')
+              framework = File.join(macos, 'xvg.framework')
+              version = File.join(framework, 'Versions/A')
+              resources = File.join(version, 'Resources')
+              binary = File.join(version, 'xvg')
+              FileUtils.mkdir_p(resources)
+              File.write(binary, 'test binary')
+              File.write(File.join(resources, 'Info.plist'), 'test plist')
+              File.write(File.join(macos, 'xvg.podspec'), source)
+              if state == 'expanded'
+                FileUtils.cp_r(version, File.join(framework, 'Versions/Current'))
+                FileUtils.cp(binary, File.join(framework, 'xvg'))
+                FileUtils.cp_r(resources, File.join(framework, 'Resources'))
+              elsif state == 'correct' || state == 'incorrect'
+                links.each do |relative, target|
+                  File.symlink(state == 'correct' ? target : '../invalid', File.join(framework, relative))
+                end
+              end
+
+              plugin = File.join(temp, '.symlinks/plugins/xvg')
+              FileUtils.mkdir_p(File.dirname(plugin))
+              File.symlink(package, plugin)
+              podspec = File.join(plugin, 'macos/xvg.podspec')
+              # 并发执行完整 podspec，验证展开目录不会与其它修复互相覆盖。
+              pids = Array.new(6) { fork { load podspec; exit! 0 } }
+              pids.each do |pid|
+                _, status = Process.wait2(pid)
+                raise "concurrent repair failed: #{state}" unless status.success?
+              end
+              before = links.map do |relative, target|
+                path = File.join(framework, relative)
+                raise "wrong link: #{path}" unless File.symlink?(path) && File.readlink(path) == target
+                File.lstat(path).ino
+              end
+              2.times { load podspec }
+              after = links.keys.map { |relative| File.lstat(File.join(framework, relative)).ino }
+              raise "links replaced on repeat: #{state}" unless before == after
+              raise 'binary changed' unless File.read(binary) == 'test binary'
+              raise 'plist changed' unless File.read(File.join(resources, 'Info.plist')) == 'test plist'
+
+              FileUtils.rm(binary)
+              begin
+                load podspec
+                raise 'missing binary was accepted'
+              rescue RuntimeError => error
+                raise unless error.message.include?('missing prebuilt macOS binary')
+              end
+              puts "OK: #{state}, concurrent/repeated repair, plugin symlink, missing binary"
+            end
+          end
+          RUBY
 
       - name: Cache CocoaPods
         if: steps.guard.outputs.present == 'true'
@@ -613,7 +701,20 @@ jobs:
       - name: flutter build macos
         if: steps.guard.outputs.present == 'true'
         working-directory: xvg/example
-        run: flutter build macos
+        run: flutter build macos --verbose
+
+      - name: Diagnose macOS framework linkage
+        if: failure() && steps.guard.outputs.present == 'true'
+        working-directory: xvg/example/macos
+        run: |
+          # 保留 CocoaPods 实际生成的搜索路径、链接参数和嵌入路径供排查。
+          for config in Pods/Target\ Support\ Files/Pods-Runner/*.xcconfig; do
+            test -f "$config" || continue
+            echo "$config"
+            grep -E '^(FRAMEWORK_SEARCH_PATHS|OTHER_LDFLAGS|PODS_ROOT) =' "$config" || true
+          done
+          grep -n 'xvg.framework' 'Pods/Target Support Files/Pods-Runner/Pods-Runner-frameworks.sh' || true
+          ls -l Flutter/ephemeral/.symlinks/plugins/xvg/macos/xvg.framework || true
 
       # xvg links the Rust core dynamically on macOS, out of a *vendored*
       # framework (it used to be a pod-built one wrapping a -force_load'd static
@@ -638,7 +739,10 @@ jobs:
           test -f "$fw" \
             || { echo "::error::xvg.framework was not embedded in the app bundle"; exit 1; }
           test -L "$bundle/Versions/Current" && test -L "$bundle/xvg" \
-            || { echo "::error::the embedded xvg.framework lost its versioned-bundle symlinks"; exit 1; }
+            && test -L "$bundle/Resources" \
+            && [ "$bundle/xvg" -ef "$fw" ] \
+            && [ "$bundle/Resources/Info.plist" -ef "$bundle/Versions/A/Resources/Info.plist" ] \
+            || { echo "::error::the embedded xvg.framework has broken versioned-bundle symlinks"; exit 1; }
           otool -L "$bin" | grep -q '@rpath/xvg.framework/Versions/A/xvg' \
             || { echo "::error::the app does not link @rpath/xvg.framework"; exit 1; }
           otool -D "$fw" | grep -q '@rpath/xvg.framework/Versions/A/xvg' \

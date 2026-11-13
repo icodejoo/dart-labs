@@ -33,7 +33,8 @@ void main() {
     test(
         'plans four instrumented scenes and proc wheel CPU with bounded starts',
         () async {
-      final result = await Process.run('powershell', [
+      final result =
+          await Process.run(Platform.isWindows ? 'powershell' : 'pwsh', [
         '-NoProfile',
         '-File',
         'tool/bench/run_steady_device_checks.ps1',

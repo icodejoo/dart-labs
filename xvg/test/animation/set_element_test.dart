@@ -185,7 +185,7 @@ void main() {
       var completeCount = 0;
       await tester.pumpWidget(
         MaterialApp(
-          home: XvgAnimated.string(
+          home: AnimatedXvg.string(
             '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24">'
             '<rect width="24" height="24" fill="#000">'
             '<set attributeName="opacity" to="0" begin="0.2s" '

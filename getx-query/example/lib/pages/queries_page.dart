@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:getx_query/getx_query.dart';
+import 'package:getx_query/getx_query.dart' as gq show Placeholder;
 import '../demo_kit/demo_kit.dart';
 import '../demo_support.dart';
 
@@ -22,7 +23,7 @@ class QueriesPage extends StatelessWidget {
       DemoSection(
         title: tr(context, 'Parallel work', '并行任务'),
         code:
-            "final (results, combined, disposeAll) = useQueries<int>(\n  [\n    QueryOptions(['users'], (_) => repository.users()),\n    QueryOptions(['posts'], (_) => repository.posts()),\n  ],\n  client: client,\n  combine: (results) => results.where((r) => r.isSuccess).length,\n);\nfinal (fetching, disposeCount) = useIsFetching(client: client);\n// Read combined() and fetching.value inside Obx.\n// On removal: disposeAll(); disposeCount();",
+            "final (results, combined, disposeAll) = useQueries<int>(\n  [\n    QueryOptions(['users'], (_) => repository.users(),\n      placeholder: const gq.Placeholder.value(0)),\n    QueryOptions(['posts'], (_) => repository.posts()),\n  ],\n  client: client,\n  combine: (results) => results.where((r) => r.isSuccess).length,\n);\nfinal (fetching, disposeCount) = useIsFetching(client: client);\n// Read combined() and fetching.value inside Obx.\n// On removal: disposeAll(); disposeCount();",
         child: DemoGrid(
           children: [
             DemoGridItem(
@@ -109,10 +110,15 @@ class _QueriesDemoState extends DemoClientState<QueriesDemo> {
     super.initState();
     final (results, combined, disposeQueries) = useQueries<int>(
       [
-        QueryOptions([_usersKey], (_) async {
-          await Future<void>.delayed(demoDelay);
-          return demoPageSize;
-        }, gcDuration: GcDuration.zero),
+        QueryOptions(
+          [_usersKey],
+          (_) async {
+            await Future<void>.delayed(demoDelay);
+            return demoPageSize;
+          },
+          gcDuration: GcDuration.zero,
+          placeholder: const gq.Placeholder.value(0),
+        ),
         QueryOptions([postsKey], (_) async {
           await Future<void>.delayed(demoDelay * 2);
           return demoItemCount;

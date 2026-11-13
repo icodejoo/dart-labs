@@ -562,15 +562,12 @@ Future<List<String>> _buildMacosFramework(
     '</plist>\n',
   );
 
-  // The three symlinks that make this a versioned bundle. Without
-  // `Versions/Current` neither CFBundle nor codesign recognises the layout.
+  // Ship only the real Versions/A files: pub expands symlinks into duplicate
+  // files/directories, breaking codesign. The podspec restores the three
+  // versioned-bundle links during `pod install`.
   //
-  // 让它成为版本化 bundle 的三个符号链接。缺了 `Versions/Current`，CFBundle 与
-  // codesign 都认不出这个布局。
-  Link('${bundle.path}/Versions/Current').createSync('A');
-  Link('${bundle.path}/$kMacosFrameworkName')
-      .createSync('Versions/Current/$kMacosFrameworkName');
-  Link('${bundle.path}/Resources').createSync('Versions/Current/Resources');
+  // 只分发 Versions/A 的真实文件：pub 会把符号链接展开成重复的实体文件/目录，破坏
+  // codesign。podspec 在 `pod install` 时恢复版本化 bundle 的三个链接。
 
   final produced = macosFrameworkFiles(root);
   final total = produced.fold<int>(

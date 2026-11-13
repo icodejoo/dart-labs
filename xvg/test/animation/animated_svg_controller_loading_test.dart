@@ -51,7 +51,7 @@ void main() {
     final controller = XvgAnimationController(autoplay: false);
     await tester.pumpWidget(
       _host(
-        XvgAnimated.string(
+        AnimatedXvg.string(
           _source,
           controller: controller,
           onLoaded: infos.add,
@@ -65,7 +65,7 @@ void main() {
     await tester.pump(_second);
     await tester.pumpWidget(
       _host(
-        XvgAnimated.string(
+        AnimatedXvg.string(
           _source,
           controller: controller,
           width: 48,
@@ -95,13 +95,13 @@ void main() {
       Widget scene(bool includeReady) => _host(
         Column(
           children: [
-            XvgAnimated.string(
+            AnimatedXvg.string(
               delayedSource,
               key: const ValueKey('delayed'),
               controller: controller,
             ),
             if (includeReady)
-              XvgAnimated.string(
+              AnimatedXvg.string(
                 _source,
                 key: const ValueKey('ready'),
                 controller: controller,
@@ -130,7 +130,7 @@ void main() {
         StatefulBuilder(
           builder: (context, setState) => Column(
             children: [
-              XvgAnimated.string(
+              AnimatedXvg.string(
                 _source,
                 autoplay: false,
                 onLoaded: (_) => setState(() => loaded = true),
@@ -155,7 +155,7 @@ void main() {
     final infos = <XvgAnimationInfo>[];
     await tester.pumpWidget(
       _host(
-        XvgAnimated.string(
+        AnimatedXvg.string(
           _imageSource,
           controller: controller,
           onLoaded: infos.add,
@@ -189,7 +189,7 @@ void main() {
     controller.addEventListener(events.add);
     await tester.pumpWidget(
       _host(
-        XvgAnimated.string(
+        AnimatedXvg.string(
           _brokenSource,
           controller: controller,
           onError: (error, stack) => errors.add(error),
@@ -215,7 +215,7 @@ void main() {
     await tester.pumpWidget(
       _host(
         Center(
-          child: XvgAnimated.string(
+          child: AnimatedXvg.string(
             _brokenSource,
             width: 37,
             height: 41,
@@ -226,7 +226,7 @@ void main() {
     );
     await tester.pump();
     expect(failures, 1);
-    expect(tester.getSize(find.byType(XvgAnimated)), const Size(37, 41));
+    expect(tester.getSize(find.byType(AnimatedXvg)), const Size(37, 41));
     expect(tester.takeException(), isNull);
   });
 
@@ -235,7 +235,7 @@ void main() {
   ) async {
     await tester.pumpWidget(
       _host(
-        XvgAnimated.string(
+        AnimatedXvg.string(
           _brokenSource,
           errorBuilder: (context, error, stack) => const Text('handled'),
         ),
@@ -253,14 +253,14 @@ void main() {
     final previousHandler = FlutterError.onError;
     FlutterError.onError = reported.add;
     try {
-      await tester.pumpWidget(_host(const XvgAnimated.string(_brokenSource)));
+      await tester.pumpWidget(_host(const AnimatedXvg.string(_brokenSource)));
       await tester.pump();
     } finally {
       FlutterError.onError = previousHandler;
     }
     expect(reported, hasLength(1));
     expect(reported.single.exception, isNotNull);
-    expect(find.byType(XvgAnimated), findsOneWidget);
+    expect(find.byType(AnimatedXvg), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }

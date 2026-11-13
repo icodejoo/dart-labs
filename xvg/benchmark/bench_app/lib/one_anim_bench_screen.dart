@@ -18,7 +18,7 @@
 //
 // Only `repeatCount="indefinite"` documents are used, and this is the crux of
 // the whole measurement rather than a detail: a FINITE animated icon has no
-// steady state to measure. Once its last timeline settles, `XvgAnimated`
+// steady state to measure. Once its last timeline settles, `AnimatedXvg`
 // unsubscribes from the shared clock (see `_XvgAnimatedState._onGlobalTick`)
 // and the icon stops repainting altogether — its steady-state cost is exactly
 // zero, and a benchmark that included one would be averaging a real cost with
@@ -52,7 +52,7 @@
 //   2. 摊到 1000 个图标上看不见的每帧成本，在只有一个图标时就是全部成本。
 //
 // 只使用 `repeatCount="indefinite"` 文档，而这是整个测量的关键、不是细节：**有限**
-// 动画图标根本没有稳态可测。当它最后一条时间线定格后，`XvgAnimated` 会从共享时钟
+// 动画图标根本没有稳态可测。当它最后一条时间线定格后，`AnimatedXvg` 会从共享时钟
 // 退订（见 `_XvgAnimatedState._onGlobalTick`），图标彻底停止重绘——其稳态成本恰好
 // 为零，把它算进来等于拿真实成本去和一个结构性的零求平均。只有循环图标会一直付费，
 // 而这里是在它的 `fill="freeze"` 揭示动画定格之后采样的，那正是这类图标在屏幕上几乎
@@ -358,7 +358,7 @@ class _OneAnimBenchScreenState extends State<OneAnimBenchScreen>
                   : Wrap(
                       children: [
                         for (final src in _mounted)
-                          XvgAnimated.string(
+                          AnimatedXvg.string(
                             src,
                             width: _iconSize,
                             height: _iconSize,

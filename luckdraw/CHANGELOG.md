@@ -1,3 +1,7 @@
+## 0.1.2
+
+- Docs only: rewrote README wording in plain language.
+
 ## 0.1.1
 
 - Docs: README adds the live demo link; example analysis no longer fails on Flutter 3.47 deprecation infos.

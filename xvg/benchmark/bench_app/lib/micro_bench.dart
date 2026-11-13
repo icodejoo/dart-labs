@@ -211,10 +211,10 @@ List<MicroResult> runMicroBenchmarks() {
     ),
   );
 
-  // Warm path: what `XvgStatic.build` does on every rebuild once the picture
+  // Warm path: what `StaticXvg.build` does on every rebuild once the picture
   // is cached — animation sniffing, `<image>` sniffing, cache lookup. This is
   // the per-frame-per-visible-icon cost during a scroll.
-  // 热路径：picture 已缓存后 `XvgStatic.build` 每次重建做的事——动画嗅探、
+  // 热路径：picture 已缓存后 `StaticXvg.build` 每次重建做的事——动画嗅探、
   // `<image>` 嗅探、缓存查找。这是滚动中每帧每个可见图标的成本。
   for (final src in staticIcons) {
     cache.getOrRender(src);
@@ -243,13 +243,13 @@ List<MicroResult> runMicroBenchmarks() {
     }),
   );
 
-  // The `<image>` sniff `XvgStatic` used to run on *every* rebuild, versus
+  // The `<image>` sniff `StaticXvg` used to run on *every* rebuild, versus
   // the cache lookup that now takes its place on the warm path. The pattern
-  // below deliberately mirrors `XvgStatic._imagePattern` (private) so the
+  // below deliberately mirrors `StaticXvg._imagePattern` (private) so the
   // removed work can be quantified.
   //
-  // `XvgStatic` 过去**每次**重建都要做的 `<image>` 嗅探，对比现在热路径上取代
-  // 它的缓存查找。下面的正则刻意与私有的 `XvgStatic._imagePattern` 一致，
+  // `StaticXvg` 过去**每次**重建都要做的 `<image>` 嗅探，对比现在热路径上取代
+  // 它的缓存查找。下面的正则刻意与私有的 `StaticXvg._imagePattern` 一致，
   // 以便量化被去掉的这部分开销。
   final imagePattern = RegExp(r'<image[\s>]', caseSensitive: false);
   results.add(
@@ -563,7 +563,7 @@ List<MicroResult> runMicroBenchmarks() {
   //
   // The corpus is deliberately narrowed to its `repeatCount="indefinite"`
   // documents. A finite document is not a steady state at all: once every
-  // timeline has settled, `XvgAnimated` unsubscribes from the shared clock and
+  // timeline has settled, `AnimatedXvg` unsubscribes from the shared clock and
   // stops repainting entirely, so its steady-state cost is exactly zero. Only a
   // looping document keeps paying per frame forever, and it is sampled here at
   // t > 3s, past every `fill="freeze"` reveal — the state such an icon spends
@@ -576,7 +576,7 @@ List<MicroResult> runMicroBenchmarks() {
   // 并发图标）。
   //
   // 语料刻意收窄到其中 `repeatCount="indefinite"` 的文档。有限文档根本不存在稳态：
-  // 所有时间线定格之后，`XvgAnimated` 会从共享时钟退订、彻底停止重绘，其稳态成本
+  // 所有时间线定格之后，`AnimatedXvg` 会从共享时钟退订、彻底停止重绘，其稳态成本
   // 恰好为零。只有循环文档会永远逐帧付费，这里在 t > 3s 采样它，越过所有
   // `fill="freeze"` 揭示动画——那正是这类图标在屏幕上几乎全部时间所处的状态：一部分
   // 已定格，另一部分仍在循环。

@@ -98,7 +98,7 @@
 
 ## 环境
 
-Rust 1.96 / flutter_rust_bridge 2.13 / Flutter 3.47 / Dart 3.13 / Android NDK 28 + 四架构 target 均就绪。resvg/usvg 当前 0.49(svgtypes 0.16)。
+Rust 1.96 / flutter_rust_bridge 2.13 / Flutter 3.47 / Dart 3.13 / Android NDK 28 + 四架构 target 均就绪。resvg/usvg 当前 0.50(svgtypes 0.16.2)。
 
 ## 文档索引
 

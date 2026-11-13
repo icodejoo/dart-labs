@@ -38,14 +38,14 @@ const _plain =
 
 Widget _icon(bool animated, XvgPixelSnap mode, {String source = _svg}) =>
     animated
-    ? XvgAnimated.string(
+    ? AnimatedXvg.string(
         source == _svg ? _animatedSvg : source,
         width: _iconExtent,
         height: _iconExtent,
         autoplay: false,
         pixelSnap: mode,
       )
-    : XvgStatic(
+    : StaticXvg(
         source,
         width: _iconExtent,
         height: _iconExtent,
@@ -178,6 +178,39 @@ void main() {
 
   for (final animated in [false, true]) {
     final path = animated ? 'animated' : 'static';
+    testWidgets('$path root viewBox origin/scale keeps viewport snapping', (
+      tester,
+    ) async {
+      _view(tester);
+      final mapped = _svg
+          .replaceFirst('viewBox="0 0 24 24"', 'viewBox="50 50 48 48"')
+          .replaceFirst(
+            '<defs>',
+            '<g transform="translate(50 50) scale(2)"><defs>',
+          )
+          .replaceFirst('</svg>', '</g></svg>');
+      // Capture the full scene so composition-time correction is included.
+      // 读取完整场景，把合成阶段修正纳入像素比较。
+      final reference = <int>[];
+      for (final source in [_svg, mapped]) {
+        await tester.pumpWidget(
+          _scene(_icon(animated, XvgPixelSnap.auto, source: source)),
+        );
+        await tester.pumpAndSettle();
+        final snap = _layers(tester).whereType<PixelSnapLayer>().single;
+        expect(snap.viewport.left, closeTo(0, _epsilon));
+        expect(snap.viewport.top, closeTo(0, _epsilon));
+        expect(snap.viewport.width, closeTo(_iconExtent, _epsilon));
+        expect(snap.viewport.height, closeTo(_iconExtent, _epsilon));
+        final pixels = await _pixels(tester);
+        expect(snap.debugDidSnap, isTrue, reason: snap.debugSkipReason);
+        if (reference.isEmpty) {
+          reference.addAll(pixels);
+        } else {
+          expect(pixels, reference);
+        }
+      }
+    });
     for (final translate in [false, true]) {
       testWidgets(
         '$path ${translate ? 'parent translate' : 'fractional still'} 184 to zero',
@@ -214,14 +247,14 @@ void main() {
         _view(tester);
         for (final alignment in [Alignment.center, Alignment.bottomRight]) {
           final icon = animated
-              ? XvgAnimated.string(
+              ? AnimatedXvg.string(
                   _animatedSvg,
                   width: _iconExtent,
                   height: 145.8,
                   alignment: alignment,
                   autoplay: false,
                 )
-              : XvgStatic(
+              : StaticXvg(
                   _svg,
                   width: _iconExtent,
                   height: 145.8,
@@ -532,7 +565,7 @@ void main() {
                   (i) => Positioned(
                     left: (i % 13) * 10 + 0.2,
                     top: (i ~/ 13) * 10 + 0.2,
-                    child: XvgStatic(
+                    child: StaticXvg(
                       mode == XvgPixelSnap.auto ? _plain : _svg,
                       width: 9.6,
                       height: 9.6,

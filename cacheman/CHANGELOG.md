@@ -1,3 +1,48 @@
+## 0.8.0
+
+- Internal: sync and async share one decision core; behaviour unchanged.
+
+**Breaking:**
+
+- `Cacheman()` now uses pure Dart memory storage. Data is lost on restart. Same-name
+  containers still share memory and a Hub within one isolate; `ensureInitialized()`
+  remains required. The default constructor no longer accepts `path`.
+- `container` now returns `MemoryStorage`, not `GetStorage`. Custom backends should
+  expose their own typed handle. `Cacheman.custom` and `AsyncCacheman` retain their
+  existing primitive contracts.
+- Removed the get_storage dependency and its transitive get/path_provider packages
+  from the main package. Apps using GetX must depend on `get` directly.
+
+Migration for persistent caches:
+
+1. Add `get_storage: ^2.1.1` to the consuming app's dependencies.
+2. Copy `example/lib/get_storage_cache.dart` into the app. This app-owned adapter
+   includes initialization, synchronous CRUD, shared notifications and deferred saves.
+3. Replace `Cacheman(...)` with `GetStorageCache(...)`, keeping the previous container
+   name, path (if set) and options. Existing storage keys and serialized values are
+   unchanged. Replace raw get_storage access through `container` with `box`.
+
+```dart
+import 'package:cacheman/cacheman.dart';
+import 'get_storage_cache.dart'; // copied from example/lib/
+
+final cache = GetStorageCache(
+  container: 'cacheman', // keep the previous name; pass the previous path if set
+  options: const CachemanOptions(namespace: 'account'),
+);
+await cache.ensureInitialized();
+cache.write('token', 'abc'); // app-owned persistence
+```
+
+The adapter is only in the example and is not exported by the main library. Apps
+that choose get_storage retain its platform restrictions. The demo keeps persistence
+and displays 0.8.0. Package tests use memory/custom backends; real get_storage
+integration tests now live in the example.
+
+## 0.7.3
+
+- Shorten the pubspec description to meet the pub.dev length limit.
+
 ## 0.7.2
 
 - Docs only: rewrote README wording in plain language.

@@ -232,10 +232,10 @@ void main() {
     expect(canvas.stack, isEmpty);
   });
 
-  testWidgets('XvgStatic mask comparison on a larger canvas', (tester) async {
+  testWidgets('StaticXvg mask comparison on a larger canvas', (tester) async {
     await tester.pumpWidget(
       Center(
-        child: XvgStatic(
+        child: StaticXvg(
           _source(),
           width: _iconSize.width,
           height: _iconSize.height,

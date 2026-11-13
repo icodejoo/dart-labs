@@ -247,7 +247,10 @@ void main() {
     cache.failures = 2;
     expect(await cache.read<String>(_key), _value);
     expect(cache.writes, 2);
-    expect(errors.single, isA<WriteError>().having((e) => e.cause, _causeLabel, same(cache.failure)));
+    expect(
+        errors.single,
+        isA<WriteError>()
+            .having((e) => e.cause, _causeLabel, same(cache.failure)));
     expect(cache.data[_key], before);
   });
 
@@ -377,12 +380,14 @@ void main() {
       await cache.write(_key, _value);
       expect(cache.writes, force ? 2 : 1);
       expect(errors.single.$1, '$_ns:$_key');
-      expect(errors.single.$2, isA<WriteError>().having((e) => e.cause, _causeLabel, same(cache.failure)));
+      expect(
+          errors.single.$2,
+          isA<WriteError>()
+              .having((e) => e.cause, _causeLabel, same(cache.failure)));
     }
   });
 
-  test(
-      'serialize errors never retry and preserve the original exception',
+  test('serialize errors never retry and preserve the original exception',
       () async {
     var count = 0;
     final failure = StateError('serialize');
@@ -397,7 +402,10 @@ void main() {
     final broken = await _ready(CachemanOptions(
         serialize: (_) => throw failure, onError: (_, e) => errors.add(e)));
     await broken.write(_key, _value);
-    expect(errors.single, isA<SerializeError>().having((e) => e.cause, _causeLabel, same(failure)));
+    expect(
+        errors.single,
+        isA<SerializeError>()
+            .having((e) => e.cause, _causeLabel, same(failure)));
   });
 
   test(
@@ -428,7 +436,12 @@ void main() {
       expect(errors, isEmpty);
       expect(cache.data.containsKey(_key), isTrue);
       expect(await cache.read<String>(_key, _fallback), _fallback);
-      expect(errors.single, isA<CorruptEntryError>().having((e) => e.dropped, 'dropped', isTrue).having((e) => e.cause, _causeLabel, i == 0 ? isA<FormatException>() : same(original)));
+      expect(
+          errors.single,
+          isA<CorruptEntryError>()
+              .having((e) => e.dropped, 'dropped', isTrue)
+              .having((e) => e.cause, _causeLabel,
+                  i == 0 ? isA<FormatException>() : same(original)));
       expect(await cache.read<String>(_key, _fallback), _fallback);
       expect(errors, hasLength(1));
     }
@@ -485,7 +498,10 @@ void main() {
     await cache.seed(_key, remaining: 50000, ttl: _ttl);
     cache.failures = 1;
     expect(await cache.read<String>(_key), _value);
-    expect(errors.single, isA<WriteError>().having((e) => e.cause, _causeLabel, isA<StateError>()));
+    expect(
+        errors.single,
+        isA<WriteError>()
+            .having((e) => e.cause, _causeLabel, isA<StateError>()));
   });
 
   test('batch defaults, short values, ttl/expireAt and remove forwarding',

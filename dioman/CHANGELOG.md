@@ -1,3 +1,7 @@
+## 0.8.3
+
+- Docs only: rewrote README wording in plain language; the package archive drops internal reports, archives and scripts (12 MB to under 1 MB).
+
 # Changelog
 
 ## 0.8.2

@@ -170,8 +170,8 @@ void main() {
       _host(
         Column(
           children: [
-            XvgAnimated.string(_source, animation: animation),
-            const XvgAnimated.string(_source),
+            AnimatedXvg.string(_source, animation: animation),
+            const AnimatedXvg.string(_source),
           ],
         ),
       ),
@@ -200,7 +200,7 @@ void main() {
     final events = <XvgAnimationEvent>[];
     await tester.pumpWidget(
       _host(
-        XvgAnimated.string(
+        AnimatedXvg.string(
           _source,
           animation: animation,
           animationSpan: _second,
@@ -226,7 +226,7 @@ void main() {
       final events = <XvgAnimationEvent>[];
       await tester.pumpWidget(
         _host(
-          XvgAnimated.string(
+          AnimatedXvg.string(
             _source,
             animation: animation,
             onEvent: events.add,
@@ -250,7 +250,7 @@ void main() {
         curve: Curves.elasticOut,
       );
       await tester.pumpWidget(
-        _host(XvgAnimated.string(_source, animation: animation)),
+        _host(AnimatedXvg.string(_source, animation: animation)),
       );
       parent.value = 0.2;
       expect(animation.value, greaterThan(1));
@@ -278,7 +278,7 @@ void main() {
       String source = _source,
     }) => tester.pumpWidget(
       _host(
-        XvgAnimated.string(source, animation: animation, animationSpan: span),
+        AnimatedXvg.string(source, animation: animation, animationSpan: span),
       ),
     );
     await show(first);
@@ -313,7 +313,7 @@ void main() {
 
       /// Builds an optionally corrected mapping. / 构建可修正的映射。
       Widget scene([Duration? span]) => _host(
-        XvgAnimated.string(
+        AnimatedXvg.string(
           _unknown,
           animation: animation,
           animationSpan: span,
@@ -347,7 +347,7 @@ void main() {
     var reversed = false;
     await tester.pumpWidget(
       _host(
-        XvgAnimated.string(
+        AnimatedXvg.string(
           _source,
           animation: animation,
           onEvent: (event) {
@@ -371,23 +371,23 @@ void main() {
   ) async {
     final animation = _TrackedAnimation();
     final controller = XvgAnimationController();
-    await tester.pumpWidget(_host(const XvgAnimated.string(_source)));
+    await tester.pumpWidget(_host(const AnimatedXvg.string(_source)));
     expect(SharedAnimationClock.instance.subscriberCount, 1);
     await tester.pumpWidget(
-      _host(XvgAnimated.string(_source, animation: animation)),
+      _host(AnimatedXvg.string(_source, animation: animation)),
     );
     expect(SharedAnimationClock.instance.subscriberCount, 0);
     expect(animation.listeners, hasLength(1));
     await tester.pumpWidget(
-      _host(XvgAnimated.string(_source, controller: controller)),
+      _host(AnimatedXvg.string(_source, controller: controller)),
     );
     expect(animation.listeners, isEmpty);
     expect(SharedAnimationClock.instance.subscriberCount, 1);
     await tester.pumpWidget(
-      _host(XvgAnimated.string(_source, animation: animation)),
+      _host(AnimatedXvg.string(_source, animation: animation)),
     );
     expect(SharedAnimationClock.instance.subscriberCount, 0);
-    await tester.pumpWidget(_host(const XvgAnimated.string(_source)));
+    await tester.pumpWidget(_host(const AnimatedXvg.string(_source)));
     expect(animation.listeners, isEmpty);
     expect(SharedAnimationClock.instance.subscriberCount, 1);
     await tester.pumpWidget(const SizedBox.shrink());
@@ -400,10 +400,10 @@ void main() {
     final animation = AnimationController(vsync: tester, duration: _span);
     await tester.pumpWidget(
       _host(
-        XvgAnimated.string(
+        AnimatedXvg.string(
           _source,
           animation: animation,
-          maxFps: 1,
+          fps: 1,
           quality: const XvgAnimationQuality(
             frameSkipThreshold: 0,
             maxFrameDivisor: 4,
@@ -430,7 +430,7 @@ void main() {
     FlutterError.onError = reported.add;
     try {
       await tester.pumpWidget(
-        _host(XvgAnimated.string(_unknown, animation: _TrackedAnimation())),
+        _host(AnimatedXvg.string(_unknown, animation: _TrackedAnimation())),
       );
     } finally {
       FlutterError.onError = previous;
@@ -444,7 +444,7 @@ void main() {
     final controller = XvgAnimationController();
     final animation = _TrackedAnimation();
     expect(
-      () => XvgAnimated.string(
+      () => AnimatedXvg.string(
         _source,
         controller: controller,
         animation: animation,
@@ -452,11 +452,11 @@ void main() {
       throwsAssertionError,
     );
     expect(
-      () => XvgAnimated.string(_source, animation: animation, autoplay: false),
+      () => AnimatedXvg.string(_source, animation: animation, autoplay: false),
       throwsAssertionError,
     );
     expect(
-      () => XvgAnimated.string(_source, animation: animation, playbackRate: 2),
+      () => AnimatedXvg.string(_source, animation: animation, playbackRate: 2),
       throwsAssertionError,
     );
     controller.dispose();
@@ -473,7 +473,7 @@ void main() {
     var completions = 0;
     await tester.pumpWidget(
       _host(
-        XvgAnimated.string(
+        AnimatedXvg.string(
           _loop,
           animation: animation,
           animationSpan: _span,
@@ -497,7 +497,7 @@ void main() {
     expect(SharedAnimationClock.instance.subscriberCount, 0);
     await tester.pumpWidget(
       _host(
-        XvgAnimated.string(
+        AnimatedXvg.string(
           _source,
           animation: animation,
           onAnimationStart: () => starts++,
@@ -523,7 +523,7 @@ void main() {
     final parent = AnimationController(vsync: tester, duration: _span);
     final animation = CurvedAnimation(parent: parent, curve: Curves.linear);
     await tester.pumpWidget(
-      _host(XvgAnimated.string(_source, animation: animation)),
+      _host(AnimatedXvg.string(_source, animation: animation)),
     );
     parent.value = _half;
     expect(_painter(tester).clock.value, _second);
@@ -546,7 +546,7 @@ void main() {
 
       /// Keeps the pending source while switching its driver. / 保留加载中的源并切换驱动。
       Widget scene(Animation<double> animation) => _host(
-        XvgAnimated.string(
+        AnimatedXvg.string(
           _imageSource,
           animation: animation,
           onLoaded: loaded.add,
@@ -576,7 +576,7 @@ void main() {
 
       /// Changes only callback presence. / 只改变回调是否存在。
       Widget scene(bool listen) => _host(
-        XvgAnimated.string(
+        AnimatedXvg.string(
           _source,
           controller: mode == 'controller' ? controller : null,
           animation: mode == 'animation' ? animation : null,
@@ -605,7 +605,7 @@ void main() {
       final queries = debug.debugTimelineEventQueryCount;
       await tester.pumpWidget(
         _host(
-          XvgAnimated.string(
+          AnimatedXvg.string(
             _source,
             controller: mode == 'controller' ? controller : null,
             animation: mode == 'animation' ? animation : null,

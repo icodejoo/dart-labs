@@ -82,7 +82,7 @@ void main() {
       var errors = 0;
       await tester.pumpWidget(
         _host(
-          XvgAnimated.string(
+          AnimatedXvg.string(
             largeAsyncSvg(),
             autoplay: false,
             onLoaded: (_) => loaded++,
@@ -110,7 +110,7 @@ void main() {
         _host(
           StatefulBuilder(
             builder: (context, setState) {
-              return XvgAnimated.string(
+              return AnimatedXvg.string(
                 largeAsyncSvg(),
                 width: _size.width,
                 height: _size.height,
@@ -125,7 +125,7 @@ void main() {
         ),
       );
       expect(find.byType(CustomPaint), findsNothing);
-      expect(tester.getSize(find.byType(XvgAnimated)), _size);
+      expect(tester.getSize(find.byType(AnimatedXvg)), _size);
       expect(loaded, 0);
       expect(clock.subscriberCount, 0);
       await _waitFor(tester, () => loaded == 1);
@@ -145,7 +145,7 @@ void main() {
     var loaded = 0;
     var finished = false;
     await tester.pumpWidget(
-      _host(XvgAnimated.string(source, onLoaded: (_) => loaded++)),
+      _host(AnimatedXvg.string(source, onLoaded: (_) => loaded++)),
     );
     cache.getOrParseAsync(source).then((_) => finished = true);
     expect(clock.subscriberCount, 0);
@@ -163,12 +163,12 @@ void main() {
       final infos = <XvgAnimationInfo>[];
       var oldFinished = false;
       await tester.pumpWidget(
-        _host(XvgAnimated.string(source, autoplay: false, onLoaded: infos.add)),
+        _host(AnimatedXvg.string(source, autoplay: false, onLoaded: infos.add)),
       );
       cache.getOrParseAsync(source).then((_) => oldFinished = true);
       await tester.pumpWidget(
         _host(
-          XvgAnimated.string(
+          AnimatedXvg.string(
             largeAsyncSvg(duration: '3s'),
             autoplay: false,
             onLoaded: infos.add,
@@ -191,7 +191,7 @@ void main() {
     var oldFinished = false;
     final invalid = invalidLargeAsyncSvg();
     await tester.pumpWidget(
-      _host(XvgAnimated.string(invalid, onError: (_, _) => errors++)),
+      _host(AnimatedXvg.string(invalid, onError: (_, _) => errors++)),
     );
     cache
         .getOrParseAsync(invalid)
@@ -202,7 +202,7 @@ void main() {
           },
         );
     await tester.pumpWidget(
-      _host(const XvgAnimated.string(smallAsyncSvg, autoplay: false)),
+      _host(const AnimatedXvg.string(smallAsyncSvg, autoplay: false)),
     );
     await _waitFor(tester, () => oldFinished);
     expect(errors, 0);
@@ -217,7 +217,7 @@ void main() {
     var errors = 0;
     await tester.pumpWidget(
       _host(
-        XvgAnimated.string(
+        AnimatedXvg.string(
           invalidLargeAsyncSvg(),
           onError: (_, _) => errors++,
           errorBuilder: (_, _, _) => const Text(_parseFailureText),
@@ -228,7 +228,7 @@ void main() {
     expect(find.text(_parseFailureText), findsOneWidget);
     expect(clock.subscriberCount, 0);
     await tester.pumpWidget(
-      _host(const XvgAnimated.string(smallAsyncSvg, autoplay: false)),
+      _host(const AnimatedXvg.string(smallAsyncSvg, autoplay: false)),
     );
     expect(find.byType(CustomPaint), findsOneWidget);
     expect(errors, 1);
@@ -242,10 +242,10 @@ void main() {
       final a = XvgAnimationController();
       final b = XvgAnimationController(autoplay: false)..seek(_second);
       final source = largeAsyncSvg();
-      await tester.pumpWidget(_host(XvgAnimated.string(source, controller: a)));
+      await tester.pumpWidget(_host(AnimatedXvg.string(source, controller: a)));
       expect(a.status, XvgPlaybackStatus.loading);
       expect(clock.subscriberCount, 0);
-      await tester.pumpWidget(_host(XvgAnimated.string(source, controller: b)));
+      await tester.pumpWidget(_host(AnimatedXvg.string(source, controller: b)));
       await _waitFor(tester, () => b.info != null);
       expect(a.info, isNull);
       expect(_paintTime(tester), _second);
@@ -264,7 +264,7 @@ void main() {
     (tester) async {
       final source = largeAsyncSvg();
       var loaded = false;
-      final widget = XvgAnimated.string(source, onLoaded: (_) => loaded = true);
+      final widget = AnimatedXvg.string(source, onLoaded: (_) => loaded = true);
       await tester.pumpWidget(_host(widget));
       expect(clock.subscriberCount, 0);
       await tester.pumpWidget(_host(widget, enabled: false));
@@ -283,10 +283,10 @@ void main() {
     (tester) async {
       final source = largeAsyncSvg();
       var loaded = false;
-      await tester.pumpWidget(_host(XvgAnimated.string(source)));
+      await tester.pumpWidget(_host(AnimatedXvg.string(source)));
       await tester.pumpWidget(
         _host(
-          XvgAnimated.string(
+          AnimatedXvg.string(
             source,
             autoplay: false,
             playbackRate: 2,
@@ -299,7 +299,7 @@ void main() {
       await tester.pump(_second);
       expect(_paintTime(tester), Duration.zero);
       await tester.pumpWidget(
-        _host(XvgAnimated.string(source, playbackRate: 2)),
+        _host(AnimatedXvg.string(source, playbackRate: 2)),
       );
       expect(clock.subscriberCount, 1);
       await tester.pump();
@@ -317,7 +317,7 @@ void main() {
       var loaded = false;
       await tester.pumpWidget(
         _host(
-          XvgAnimated.string(
+          AnimatedXvg.string(
             source,
             animation: animation,
             onLoaded: (_) => loaded = true,
@@ -327,7 +327,7 @@ void main() {
       animation.value = 0.75;
       await tester.pumpWidget(
         _host(
-          XvgAnimated.string(
+          AnimatedXvg.string(
             source,
             animation: animation,
             animationSpan: const Duration(seconds: 8),
@@ -353,7 +353,7 @@ void main() {
     var loaded = 0;
     await tester.pumpWidget(
       _host(
-        XvgAnimated.string(
+        AnimatedXvg.string(
           smallAsyncSvg,
           autoplay: false,
           onLoaded: (_) => loaded++,

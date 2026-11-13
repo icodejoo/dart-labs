@@ -4,7 +4,9 @@
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/painting.dart';
+import 'package:flutter/rendering.dart';
+import 'package:flutter/widgets.dart';
+import 'package:flutter_test/flutter_test.dart';
 import 'package:xvg/src/animation/animated_svg_painter.dart';
 import 'package:xvg/src/animation/svg_document_parser.dart';
 import 'package:xvg/src/animation/svg_dom.dart';
@@ -12,6 +14,24 @@ import 'package:xvg/src/animation/svg_theme.dart';
 
 /// 渲染画布边长（像素）。
 const int kPixelSize = 100;
+
+/// Reads raw RGBA from [key]'s repaint boundary and disposes the image.
+/// 从 [key] 的重绘边界读取原始 RGBA 并释放图像。
+Future<ByteData> captureBoundaryPixels(
+  WidgetTester tester,
+  GlobalKey key,
+) async {
+  final boundary =
+      key.currentContext!.findRenderObject()! as RenderRepaintBoundary;
+  return (await tester.runAsync(() async {
+    final image = await boundary.toImage();
+    try {
+      return (await image.toByteData(format: ui.ImageByteFormat.rawRgba))!;
+    } finally {
+      image.dispose();
+    }
+  }))!;
+}
 
 /// 把 [body] 包进 100x100 的 `<svg>` 并解析成动画文档。
 SvgDocument parsePixelDoc(String body) => parseAnimatedSvgDocument(
@@ -24,6 +44,7 @@ void _paintAt(Canvas canvas, SvgDocument document, Duration time) {
   AnimatedSvgPainter(
     root: document.root,
     intrinsicSize: Size(document.width, document.height),
+    rootViewBoxTransform: document.rootViewBoxTransform,
     clock: ValueNotifier(time),
     theme: const XvgTheme(),
     fit: BoxFit.fill,

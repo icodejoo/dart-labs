@@ -1,0 +1,80 @@
+name: Publish xvg
+
+# 在 Linux runner 上发布 xvg 到 pub.dev。
+# macOS 仅分发 Versions/A 的真实文件；podspec 在 pod install 时补建符号链接。
+# pub 会展开符号链接，不能把链接或展开副本打进发布包，否则 codesign 失败。
+#
+# 触发：推送形如 `xvg-v0.1.4` 的标签，且标签版本必须等于 xvg/pubspec.yaml 的 version。
+# 前置（pub.dev 后台一次性设置）：xvg → Admin → Automated publishing →
+#   Enable publishing from GitHub Actions，仓库 icodejoo/dart-labs，Tag pattern `xvg-v{{version}}`。
+
+on:
+  push:
+    tags:
+      - 'xvg-v[0-9]+.[0-9]+.[0-9]+*'
+
+env:
+  FLUTTER_VERSION: '3.47.0'
+
+jobs:
+  publish:
+    name: Publish to pub.dev
+    runs-on: ubuntu-latest
+    environment: pub.dev
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      - name: Check tag matches pubspec version
+        working-directory: xvg
+        run: |
+          tag_version="${GITHUB_REF_NAME#xvg-v}"
+          pubspec_version=$(grep -m1 '^version:' pubspec.yaml | awk '{print $2}')
+          test "$tag_version" = "$pubspec_version" \
+            || { echo "::error::tag $tag_version != pubspec $pubspec_version"; exit 1; }
+
+      # git/pub 只收录 Versions/A 的真实文件，链接由下游 pod install 补建。
+      - name: Check macOS framework contains only real files
+        working-directory: xvg
+        run: |
+          fw=macos/xvg.framework
+          for path in "$fw/Versions/Current" "$fw/xvg" "$fw/Resources"; do
+            test -z "$(git ls-files -- "$path")" \
+              && test ! -e "$path" && test ! -L "$path" \
+              || { echo "::error::$path must not ship in git/pub"; exit 1; }
+          done
+          for path in "$fw/Versions/A/xvg" "$fw/Versions/A/Resources/Info.plist"; do
+            git ls-files --error-unmatch -- "$path" > /dev/null
+            test -f "$path" && test ! -L "$path" \
+              || { echo "::error::$path must be a real file"; exit 1; }
+          done
+
+      - name: Check prebuilt artifacts match Rust sources
+        working-directory: xvg
+        run: dart run tool/check_prebuilt.dart
+
+      - name: Dry run
+        working-directory: xvg
+        run: flutter pub publish --dry-run
+
+      # subosito/flutter-action 不会像 dart-lang/setup-dart 那样配置 pub.dev 的 OIDC 令牌，
+      # 不配的话 pub publish 会等交互式谷歌授权直到超时。这里手动换取令牌交给 pub。
+      - name: Configure pub.dev OIDC token
+        run: |
+          token=$(curl -sSf -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=https://pub.dev" | jq -r .value)
+          test -n "$token" && [ "$token" != null ] || { echo "::error::failed to get OIDC token"; exit 1; }
+          echo "::add-mask::$token"
+          echo "PUB_TOKEN=$token" >> "$GITHUB_ENV"
+          flutter pub token add https://pub.dev --env-var PUB_TOKEN
+
+      - name: Publish
+        working-directory: xvg
+        run: flutter pub publish --force

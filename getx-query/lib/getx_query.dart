@@ -12,9 +12,6 @@ library;
 
 export 'package:flutter_query/flutter_query.dart'
     hide
-        QueryResult,
-        MutationResult,
-        InfiniteQueryResult,
         useQuery,
         useMutation,
         useQueryClient,

@@ -13,6 +13,92 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:xvg/src/animation/animation_detector.dart';
 
 void main() {
+  group('AnimationDetector.needsDartEngine', () {
+    setUp(AnimationDetector.clearMemo);
+    tearDown(() {
+      AnimationDetector.clearMemo();
+      AnimationDetector.maximumMemoSize = 1024;
+    });
+
+    for (final tag in [
+      '<text>',
+      '<TEXT>',
+      '<text/>',
+      '<text x="1">',
+      '<text\nx="1">',
+      '<svg:text>',
+    ]) {
+      test('$tag 走 Dart，但不是动画', () {
+        final source = '<svg>$tag</svg>';
+        // 先查动画再查分发，验证两种答案不会互相污染。
+        expect(AnimationDetector.hasAnimations(source), isFalse);
+        expect(AnimationDetector.needsDartEngine(source), isTrue);
+        expect(AnimationDetector.hasAnimations(source), isFalse);
+      });
+    }
+
+    for (final tag in [
+      '<path/>',
+      '<textarea>',
+      '<textPath>',
+      '<text-widget>',
+      '<text',
+    ]) {
+      test('$tag 不误命中文字', () {
+        final source = '<svg>$tag';
+        expect(AnimationDetector.needsDartEngine(source), isFalse);
+        expect(AnimationDetector.hasAnimations(source), isFalse);
+      });
+    }
+
+    for (final body in [
+      '<animate/>',
+      '<style>@KEYFRAMES spin{}</style>',
+      '<text>Hi<animate/></text>',
+      '<animate/><text>Hi</text>',
+    ]) {
+      test('$body 保留动画语义', () {
+        final source = '<svg>$body</svg>';
+        expect(AnimationDetector.needsDartEngine(source), isTrue);
+        expect(AnimationDetector.hasAnimations(source), isTrue);
+      });
+    }
+
+    test('4096 边界与超长源的两个结论都正确', () {
+      for (final length in [4096, 4097, 65536]) {
+        for (final body in ['<text/>', '<path/>', '<text/><animate/>']) {
+          final padding = ''.padRight(
+            length - body.length - '<svg></svg>'.length,
+            ' ',
+          );
+          final source = '<svg>$padding$body</svg>';
+          expect(source.length, length);
+          expect(AnimationDetector.needsDartEngine(source), body != '<path/>');
+          expect(
+            AnimationDetector.hasAnimations(source),
+            body.contains('<animate'),
+          );
+        }
+      }
+    });
+
+    test('重复、清空和共享淘汰后不混淆文字与动画', () {
+      AnimationDetector.maximumMemoSize = 2;
+      const text = '<svg><text>Hi</text></svg>';
+      for (var cycle = 0; cycle < 3; cycle++) {
+        expect(AnimationDetector.needsDartEngine(text), isTrue);
+        expect(AnimationDetector.needsDartEngine(text), isTrue);
+        expect(AnimationDetector.hasAnimations(text), isFalse);
+        for (var i = 0; i < 3; i++) {
+          expect(AnimationDetector.hasAnimations('<svg id="$i"/>'), isFalse);
+        }
+        expect(AnimationDetector.needsDartEngine(text), isTrue);
+        AnimationDetector.clearMemo();
+        expect(AnimationDetector.hasAnimations(text), isFalse);
+      }
+    });
+  });
+
   group('AnimationDetector.hasAnimations', () {
     test('detects a bare <animate> tag', () {
       expect(

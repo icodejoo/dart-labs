@@ -96,7 +96,7 @@ Widget _scene(
   XvgAnimationQuality? quality,
 }) => Directionality(
   textDirection: TextDirection.ltr,
-  child: XvgAnimated.string(source, controller: controller, quality: quality),
+  child: AnimatedXvg.string(source, controller: controller, quality: quality),
 );
 
 /// Returns the mounted painter without rebuilding it. / 读取挂载中的绘制器。
@@ -517,8 +517,8 @@ void main() {
         textDirection: TextDirection.ltr,
         child: Column(
           children: [
-            XvgAnimated.string(_loop, controller: running),
-            XvgAnimated.string(_loop, controller: late),
+            AnimatedXvg.string(_loop, controller: running),
+            AnimatedXvg.string(_loop, controller: late),
           ],
         ),
       ),
@@ -548,8 +548,8 @@ void main() {
         textDirection: TextDirection.ltr,
         child: Column(
           children: [
-            XvgAnimated.string(_loop, controller: running),
-            XvgAnimated.string(_loop, controller: late),
+            AnimatedXvg.string(_loop, controller: running),
+            AnimatedXvg.string(_loop, controller: late),
           ],
         ),
       ),
@@ -579,11 +579,11 @@ void main() {
         children: [
           TickerMode(
             enabled: first,
-            child: XvgAnimated.string(_loop, controller: controller),
+            child: AnimatedXvg.string(_loop, controller: controller),
           ),
           TickerMode(
             enabled: second,
-            child: XvgAnimated.string(_loop, controller: controller),
+            child: AnimatedXvg.string(_loop, controller: controller),
           ),
         ],
       ),
@@ -623,13 +623,13 @@ void main() {
         textDirection: TextDirection.ltr,
         child: Column(
           children: [
-            XvgAnimated.string(
+            AnimatedXvg.string(
               _loop,
               controller: controller,
               quality: degraded,
-              maxFps: 15,
+              fps: 15,
             ),
-            XvgAnimated.string(
+            AnimatedXvg.string(
               _loop,
               controller: controller,
               quality: XvgAnimationQuality.exact,

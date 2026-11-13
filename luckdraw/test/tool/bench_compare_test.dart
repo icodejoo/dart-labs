@@ -5,6 +5,15 @@ import 'package:flutter_test/flutter_test.dart';
 
 import '../../tool/bench/compare.dart';
 
+/// 以 UTF-8 解码子进程输出，避免 Windows 系统编码把中文断言文本读成乱码。
+Future<ProcessResult> _runUtf8(String executable, List<String> arguments,
+        {Map<String, String>? environment, bool runInShell = false}) =>
+    Process.run(executable, arguments,
+        environment: environment,
+        runInShell: runInShell,
+        stdoutEncoding: utf8,
+        stderrEncoding: utf8);
+
 /// 主包中预算文件的位置。
 const String _budgetPath = 'tool/bench/budgets.json';
 
@@ -57,7 +66,7 @@ void _writeReports(Directory directory) {
 /// 使用当前 PATH 的 Dart 启动纯脚本，参数只包含测试生成的临时路径。
 Future<ProcessResult> _compare(Directory directory,
         {List<String> options = const []}) =>
-    Process.run(
+    _runUtf8(
         'dart',
         [
           'run',

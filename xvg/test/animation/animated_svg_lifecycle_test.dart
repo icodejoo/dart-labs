@@ -1,12 +1,12 @@
-// Regression tests for XvgAnimated's three lifecycle-control additions:
-// `onAnimationStart`/`onAnimationComplete`/`onAnimationLoop`, `maxFps`, and
+// Regression tests for AnimatedXvg's three lifecycle-control additions:
+// `onAnimationStart`/`onAnimationComplete`/`onAnimationLoop`, `fps`, and
 // `playbackRate`. Each hooks into an existing, already-computed piece of
 // state (SvgDocument.totalDuration/hasIndefiniteLoop, the shared clock's
 // frame-divisor gate) rather than introducing new timing machinery, so these
 // tests exist to lock down the wiring, not to re-verify SMIL timing itself.
 //
-// XvgAnimated 三项生命周期控制新增的回归测试：
-// `onAnimationStart`/`onAnimationComplete`/`onAnimationLoop`、`maxFps`、
+// AnimatedXvg 三项生命周期控制新增的回归测试：
+// `onAnimationStart`/`onAnimationComplete`/`onAnimationLoop`、`fps`、
 // `playbackRate`。每一项都挂在已有的、已经算好的状态上（
 // SvgDocument.totalDuration/hasIndefiniteLoop、共享时钟的跳帧除数门控），而非
 // 引入新的计时机制，所以这些测试是为了锁定接线是否正确，不是重新验证 SMIL
@@ -59,7 +59,7 @@ Duration _clockOf(WidgetTester tester) {
   final paint = tester.widget<CustomPaint>(
     find
         .descendant(
-          of: find.byType(XvgAnimated),
+          of: find.byType(AnimatedXvg),
           matching: find.byType(CustomPaint),
         )
         .first,
@@ -77,7 +77,7 @@ void main() {
       var startCount = 0;
       await tester.pumpWidget(
         MaterialApp(
-          home: XvgAnimated.string(
+          home: AnimatedXvg.string(
             _spinner,
             width: 24,
             height: 24,
@@ -101,7 +101,7 @@ void main() {
       var completeCount = 0;
       await tester.pumpWidget(
         MaterialApp(
-          home: XvgAnimated.string(
+          home: AnimatedXvg.string(
             _quickFlash,
             width: 24,
             height: 24,
@@ -130,7 +130,7 @@ void main() {
       var completeCount = 0;
       await tester.pumpWidget(
         MaterialApp(
-          home: XvgAnimated.string(
+          home: AnimatedXvg.string(
             _spinner,
             width: 24,
             height: 24,
@@ -152,7 +152,7 @@ void main() {
         await tester.pumpWidget(
           MaterialApp(
             home: Builder(
-              builder: (context) => XvgAnimated.string(
+              builder: (context) => AnimatedXvg.string(
                 source,
                 width: 24,
                 height: 24,
@@ -166,7 +166,7 @@ void main() {
         await tester.pumpWidget(
           MaterialApp(
             home: Builder(
-              builder: (context) => XvgAnimated.string(
+              builder: (context) => AnimatedXvg.string(
                 source,
                 width: 24,
                 height: 24,
@@ -192,7 +192,7 @@ void main() {
         final iterations = <int>[];
         await tester.pumpWidget(
           MaterialApp(
-            home: XvgAnimated.string(
+            home: AnimatedXvg.string(
               _indefiniteWithFinitePeriod,
               width: 24,
               height: 24,
@@ -223,7 +223,7 @@ void main() {
       var loopCount = 0;
       await tester.pumpWidget(
         MaterialApp(
-          home: XvgAnimated.string(
+          home: AnimatedXvg.string(
             _spinner,
             width: 24,
             height: 24,
@@ -238,7 +238,7 @@ void main() {
     });
   });
 
-  group('maxFps', () {
+  group('fps', () {
     testWidgets('caps the sample rate below the display refresh rate', (
       tester,
     ) async {
@@ -247,7 +247,7 @@ void main() {
 
       await tester.pumpWidget(
         const MaterialApp(
-          home: XvgAnimated.string(_spinner, width: 24, height: 24, maxFps: 15),
+          home: AnimatedXvg.string(_spinner, width: 24, height: 24, fps: 15),
         ),
       );
 
@@ -270,26 +270,25 @@ void main() {
       expect(distinctSamples, greaterThan(4));
     });
 
-    testWidgets(
-      'null maxFps samples every eligible tick (no extra throttling)',
-      (tester) async {
-        tester.view.display.refreshRate = 60;
-        addTearDown(tester.view.display.resetRefreshRate);
+    testWidgets('null fps samples every eligible tick (no extra throttling)', (
+      tester,
+    ) async {
+      tester.view.display.refreshRate = 60;
+      addTearDown(tester.view.display.resetRefreshRate);
 
-        await tester.pumpWidget(
-          const MaterialApp(
-            home: XvgAnimated.string(_spinner, width: 24, height: 24),
-          ),
-        );
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: AnimatedXvg.string(_spinner, width: 24, height: 24),
+        ),
+      );
 
-        final samples = <Duration>[];
-        for (var i = 0; i < 10; i++) {
-          await tester.pump(const Duration(milliseconds: 16));
-          samples.add(_clockOf(tester));
-        }
-        expect(samples.toSet().length, 10);
-      },
-    );
+      final samples = <Duration>[];
+      for (var i = 0; i < 10; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+        samples.add(_clockOf(tester));
+      }
+      expect(samples.toSet().length, 10);
+    });
   });
 
   group('playbackRate', () {
@@ -298,7 +297,7 @@ void main() {
     ) async {
       await tester.pumpWidget(
         const MaterialApp(
-          home: XvgAnimated.string(
+          home: AnimatedXvg.string(
             _spinner,
             width: 24,
             height: 24,
@@ -326,7 +325,7 @@ void main() {
       var completeCount = 0;
       await tester.pumpWidget(
         MaterialApp(
-          home: XvgAnimated.string(
+          home: AnimatedXvg.string(
             _quickFlash,
             width: 24,
             height: 24,

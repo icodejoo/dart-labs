@@ -9,23 +9,29 @@ crate-type = ["cdylib", "staticlib"]
 [dependencies]
 flutter_rust_bridge = "=2.13.0"
 # Size optimization (re-applied 2026-08-26 after the fsvg→xvg rename lost it
-# to an accidental `git checkout`): usvg 0.49's optional features are `text`, `system-fonts`,
+# to an accidental `git checkout`): usvg 0.50's optional features are `text`, `system-fonts`,
 # `memmap-fonts`, `svgz`, `writer` (`flate2`/`base64`/`xmlwriter` are optional
 # deps behind them) — all are disabled here to drop the font-shaping,
 # system-font-loading and gzip machinery from the release binary.
 # Static-path `<text>` is sacrificed as a result (silently skipped, see the
 # `usvg::Node::Text` arm in `src/api/svg.rs`); the animation path's `<text>`
 # support (Flutter `TextPainter`-based) is a fully separate implementation and
-# is unaffected.
+# is unaffected. Re-measured on usvg 0.50 (2026-11-13, Windows x64 release):
+# enabling `text` grows the DLL from 618 KB to 1,575 KB (`system-fonts` adds
+# ~3.5 KB more), so it stays off; `Xvg`/`SvgImageProvider` route `<text>`
+# sources to the Dart engine instead.
 #
 # 体积优化（2026-08-26 重新应用，fsvg→xvg 改名事故中被一次误操作的
-# `git checkout` 丢弃后二次执行）：usvg 0.49 的可选 feature 为 `text`/`system-fonts`/
+# `git checkout` 丢弃后二次执行）：usvg 0.50 的可选 feature 为 `text`/`system-fonts`/
 # `memmap-fonts`/`svgz`/`writer`（`flate2`/`base64`/`xmlwriter` 是挂在其后的
 # 可选依赖），这里全部关闭，去掉字体排版/系统字体加载/gzip 相关代码以缩小
 # release 体积。代价是静态路径的 `<text>` 不再展平为路径
 # （静默跳过，见 `src/api/svg.rs` 的 `usvg::Node::Text` 分支）；动画路径的
 # `<text>` 支持（基于 Flutter `TextPainter`，完全独立实现）不受影响。
-usvg = { version = "0.49", default-features = false }
+# 2026-11-13 在 usvg 0.50 上复测（Windows x64 release）：开 `text` 后 DLL 从
+# 618 KB 涨到 1,575 KB（再开 `system-fonts` 只多约 3.5 KB），因此继续关闭；
+# 含 `<text>` 的源由 `Xvg`/`SvgImageProvider` 改交 Dart 引擎渲染。
+usvg = { version = "0.50", default-features = false }
 # CSS3/SVG named-colour table + `<transform-list>` grammar (MIT/Apache-2.0),
 # the same crate usvg itself parses SVG values with. Backs `parse_color` /
 # `parse_transform` so the Dart animation engine never hand-rolls either table.

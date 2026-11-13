@@ -1,6 +1,7 @@
 import 'package:cacheman/cacheman.dart';
 import 'package:flutter/material.dart';
 import '../demo_kit/demo_kit.dart';
+import '../get_storage_cache.dart';
 import '../demo_support.dart';
 
 /// 共享 Hub 的监听过滤与延迟落盘入口。
@@ -105,7 +106,7 @@ class _HubDemoState extends State<HubDemo> {
           purgeOnInit: true,
         ),
       );
-      final b = Cacheman(
+      final b = GetStorageCache(
         container: demoContainer,
         options: CachemanOptions(namespace: scope),
       );

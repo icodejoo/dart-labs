@@ -441,11 +441,11 @@ Android 四个 ABI 不存在这个问题:当场重建优化前源码得到 491,4
 | # | 优化 | 测量方式 | 优化前 | 优化后 | 变化 |
 |---|---|---|---|---|---|
 | 1 | `AnimationDetector` 四条分标签正则合并成一条多分支正则 | `detect_animations_static_sources`;同一运行内 `static_image_sniff_removed_work`(单条正则)×4 作为旧实现的同场代理 | ~1.47us/图标(0.368×4) | 0.515us/图标 | **−65%**;跨运行原始值 1.142→0.515 |
-| 2 | `XvgStatic.build` 先查 picture 缓存,只在真正未命中时才做 `<image>` 正则嗅探 | 同一运行内 `static_image_sniff_removed_work` vs `static_cache_peek_added_work` | 0.297us/图标(正则) | 0.040us/图标(哈希查找) | **每次重建每图标省 0.257us** |
+| 2 | `StaticXvg.build` 先查 picture 缓存,只在真正未命中时才做 `<image>` 正则嗅探 | 同一运行内 `static_image_sniff_removed_work` vs `static_cache_peek_added_work` | 0.297us/图标(正则) | 0.040us/图标(哈希查找) | **每次重建每图标省 0.257us** |
 | 3 | `XvgDocumentCache`:已解析动画文档的进程级 LRU | 同一运行内 `anim_parse_document` vs `anim_document_cache_hit` | 40.015us/图标(完整 XML 解析+建时间线) | 0.023us/图标 | **重新挂载成本降到约 1/1700** |
 | 4 | `_paintNode` 在节点没有 `<animate>` 时直接复用 `node.attributes`,不再每节点每帧拷贝一份属性表 | `anim_paint_frame` | 21.789us | 21.115us | −3.1%(小,按实测值如实记录) |
 | 5 | `_geometryPath` 把构建好的 `ui.Path` 按"构建来源身份"缓存在节点上(`<path>` 用 `d` 字符串,其余用属性表实例) | `anim_paint_frame` | 21.115us | 15.238us | **−27.8%** 原始值;该轮 `calibration_alloc_and_record` 1.053 对基线 0.934(机器忙 +12.7%),归一化后约 **−35%** |
-| 6 | `XvgAnimated` 改用绑定到 `AnimatedSvgPainter.clock` 的 `ValueNotifier` 发布时间线,不再每 tick 一次 `setState`(经 `CustomPainter.repaint` 跳过 build+layout 两个阶段) | 静止模式 build avg,各 5 次 | 0.376ms 中位(0.362~0.403) | 0.356ms 中位(0.342~0.365) | **−5.3%**,`framesOver8.3ms` 上限 1→0。滚动场景**测不出差别**(3.194 vs 3.189ms),已如实记录 |
+| 6 | `AnimatedXvg` 改用绑定到 `AnimatedSvgPainter.clock` 的 `ValueNotifier` 发布时间线,不再每 tick 一次 `setState`(经 `CustomPainter.repaint` 跳过 build+layout 两个阶段) | 静止模式 build avg,各 5 次 | 0.376ms 中位(0.362~0.403) | 0.356ms 中位(0.342~0.365) | **−5.3%**,`framesOver8.3ms` 上限 1→0。滚动场景**测不出差别**(3.194 vs 3.189ms),已如实记录 |
 | 7 | `rust_static_svg` 的 `_replay` 形参改成 `Uint8List`/`Float32List`(FFI 桥实际返回的类型)并改用带下标的循环 | 同一进程内配对 `replay_typed_lists` vs `replay_interface_lists` | 125.2~129.2us | 118.8~121.0us | **重放循环本身 −3%~−6%**;`static_parse_record` 分辨不出(其 21.5us 大头是 Rust 解析) |
 
 **附带修掉的一个真实 bug(动画路径 `<clipPath>`)**:`_resolveClipPath` 里 `geometry.transform(matrix)` 被当成裸语句调用,但 dart:ui 的 `Path.transform` 是**返回**变换后的副本、不动接收者("Returns a copy of the path with all the segments of every sub-path transformed by the given matrix"),所以返回值被丢弃——`<clipPath>` 内容上的变换被静默忽略,同时每个裁剪节点每帧还白白分配一整份 Path 副本。
@@ -529,7 +529,7 @@ flutter run -d windows --profile --dart-define=LIB=compare --dart-define=CYCLES=
 
 ### 识别到但**没有实测支撑**,因此没做
 
-- **`XvgStatic._buildFromInfo` 里的 `Directionality.maybeOf(context)`**:`alignment` 是 `Alignment`(默认 `Alignment.center`)时 `resolve()` 根本不看 `TextDirection`,这次 `dependOnInheritedWidgetOfExactType` 既白付了查找与依赖登记,还让每个静态图标白白依赖 `Directionality`。
+- **`StaticXvg._buildFromInfo` 里的 `Directionality.maybeOf(context)`**:`alignment` 是 `Alignment`(默认 `Alignment.center`)时 `resolve()` 根本不看 `TextDirection`,这次 `dependOnInheritedWidgetOfExactType` 既白付了查找与依赖登记,还让每个静态图标白白依赖 `Directionality`。
   改法只有一行(`alignment is Alignment` 就直接用)。**没做的理由是测不了**:`LIB=micro` 模式没有控件树,现有微基准里没有任何一项会走 `build()`;而滚动基准分辨不出这个量级(上一节已记录)。
   要落地它得先给 micro 加一个真实 Element 树的探针,那是下一轮的事。
 - **`_paintShape` 里每段虚线直接 `drawPath` 而不合并成一条路径**:能再省掉每段一次原生路径拷贝,但会增加显示列表里的绘制指令数,而 raster 侧成本 `LIB=micro` 测不到,不敢在没有 raster 证据的情况下动。
@@ -581,7 +581,7 @@ flutter run -d windows --profile --dart-define=LIB=compare --dart-define=CYCLES=
 
 ### 测了但**没有效果**,因此回滚
 
-- **去掉 `XvgAnimated.build` 里的逐图标 `RepaintBoundary`**。这次是在瓶颈已经从 build 移到 raster **之后**测的——也就是"逐图标图层正是 raster 耗时元凶"这个假设最有理由成立的时机,不是沿用旧结论。
+- **去掉 `AnimatedXvg.build` 里的逐图标 `RepaintBoundary`**。这次是在瓶颈已经从 build 移到 raster **之后**测的——也就是"逐图标图层正是 raster 耗时元凶"这个假设最有理由成立的时机,不是沿用旧结论。
   结果全部落在波动内:`real_fps` 30.00 → 30.13,build 20.25 → 20.24ms,raster 21.86 → 21.98ms。
   **已回滚**,理由记在代码注释里:网格场景显示不出它的收益(所有图标共用一个时钟,本来就同帧全脏),但单个动画图标处在因自身原因重绘的父树里时,去掉它并不免费。
   这与 flutter_svg 社区的实测一致(dnfield 反复推荐 RepaintBoundary,但 #560 / #111 多人实测对"很多小图标的大列表"无效,只有 #257 的"单个大 SVG 在滚动容器里"确认有效)。
@@ -629,7 +629,7 @@ flutter run -d windows --profile --dart-define=LIB=compare --dart-define=CYCLES=
 - **降级 1:错相位逐图标跳帧**。并发动画图标数超过 `frameSkipThreshold`(默认 24)后,每个图标每 N 帧才推进一次自己的 SMIL 时间线;普通文档 N=2(60Hz 屏上即 30Hz),需要离屏图层(`mask`/模糊)的文档 N=3(20Hz)。相位由 `_SharedAnimationClock` 连号发放,滚动网格里格子按视觉顺序挂载,于是"这一帧重绘一半、下一帧另一半"自然成立。
 - **降级 2:简单 mask 改画成裁剪**。内容只有完全不透明纯黑/纯白填充的 `<mask>` 表达的是二值覆盖区域,而裁剪路径就是二值覆盖区域,于是直接画成 `clipPath`,**该 mask 的两个 saveLayer 一个都不开**。
 
-两项都**只在超过同一个并发阈值后生效**,阈值以内渲染路径与此前完全一致(单图标/少量图标场景零影响);都可以全局 `XvgAnimationQuality.defaultQuality = XvgAnimationQuality.exact` 或逐控件 `XvgAnimated.string(src, quality: XvgAnimationQuality.exact)` 关掉。
+两项都**只在超过同一个并发阈值后生效**,阈值以内渲染路径与此前完全一致(单图标/少量图标场景零影响);都可以全局 `XvgAnimationQuality.defaultQuality = XvgAnimationQuality.exact` 或逐控件 `AnimatedXvg.string(src, quality: XvgAnimationQuality.exact)` 关掉。
 
 **牺牲了什么,逐项写清**:
 - 降级 1 的代价是**时间维度**的:几何/颜色/描边/渐变/mask 覆盖度全部仍然精确计算,像素与以前一致,只是采样点变少。可察觉的是快动画的运动变粗糙(0.2s 的 `stroke-dashoffset` 展开在 30Hz 下约 6 个离散步而非约 12 步)。**没有任何东西位移、变色或消失**。
@@ -1130,7 +1130,7 @@ vivo V2283A   56.90         56.64         基本打平(无提升)
 - 每个 slice 归属到调用栈上最内层的粗粒度阶段(`BUILD`/`LAYOUT`/`PAINT`/`Animate`/`Frame`/…),按阶段分块输出。
 - 已知局限(如实记录):`X` 事件的嵌套子级无法从平铺列表还原,其 self time 按完整耗时上报;框架的 build/layout/paint 埋点全是 B/E,所以只影响引擎侧 C++ slice。
 
-**离线校验**(不需要真机):用合成 trace 跑 `--summarize`,验证 self time 加总恒等(BUILD 180 = BUILD 自身 60 + 2×XvgAnimated 80 + CustomPaint 40;`XvgAnimated` total 120 / self 80;`Frame` self 100 = 800 − 700)、线程名与阶段归属均正确。
+**离线校验**(不需要真机):用合成 trace 跑 `--summarize`,验证 self time 加总恒等(BUILD 180 = BUILD 自身 60 + 2×AnimatedXvg 80 + CustomPaint 40;`AnimatedXvg` total 120 / self 80;`Frame` self 100 = 800 − 700)、线程名与阶段归属均正确。
 
 ### 主机侧成本归因:一个动画图标格子的钱花在哪
 
@@ -1158,7 +1158,7 @@ vivo V2283A   56.90         56.64         基本打平(无提升)
 
 ### 已落地的一项改动:去掉每个图标一层冗余的 `SizedBox`
 
-`XvgAnimated` 与 `XvgStatic` 都曾把无 child 的 `CustomPaint` 套在同尺寸 `SizedBox` 里。但 `RenderCustomPaint.computeSizeForNoChild` 返回的就是 `constraints.constrain(preferredSize)`(SDK `rendering/custom_paint.dart:580`),与 `SizedBox` 包一层的结果在**所有**约束状态下都相同。已移除,每个图标少一个 `Element` + 一个 `RenderConstrainedBox`。
+`AnimatedXvg` 与 `StaticXvg` 都曾把无 child 的 `CustomPaint` 套在同尺寸 `SizedBox` 里。但 `RenderCustomPaint.computeSizeForNoChild` 返回的就是 `constraints.constrain(preferredSize)`(SDK `rendering/custom_paint.dart:580`),与 `SizedBox` 包一层的结果在**所有**约束状态下都相同。已移除,每个图标少一个 `Element` + 一个 `RenderConstrainedBox`。
 
 等价性验证(`test/animation/widget_tree_depth_test.dart`,主机 5 项全绿):四种约束状态(紧于图标 20×20 / 松于图标 / 松到父级 / 紧且大于图标 64×64)下最终尺寸逐项不变,且树里确认不再出现 `RenderConstrainedBox`。改动前该测试如预期失败(链路为 `RenderRepaintBoundary → RenderConstrainedBox → RenderCustomPaint`)。
 
@@ -1190,7 +1190,7 @@ dart run benchmark/bench_app/tool/capture_timeline.dart --summarize timeline_bui
 powershell -File benchmark/bench_app/tool/run_android_anim_fps.ps1
 ```
 
-看 timeline 时要回答的具体问题:`io.flutter.ui | BUILD` 桶里 self time 最高的是 `XvgAnimated` / `Xvg` / `CustomPaint` 这些 xvg 自己的控件,还是 `KeyedSubtree` / `RepaintBoundary` / `_SliverGridDelegate` 之类框架层的格子机械开销?主机侧归因预测是**后者约占 2/3**;真机若也如此,则 build 端剩下的杠杆只有"少挂载"(减少每格层数、或让格子不被销毁),而不是继续优化 xvg 的计算。
+看 timeline 时要回答的具体问题:`io.flutter.ui | BUILD` 桶里 self time 最高的是 `AnimatedXvg` / `Xvg` / `CustomPaint` 这些 xvg 自己的控件,还是 `KeyedSubtree` / `RepaintBoundary` / `_SliverGridDelegate` 之类框架层的格子机械开销?主机侧归因预测是**后者约占 2/3**;真机若也如此,则 build 端剩下的杠杆只有"少挂载"(减少每格层数、或让格子不被销毁),而不是继续优化 xvg 的计算。
 
 ## 调研并否决:Impeller shader 预热(2026-08-27)
 
@@ -1411,7 +1411,7 @@ flutter run -d 7NQBB23606003715 --profile --dart-define=LIB=compare --dart-defin
 
 #### A/B 验证结果:逐图标 `RepaintBoundary`(未坐实,2026-09-01)
 
-**假设**:上面第 1 条提到的 raster 反转,怀疑根因是 `lib/src/rust_static_svg.dart` 的 `XvgStatic._buildFromInfo` 给每个图标无条件套了一层独立 `RepaintBoundary`(第 1072 行 `return RepaintBoundary(child: child);`)。1000 格网格场景下所有图标同帧全部重绘,`RepaintBoundary` 的图层保留收益用不上,反而在移动端 tile-based GPU 上"每帧提升+合成大量独立层"可能有明显常数开销。
+**假设**:上面第 1 条提到的 raster 反转,怀疑根因是 `lib/src/rust_static_svg.dart` 的 `StaticXvg._buildFromInfo` 给每个图标无条件套了一层独立 `RepaintBoundary`(第 1072 行 `return RepaintBoundary(child: child);`)。1000 格网格场景下所有图标同帧全部重绘,`RepaintBoundary` 的图层保留收益用不上,反而在移动端 tile-based GPU 上"每帧提升+合成大量独立层"可能有明显常数开销。
 
 **方法**:同一台设备(华为 STG-AL00,`7NQBB23606003715`,Android 12),同一条命令,只跑单侧 `LIB=xvg`(不比 flutter_svg,省时间):
 
@@ -1432,7 +1432,7 @@ flutter run -d 7NQBB23606003715 --profile --dart-define=LIB=xvg --dart-define=CY
 内存(`rss_peak_mb`):A=170.35,B=173.25,差距在噪声量级,无明显变化。
 
 **结论**:假设**未坐实**。raster avg 两组几乎相同(11.541 vs 11.630ms,B 反而略高),p50/p90/p99/max 均在噪声范围内互有高低,没有出现"去掉 RepaintBoundary 后 raster 显著下降"的信号。
-这与本文档"测了但没有效果,因此回滚"一节中动画路径(`XvgAnimated.build`)同类实验的结论一致(那次是 `real_fps`/build/raster 全部落在波动内)——静态路径这次的单点验证方向相同,进一步印证"逐图标 `RepaintBoundary` 不是 Android 真机 raster 反转的根因"这个方向,但因为只跑了 1 次、且尚未排除其他候选(绘制调用模式差异、Impeller 平台差异等),**不能就此关闭"根因未明"的遗留问题**,仍建议后续用 DevTools timeline 做更细粒度归因。
+这与本文档"测了但没有效果,因此回滚"一节中动画路径(`AnimatedXvg.build`)同类实验的结论一致(那次是 `real_fps`/build/raster 全部落在波动内)——静态路径这次的单点验证方向相同,进一步印证"逐图标 `RepaintBoundary` 不是 Android 真机 raster 反转的根因"这个方向,但因为只跑了 1 次、且尚未排除其他候选(绘制调用模式差异、Impeller 平台差异等),**不能就此关闭"根因未明"的遗留问题**,仍建议后续用 DevTools timeline 做更细粒度归因。
 
 #### 深挖二:`drawPicture` 重放 vs 位图烘焙 A/B(2026-09-01)
 
@@ -1468,10 +1468,10 @@ flutter run -d 7NQBB23606003715 --profile --dart-define=LIB=xvg --dart-define=CY
 
 **后续正式修复方向建议**:
 
-1. 把位图烘焙做成可选策略(例如 `XvgStatic(cacheAsBitmap: true)` 或按图标复杂度/预期重绘频率自动决策),而非默认行为——用内存换 raster 时间只在"同一图标高频重绘、复杂度较高、不换色"的场景划算。
+1. 把位图烘焙做成可选策略(例如 `StaticXvg(cacheAsBitmap: true)` 或按图标复杂度/预期重绘频率自动决策),而非默认行为——用内存换 raster 时间只在"同一图标高频重绘、复杂度较高、不换色"的场景划算。
 2. 首帧烘焙开销需要挪出 UI 线程关键路径:优先用异步 `toImage`(配合占位帧回退到 `drawPicture`),或在图标首次进入缓存时就后台预烘焙,避免像本次实验那样在 `paint` 同步调用 `toImageSync` 导致 build p99/max 变差。
 3. 必须处理 `currentColor` 动态换色场景下的缓存失效:烘焙图应当和 `RustXvgPictureCache` 现有的 `(source, currentColorArgb)` 缓存键对齐,换色时视为不同键、各自独立烘焙,而不是像本次临时实现那样一次性挂死在 `RustSvgPictureInfo` 上。
-4. 需要评估烘焙分辨率策略:本次固定按 96x96 物理像素估算,实际应按 `XvgStatic` 真实渲染尺寸 × 设备 `devicePixelRatio` 动态决定,并设置上限防止大尺寸插画烘焙出过大的位图。
+4. 需要评估烘焙分辨率策略:本次固定按 96x96 物理像素估算,实际应按 `StaticXvg` 真实渲染尺寸 × 设备 `devicePixelRatio` 动态决定,并设置上限防止大尺寸插画烘焙出过大的位图。
 
 **局限说明**:本次只跑了 1 次 A/B,非多次取均值,存在单次运行噪声;临时实现未处理边界情况(换色失效、烘焙分辨率固定、无预烘焙调度),仅供方向性参考,不构成最终结论。
 
@@ -1557,7 +1557,7 @@ dart run tool/capture_timeline.dart "http://127.0.0.1:PORT/TOKEN=/" 40 skia_xvg.
 
 **方法**:不在真实 widget 树上包装 Canvas——两个库都会把源串解析结果缓存成一份 `ui.Picture`,paint 时都只调一次 `drawPicture`,在那一层量不出差异。改为在**两个库各自把场景录制进 `ui.Picture`** 的那一步插桩计数,离屏跑、不经过 GPU 光栅化:
 
-- xvg:给 `RustXvgPictureCache`(`lib/src/rust_static_svg.dart`)新增 `@visibleForTesting static Canvas Function(Canvas)? debugWrapRecordingCanvas` 钩子,默认 `null`(零开销),插在 `_recordScene` 构建 `Canvas(recorder)` 处,可以拦截 `getOrRender` 的真实录制过程——`XvgStatic` 调用的正是这个方法。
+- xvg:给 `RustXvgPictureCache`(`lib/src/rust_static_svg.dart`)新增 `@visibleForTesting static Canvas Function(Canvas)? debugWrapRecordingCanvas` 钩子,默认 `null`(零开销),插在 `_recordScene` 构建 `Canvas(recorder)` 处,可以拦截 `getOrRender` 的真实录制过程——`StaticXvg` 调用的正是这个方法。
 - flutter_svg:不改它的源码,绕开 `SvgPicture` widget,直接调用它底层用的同一套代码——`vector_graphics_compiler` 的 `encodeSvg()` + `vector_graphics` 的 `FlutterVectorGraphicsListener(pictureFactory: ...)`,通过公开的 `PictureFactory` 注入点(标了 `@visibleForTesting` 但语言层面不私有)换成计数 Canvas。
   `encodeSvg` 默认开着的 masking/clipping/overdraw 三个优化器依赖真机上未初始化的原生 `libpathops` 库,会直接抛异常;查了 flutter_svg 自己 `loaders.dart` 里 `SvgStringLoader._load` 的运行时调用,发现它自己也是三个都传 `false`,照抄同样的参数以保证测的是它真实生产路径。
 
@@ -1716,7 +1716,7 @@ SurfaceFrame::Encode — self=345.39ms, count=327
 
 **支线一:"xvg 按图标缓存 Picture → 更多合成层"——源码核查后证伪**。深挖七发现同一 40 秒 trace 窗口内 xvg 产生 637 帧、flutter_svg 只有 327 帧,一度怀疑是 xvg 的 `RustXvgPictureCache`(每图标一份独立 `ui.Picture`)导致每个图标在合成阶段被当成独立 layer,带来固定的每层编码开销。
 核查 Flutter SDK 源码(`packages/flutter/lib/src/widgets/sliver.dart`)发现 `SliverChildBuilderDelegate`(`GridView.builder` 内部用的就是它)**默认 `addRepaintBoundaries: true`**——也就是说不管 xvg 还是 flutter_svg,每个网格 cell 本来就会被 `GridView.builder` 自动包一层独立 `RepaintBoundary`,这是网格本身的默认行为,两侧的合成层数量级本应相同,不是 xvg 独有的架构开销。
-这也补上了 2026-09-01 早些时候"逐图标 `RepaintBoundary` A/B"(文档"未坐实"那节)测不出差异的解释:那次去掉的只是 `XvgStatic` 自己额外加的一层冗余嵌套,`GridView.builder` 的默认边界从未被移除,A/B 两组本就不该有差别。
+这也补上了 2026-09-01 早些时候"逐图标 `RepaintBoundary` A/B"(文档"未坐实"那节)测不出差异的解释:那次去掉的只是 `StaticXvg` 自己额外加的一层冗余嵌套,`GridView.builder` 的默认边界从未被移除,A/B 两组本就不该有差别。
 **假设证伪,不建议再往"数 layer 数量"方向投入插桩。**
 
 **支线二:flutter_svg 自身的 `compute()` 异步解码是否导致 raster p99 尖峰——机制成立,因果关系未被坐实**。
@@ -2198,14 +2198,14 @@ UI 线程各阶段 self time(557 帧;`PROFILEWIDGETS` 埋点会抬高绝对值,�
 | COMPOSITING | 889.7 | 1.60 |
 | FINALIZE TREE | 197.7 | 0.35 |
 
-BUILD 内部按控件:`XvgStatic` 17.0% / `BUILD` 自身 14.4% / `RepaintBoundary` 13.3% / `KeepAlive` 9.4% / `IndexedSemantics` 7.5% / `Padding`(基准自己加的) 7.1% / `KeyedSubtree` 6.1% / `_SelectionKeepAlive` 6.0% / `AutomaticKeepAlive` 5.9% / `NotificationListener<KeepAliveNotification>` 5.1% / `CustomPaint` 3.9%。
+BUILD 内部按控件:`StaticXvg` 17.0% / `BUILD` 自身 14.4% / `RepaintBoundary` 13.3% / `KeepAlive` 9.4% / `IndexedSemantics` 7.5% / `Padding`(基准自己加的) 7.1% / `KeyedSubtree` 6.1% / `_SelectionKeepAlive` 6.0% / `AutomaticKeepAlive` 5.9% / `NotificationListener<KeepAliveNotification>` 5.1% / `CustomPaint` 3.9%。
 PAINT 内部:`RenderSliverGrid` 25.1% / `RenderIndexedSemantics` 22.9% / **`RenderCustomPaint`(xvg 真正画图标)17.3%** / `RenderPadding` 13.8% / `RenderRepaintBoundary` 8.7%。
 LAYOUT 内部:`RenderSliverGrid` 51.6% / `RenderIndexedSemantics` 26.0% / `RenderRepaintBoundary` 10.4% / `RenderPadding` 5.2% / `RenderCustomPaint` 2.1%。
 
-把 BUILD/LAYOUT/PAINT 三阶段的具名 slice 合起来算,**xvg 自己的控件(`XvgStatic` + `CustomPaint` + `RenderCustomPaint`)只占 698ms / 5078ms = 13.7%**,其余是 `GridView.builder` 默认给每个格子套的 7 层框架控件(`RepaintBoundary`/`AutomaticKeepAlive`/`KeepAlive`/`_SelectionKeepAlive`/`NotificationListener<KeepAliveNotification>`/`IndexedSemantics`/`KeyedSubtree`)加 `RenderSliverGrid` 自身。
+把 BUILD/LAYOUT/PAINT 三阶段的具名 slice 合起来算,**xvg 自己的控件(`StaticXvg` + `CustomPaint` + `RenderCustomPaint`)只占 698ms / 5078ms = 13.7%**,其余是 `GridView.builder` 默认给每个格子套的 7 层框架控件(`RepaintBoundary`/`AutomaticKeepAlive`/`KeepAlive`/`_SelectionKeepAlive`/`NotificationListener<KeepAliveNotification>`/`IndexedSemantics`/`KeyedSubtree`)加 `RenderSliverGrid` 自身。
 这在真机上验证了 2026-08-27 五轮主机侧归因的预测("框架树机械开销约占 2/3"),而且真机上比预测的还要偏向框架侧。
 
-一条顺带得到的机制事实:`XvgStatic` 在窗口内只 build 了 10416 次 / 530 帧 = **19.7 次/帧**,`RenderCustomPaint` 也只 paint 了 18.2 次/帧——**每格自带的 `RepaintBoundary` 让只有新滚入的那约 20 个格子重建 + 重绘,其余约 190 个格子只参与合成**。但 raster 线程那边没有这个便宜:Impeller 每帧仍要把全部约 210 个图标重新编码一次。**"UI 线程只处理增量、raster 线程处理全量"是这个场景的成本结构。**
+一条顺带得到的机制事实:`StaticXvg` 在窗口内只 build 了 10416 次 / 530 帧 = **19.7 次/帧**,`RenderCustomPaint` 也只 paint 了 18.2 次/帧——**每格自带的 `RepaintBoundary` 让只有新滚入的那约 20 个格子重建 + 重绘,其余约 190 个格子只参与合成**。但 raster 线程那边没有这个便宜:Impeller 每帧仍要把全部约 210 个图标重新编码一次。**"UI 线程只处理增量、raster 线程处理全量"是这个场景的成本结构。**
 
 **这意味着 xvg 侧还剩哪些真实杠杆**
 
@@ -2217,7 +2217,7 @@ LAYOUT 内部:`RenderSliverGrid` 51.6% / `RenderIndexedSemantics` 26.0% / `Rende
 **本节局限,如实标注**
 
 - 每种配置 1~2 次运行,没有多次取中位数;但 `raster>8.3ms` 在四次独立运行里落在 88.9%~94.8%、`build>8.3ms` 落在 34.5%~41.7%,方向性结论不依赖重复。
-- trace 那一次同时开了 `--trace-skia` 和 `PROFILEWIDGETS=1`,**绝对值被显著抬高**,只能读结构不能读数值;尤其 `RenderIndexedSemantics` 这类**高频低耗**行(LAYOUT 里 110872 次、self 3.78μs/次),其 self time 里相当比例就是埋点本身的写入成本,框架侧占比被高估。高单次成本的行(`XvgStatic` 28.4μs、`RenderCustomPaint` 29.5μs、`RenderSliverGrid` 1565μs)更可信。
+- trace 那一次同时开了 `--trace-skia` 和 `PROFILEWIDGETS=1`,**绝对值被显著抬高**,只能读结构不能读数值;尤其 `RenderIndexedSemantics` 这类**高频低耗**行(LAYOUT 里 110872 次、self 3.78μs/次),其 self time 里相当比例就是埋点本身的写入成本,框架侧占比被高估。高单次成本的行(`StaticXvg` 28.4μs、`RenderCustomPaint` 29.5μs、`RenderSliverGrid` 1565μs)更可信。
 - `SurfaceFrame::Submit` 含等待,深挖三已标注过,本表沿用同一警告。
 - CPU 频率采样只做了一次、且与基准窗口没有严格对齐,"前 3~4 秒满频"是方向性证据,不是精确的加速时长。
 - 本节全部插桩(`BSERIES`/`RSERIES` 导出、`KEEPALIVE`、`PREWARM`、`FrameTimingCollector` 的两个序列 getter)是实验性代码,数据记录完毕后已 `git checkout` 还原。
@@ -2459,8 +2459,8 @@ flutter run -d <device> --profile --dart-define=LIB=static20 --dart-define=TARGE
 
 **假设**:`lib/src/svg_image_provider.dart` 里 `const _supersample = 2`(在设备自身 `devicePixelRatio` 之上再叠加 2x 超采样,用于弥补 `ui.Picture.toImage` 离屏快照没有 MSAA 的问题)会让光栅化的像素数变成不加超采样时的 4 倍,理应有可测的 CPU/耗时代价;如果代价明显,去掉它换回"原始清晰度"(`_supersample = 1`)可能是划算的性能优化。
 
-**范围说明**:这个常量只影响 `StringXvg`/`AssetXvg`/`NetworkXvg`/`FileXvg`/`MemoryXvg`(即 `SvgImageProvider` 家族,`Image(image: ...)`/`DecorationImage` 用法),**不影响** `XvgStatic`/`XvgAnimated`(直接画上表面,引擎给 MSAA)。
-本仓库此前所有基准(`bench_screen.dart`、`static20_bench_screen.dart` 等)全部走 `XvgStatic`/`SvgPicture.string`,没有一个碰到过这条路径,因此是 xvg 对 xvg 的自比较,不涉及 flutter_svg(它没有等价的离屏 `toImage` ImageProvider)。
+**范围说明**:这个常量只影响 `StringXvg`/`AssetXvg`/`NetworkXvg`/`FileXvg`/`MemoryXvg`(即 `SvgImageProvider` 家族,`Image(image: ...)`/`DecorationImage` 用法),**不影响** `StaticXvg`/`AnimatedXvg`(直接画上表面,引擎给 MSAA)。
+本仓库此前所有基准(`bench_screen.dart`、`static20_bench_screen.dart` 等)全部走 `StaticXvg`/`SvgPicture.string`,没有一个碰到过这条路径,因此是 xvg 对 xvg 的自比较,不涉及 flutter_svg(它没有等价的离屏 `toImage` ImageProvider)。
 
 **新增基准**:`benchmark/bench_app/lib/imgprovider_bench_screen.dart`(`LIB=imgprovider`)。
 不搭组件树,直接用 `ImageProvider.resolve` + 一次性 `ImageStreamListener` 驱动 `StringXvg`(等价于 `precacheImage` 的驱动方式),20 个图标、20 轮,每轮沿用深挖十六的"`</svg>` 前插入 `<!--r$round-->` 注释"手法确保源字符串真正改变,并在每轮之间清空 Flutter 自己的 `ImageCache`(`clear()` + `clearLiveImages()`),避免 Flutter 缓存命中掩盖光栅化开销。

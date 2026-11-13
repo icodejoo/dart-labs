@@ -654,7 +654,7 @@ class _Static20BenchRunnerState extends State<Static20BenchRunner> {
             Padding(
               padding: const EdgeInsets.all(4),
               child: widget.lib == BenchLib.xvg
-                  ? XvgStatic(sources[i], width: 32, height: 32)
+                  ? StaticXvg(sources[i], width: 32, height: 32)
                   : SvgPicture.string(
                       sources[i],
                       width: 32,

@@ -1,7 +1,7 @@
 // ignore_for_file: implementation_imports, invalid_use_of_internal_member
 
 import 'package:flutter_query/flutter_query.dart'
-    hide MutationResult, useQuery, useQueryClient, QueryResult,
+    hide useQuery, useQueryClient,
         QueryClientProvider, useInfiniteQuery, useIsFetching, useIsMutating,
         useMutationState, useMutation;
 import 'package:flutter_query/src/core/mutation_observer.dart';

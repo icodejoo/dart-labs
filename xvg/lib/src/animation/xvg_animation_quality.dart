@@ -9,7 +9,7 @@
 
 import 'package:flutter/foundation.dart';
 
-/// Controls how aggressively `XvgAnimated` is allowed to degrade animation
+/// Controls how aggressively `AnimatedXvg` is allowed to degrade animation
 /// smoothness-per-icon in exchange for overall frame throughput when many
 /// animated icons play at once.
 ///
@@ -65,9 +65,9 @@ import 'package:flutter/foundation.dart';
 ///
 /// Globally: `XvgAnimationQuality.defaultQuality = XvgAnimationQuality.exact;`
 ///
-/// Per widget: `XvgAnimated.string(src, quality: XvgAnimationQuality.exact)`
+/// Per widget: `AnimatedXvg.string(src, quality: XvgAnimationQuality.exact)`
 ///
-/// 控制"同时播放大量动画图标"时，`XvgAnimated` 可以多激进地牺牲单图标的动画
+/// 控制"同时播放大量动画图标"时，`AnimatedXvg` 可以多激进地牺牲单图标的动画
 /// 流畅度，来换取整体帧吞吐。
 ///
 /// ## 到底牺牲了什么
@@ -111,7 +111,7 @@ import 'package:flutter/foundation.dart';
 ///
 /// 全局：`XvgAnimationQuality.defaultQuality = XvgAnimationQuality.exact;`
 ///
-/// 单个控件：`XvgAnimated.string(src, quality: XvgAnimationQuality.exact)`
+/// 单个控件：`AnimatedXvg.string(src, quality: XvgAnimationQuality.exact)`
 ///
 /// Example:
 /// ```dart
@@ -136,10 +136,10 @@ class XvgAnimationQuality {
   ///
   ///   总开关；false 表示任何并发量下都不为任何图标跳帧（精确采样）。
   ///
-  /// [frameSkipThreshold] — number of concurrently-animating `XvgAnimated`
+  /// [frameSkipThreshold] — number of concurrently-animating `AnimatedXvg`
   ///   instances at or below which nothing is degraded.
   ///
-  ///   并发播放的 `XvgAnimated` 实例数在此值及以下时不做任何降级。
+  ///   并发播放的 `AnimatedXvg` 实例数在此值及以下时不做任何降级。
   ///
   /// [maxFrameDivisor] — sample one display frame in N for an ordinary
   ///   document once the threshold is exceeded. 1 disables skipping for them.
@@ -202,10 +202,10 @@ class XvgAnimationQuality {
     approximateSimpleMasksAsClip: false,
   );
 
-  /// Profile used by any `XvgAnimated` that does not pass its own. Assign to
+  /// Profile used by any `AnimatedXvg` that does not pass its own. Assign to
   /// change it process-wide; takes effect on the next frame.
   ///
-  /// 任何未自带配置的 `XvgAnimated` 所使用的配置。赋值即可全进程修改，下一帧
+  /// 任何未自带配置的 `AnimatedXvg` 所使用的配置。赋值即可全进程修改，下一帧
   /// 生效。
   static XvgAnimationQuality defaultQuality = balanced;
 

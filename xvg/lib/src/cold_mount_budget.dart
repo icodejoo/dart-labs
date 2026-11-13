@@ -1,9 +1,9 @@
-// A per-frame time budget that keeps XvgStatic's synchronous cold-cache
+// A per-frame time budget that keeps StaticXvg's synchronous cold-cache
 // renders from overloading a single frame when many never-before-seen SVGs
 // mount at once — see the class doc on ColdMountFrameBudget for why time
 // beats a fixed item count.
 //
-// 给 XvgStatic 同步冷缓存渲染设的单帧时间预算，避免大量从未见过的 SVG
+// 给 StaticXvg 同步冷缓存渲染设的单帧时间预算，避免大量从未见过的 SVG
 // 同时挂载时把一帧撑爆——为什么用时间而不是固定个数，见
 // ColdMountFrameBudget 的类文档。
 
@@ -12,7 +12,7 @@ import 'dart:async';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/foundation.dart';
 
-/// Caps how much wall-clock time [XvgStatic] may spend on synchronous
+/// Caps how much wall-clock time [StaticXvg] may spend on synchronous
 /// cold-cache Rust parse+record work within a single frame, so that mounting
 /// many never-before-seen SVGs at once (e.g. a first-ever-seen icon grid)
 /// can't blow one frame's budget — the overflow spills into subsequent
@@ -26,7 +26,7 @@ import 'package:flutter/foundation.dart';
 /// A cache hit or the ordinary "a couple of new icons scroll into view"
 /// case never touches this at all: only a genuine cold miss consumes budget.
 ///
-/// 给 [XvgStatic] 的同步冷缓存 Rust 解析+录制工作设一个单帧墙钟时间上限，
+/// 给 [StaticXvg] 的同步冷缓存 Rust 解析+录制工作设一个单帧墙钟时间上限，
 /// 这样一次性挂载大量从未见过的 SVG（比如首次出现的图标网格）就不会把一帧的
 /// 预算撑爆——超出的部分溢出到后续帧，每帧同样设限，直到队列排空。
 ///
@@ -61,11 +61,11 @@ class ColdMountFrameBudget {
   bool _retryScheduled = false;
 
   /// True while this frame still has budget room for another synchronous
-  /// cold render. [XvgStatic.build] checks this before calling
+  /// cold render. [StaticXvg.build] checks this before calling
   /// [RustXvgPictureCache.getOrRender] directly; once false for the rest of
   /// the frame, further cold sources fall back to [runDeferred].
   ///
-  /// 本帧是否仍有预算容纳下一次同步冷渲染。[XvgStatic.build] 在直接调用
+  /// 本帧是否仍有预算容纳下一次同步冷渲染。[StaticXvg.build] 在直接调用
   /// [RustXvgPictureCache.getOrRender] 之前会先查这个；一旦本帧内变为 false,
   /// 之后的冷源就转而走 [runDeferred]。
   bool get hasRoom {
@@ -111,12 +111,12 @@ class ColdMountFrameBudget {
 
   /// Queues [work] to run once a future frame has budget room again, and
   /// returns a [Future] that completes with its result then. Used by
-  /// [XvgStatic.build] when [hasRoom] is already false for the current
+  /// [StaticXvg.build] when [hasRoom] is already false for the current
   /// frame — the same [FutureBuilder] + placeholder scaffold already used for
   /// the `<image>`-decode path picks this up.
   ///
   /// 把 [work] 排入队列，等未来某一帧预算恢复后执行，返回一个到时完成的
-  /// [Future]。在当前帧 [hasRoom] 已为 false 时由 [XvgStatic.build] 调用——
+  /// [Future]。在当前帧 [hasRoom] 已为 false 时由 [StaticXvg.build] 调用——
   /// 复用 `<image>` 解码路径已有的那套 [FutureBuilder] + 占位符脚手架来接住它。
   Future<T> runDeferred<T>(
     T Function() work, {

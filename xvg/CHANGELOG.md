@@ -1,5 +1,21 @@
 ## Unreleased
 
+- Fix: macOS builds failed at CodeSign when consuming the package from pub.dev because pub expands the framework's symlinks. The package now ships only `Versions/A`, and the podspec recreates the versioned-bundle symlinks at `pod install`. The archive no longer contains three copies of the binary.
+- Fix root viewBox origin, scaling and preserveAspectRatio on the animated (Dart) path, including text dispatch and image-provider rasterization. Root width/height accept unitless and `px` values.
+- `Xvg` / `SvgImageProvider` now route static SVGs containing `<text>` to the Dart engine so the text renders; documents without animations settle after the first frame. Explicit `StaticXvg` still skips text. The whole source follows Dart-path limits (no pattern/marker or tspan/textPath; filters limited to blur). `AnimationDetector.hasAnimations` keeps its meaning.
+- Upgrade usvg to 0.50 (Windows x64 prebuilt 462 KB → 448 KB).
+- **Breaking**: `XvgStatic` renamed to `StaticXvg` and `XvgAnimated` renamed to `AnimatedXvg` (Flutter-style naming; no deprecated aliases). `Xvg` is unchanged.
+
+## 0.2.0
+
+- **Breaking**: `maxFps` renamed to `fps`: null follows global; 0 freezes at the first frame; `double.infinity` is unlimited and ignores global.
+- Add `Xvg.fps` for live global animation frame-rate control; external `animation` drivers and static sources are unaffected.
+- `Xvg.ensureInitialized({double? fps})` sets the initial global `Xvg.fps` at startup (non-null only, applied on every call).
+- Fix: the macOS prebuilt `xvg.framework/xvg` symlink pointed to the old `Versions/Current/svgx` name, and the published archive stored the framework symlinks as plain files, so linking a macOS app failed with `framework 'xvg' not found`. The link now points to `Versions/Current/xvg`, and releases are published from a Linux GitHub Actions job that keeps real symlinks.
+
+## 0.1.3
+
+- Docs: README wording rewritten in plain language.
 - Add an experimental Flutter Web demo using Rust wasm, synchronous web initialization, browser source loading, and main-thread SMIL parsing. Native bridge and supported pub platforms remain unchanged.
 - Build and deploy the demo under `xvg/demo/`; wasm artifacts are generated in CI and excluded from the pub package.
 

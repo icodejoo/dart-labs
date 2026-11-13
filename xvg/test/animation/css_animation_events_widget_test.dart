@@ -58,7 +58,7 @@ void main() {
       await tester.pumpWidget(
         Directionality(
           textDirection: TextDirection.ltr,
-          child: XvgAnimated.string(
+          child: AnimatedXvg.string(
             _source,
             controller: implicit ? null : controller,
             onEvent: widgetEvents.add,
@@ -86,7 +86,7 @@ void main() {
       final events = <XvgAnimationEvent>[];
       controller.addEventListener(events.add);
       await tester.pumpWidget(
-        XvgAnimated.string(_source, controller: controller),
+        AnimatedXvg.string(_source, controller: controller),
       );
       controller.seek(_second + _delay);
       expect(_labels(events), isEmpty);
@@ -105,7 +105,7 @@ void main() {
     final animation = AnimationController(vsync: tester, duration: _second * 4);
     final events = <XvgAnimationEvent>[];
     await tester.pumpWidget(
-      XvgAnimated.string(
+      AnimatedXvg.string(
         _source,
         animation: animation,
         animationSpan: _second * 4,

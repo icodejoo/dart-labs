@@ -12,7 +12,7 @@
 // `ui.Picture` per source string.
 //
 // xvg: exercises `RustXvgPictureCache.getOrRender`, the exact method
-// `XvgStatic` calls, via its `debugWrapRecordingCanvas` test hook.
+// `StaticXvg` calls, via its `debugWrapRecordingCanvas` test hook.
 // flutter_svg: exercises `vector_graphics_compiler`'s `encodeSvg` +
 // `vector_graphics`'s `FlutterVectorGraphicsListener`, the same compile-then-
 // decode path `SvgPicture.string` runs internally, via the codec's
@@ -29,7 +29,7 @@
 // 一次 `drawPicture`，因为两个库都按源串缓存了一份 `ui.Picture`。
 //
 // xvg：通过 `debugWrapRecordingCanvas` 测试钩子跑 `RustXvgPictureCache.
-// getOrRender`——与 `XvgStatic` 调用的是同一个方法。
+// getOrRender`——与 `StaticXvg` 调用的是同一个方法。
 // flutter_svg：通过编解码器的 `PictureFactory` 注入点（标了
 // `@visibleForTesting` 但并非语言层面私有）跑 `vector_graphics_compiler` 的
 // `encodeSvg` + `vector_graphics` 的 `FlutterVectorGraphicsListener`——与

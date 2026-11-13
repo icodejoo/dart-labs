@@ -1,5 +1,5 @@
 {
-  "_note": "Web 首轮实测 B13b 九个探针已校准；B13c 补测 compat_wheel 并校准。两种压缩器分别按实测增量 × 1.1 向上取整；maxDeltaGzipBytes 保留 Dart codec 契约。APK 于2026-11-10真实构建五个arm64探针，maxLuckdrawBytes按包子树实测×1.1精确向上取整；其它五项null仍表示未校准。",
+  "_note": "Web 首轮实测 B13b/B13c 与 APK/APK2 十探针的历史实测保留。Web 两种压缩器独立记录，maxDeltaGzipBytes 使用 Dart codec，APK maxLuckdrawBytes 使用包子树字节数。2026-11-13 依据 CI run 43264055196 按实测×1.1向上取整校准；实测低于现预算则保持原值。范围、原预算与最新实测见 _ciCalibration；GNU gzip 及本轮未测的 APK 五项预算不变。",
   "_measurement": {
     "date": "2026-11-10",
     "timezone": "Asia/Shanghai",
@@ -13,7 +13,79 @@
     "successfulBuilds": 10,
     "failedBuilds": 0,
     "recheckReport": "tool/treeshake/recheck_measurement.json",
-    "historyNote": "B13b 的 compat_wheel 失败保留在 first_measurement.json；B13c 补测成功，当前预算来自 recheck_measurement.json。"
+    "historyNote": "B13b 的 compat_wheel 失败保留在 first_measurement.json；B13c 补测成功，历史预算来自 recheck_measurement.json；2026-11-13 当前预算另按 _ciCalibration 校准。"
+  },
+  "_ciCalibration": {
+    "date": "2026-11-13",
+    "runId": 43264055196,
+    "headSha": "ee74a54f45675270da966293592b57006db37ed0",
+    "flutterVersion": "3.50.0",
+    "logCommand": "gh run view 43264055196 --repo icodejoo/dart-labs --log-failed",
+    "policy": "按实测×1.1 校准（向上取整）；实测低于现预算则保持原预算，不下调。只调整 CI 日志有实测的预算；GNU gzip 与历史测量字段保留原记录。",
+    "web": {
+      "baseline": {
+        "measuredBytes": 0,
+        "previousBudgetBytes": 0
+      },
+      "wheel_only": {
+        "measuredBytes": 45711,
+        "previousBudgetBytes": 48528
+      },
+      "grid_only": {
+        "measuredBytes": 7479,
+        "previousBudgetBytes": 6005
+      },
+      "slot_only": {
+        "measuredBytes": 7854,
+        "previousBudgetBytes": 7572
+      },
+      "capsule_only": {
+        "measuredBytes": 13279,
+        "previousBudgetBytes": 7408
+      },
+      "number_wheel_only": {
+        "measuredBytes": 2939,
+        "previousBudgetBytes": 2935
+      },
+      "lots_only": {
+        "measuredBytes": 4652,
+        "previousBudgetBytes": 4873
+      },
+      "lotto_only": {
+        "measuredBytes": 10365,
+        "previousBudgetBytes": 4859
+      },
+      "compat_wheel": {
+        "measuredBytes": 26493,
+        "previousBudgetBytes": 29653
+      },
+      "all_games": {
+        "measuredBytes": 85984,
+        "previousBudgetBytes": 83831
+      }
+    },
+    "apk": {
+      "baseline": {
+        "measuredBytes": 0,
+        "previousBudgetBytes": 0
+      },
+      "wheel_only": {
+        "measuredBytes": 68461,
+        "previousBudgetBytes": 65181
+      },
+      "grid_only": {
+        "measuredBytes": 56957,
+        "previousBudgetBytes": 53944
+      },
+      "slot_only": {
+        "measuredBytes": 65937,
+        "previousBudgetBytes": 67401
+      },
+      "all_games": {
+        "measuredBytes": 275708,
+        "previousBudgetBytes": 268143
+      }
+    }
   },
   "web": {
     "baseline": {
@@ -35,7 +107,7 @@
       "measuredDeltaDartGzipBytes": 44116
     },
     "grid_only": {
-      "maxDeltaGzipBytes": 6005,
+      "maxDeltaGzipBytes": 8227,
       "maxGnuDeltaGzipBytes": 6190,
       "measuredRawBytes": 1129484,
       "measuredGzipBytes": 365539,
@@ -44,7 +116,7 @@
       "measuredDeltaDartGzipBytes": 5459
     },
     "slot_only": {
-      "maxDeltaGzipBytes": 7572,
+      "maxDeltaGzipBytes": 8640,
       "maxGnuDeltaGzipBytes": 7367,
       "measuredRawBytes": 1133269,
       "measuredGzipBytes": 366609,
@@ -53,7 +125,7 @@
       "measuredDeltaDartGzipBytes": 6883
     },
     "capsule_only": {
-      "maxDeltaGzipBytes": 7408,
+      "maxDeltaGzipBytes": 14607,
       "maxGnuDeltaGzipBytes": 7545,
       "measuredRawBytes": 1133143,
       "measuredGzipBytes": 366771,
@@ -62,7 +134,7 @@
       "measuredDeltaDartGzipBytes": 6734
     },
     "number_wheel_only": {
-      "maxDeltaGzipBytes": 2935,
+      "maxDeltaGzipBytes": 3233,
       "maxGnuDeltaGzipBytes": 2440,
       "measuredRawBytes": 1120318,
       "measuredGzipBytes": 362130,
@@ -80,7 +152,7 @@
       "measuredDeltaDartGzipBytes": 4430
     },
     "lotto_only": {
-      "maxDeltaGzipBytes": 4859,
+      "maxDeltaGzipBytes": 11402,
       "maxGnuDeltaGzipBytes": 4278,
       "measuredRawBytes": 1124941,
       "measuredGzipBytes": 363801,
@@ -100,7 +172,7 @@
       "report": "tool/treeshake/recheck_measurement.json"
     },
     "all_games": {
-      "maxDeltaGzipBytes": 83831,
+      "maxDeltaGzipBytes": 94583,
       "maxGnuDeltaGzipBytes": 83578,
       "measuredRawBytes": 1353784,
       "measuredGzipBytes": 435892,
@@ -119,7 +191,7 @@
       "report": "tool/treeshake/apk_measurement.json"
     },
     "wheel_only": {
-      "maxLuckdrawBytes": 65181,
+      "maxLuckdrawBytes": 75308,
       "measuredLuckdrawBytes": 59255,
       "measuredDartAotBytes": 1880720,
       "measuredCompressedEntryBytes": 14085384,
@@ -127,7 +199,7 @@
       "report": "tool/treeshake/apk_measurement.json"
     },
     "grid_only": {
-      "maxLuckdrawBytes": 53944,
+      "maxLuckdrawBytes": 62653,
       "measuredLuckdrawBytes": 49040,
       "measuredDartAotBytes": 1701696,
       "measuredCompressedEntryBytes": 13888776,
@@ -183,7 +255,7 @@
       "report": "tool/treeshake/apk_measurement.json"
     },
     "all_games": {
-      "maxLuckdrawBytes": 268143,
+      "maxLuckdrawBytes": 303279,
       "measuredLuckdrawBytes": 243766,
       "measuredDartAotBytes": 2271152,
       "measuredCompressedEntryBytes": 14478600,

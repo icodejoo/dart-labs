@@ -8,7 +8,7 @@ export 'src/rust/frb_generated.dart' show RustLib;
 // Original SMIL animation engine (parse -> timeline -> per-frame sample ->
 // paint), see xvg CLAUDE.md architecture decision: animation stays in Dart
 // while Rust handles static parsing. Does NOT vendor any third-party engine.
-export 'src/animation/animated_svg_widget.dart' show XvgAnimated;
+export 'src/animation/animated_svg_widget.dart' show AnimatedXvg;
 export 'src/animation/svg_document_cache.dart' show XvgDocumentCache;
 export 'src/animation/svg_theme.dart' show XvgTheme;
 export 'src/animation/xvg_animation_info.dart' show XvgAnimationInfo;
@@ -33,7 +33,7 @@ export 'src/animation/xvg_animation_controller.dart'
 export 'src/animation/xvg_animation_quality.dart' show XvgAnimationQuality;
 
 // Rust (usvg) backed static SVG renderer.
-export 'src/rust_static_svg.dart' show XvgStatic, RustXvgPictureCache;
+export 'src/rust_static_svg.dart' show StaticXvg, RustXvgPictureCache;
 
 // ImageProvider bridge (DecorationImage, precacheImage, etc.), mirroring
 // AssetImage/NetworkImage/FileImage/MemoryImage — see StringXvg's class doc

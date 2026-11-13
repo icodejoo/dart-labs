@@ -1,7 +1,7 @@
 ---
 title: 扭蛋机 / 大乐透可选物理碰撞模式设计
 status: active
-updated: 2026-11-11
+updated: 2026-11-13
 summary: 为 capsule、lotto 增加默认关闭的内置圆形碰撞模拟（落入、球球碰撞、容器与拨杆刚体），结果与状态机语义保持不变
 ---
 
@@ -270,10 +270,38 @@ abstract interface class LuckyBodyDriver {
 | PH-13 | idle 落入：`dropIn` 下无用户操作也会 tick 到休眠后停表；休眠后 `isSimulating=false` |
 | PH-14 | `physics: null` 时全部现有测试与 golden 不变（回归基线，以落地时的全量用例数为准） |
 | PH-15 | widget：开启物理的 `LuckyLotto`/`LuckyCapsuleMachine` 跑完整一局，结果与 `stopWith` 的号码一致，`onEnd` 只触发一次 |
-| PH-16 | 摇树：wheel/grid/slot 单入口产物不含求解器符号；capsule/lotto 含之；导入规则通过。**落地**：`check_treeshake.dart` 的受检符号加入 `LuckyCircleWorld`、`LuckyPhysicsDriver`、`LuckyStirArms`，仅 capsule/lotto/all_games 探针允许。Web 十探针实测：其余探针均无这些符号；capsule_only 增量 +4.55KB gzip（8.85→13.40KB），lotto_only +4.51KB，all_games +1.75KB，无关探针各 +37…+62B（`resolveConfig` 钩子）。**注意**：该检查在 HEAD 上就已失败（grid/slot/capsule/number_wheel/lots/lotto 六个探针超预算，lots_only 含禁用的 CubicEasing），本次没有重新校准预算；all_games 预算 83831 本来过线，现在 83861 超 30 字节，是本次引入的，需要你决定是否重新校准 |
+| PH-16 | 摇树：wheel/grid/slot 单入口产物不含求解器符号；capsule/lotto 含之；导入规则通过。**落地**：`check_treeshake.dart` 的受检符号加入 `LuckyCircleWorld`、`LuckyPhysicsDriver`、`LuckyStirArms`，仅 capsule/lotto/all_games 探针允许。Web 十探针物理模式首测：其余探针均无这些符号；capsule_only 增量 +4.55KB gzip（8.85→13.40KB），lotto_only +4.51KB，all_games +1.75KB，无关探针各 +37…+62B（`resolveConfig` 钩子）。**2026-11-13 用户决定**：依据 CI run `43264055196`，按实测×1.1 校准（向上取整）；实测低于现预算则保持原预算，不下调。Web 与 APK 分开处理，数值及范围见下表；`lots_only` 等源码、符号与体积关系检查不变。历史首测失败不改写，当前 CI 复验仍待执行。 |
 | PH-17 | 真机（V2417，release/profile）：同包 A/B，参数化 vs 物理，读 `luckdraw.physics.step` 与帧时间增量；结果如实记录，不达标不改口径。**已执行，UI P99 未达 4ms 门禁，数据见 §9** |
 
 物理轨迹不用 golden 像素，用性质断言；位级快照只在 VM 上少量保留（PH-07）。
+
+### PH-16 预算校准（2026-11-13）
+
+依据 [luckdraw CI run 43264055196](https://github.com/icodejoo/dart-labs/actions/runs/43264055196) 的两个 Probes 步骤；head `ee74a54f45675270da966293592b57006db37ed0`，Flutter 3.50.0。Web 使用 Dart `GZipCodec(level: 9)` 相对 baseline 的增量；APK 使用 arm64 analyze-size 的 luckdraw 包子树字节数，不能互换。
+
+按实测×1.1 校准，使用整数算式 `(实测 × 11 + 9) ~/ 10` 精确向上取整；实测未超过现预算时保留原值。下表单位均为 bytes。
+
+| 后端 | 探针 | CI 实测 | 旧预算 | 新预算 |
+| --- | --- | ---: | ---: | ---: |
+| WEB | baseline | 0 | 0 | 0 |
+| WEB | wheel_only | 45711 | 48528 | 48528 |
+| WEB | grid_only | 7479 | 6005 | 8227 |
+| WEB | slot_only | 7854 | 7572 | 8640 |
+| WEB | capsule_only | 13279 | 7408 | 14607 |
+| WEB | number_wheel_only | 2939 | 2935 | 3233 |
+| WEB | lots_only | 4652 | 4873 | 4873 |
+| WEB | lotto_only | 10365 | 4859 | 11402 |
+| WEB | compat_wheel | 26493 | 29653 | 29653 |
+| WEB | all_games | 85984 | 83831 | 94583 |
+| APK | baseline | 0 | 0 | 0 |
+| APK | wheel_only | 68461 | 65181 | 75308 |
+| APK | grid_only | 56957 | 53944 | 62653 |
+| APK | slot_only | 65937 | 67401 | 67401 |
+| APK | all_games | 275708 | 268143 | 303279 |
+
+APK 其余五项未在本轮 CI 构建，预算不变。Web 的 GNU gzip 独立预算未在本轮 CI 测量，保持原值；历史实测报告和 `measured*` 字段保留，最新 CI 实测另存 `budgets.json` 的 `_ciCalibration`。`lots_only` 的预算及所有探针的源码、符号、体积关系规则不变。本地采用与 CI 相同修订的 Flutter 3.50.0（Windows）；APK 五探针命令在 baseline 的 Gradle 下载阶段因 Java 证书链错误（PKIX）失败，尚未进入预算检查，完整 CI 复验仍需后续运行。
+
+本地验证（2026-11-13）：`dart run tool/treeshake/check_treeshake.dart --backend=web` 十探针全部通过，实测与本轮 CI 逐字节一致。`flutter test --no-pub --concurrency=4 --coverage --coverage-path=coverage/PH16-final.lcov --reporter json` 全量 1283 项通过；`dart run tool/coverage.dart --min=100 --lcov=coverage/PH16-final.lcov` 为 7768/7768（100%）；`flutter analyze --no-pub --no-fatal-infos` 通过（2 条既有 info）；`dart run tool/check_acceptance.dart --from-json build/PH16-final-test-run.json` 为 1735 引用、1308 登记测试全部映射。测试输出保存在 `build/PH16-final-test-run.json`，本次未新增覆盖率豁免。
 
 ## 11. 落地批次
 

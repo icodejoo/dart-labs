@@ -1,10 +1,10 @@
-// Tests for ColdMountFrameBudget and its wiring into XvgStatic: the
+// Tests for ColdMountFrameBudget and its wiring into StaticXvg: the
 // time-budget gate added so mounting many never-before-cached SVGs in one
 // frame spills the overflow into later frames instead of overloading the
 // first one. See `lib/src/cold_mount_budget.dart`'s class doc for the design
 // rationale (time budget, not item count).
 //
-// ColdMountFrameBudget 及其接入 XvgStatic 的测试：为避免一帧内挂载大量从未
+// ColdMountFrameBudget 及其接入 StaticXvg 的测试：为避免一帧内挂载大量从未
 // 缓存过的 SVG 把这一帧撑爆而加入的时间预算闸门，超出部分会溢出到后续帧。
 // 设计理由（用时间预算而非固定个数）见 `lib/src/cold_mount_budget.dart` 的
 // 类文档。
@@ -106,7 +106,7 @@ void main() {
     });
   });
 
-  group('XvgStatic + ColdMountFrameBudget (widget)', () {
+  group('StaticXvg + ColdMountFrameBudget (widget)', () {
     testWidgets('a handful of cold icons still paint in the first frame', (
       tester,
     ) async {
@@ -116,7 +116,7 @@ void main() {
           home: Column(
             children: [
               for (var i = 0; i < 3; i++)
-                XvgStatic(_svg(i), width: 24, height: 24),
+                StaticXvg(_svg(i), width: 24, height: 24),
             ],
           ),
         ),
@@ -139,7 +139,7 @@ void main() {
             home: Wrap(
               children: [
                 for (var i = 0; i < count; i++)
-                  XvgStatic(_svg(i), width: 24, height: 24),
+                  StaticXvg(_svg(i), width: 24, height: 24),
               ],
             ),
           ),

@@ -16,6 +16,7 @@ import 'animation/svg_theme.dart';
 import 'animation/xvg_animation_controller.dart';
 import 'animation/xvg_animation_info.dart';
 import 'animation/xvg_animation_quality.dart';
+import 'animation/xvg_fps.dart';
 import 'pixel_snap_layer.dart';
 import 'rust/frb_generated.dart';
 import 'rust_static_svg.dart';
@@ -25,9 +26,6 @@ import 'svg_source_loader.dart';
 
 /// Default implicit playback speed. / 默认隐式播放速率。
 const _normalPlaybackRate = 1.0;
-
-/// Constructor validation messages. / 构造参数校验消息。
-const _positiveMaxFps = 'maxFps must be positive';
 
 /// Invalid implicit rate message. / 非法隐式速率消息。
 const _finitePlaybackRate = 'playbackRate must be finite';
@@ -47,40 +45,65 @@ const _animationDefaults =
 /// `<animateMotion>`, `<set>` and CSS `@keyframes` animations.
 /// Use implicit [autoplay]/[playbackRate], a shared [controller], or a Flutter
 /// [animation] (mutually exclusive with [controller]). Animation-only options
-/// and callbacks are ignored for static sources; [theme], [colorFilter],
+/// and callbacks are ignored for Rust-rendered sources; [theme], [colorFilter],
 /// [onError] and [errorBuilder] apply to both rendering paths.
 ///
 /// 渲染静态 SVG 或支持的 SMIL 四类动画元素与 CSS `@keyframes`。
 /// 三种播放模式为隐式自动播放、共享控制器、Flutter Animation 驱动；后两者互斥。
-/// 静态源忽略动画专属参数及回调；主题、滤镜和错误处理在两条路径均生效。
+/// Rust 路径忽略动画专属参数及回调；主题、滤镜和错误处理在两条路径均生效。
+/// Sources containing `<text>` use the Dart renderer even without animations.
+/// 含 `<text>` 的源即使没有动画也走 Dart 路径；无动画时触发 onLoaded 后自动静止。
 ///
 /// ```dart
 /// Xvg.string(svgSource, controller: controller, width: 48, height: 48)
 /// ```
 class Xvg extends StatefulWidget {
+  /// Live global animation cap: null/infinity is unlimited, zero freezes at the
+  /// first frame, and positive values cap sampling. Non-null instance fps wins.
+  /// Negative values and NaN assert in debug when resolved. External animation
+  /// drivers and Rust-rendered sources ignore this setting.
+  /// 实时全局动画帧率：null/infinity 不限速，0 冻结首帧，正数限制采样频率。
+  /// 实例 fps 非 null 时优先；负数和 NaN 在解析时触发调试断言。
+  /// 外部 animation 驱动和 Rust 路径的源忽略此设置。
+  static final ValueNotifier<double?> fps = xvgFpsNotifier;
+
   /// Initializes the native (Rust) rendering backend. Call once, before
   /// rendering any Xvg widget — typically in `main()` before `runApp`.
-  /// Calling it again after the first successful call is a no-op.
+  /// Calling it again after the first successful call skips backend setup.
+  ///
+  /// A non-null [fps] sets the initial global [Xvg.fps] synchronously, on every
+  /// call, even when the backend is already initialized; null leaves it
+  /// untouched. It can still be changed later through `Xvg.fps.value`.
   ///
   /// 初始化原生（Rust）渲染后端，在渲染任何 Xvg 组件前调用一次——通常放在
-  /// `main()` 里 `runApp` 之前。首次成功调用后再次调用是空操作。
+  /// `main()` 里 `runApp` 之前。首次成功调用后再次调用不会重复初始化后端。
+  ///
+  /// 非 null 的 [fps] 会同步设置全局 [Xvg.fps] 的初始值，每次调用都生效，
+  /// 即使后端已初始化；null 不改动现有值。之后仍可通过 `Xvg.fps.value` 修改。
   ///
   /// Example:
   /// ```dart
   /// void main() async {
   ///   WidgetsFlutterBinding.ensureInitialized();
-  ///   await Xvg.ensureInitialized();
+  ///   await Xvg.ensureInitialized(fps: 60);
   ///   runApp(const MyApp());
   /// }
   /// ```
-  static Future<void> ensureInitialized() {
+  static Future<void> ensureInitialized({double? fps}) {
+    assert(fps == null || fps >= 0, fpsValidationMessage);
+    if (fps != null) xvgFpsNotifier.value = fps;
     if (RustLib.instance.initialized) return Future<void>.value();
     return RustLib.init();
   }
 
   /// Creates the dispatch widget from a raw SVG string.
+  /// The fps parameter follows [Xvg.fps] when null, caps sampling when positive,
+  /// freezes at the first frame when zero, or ignores global when infinity.
+  /// Negative values and NaN assert; Rust-rendered sources and [animation] ignore fps.
   ///
   /// 用原始 SVG 字符串创建分发组件。
+  /// fps 参数为 null 时跟随全局，正数限速，0 冻结首帧，infinity 不限速且忽略全局。
+  /// 负数和 NaN 触发断言；Rust 路径的源与外部 animation 驱动忽略 fps。
   const Xvg.string(
     this.source, {
     super.key,
@@ -97,7 +120,7 @@ class Xvg extends StatefulWidget {
     this.animationSpan,
     this.autoplay = true,
     this.playbackRate = _normalPlaybackRate,
-    this.maxFps,
+    double? fps,
     this.onLoaded,
     this.onError,
     this.errorBuilder,
@@ -105,7 +128,8 @@ class Xvg extends StatefulWidget {
     this.onAnimationStart,
     this.onAnimationComplete,
     this.onAnimationLoop,
-  }) : assert(maxFps == null || maxFps > 0, _positiveMaxFps),
+  }) : _fps = fps,
+       assert(fps == null || fps >= 0, fpsValidationMessage),
        assert(
          playbackRate > double.negativeInfinity &&
              playbackRate < double.infinity,
@@ -148,7 +172,7 @@ class Xvg extends StatefulWidget {
     Duration? animationSpan,
     bool autoplay = true,
     double playbackRate = _normalPlaybackRate,
-    double? maxFps,
+    double? fps,
     ValueChanged<XvgAnimationInfo>? onLoaded,
     void Function(Object error, StackTrace stackTrace)? onError,
     ImageErrorWidgetBuilder? errorBuilder,
@@ -174,7 +198,7 @@ class Xvg extends StatefulWidget {
     animationSpan: animationSpan,
     autoplay: autoplay,
     playbackRate: playbackRate,
-    maxFps: maxFps,
+    fps: fps,
     onLoaded: onLoaded,
     onError: onError,
     errorBuilder: errorBuilder,
@@ -208,7 +232,7 @@ class Xvg extends StatefulWidget {
     Duration? animationSpan,
     bool autoplay = true,
     double playbackRate = _normalPlaybackRate,
-    double? maxFps,
+    double? fps,
     ValueChanged<XvgAnimationInfo>? onLoaded,
     void Function(Object error, StackTrace stackTrace)? onError,
     ImageErrorWidgetBuilder? errorBuilder,
@@ -233,7 +257,7 @@ class Xvg extends StatefulWidget {
     animationSpan: animationSpan,
     autoplay: autoplay,
     playbackRate: playbackRate,
-    maxFps: maxFps,
+    fps: fps,
     onLoaded: onLoaded,
     onError: onError,
     errorBuilder: errorBuilder,
@@ -262,7 +286,7 @@ class Xvg extends StatefulWidget {
     Duration? animationSpan,
     bool autoplay = true,
     double playbackRate = _normalPlaybackRate,
-    double? maxFps,
+    double? fps,
     ValueChanged<XvgAnimationInfo>? onLoaded,
     void Function(Object error, StackTrace stackTrace)? onError,
     ImageErrorWidgetBuilder? errorBuilder,
@@ -287,7 +311,7 @@ class Xvg extends StatefulWidget {
     animationSpan: animationSpan,
     autoplay: autoplay,
     playbackRate: playbackRate,
-    maxFps: maxFps,
+    fps: fps,
     onLoaded: onLoaded,
     onError: onError,
     errorBuilder: errorBuilder,
@@ -321,7 +345,7 @@ class Xvg extends StatefulWidget {
     Duration? animationSpan,
     bool autoplay = true,
     double playbackRate = _normalPlaybackRate,
-    double? maxFps,
+    double? fps,
     ValueChanged<XvgAnimationInfo>? onLoaded,
     void Function(Object error, StackTrace stackTrace)? onError,
     ImageErrorWidgetBuilder? errorBuilder,
@@ -345,7 +369,7 @@ class Xvg extends StatefulWidget {
     animationSpan: animationSpan,
     autoplay: autoplay,
     playbackRate: playbackRate,
-    maxFps: maxFps,
+    fps: fps,
     onLoaded: onLoaded,
     onError: onError,
     errorBuilder: errorBuilder,
@@ -391,10 +415,10 @@ class Xvg extends StatefulWidget {
   final XvgTheme? theme;
 
   /// Animation quality/performance trade-off, forwarded to
-  /// [XvgAnimated.string]; ignored for a static source (the static path
+  /// [AnimatedXvg.string]; ignored for a Rust-rendered source (the static path
   /// renders a cached `ui.Picture` and has no per-frame sampling to degrade).
   ///
-  /// 动画的画质/性能取舍，转发给 [XvgAnimated.string]；静态源忽略此参数
+  /// 动画的画质/性能取舍，转发给 [AnimatedXvg.string]；Rust 路径的源忽略此参数
   /// （静态路径渲染的是缓存好的 `ui.Picture`，没有逐帧采样可降级）。
   final XvgAnimationQuality? quality;
 
@@ -418,13 +442,16 @@ class Xvg extends StatefulWidget {
   /// 有限有符号隐式速率；显式驱动时保留默认值。
   final double playbackRate;
 
-  /// Positive sampling cap; ignored with [animation]. Shared controllers use
-  /// the most permissive attached cap, as in [XvgAnimated.maxFps].
-  /// 正采样帧率上限；[animation] 模式忽略；共享控制器取挂载控件中最宽松的上限。
-  final double? maxFps;
+  /// Instance fps: null follows [Xvg.fps], positive values cap sampling,
+  /// zero freezes at the first frame, and infinity is unlimited, ignoring global.
+  /// Negative values and NaN assert. Ignored for Rust-rendered sources and [animation].
+  /// Shared controllers follow [AnimatedXvg.fps] coordination rules.
+  /// 实例帧率：null 跟随全局，正数限速，0 冻结首帧，infinity 不限速且忽略全局。
+  /// 负数和 NaN 触发断言；Rust 路径的源与外部 animation 忽略；共享规则见 AnimatedXvg。
+  final double? _fps;
 
-  /// Called when an animated source and its embedded images are ready.
-  /// 动画源及内嵌图片就绪时调用；静态源不调用。
+  /// Called when a Dart-rendered source and its embedded images are ready.
+  /// Dart 路径的源（含无动画的文字源）及内嵌图片就绪时调用；Rust 路径不调用。
   final ValueChanged<XvgAnimationInfo>? onLoaded;
 
   /// Receives load/parse/span failures; static failures notify after the frame.
@@ -461,7 +488,8 @@ class Xvg extends StatefulWidget {
 /// Selects the static or animated renderer when the SVG source changes.
 /// 在 SVG 源变化时选择静态或动画渲染器。
 class _XvgState extends State<Xvg> {
-  late bool _animated;
+  /// Whether the source needs Dart animation or text rendering. / 是否需要 Dart 动画或文字渲染。
+  late bool _needsDartEngine;
 
   /// Invalidates deferred static error notifications. / 使延后的静态错误通知失效。
   int _staticErrorGeneration = 0;
@@ -471,7 +499,7 @@ class _XvgState extends State<Xvg> {
   @override
   void initState() {
     super.initState();
-    _animated = AnimationDetector.hasAnimations(widget.source);
+    _needsDartEngine = AnimationDetector.needsDartEngine(widget.source);
   }
 
   /// Refreshes source detection and error notification identity. / 刷新源检测与错误通知标识。
@@ -483,7 +511,7 @@ class _XvgState extends State<Xvg> {
       _staticErrorReported = false;
     }
     if (oldWidget.source != widget.source) {
-      _animated = AnimationDetector.hasAnimations(widget.source);
+      _needsDartEngine = AnimationDetector.needsDartEngine(widget.source);
     }
   }
 
@@ -510,8 +538,8 @@ class _XvgState extends State<Xvg> {
   /// Dispatches the source and forwards renderer options. / 分发源并转发渲染参数。
   @override
   Widget build(BuildContext context) {
-    if (_animated) {
-      final child = XvgAnimated.string(
+    if (_needsDartEngine) {
+      final child = AnimatedXvg.string(
         widget.source,
         width: widget.width,
         height: widget.height,
@@ -525,7 +553,7 @@ class _XvgState extends State<Xvg> {
         animationSpan: widget.animationSpan,
         autoplay: widget.autoplay,
         playbackRate: widget.playbackRate,
-        maxFps: widget.maxFps,
+        fps: widget._fps,
         onLoaded: widget.onLoaded,
         onError: widget.onError,
         errorBuilder: widget.errorBuilder,
@@ -538,7 +566,7 @@ class _XvgState extends State<Xvg> {
           ? child
           : ColorFiltered(colorFilter: widget.colorFilter!, child: child);
     }
-    return XvgStatic(
+    return StaticXvg(
       widget.source,
       width: widget.width,
       height: widget.height,
@@ -598,7 +626,7 @@ class _AsyncXvg extends StatefulWidget {
     this.animationSpan,
     this.autoplay = true,
     this.playbackRate = _normalPlaybackRate,
-    this.maxFps,
+    this.fps,
     this.onLoaded,
     this.onError,
     this.errorBuilder,
@@ -606,7 +634,7 @@ class _AsyncXvg extends StatefulWidget {
     this.onAnimationStart,
     this.onAnimationComplete,
     this.onAnimationLoop,
-  }) : assert(maxFps == null || maxFps > 0, _positiveMaxFps),
+  }) : assert(fps == null || fps >= 0, fpsValidationMessage),
        assert(
          playbackRate > double.negativeInfinity &&
              playbackRate < double.infinity,
@@ -671,13 +699,16 @@ class _AsyncXvg extends StatefulWidget {
   /// 有限有符号隐式速率；显式驱动时保留默认值。
   final double playbackRate;
 
-  /// Positive sampling cap; ignored with [animation]. Shared controllers use
-  /// the most permissive attached cap, as in [XvgAnimated.maxFps].
-  /// 正采样帧率上限；[animation] 模式忽略；共享控制器取挂载控件中最宽松的上限。
-  final double? maxFps;
+  /// Instance fps: null follows [Xvg.fps], positive values cap sampling,
+  /// zero freezes at the first frame, and infinity is unlimited, ignoring global.
+  /// Negative values and NaN assert. Ignored for Rust-rendered sources and [animation].
+  /// Shared controllers follow [AnimatedXvg.fps] coordination rules.
+  /// 实例帧率：null 跟随全局，正数限速，0 冻结首帧，infinity 不限速且忽略全局。
+  /// 负数和 NaN 触发断言；Rust 路径的源与外部 animation 忽略；共享规则见 AnimatedXvg。
+  final double? fps;
 
-  /// Called when an animated source and its embedded images are ready.
-  /// 动画源及内嵌图片就绪时调用；静态源不调用。
+  /// Called when a Dart-rendered source and its embedded images are ready.
+  /// Dart 路径的源（含无动画的文字源）及内嵌图片就绪时调用；Rust 路径不调用。
   final ValueChanged<XvgAnimationInfo>? onLoaded;
 
   /// Receives load/parse/span failures; static failures notify after the frame.
@@ -797,7 +828,7 @@ class _AsyncXvgState extends State<_AsyncXvg> {
       animationSpan: widget.animationSpan,
       autoplay: widget.autoplay,
       playbackRate: widget.playbackRate,
-      maxFps: widget.maxFps,
+      fps: widget.fps,
       onLoaded: widget.onLoaded,
       onError: widget.onError,
       errorBuilder: widget.errorBuilder,

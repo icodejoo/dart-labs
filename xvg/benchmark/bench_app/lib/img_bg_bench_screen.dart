@@ -183,7 +183,7 @@ class _ImgBgBenchScreenState extends State<ImgBgBenchScreen>
 
   Widget _buildTile(int index) {
     if (_mode == _widgetMode) {
-      return const XvgAnimated.string(
+      return const AnimatedXvg.string(
         _animatedSvg,
         width: _tileSize,
         height: _tileSize,

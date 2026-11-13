@@ -5,11 +5,11 @@
 
 ## 1. 现状
 
-`XvgAnimated.string`(`lib/src/animation/animated_svg_widget.dart:54-69`)已有:
+`AnimatedXvg.string`(`lib/src/animation/animated_svg_widget.dart:54-69`)已有:
 
 - `playbackRate`(必须 >0,运行中修改会重设基线,时间线连续)
 - `onAnimationStart` / `onAnimationComplete` / `onAnimationLoop(int)`
-- `maxFps`、`quality`、`theme`
+- `fps`、`quality`、`theme`
 
 缺口:
 
@@ -129,7 +129,7 @@ enum XvgRangeMode { once, loop, pingPong }
 lottie 风格,复用 `AnimationController` / `Tween` / `CurvedAnimation` 生态:
 
 ```dart
-XvgAnimated.string(src,
+AnimatedXvg.string(src,
   animation: myAnimationController,   // Animation<double>,值域 0..1
   animationSpan: null,                // 映射到的文档时长;null 用 info.naturalDuration
 )
@@ -143,7 +143,7 @@ XvgAnimated.string(src,
 
 ## 6. 控件 API
 
-`XvgAnimated.string` 与 `Xvg.string/asset/network/file/memory` 统一增加并转发以下参数(`Xvg.*` 对静态源忽略它们):
+`AnimatedXvg.string` 与 `Xvg.string/asset/network/file/memory` 统一增加并转发以下参数(`Xvg.*` 对静态源忽略它们):
 
 - `controller`、`animation`、`animationSpan`
 - `autoplay`(默认 true)、`playbackRate`(放开到可为负)

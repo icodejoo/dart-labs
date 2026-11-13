@@ -209,7 +209,7 @@ Widget _make(
   Duration? animationSpan,
   bool autoplay = true,
   double playbackRate = 1,
-  double? maxFps,
+  double? fps,
   ValueChanged<XvgAnimationInfo>? onLoaded,
   void Function(Object, StackTrace)? onError,
   ImageErrorWidgetBuilder? errorBuilder,
@@ -229,7 +229,7 @@ Widget _make(
     animationSpan: animationSpan,
     autoplay: autoplay,
     playbackRate: playbackRate,
-    maxFps: maxFps,
+    fps: fps,
     onLoaded: onLoaded,
     onError: onError,
     errorBuilder: errorBuilder,
@@ -250,7 +250,7 @@ Widget _make(
     animationSpan: animationSpan,
     autoplay: autoplay,
     playbackRate: playbackRate,
-    maxFps: maxFps,
+    fps: fps,
     onLoaded: onLoaded,
     onError: onError,
     errorBuilder: errorBuilder,
@@ -270,7 +270,7 @@ Widget _make(
     animationSpan: animationSpan,
     autoplay: autoplay,
     playbackRate: playbackRate,
-    maxFps: maxFps,
+    fps: fps,
     onLoaded: onLoaded,
     onError: onError,
     errorBuilder: errorBuilder,
@@ -290,7 +290,7 @@ Widget _make(
     animationSpan: animationSpan,
     autoplay: autoplay,
     playbackRate: playbackRate,
-    maxFps: maxFps,
+    fps: fps,
     onLoaded: onLoaded,
     onError: onError,
     errorBuilder: errorBuilder,
@@ -310,7 +310,7 @@ Widget _make(
     animationSpan: animationSpan,
     autoplay: autoplay,
     playbackRate: playbackRate,
-    maxFps: maxFps,
+    fps: fps,
     onLoaded: onLoaded,
     onError: onError,
     errorBuilder: errorBuilder,
@@ -343,7 +343,9 @@ Duration _time(WidgetTester tester) =>
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   setUpAll(Xvg.ensureInitialized);
+  setUp(() => Xvg.fps.value = null);
   tearDown(() {
+    Xvg.fps.value = null;
     SvgSourceLoader.instance.clear();
     XvgDocumentCache.instance.clear();
     ColdMountFrameBudget.instance.debugReset();
@@ -368,8 +370,8 @@ void main() {
             await tester.pump();
             await tester.pump();
             final actual = animated
-                ? tester.widget<XvgAnimated>(find.byType(XvgAnimated)).pixelSnap
-                : tester.widget<XvgStatic>(find.byType(XvgStatic)).pixelSnap;
+                ? tester.widget<AnimatedXvg>(find.byType(AnimatedXvg)).pixelSnap
+                : tester.widget<StaticXvg>(find.byType(StaticXvg)).pixelSnap;
             expect(actual, mode);
             await tester.pumpWidget(const SizedBox());
             SvgSourceLoader.instance.clear();
@@ -399,7 +401,7 @@ void main() {
               onEvent: events.add,
               onAnimationStart: () => starts++,
               onAnimationComplete: () => completes++,
-              maxFps: 30,
+              fps: 30,
               theme: theme,
               quality: quality,
               colorFilter: filter,
@@ -410,9 +412,9 @@ void main() {
         await tester.pump();
         expect(loaded, hasLength(1));
         expect(controller.info, loaded.single);
-        final child = tester.widget<XvgAnimated>(find.byType(XvgAnimated));
+        final child = tester.widget<AnimatedXvg>(find.byType(AnimatedXvg));
         expect(child.controller, same(controller));
-        expect(child.maxFps, 30);
+        expect(child.fps, 30);
         expect(child.theme, theme);
         expect(child.quality, same(quality));
         expect(find.byType(ColorFiltered), findsOneWidget);
@@ -476,6 +478,7 @@ void main() {
     testWidgets('${entry.name}: static ignores animation controls', (
       tester,
     ) async {
+      Xvg.fps.value = 0;
       final controller = XvgAnimationController();
       var loaded = 0;
       var events = 0;
@@ -485,6 +488,7 @@ void main() {
             _make(
               entry,
               source: _static,
+              fps: 0,
               controller: controller,
               onLoaded: (_) => loaded++,
               onEvent: (_) => events++,
@@ -493,7 +497,7 @@ void main() {
         );
         await tester.pump();
         await tester.pump();
-        expect(find.byType(XvgStatic), findsOneWidget);
+        expect(find.byType(StaticXvg), findsOneWidget);
         expect(loaded, 0);
         expect(events, 0);
         expect(controller.info, isNull);
@@ -527,7 +531,7 @@ void main() {
         await tester.pump();
         await tester.pump(_step);
         expect(_time(tester), Duration.zero);
-        final child = tester.widget<XvgAnimated>(find.byType(XvgAnimated));
+        final child = tester.widget<AnimatedXvg>(find.byType(AnimatedXvg));
         expect(child.autoplay, false);
         expect(child.playbackRate, 2);
         await tester.pumpWidget(
@@ -556,7 +560,12 @@ void main() {
         () => _make(entry, controller: controller, animation: animation),
         throwsAssertionError,
       );
-      expect(() => _make(entry, maxFps: 0), throwsAssertionError);
+      expect(() => _make(entry, fps: -1), throwsAssertionError);
+      expect(() => _make(entry, fps: double.nan), throwsAssertionError);
+      expect(
+        () => _make(entry, fps: double.negativeInfinity),
+        throwsAssertionError,
+      );
       expect(
         () => _make(entry, playbackRate: double.nan),
         throwsAssertionError,

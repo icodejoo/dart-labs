@@ -1,0 +1,45 @@
+name: xvg pub consume check
+
+# 从 pub.dev 拉取已发布的 xvg，在全新 macOS 应用里构建，验证发布包（符号链接被 pub 展开为实体文件）能链接、嵌入并签名。
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'xvg version on pub.dev'
+        required: true
+        default: '0.2.0'
+
+jobs:
+  macos:
+    name: Build macOS app against pub.dev xvg
+    runs-on: macos-latest
+    steps:
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.0'
+          cache: true
+      - name: Create app depending on published xvg
+        run: |
+          flutter config --enable-macos-desktop
+          flutter create --platforms=macos consume_app
+          cd consume_app
+          flutter pub add "xvg:${{ inputs.version }}"
+          cat > lib/main.dart <<'DART'
+          import 'package:flutter/material.dart';
+          import 'package:xvg/xvg.dart';
+
+          Future<void> main() async {
+            WidgetsFlutterBinding.ensureInitialized();
+            await Xvg.ensureInitialized();
+            runApp(const MaterialApp(home: Scaffold(body: Center(child: Text('ok')))));
+          }
+          DART
+      - name: flutter build macos
+        working-directory: consume_app
+        run: flutter build macos --release
+      - name: Verify embedded framework and signature
+        working-directory: consume_app
+        run: |
+          app=$(find build/macos/Build/Products/Release -maxdepth 1 -name '*.app' | head -1)
+          ls -la "$app/Contents/Frameworks/xvg.framework" "$app/Contents/Frameworks/xvg.framework/Versions"
+          codesign --verify --deep --strict --verbose=2 "$app"

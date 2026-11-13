@@ -7,3 +7,4 @@ export 'src/jsonx.dart' show Jsonx;
 export 'src/options.dart' show CachemanOptions;
 export 'src/errors.dart';
 export 'src/value_adapter.dart';
+export 'src/memory_storage.dart' show MemoryStorage;

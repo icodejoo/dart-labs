@@ -11,43 +11,41 @@ import '../text/text_line.dart';
 import '../text/text_measurer.dart';
 import 'perf_trace.dart';
 
-/// 录制阶段复用的圆形路径；draw 调用时即被记录，每次使用前重置。
-final Path _ovalScratch = Path();
+/// 首次绘制时创建并复用的圆形路径；每次使用前重置，不在顶层初始化。
+Path? _ovalScratch;
 
 /// 录制阶段以 [bounds] 的内切椭圆为形状绘制 [fill]，等价于对椭圆路径调用 [paintLuckyFill]。
 ///
 /// 例如 `paintLuckyOval(canvas, Rect.fromCircle(center: Offset.zero, radius: 50), fill)`。
 void paintLuckyOval(Canvas canvas, Rect bounds, LuckyFill fill,
-        {LuckyShadow? shadow, double dpr = 1}) =>
-    paintLuckyFill(
-        canvas,
-        _ovalScratch
-          ..reset()
-          ..addOval(bounds),
-        fill,
-        bounds,
-        shadow: shadow,
-        dpr: dpr);
+    {LuckyShadow? shadow, double dpr = 1}) {
+  final path = _ovalScratch ??= Path();
+  path.reset();
+  path.addOval(bounds);
+  paintLuckyFill(canvas, path, fill, bounds, shadow: shadow, dpr: dpr);
+}
 
-/// 录制阶段复用的共享画笔；画笔内容在 draw 调用时即被记录，每次使用前整体复位。
-final Paint _scratchPaint = Paint();
+/// 首次绘制时创建并复用的共享画笔；每次使用前整体复位，不在顶层初始化。
+Paint? _scratchPaint;
 
 /// 返回复位后的共享画笔，仅供录制期单次绘制即用即弃，不可跨绘制调用持有。
 ///
 /// 颜色、描边宽度、样式与滤镜质量按参数设置，着色器与模糊遮罩清空；
 /// 例如 `canvas.drawRect(rect, luckyScratchPaint(color: Colors.red))`。
 Paint luckyScratchPaint(
-        {Color color = kLuckyDefaultFontColor,
-        PaintingStyle style = PaintingStyle.fill,
-        double strokeWidth = 0,
-        FilterQuality filterQuality = FilterQuality.none}) =>
-    _scratchPaint
-      ..color = color
-      ..style = style
-      ..strokeWidth = strokeWidth
-      ..filterQuality = filterQuality
-      ..shader = null
-      ..maskFilter = null;
+    {Color color = kLuckyDefaultFontColor,
+    PaintingStyle style = PaintingStyle.fill,
+    double strokeWidth = 0,
+    FilterQuality filterQuality = FilterQuality.none}) {
+  final paint = _scratchPaint ??= Paint();
+  paint.color = color;
+  paint.style = style;
+  paint.strokeWidth = strokeWidth;
+  paint.filterQuality = filterQuality;
+  paint.shader = null;
+  paint.maskFilter = null;
+  return paint;
+}
 
 /// 录制阶段先绘制偏移阴影，再绘制 [fill]；[dpr] 用于设备空间模糊。
 void paintLuckyFill(Canvas canvas, Path path, LuckyFill fill, Rect bounds,
