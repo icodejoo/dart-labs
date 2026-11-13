@@ -16,8 +16,8 @@ export const receive_transfer_closure: (a: number, b: number, c: number, d: numb
 export const wasm_start_callback: () => void;
 export const workerpool_new: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => void;
 export const workerpool_new_raw: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => void;
-export const __wasm_bindgen_func_elem_519: (a: number, b: number, c: any) => void;
-export const __wasm_bindgen_func_elem_526: (a: number, b: number) => void;
+export const __wasm_bindgen_func_elem_520: (a: number, b: number, c: any) => void;
+export const __wasm_bindgen_func_elem_527: (a: number, b: number) => void;
 export const __wbindgen_export: (a: number, b: number) => number;
 export const __wbindgen_export2: (a: number, b: number, c: number, d: number) => number;
 export const __wbindgen_export3: (a: number, b: number, c: number) => void;
