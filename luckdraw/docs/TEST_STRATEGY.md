@@ -867,7 +867,7 @@ B13a解析器夹具已验；APK/APK2随后完成真实APK自动构建与十探�
 
 `tool/treeshake/budgets.json` 的十项 Web 预算均已按实测增量 ×1.1 向上取整回填；APK十项也已按实测×1.1向上取整回填，全部零泄漏。CLI 的 `maxDeltaGzipBytes` 使用 Dart `GZipCodec(level: 9)`；GNU `gzip -9 -n` 的 `maxGnuDeltaGzipBytes` 为独立记录，不能混用压缩器上限。
 
-F2 合理增加大乐透代码后，主会话按 B13c 复测重定 lotto_only：Dart 增量 4417 B → 上限 4859 B，GNU 3889 B → 4278 B；旧 README 的 4294/3739 B 超预算结论保留为历史，不代表当前预算。compat_wheel 的 Dart/GNU 上限为 29653/29101 B。其余值见预算文件；旧设计“任一 *_only < all_games 的60%”是规划关系，当前工具按各探针实测增量预算验收，不能将该关系冒充已执行门禁。
+F2 合理增加大乐透代码后，主会话曾按 B13c 复测重定 lotto_only：Dart 增量 4417 B → 上限 4859 B，GNU 3889 B → 4278 B。2026-11-13 用户决定依据 CI run `43264055196` 按实测×1.1 校准（向上取整），实测低于现预算则保持原值；lotto_only 当前 Dart 实测 10365 B → 上限 11402 B，GNU 上限仍为 4278 B。完整 Web/APK 新旧值见 PHYSICS_DESIGN PH-16；历史测量字段不改，CI 来源与实测另存预算文件的 `_ciCalibration`。旧 README 的 4294/3739 B 超预算结论保留为历史，不代表当前预算。compat_wheel 的 Dart/GNU 上限为 29653/29101 B。其余值见预算文件；旧设计“任一 *_only < all_games 的60%”是规划关系，当前工具按各探针实测增量预算验收，不能将该关系冒充已执行门禁。
 
 APK后端支持自动构建及已有报告；CI treeshake-apk已重新启用，目前选择五项探针，十项本地成功不能冒充远程作业成功。
 

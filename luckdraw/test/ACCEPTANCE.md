@@ -1633,3 +1633,12 @@ P2 含 `LottoOptions.physics` 接入（导引、幽灵出球、逐池驱动）�
 | PHYS-80 | 大乐透物理：出球飞行中切换到参数化驱动，球的位置保持连续 | PHYSICS_DESIGN §6.3、§7.1；评审回归 | `test/review_regressions_test.dart :: 大乐透：开奖飞行中途换驱动，球不会跳到圆心再飞出` | 单元 | 已落地 |
 | CI-PAINT-01 | 共享画笔保留身份并复位颜色、样式、线宽、采样、着色器与遮罩 | IMP-R8 修复回归 | `test/core/render/paint_helpers_test.dart :: paint helpers > shared paint preserves identity and resets all six properties` | 单元 | 已落地 |
 | CI-PAINT-02 | 连续椭圆绘制与独立路径像素一致，不残留上一轮几何 | IMP-R8 修复回归 | `test/core/render/paint_helpers_test.dart :: paint helpers > successive ovals match independent paths without retained geometry` | 单元 | 已落地 |
+
+## CI 体积预算校准（2026-11-13）
+
+保留历史测试名和历史测量字段；两项证据测试同时核验 run `43264055196` 的最新实测、精确 110% 上调与低于原预算时保留原值，APK 未测探针及 GNU gzip 预算沿用历史记录。
+
+| ID | 需求 / 不变量 | 来源 | 用例 | 类型 | 结果 |
+| --- | --- | --- | --- | --- | --- |
+| PH16-CI-01 | Web 十项按本轮 CI 实测校准或保留，历史 GNU 预算与测量证据不变 | PHYSICS_DESIGN PH-16；用户决定 | `test/tool/treeshake_measurement_test.dart :: treeshake first measurement > web budgets match measured gzip deltas and apk remains uncalibrated` | 工具 | 已落地 |
+| PH16-CI-02 | APK 五项按本轮 CI 实测校准或保留，其余五项仍精确匹配历史实测 110% | PHYSICS_DESIGN PH-16；用户决定 | `test/tool/treeshake_apk_measurement_test.dart :: treeshake apk measurement > APK budgets equal measured package bytes times safety margin` | 工具 | 已落地 |

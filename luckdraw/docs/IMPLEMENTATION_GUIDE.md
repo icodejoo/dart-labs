@@ -3515,7 +3515,7 @@ MET2（2026-11-10）纯离线复算：**帧交付完整（全部130个窗口约6
 - `treeshake parsers > probe assertions report forbidden files and symbols` → R6-02
 
 - **验收**：R6-02…R6-06、R7-09。
-- **分阶段事实**：B13a 工具夹具已验，B13b/B13c 累计十个 Web 探针均成功构建、源码/符号检查通过，无泄漏；不是同一快照重跑十项。禁符号=全集−探针允许集（lotto_only 允许 CubicEasing），Web 预算已回填，Dart codec 与 GNU gzip -9 分别记录；F2 后 lotto_only 按复测×1.1重定为 Dart4859/GNU4278 B。`tool/treeshake/probes/**` 已排除主包 analyze。真实APK十探针由APK/APK2补测闭环，全部零泄漏，预算已回填，CI treeshake-apk已重新启用（五项），远程结果待验；详见 TEST_STRATEGY §8.2/8.3。
+- **分阶段事实**：B13a 工具夹具已验，B13b/B13c 累计十个 Web 探针均成功构建、源码/符号检查通过，无泄漏；不是同一快照重跑十项。禁符号=全集−探针允许集（lotto_only 允许 CubicEasing），Web 预算已回填，Dart codec 与 GNU gzip -9 分别记录；F2 后 lotto_only 曾按复测×1.1重定为 Dart4859/GNU4278 B；2026-11-13 按 CI 实测再校准为 Dart11402 B，GNU4278 B 保留（PHYSICS_DESIGN PH-16）。`tool/treeshake/probes/**` 已排除主包 analyze。真实APK十探针由APK/APK2补测闭环，全部零泄漏，预算已回填，CI treeshake-apk已重新启用（五项），远程结果待验；详见 TEST_STRATEGY §8.2/8.3。
 - **DoD**：工具夹具验收与真实产物验收分开记录；Web/APK各十探针真实产物与预算已验，CI已启用但远程作业结果仍留项。
 
 ### T4.8 发布准备
