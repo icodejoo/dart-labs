@@ -1,6 +1,7 @@
 import 'dart:convert';
 
-const _flag = '#t'; // json type tag — same convention as the sibling TS project's JSONX
+const _flag =
+    '#t'; // json type tag — same convention as the sibling TS project's JSONX
 
 /// Tagged payload field. / 类型标签的负载字段。
 const _value = 'value';
@@ -56,7 +57,9 @@ dynamic _toEncodable(dynamic value) {
       _value: [value.microsecondsSinceEpoch, value.isUtc]
     };
   }
-  if (value is Duration) return {_flag: _kDuration, _value: value.inMicroseconds};
+  if (value is Duration) {
+    return {_flag: _kDuration, _value: value.inMicroseconds};
+  }
   if (value is Set) return {_flag: _kSet, _value: value.toList()};
   if (value is BigInt) return {_flag: _kBigInt, _value: value.toString()};
   if (value is Uri) return {_flag: _kUri, _value: value.toString()};
@@ -100,7 +103,10 @@ dynamic _reviver(dynamic key, dynamic value) {
       return Uri.parse(raw as String);
     case _kMap:
       // 结构不合法说明是旧版留下的普通 Map，原样保留
-      if (raw is! List || !raw.every((p) => p is List && p.length == 2 && p[0] is String)) return value;
+      if (raw is! List ||
+          !raw.every((p) => p is List && p.length == 2 && p[0] is String)) {
+        return value;
+      }
       return {for (final p in raw) (p as List)[0] as String: p[1]};
     case _kRegExp:
       final m = raw as Map;
@@ -176,7 +182,8 @@ dynamic _reviver(dynamic key, dynamic value) {
 class Jsonx {
   const Jsonx._(); // coverage:ignore-line
 
-  static String encode<T>(T value) => jsonEncode(_escape(value), toEncodable: _toEncodable);
+  static String encode<T>(T value) =>
+      jsonEncode(_escape(value), toEncodable: _toEncodable);
 
   static T decode<T>(String text) => jsonDecode(text, reviver: _reviver) as T;
 }

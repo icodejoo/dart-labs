@@ -9,12 +9,13 @@ cacheman 是 Flutter 缓存语义层：默认同步 `Cacheman` 使用纯 Dart �
 
 ```mermaid
 flowchart TD
-    App[应用：按数据大小选择实例] --> Sync[Cacheman：同步编排]
-    App --> Async[AsyncCacheman：await 编排]
-    Sync --> Core[私有 _CacheCore：组合复用纯语义]
+    App[应用：按数据大小选择实例] --> Sync[Cacheman：同步 IO 外壳]
+    App --> Async[AsyncCacheman：await IO 外壳]
+    Sync --> Core[私有 _CacheCore：sans-IO 决策核心]
     Async --> Core
     Core --> Keys[namespace / enckey / 有界键映射]
     Core --> Envelope[信封 / TTL / serialize / codec / 续期判定]
+    Core --> Decisions[Miss / DropAndDefault / Hit / WritePlan]
     Core --> Errors[结构化错误与 cause 上报]
     Sync --> SyncRaw[可覆写同步原语 + CacheContext]
     Sync --> Hub[hub.dart: 每底层身份共享 Hub]
@@ -30,7 +31,7 @@ flowchart TD
 | --- | --- |
 | `lib/src/cacheman.dart` | 所属 Dart library；同步 API 编排、同步自有键集合缓存、默认内存原语。 |
 | `lib/src/hub.dart` | 私有共享 Hub：Expando 身份注册、单监听/版本、watch 快照分发、延迟落盘/生命周期。 |
-| `lib/src/core.dart` | 私有 `_CacheCore`，由两类分别组合持有；无 IO，统一键空间、信封、续期判定、错误处理。 |
+| `lib/src/core.dart` | 私有 `_CacheCore`，由两类分别组合持有；无存储 IO，统一键空间、读写决策、清理判定与错误处理。 |
 | `lib/src/async_cacheman.dart` | 抽象异步 API 编排，必需/可选异步原语；不维护自有键集合缓存。 |
 | `lib/src/interface.dart` | Codec、CachemanOnError、不可变 CacheContext 与 CacheOp。 |
 | `lib/src/options.dart` | 共用 CachemanOptions；CacheOptions 已删除。 |
@@ -43,6 +44,37 @@ flowchart TD
 `core.dart`、`hub.dart` 和 `async_cacheman.dart` 是 `cacheman.dart` 的 part，同一 Dart library 内
 通过组合共享真正私有的 `_CacheCore`。入口导出的只有公共类；内核没有公共类型或导出入口。
 同步/异步薄层仅执行原语调用和控制流，键/信封/配置校验/错误消息不重复实现。
+
+### core 决策 + 两个 IO 外壳
+
+`decideRead(storageKey, raw, now, fallback, adapter)` 返回私有 sealed 决策：
+
+- `_Miss<T>`：缺失或外部非字符串值，直接返回默认值，不删除数据。
+- `_DropAndDefault<T>`：损坏或已过期，携带默认值和可选原始异常/堆栈；外壳删除成功后，
+  `finishRead` 才上报损坏。删除失败直接传播 IO 异常，不误报 dropped。
+- `_Hit<T>`：携带原始业务值、适配器和可选 `_WritePlan` 续期计划。外壳先执行续期，
+  `finishRead` 再转换类型；续期写入最终失败仍返回原值，类型不符仍保留数据。
+
+`decideWrite` 统一 readonly 存活探测、raw 字符串校验和信封构造。跳过时返回 null，
+否则返回延后编码的 `_WritePlan`。编码延后到外壳的初始化断言之后，`build` 只执行一次，
+编码失败统一上报 SerializeError。`retryWrite` 决定首次写失败是否清过期后重试；第二次写或
+清理失败统一上报 WriteError，用户 onError 抛出的原始异常直接传播。两个外壳只保留小型
+IO 循环：写入，按决策清过期并重试同一字符串。同步外壳继续独立观察后台 FlushError。
+
+`shouldPurge(raw, now)` 只判断带本库标记的过期项；`alive` 静默探测，`canPurge` 与
+`clearsBackend` 统一 raw 跳过清理和 erase 的作用域规则。批读默认值也由 core 决定。
+批量外壳只按原顺序逐键调用；自有键快照、Hub 通知和后台 Future 属于同步 IO 层。
+core 的决策不调用存储，不返回 Future；序列化、codec、adapter 仍使用用户提供的函数。
+
+不使用 `FutureOr`：同步调用必须当场返回，不能为统一编排增加 Future、微任务或等待分支。
+保留两个小外壳，异步层在原语处显式 await，同步层保持内存立即可见及后台错误观察。
+不使用代码生成：决策与错误分类只有一份实现，无需维护生成器、生成文件或构建步骤。
+
+`test/conformance/decision_core_test.dart` 将同一组场景分别运行在同步内存原语和每次跨事件
+循环的异步原语上，检查返回值、实际存储副作用、原语顺序、异常身份及错误上报时机。
+`purgeOnInit` 仅同步生效和后台落盘的差异继续遵守既有公开契约。
+本轮统一一个既有边界差异：setRaw 间接触发其他实例的 onError 异常时，旧异步层可能重试、
+误报 WriteError；现在与同步层一致，按 README 的用户处理器异常传播契约，原样抛出且不重试。
 
 ## 初始化与原语边界
 

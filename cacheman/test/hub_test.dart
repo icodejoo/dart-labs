@@ -115,7 +115,8 @@ class _Observable extends Cacheman {
   final contexts = <CacheContext>[];
 
   @override
-  MemoryStorage get container => throw StateError('must not open default memory');
+  MemoryStorage get container =>
+      throw StateError('must not open default memory');
   @override
   Future<void> initRaw(CacheContext ctx) async {}
   @override
@@ -350,7 +351,9 @@ void main() {
     expect(cache.read<int>(_key), 1);
   });
 
-  test('memory initialization preserves existing values without spurious events', () async {
+  test(
+      'memory initialization preserves existing values without spurious events',
+      () async {
     final cache = Cacheman(container: name());
     final values = <int?>[];
     addTearDown(cache.watch<int>(_key, values.add, includeOwnWrites: true));
@@ -649,8 +652,10 @@ void main() {
     }
   });
 
-  test('memory delayed writes are immediately readable and removable', () async {
-    final cache = await real(name(), const CachemanOptions(flushDelay: _longDelay));
+  test('memory delayed writes are immediately readable and removable',
+      () async {
+    final cache =
+        await real(name(), const CachemanOptions(flushDelay: _longDelay));
     cache.write(_key, _value);
     expect(cache.container.read<String>(_key), isNotNull);
     expect(cache.read<String>(_key), _value);
@@ -751,8 +756,10 @@ void main() {
     cache.flush();
     await Future<void>.delayed(Duration.zero);
     expect(cache.saves, 1);
-    expect(errors.single,
-        isA<FlushError>().having((e) => e.cause, _causeLabel, isA<StateError>()));
+    expect(
+        errors.single,
+        isA<FlushError>()
+            .having((e) => e.cause, _causeLabel, isA<StateError>()));
   });
 
   test('force false reports once and fallback print preserves the error',
@@ -1071,8 +1078,10 @@ void main() {
     codec.encodeError = encodeFailure;
     backend.change(sk);
     expect(errors.last.$1, sk);
-    expect(errors.last.$2,
-        isA<WatchError>().having((e) => e.cause, _causeLabel, same(encodeFailure)));
+    expect(
+        errors.last.$2,
+        isA<WatchError>()
+            .having((e) => e.cause, _causeLabel, same(encodeFailure)));
     expect(values, [_value, _value]);
     stop();
     peerStop();

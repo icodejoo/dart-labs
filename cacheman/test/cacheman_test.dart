@@ -15,7 +15,8 @@ class FakeCodec implements Codec {
   final String password;
 
   @override
-  String encode(String value) => '$password:${base64Encode(utf8.encode(value))}';
+  String encode(String value) =>
+      '$password:${base64Encode(utf8.encode(value))}';
 
   @override
   String? decode(String value) {
@@ -103,7 +104,8 @@ void main() {
     return cache;
   }
 
-  test('memory write remove erase notify synchronously before return', () async {
+  test('memory write remove erase notify synchronously before return',
+      () async {
     final cache = await newCache();
     final events = <String?>[];
     final cancel = cache.container.listen((key) {
@@ -119,7 +121,8 @@ void main() {
     await Future.wait([write, remove, erase]);
   });
 
-  test('forwarding subclass keeps memory hub, watch and incremental index', () async {
+  test('forwarding subclass keeps memory hub, watch and incremental index',
+      () async {
     final name = nextContainer();
     final base = await newCache(container: name);
     final sub = _Forwarding(container: name);
@@ -133,17 +136,19 @@ void main() {
   });
 
   group('basic read/write/remove', () {
-    test('writes assert before initialization and succeed after awaiting it', () async {
+    test('writes assert before initialization and succeed after awaiting it',
+        () async {
       const key = 'guarded';
       const value = 'ready';
       for (final raw in [false, true]) {
         final cache = Cacheman(
           container: nextContainer(),
-              options: CachemanOptions(raw: raw),
+          options: CachemanOptions(raw: raw),
         );
         expect(
           () => cache.write(key, value),
-          throwsA(isA<AssertionError>().having((error) => error.message, 'message', contains('await ensureInitialized()'))),
+          throwsA(isA<AssertionError>().having((error) => error.message,
+              'message', contains('await ensureInitialized()'))),
         );
         await cache.ensureInitialized();
         expect(cache.read<String>(key), isNull);
@@ -193,15 +198,18 @@ void main() {
       expect(e.read<String>('a'), isNull);
     });
 
-    test('ttl <= 0 is warned and ignored — value persists with no expiry', () async {
+    test('ttl <= 0 is warned and ignored — value persists with no expiry',
+        () async {
       final e = await newCache();
       e.write('a', 'x', ttl: 0);
       expect(e.read<String>('a'), 'x');
     });
 
-    test('expireAt in the past (no sliding) skips the write entirely', () async {
+    test('expireAt in the past (no sliding) skips the write entirely',
+        () async {
       final e = await newCache();
-      e.write('a', 'x', expireAt: DateTime.now().subtract(const Duration(seconds: 1)));
+      e.write('a', 'x',
+          expireAt: DateTime.now().subtract(const Duration(seconds: 1)));
       expect(e.read<String>('a'), isNull);
     });
 
@@ -218,13 +226,17 @@ void main() {
     test('a read hit past 10% of ttl renews expireAt', () async {
       final e = await newCache(sliding: true);
       e.write('a', 'x', ttl: 100);
-      await Future<void>.delayed(const Duration(milliseconds: 20)); // > 10% of 100ms elapsed
+      await Future<void>.delayed(
+          const Duration(milliseconds: 20)); // > 10% of 100ms elapsed
       expect(e.read<String>('a'), 'x'); // triggers renewal
-      await Future<void>.delayed(const Duration(milliseconds: 90)); // would've expired without renewal
+      await Future<void>.delayed(
+          const Duration(milliseconds: 90)); // would've expired without renewal
       expect(e.read<String>('a'), 'x');
     });
 
-    test('without sliding, the same read pattern lets the entry expire on schedule', () async {
+    test(
+        'without sliding, the same read pattern lets the entry expire on schedule',
+        () async {
       final e = await newCache();
       e.write('a', 'x', ttl: 100);
       await Future<void>.delayed(const Duration(milliseconds: 20));
@@ -235,7 +247,9 @@ void main() {
   });
 
   group('namespace', () {
-    test('two engines sharing a backend but different namespaces do not collide', () async {
+    test(
+        'two engines sharing a backend but different namespaces do not collide',
+        () async {
       final container = nextContainer();
       final a = await newCache(container: container, namespace: 'a');
       final b = await newCache(container: container, namespace: 'b');
@@ -256,7 +270,9 @@ void main() {
       expect(b.read<int>('y'), 2);
     });
 
-    test('keys()/length() stay accurate as entries are added and removed (owned-key cache)', () async {
+    test(
+        'keys()/length() stay accurate as entries are added and removed (owned-key cache)',
+        () async {
       final container = nextContainer();
       final a = await newCache(container: container, namespace: 'a');
       final b = await newCache(container: container, namespace: 'b');
@@ -273,12 +289,15 @@ void main() {
       expect(a.length, 1); // unaffected by b's writes to a different namespace
     });
 
-    test('setNamespace invalidates the owned-key cache so keys() reflects the new namespace', () async {
+    test(
+        'setNamespace invalidates the owned-key cache so keys() reflects the new namespace',
+        () async {
       final e = await newCache(namespace: 'a');
       e.write('x', 1);
       expect(e.keys(), ['x']); // builds the owned-key cache under namespace 'a'
       e.setNamespace('b');
-      expect(e.keys(), isEmpty); // nothing written under 'b' yet — not stale from 'a'
+      expect(e.keys(),
+          isEmpty); // nothing written under 'b' yet — not stale from 'a'
       e.write('y', 2);
       expect(e.keys(), ['y']);
       e.setNamespace('a');
@@ -290,7 +309,8 @@ void main() {
       e.write('token', 'v1');
       expect(e.read<String>('token'), 'v1');
       e.setNamespace('alice');
-      expect(e.read<String>('token'), isNull); // different prefix now, nothing written there yet
+      expect(e.read<String>('token'),
+          isNull); // different prefix now, nothing written there yet
       e.write('token', 'v2');
       expect(e.read<String>('token'), 'v2');
       e.setNamespace(); // back to no namespace
@@ -307,14 +327,16 @@ void main() {
       expect(e.readAll(['a', 'b', 'c']), [null, 2, null]);
     });
 
-    test('readAll pairs defaults positionally, missing slots fall back to null', () async {
+    test('readAll pairs defaults positionally, missing slots fall back to null',
+        () async {
       final e = await newCache();
       e.write('a', 1);
       expect(e.readAll(['a', 'b'], [0, 'x']), [1, 'x']);
       expect(e.readAll(['a', 'b']), [1, null]);
     });
 
-    test('writeAll with fewer values than keys skips the missing entries', () async {
+    test('writeAll with fewer values than keys skips the missing entries',
+        () async {
       final e = await newCache();
       e.writeAll(['a', 'b', 'c'], [1, 2]);
       expect(e.readAll(['a', 'b', 'c']), [1, 2, null]);
@@ -322,7 +344,8 @@ void main() {
   });
 
   group('raw mode', () {
-    test('a String value is stored and read back untouched, no envelope', () async {
+    test('a String value is stored and read back untouched, no envelope',
+        () async {
       final e = await newCache(raw: true);
       e.write('a', 'plain-string');
       expect(e.read<String>('a'), 'plain-string');
@@ -336,7 +359,8 @@ void main() {
   });
 
   group('readonly', () {
-    test('writes only when the key is empty; a second write is discarded', () async {
+    test('writes only when the key is empty; a second write is discarded',
+        () async {
       final e = await newCache(readonly: true);
       e.write('a', 'first');
       e.write('a', 'second');
@@ -357,7 +381,9 @@ void main() {
     const fallback = 'fallback';
     const secret = 'secret';
 
-    test('enckey keys()/key() reuse decoded logical keys across repeated enumeration', () async {
+    test(
+        'enckey keys()/key() reuse decoded logical keys across repeated enumeration',
+        () async {
       const keys = ['x', 'y'];
       final codec = _CountingCodec();
       final e = await newCache(enckey: true, codec: codec, namespace: 'a');
@@ -370,12 +396,15 @@ void main() {
       expect(codec.decodeCalls, calls);
     });
 
-    test('setNamespace clears enckey logical mappings before enumerating the new scope', () async {
+    test(
+        'setNamespace clears enckey logical mappings before enumerating the new scope',
+        () async {
       const firstNs = 'a';
       const firstKey = 'x';
       const secondKey = 'y';
       const fullKey = '$firstNs:$firstKey';
-      final e = await newCache(enckey: true, codec: FakeCodec(), namespace: firstNs);
+      final e =
+          await newCache(enckey: true, codec: FakeCodec(), namespace: firstNs);
       e.write(firstKey, 1);
       expect(e.keys(), [firstKey]);
       e.setNamespace();
@@ -390,9 +419,12 @@ void main() {
       expect(e.key(0), firstKey);
     });
 
-    test('codeable + codec obfuscates the persisted string but reads decode transparently', () async {
+    test(
+        'codeable + codec obfuscates the persisted string but reads decode transparently',
+        () async {
       final container = nextContainer();
-      final e = await newCache(container: container, codeable: true, codec: FakeCodec());
+      final e = await newCache(
+          container: container, codeable: true, codec: FakeCodec());
       e.write('a', secret);
       expect(e.read<String>('a'), secret);
       // read the raw string straight from memory (same
@@ -403,10 +435,13 @@ void main() {
       expect(gsRaw as String, isNot(contains(secret)));
     });
 
-    test('a null codec result is reported once, deleted and returned as the default', () async {
+    test(
+        'a null codec result is reported once, deleted and returned as the default',
+        () async {
       const key = damagedKey;
       final container = nextContainer();
-      final withCodec = await newCache(container: container, codeable: true, codec: FakeCodec('right'));
+      final withCodec = await newCache(
+          container: container, codeable: true, codec: FakeCodec('right'));
       withCodec.write(key, secret);
       final errors = <(String, Object)>[];
       final wrongCodec = await newCache(
@@ -422,16 +457,23 @@ void main() {
       expect(wrongCodec.read<String>(key, fallback), fallback);
       expect(errors, hasLength(1));
       expect(errors.single.$1, key);
-      expect(errors.single.$2, isA<CorruptEntryError>().having((e) => e.cause, _causeLabel, isA<FormatException>()).having((e) => e.dropped, 'dropped', isTrue));
+      expect(
+          errors.single.$2,
+          isA<CorruptEntryError>()
+              .having((e) => e.cause, _causeLabel, isA<FormatException>())
+              .having((e) => e.dropped, 'dropped', isTrue));
       expect(wrongCodec.container.hasData(key), isFalse);
       expect(wrongCodec.read<String>(key, fallback), fallback);
       expect(errors, hasLength(1));
     });
 
-    test('a throwing replacement codec reports the original exception once and deletes the entry', () async {
+    test(
+        'a throwing replacement codec reports the original exception once and deletes the entry',
+        () async {
       const key = damagedKey;
       final container = nextContainer();
-      final writer = await newCache(container: container, codeable: true, codec: FakeCodec());
+      final writer = await newCache(
+          container: container, codeable: true, codec: FakeCodec());
       writer.write(key, secret);
       final failure = StateError('decode failed');
       final errors = <(String, Object)>[];
@@ -444,13 +486,18 @@ void main() {
       expect(reader.read<String>(key, fallback), fallback);
       expect(errors, hasLength(1));
       expect(errors.single.$1, key);
-      expect(errors.single.$2, isA<CorruptEntryError>().having((e) => e.cause, _causeLabel, same(failure)));
+      expect(
+          errors.single.$2,
+          isA<CorruptEntryError>()
+              .having((e) => e.cause, _causeLabel, same(failure)));
       expect(reader.container.hasData(key), isFalse);
       expect(reader.read<String>(key, fallback), fallback);
       expect(errors, hasLength(1));
     });
 
-    test('a throwing replacement deserialize reports once after deleting the entry', () async {
+    test(
+        'a throwing replacement deserialize reports once after deleting the entry',
+        () async {
       const key = damagedKey;
       final container = nextContainer();
       final writer = await newCache(container: container);
@@ -459,7 +506,7 @@ void main() {
       final errors = <(String, Object)>[];
       final reader = await _ready(Cacheman(
         container: container,
-          options: CachemanOptions(
+        options: CachemanOptions(
           deserialize: (_) => throw failure,
           onError: (key, error) {
             expect(writer.container.hasData(key), isFalse);
@@ -470,19 +517,24 @@ void main() {
       expect(reader.read<String>(key, fallback), fallback);
       expect(errors, hasLength(1));
       expect(errors.single.$1, key);
-      expect(errors.single.$2, isA<CorruptEntryError>().having((e) => e.cause, _causeLabel, same(failure)));
+      expect(
+          errors.single.$2,
+          isA<CorruptEntryError>()
+              .having((e) => e.cause, _causeLabel, same(failure)));
       expect(reader.container.hasData(key), isFalse);
       expect(reader.read<String>(key, fallback), fallback);
       expect(errors, hasLength(1));
     });
 
-    test('raw reads bypass throwing codecs/deserializers and do not report decode errors', () async {
+    test(
+        'raw reads bypass throwing codecs/deserializers and do not report decode errors',
+        () async {
       const key = 'raw';
       const value = 'untouched';
       final errors = <Object>[];
       final cache = await _ready(Cacheman(
         container: nextContainer(),
-          options: CachemanOptions(
+        options: CachemanOptions(
           raw: true,
           codeable: true,
           codec: _ThrowingCodec(StateError('must not decode')),
@@ -496,19 +548,24 @@ void main() {
       expect(errors, isEmpty);
     });
 
-    test('enckey obfuscates the storage key so foreign readers cannot see it', () async {
+    test('enckey obfuscates the storage key so foreign readers cannot see it',
+        () async {
       final container = nextContainer();
-      final e = await newCache(container: container, enckey: true, codec: FakeCodec());
+      final e = await newCache(
+          container: container, enckey: true, codec: FakeCodec());
       e.write('token', 'abc');
-      final gsKeys = MemoryStorage.named(container).keys.map((k) => k.toString());
+      final gsKeys =
+          MemoryStorage.named(container).keys.map((k) => k.toString());
       expect(gsKeys, isNot(contains('token')));
       expect(e.read<String>('token'), 'abc');
-      expect(e.keys(), ['token']); // logical keys are still plaintext to the owner
+      expect(
+          e.keys(), ['token']); // logical keys are still plaintext to the owner
     });
   });
 
   group('force / onError', () {
-    test('write() does not throw synchronously even under default force:true', () async {
+    test('write() does not throw synchronously even under default force:true',
+        () async {
       final e = await newCache();
       expect(() => e.write('a', 'x'), returnsNormally);
       expect(e.read<String>('a'), 'x');
@@ -533,24 +590,29 @@ void main() {
 
     test('round-trips Uri', () {
       final uri = Uri.parse('https://example.com/path?q=1&r=2#frag');
-      final decoded = Jsonx.decode<Map<String, dynamic>>(Jsonx.encode({'url': uri}));
+      final decoded =
+          Jsonx.decode<Map<String, dynamic>>(Jsonx.encode({'url': uri}));
       expect(decoded['url'], uri);
     });
 
     test('round-trips RegExp, flags included', () {
-      final re = RegExp(r'a.b', multiLine: true, caseSensitive: false, dotAll: true);
-      final decoded = Jsonx.decode<Map<String, dynamic>>(Jsonx.encode({'re': re}));
+      final re =
+          RegExp(r'a.b', multiLine: true, caseSensitive: false, dotAll: true);
+      final decoded =
+          Jsonx.decode<Map<String, dynamic>>(Jsonx.encode({'re': re}));
       final out = decoded['re'] as RegExp;
       expect(out.pattern, re.pattern);
       expect(out.isMultiLine, re.isMultiLine);
       expect(out.isCaseSensitive, re.isCaseSensitive);
       expect(out.isDotAll, re.isDotAll);
-      expect(out.hasMatch('A\nB'), isTrue); // caseSensitive:false + dotAll:true both exercised
+      expect(out.hasMatch('A\nB'),
+          isTrue); // caseSensitive:false + dotAll:true both exercised
     });
   });
 
   group('review fixes', () {
-    test('namespaces containing ":" do not collide or erase each other', () async {
+    test('namespaces containing ":" do not collide or erase each other',
+        () async {
       final container = nextContainer();
       final a = await newCache(container: container, namespace: 'a');
       final ab = await newCache(container: container, namespace: 'a:b');
@@ -563,22 +625,29 @@ void main() {
       expect(ab.keys(), ['x']);
     });
 
-    test('serialize throwing is caught by write (reported via onError), read keeps working', () async {
+    test(
+        'serialize throwing is caught by write (reported via onError), read keeps working',
+        () async {
       Object? reported;
       final cache = Cacheman(
         container: nextContainer(),
-          options: CachemanOptions(
+        options: CachemanOptions(
           serialize: (_) => throw StateError('boom'),
           onError: (k, e) => reported = e,
         ),
       );
       await cache.ensureInitialized();
       expect(() => cache.write('a', 1), returnsNormally);
-      expect(reported, isA<SerializeError>().having((e) => e.cause, _causeLabel, isA<StateError>()));
+      expect(
+          reported,
+          isA<SerializeError>()
+              .having((e) => e.cause, _causeLabel, isA<StateError>()));
       expect(cache.read<int>('a'), isNull);
     });
 
-    test('namespace with "%" is escaped and isolated from the literal-prefixed one', () async {
+    test(
+        'namespace with "%" is escaped and isolated from the literal-prefixed one',
+        () async {
       final container = nextContainer();
       final p = await newCache(container: container, namespace: '50%');
       final q = await newCache(container: container, namespace: '50%25');
@@ -593,7 +662,7 @@ void main() {
       var calls = 0;
       final cache = Cacheman(
         container: nextContainer(),
-          options: CachemanOptions(serialize: (e) {
+        options: CachemanOptions(serialize: (e) {
           if (calls++ == 0) throw StateError('once');
           return defaultSerialize(e);
         }),
@@ -604,7 +673,9 @@ void main() {
       expect(cache.read<int>('a'), isNull);
     });
 
-    test('purge() leaves raw values alone even if they look like an expired entity', () async {
+    test(
+        'purge() leaves raw values alone even if they look like an expired entity',
+        () async {
       final e = await newCache(raw: true);
       const lookalike = '{"value":"x","createdAt":1,"expireAt":2}';
       e.write('k', lookalike);
@@ -612,31 +683,37 @@ void main() {
       expect(e.read<String>('k'), lookalike);
     });
 
-    test('readonly treats a stored null as present and does not slide-renew', () async {
+    test('readonly treats a stored null as present and does not slide-renew',
+        () async {
       final e = await newCache(readonly: true);
       e.write<dynamic>('k', null);
       e.write('k', 'second');
       expect(e.read<dynamic>('k'), isNull);
     });
 
-    test('readonly write attempt does not extend the old value lifetime (sliding)', () async {
+    test(
+        'readonly write attempt does not extend the old value lifetime (sliding)',
+        () async {
       final e = await newCache(readonly: true, sliding: true);
       e.write('k', 'v', ttl: 1000);
-      final before = (jsonDecode(e.container.read<String>(e.storageKey('k'))!) as Map)['expireAt'];
+      final before = (jsonDecode(e.container.read<String>(e.storageKey('k'))!)
+          as Map)['expireAt'];
       await Future<void>.delayed(const Duration(milliseconds: 150));
       e.write('k', 'other', ttl: 1000);
-      final after = (jsonDecode(e.container.read<String>(e.storageKey('k'))!) as Map)['expireAt'];
+      final after = (jsonDecode(e.container.read<String>(e.storageKey('k'))!)
+          as Map)['expireAt'];
       expect(after, before);
     });
 
     test('keyCodec encodes keys independently of the value codec', () async {
       final cache = Cacheman(
         container: nextContainer(),
-          options: CachemanOptions(enckey: true, keyCodec: FakeCodec()),
+        options: CachemanOptions(enckey: true, keyCodec: FakeCodec()),
       );
       await cache.ensureInitialized();
       cache.write('token', 'abc');
-      expect(cache.container.keys.map((k) => k.toString()), isNot(contains('token')));
+      expect(cache.container.keys.map((k) => k.toString()),
+          isNot(contains('token')));
       expect(cache.read<String>('token'), 'abc');
       expect(cache.keys(), ['token']);
     });
@@ -683,7 +760,8 @@ void main() {
     });
 
     test('unsupported objects still throw', () {
-      expect(() => Jsonx.encode(Object()), throwsA(isA<JsonUnsupportedObjectError>()));
+      expect(() => Jsonx.encode(Object()),
+          throwsA(isA<JsonUnsupportedObjectError>()));
     });
   });
 
@@ -694,7 +772,9 @@ void main() {
       expect(cache.read<String>('a'), 'persisted');
     });
 
-    test('ls.key(index)/length walk memory directly without materializing keys()', () async {
+    test(
+        'ls.key(index)/length walk memory directly without materializing keys()',
+        () async {
       final cache = await _ready(Cacheman(container: 'cacheman_test_ls_key'));
       cache.write('a', 1);
       cache.write('b', 2);
@@ -727,7 +807,8 @@ void main() {
         expect(token.get('def'), 'def');
       });
 
-      test('lazy only builds the accessor on first call, then reuses it', () async {
+      test('lazy only builds the accessor on first call, then reuses it',
+          () async {
         final cache = await _ready(Cacheman(container: 'cacheman_test_lazy'));
         final tokenLazy = lazy<String>(cache, 'token');
         final a = tokenLazy();
@@ -736,7 +817,8 @@ void main() {
       });
 
       test('batchFast binds several keys at once', () async {
-        final cache = await _ready(Cacheman(container: 'cacheman_test_batch_fast'));
+        final cache =
+            await _ready(Cacheman(container: 'cacheman_test_batch_fast'));
         final accessors = batchFast<String>(cache, ['a', 'b']);
         accessors['a']!.set('1');
         accessors['b']!.set('2');
@@ -746,18 +828,22 @@ void main() {
     });
 
     group('debug()', () {
-      test('returns every owned entry decrypted, namespace preserved', () async {
+      test('returns every owned entry decrypted, namespace preserved',
+          () async {
         final cache = await _ready(Cacheman(
           container: 'cacheman_test_debug',
-              options: CachemanOptions(namespace: 'ns', enckey: true, codec: FakeCodec()),
+          options: CachemanOptions(
+              namespace: 'ns', enckey: true, codec: FakeCodec()),
         ));
         cache.write('a', 1);
         cache.write('b', 2);
         expect(debug(cache), {'ns:a': 1, 'ns:b': 2});
       });
 
-      test('does not write anything back — keys()/length stay unaffected', () async {
-        final cache = await _ready(Cacheman(container: 'cacheman_test_debug_noop'));
+      test('does not write anything back — keys()/length stay unaffected',
+          () async {
+        final cache =
+            await _ready(Cacheman(container: 'cacheman_test_debug_noop'));
         cache.write('a', 1);
         debug(cache);
         expect(cache.length, 1);

@@ -1,5 +1,7 @@
 ## 0.8.0
 
+- Internal: sync and async share one decision core; behaviour unchanged.
+
 **Breaking:**
 
 - `Cacheman()` now uses pure Dart memory storage. Data is lost on restart. Same-name

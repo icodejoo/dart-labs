@@ -7,6 +7,62 @@ const _initializationMessage =
 /// Whole-backend error key. / 整个后端的错误键。
 const _allKeys = '*';
 
+/// 不接触存储的读取决策，保留调用方的默认值。
+sealed class _ReadDecision<T> {
+  /// 保存缺失、删除或转换失败时使用的默认值。
+  const _ReadDecision(this.storageKey, this.fallback);
+
+  /// 本次读取对应的实际存储键。
+  final String storageKey;
+
+  /// 本次读取的默认值。
+  final T? fallback;
+}
+
+/// 缺失或外部非字符串数据，无需后续 IO。
+final class _Miss<T> extends _ReadDecision<T> {
+  /// 构造无副作用的缺失结果。
+  const _Miss(super.storageKey, super.fallback);
+}
+
+/// 删除成功后返回默认值，并按需上报原始解码异常。
+final class _DropAndDefault<T> extends _ReadDecision<T> {
+  /// 保存待删除条目的错误及堆栈，过期删除不携带错误。
+  const _DropAndDefault(super.storageKey, super.fallback,
+      [this.error, this.trace]);
+
+  /// 解码失败的原始异常，过期时为空。
+  final Object? error;
+
+  /// 解码失败时的原始堆栈。
+  final StackTrace? trace;
+}
+
+/// 命中后先执行可选续期，再转换原值；续期失败不丢失原值。
+final class _Hit<T> extends _ReadDecision<T> {
+  /// 保存原值、适配器及可选续期计划。
+  const _Hit(
+      super.storageKey, super.fallback, this.value, this.adapter, this.renewal);
+
+  /// 解码后的原始业务值，允许为 null。
+  final Object? value;
+
+  /// 续期完成后才调用的读取适配器。
+  final ValueAdapter<T>? adapter;
+
+  /// 延后编码的续期计划，未到续期阈值时为空。
+  final _WritePlan? renewal;
+}
+
+/// 只描述一次编码，后端重试始终复用同一个编码字符串。
+final class _WritePlan {
+  /// 保存编码动作，让外壳先断言初始化再执行编码。
+  const _WritePlan(this.encode);
+
+  /// 不访问存储的编码动作。
+  final String Function() encode;
+}
+
 /// Storage-free semantics shared by both facades through composition.
 /// 两个薄层通过组合共用的纯语义内核，不接触存储。
 class _CacheCore {
@@ -169,8 +225,7 @@ class _CacheCore {
   ///
   /// 构造要落盘的 entity；`null` 表示校验没过（已经警告过），应放弃写入。
   CacheEntity? _mkEntity(
-      dynamic value, int? ttl, Object? expireAt, String key) {
-    final now = DateTime.now().millisecondsSinceEpoch;
+      dynamic value, int? ttl, Object? expireAt, String key, int now) {
     int? finalTtl = ttl;
     if (finalTtl != null && finalTtl <= 0) {
       // ignore: avoid_print
@@ -215,6 +270,93 @@ class _CacheCore {
           entity.expireAt! - now <= entity.ttl! * 0.9
       ? entity.renewed(now + entity.ttl!)
       : null;
+
+  /// 根据原始值和时间给出读取决策；不调用后端或错误处理器。
+  _ReadDecision<T> decideRead<T>(String storageKey, Object? raw, int now,
+      T? fallback, ValueAdapter<T>? adapter) {
+    if (raw is! String) return _Miss(storageKey, fallback);
+    if (_opts.raw) {
+      warnRawAdapter(adapter);
+      return _Hit(storageKey, fallback, raw, null, null);
+    }
+    Object? failure;
+    StackTrace? failureTrace;
+    final entity = _load(raw, onFailure: (error, trace) {
+      failure = error;
+      failureTrace = trace;
+    });
+    if (entity == null) {
+      return _DropAndDefault(storageKey, fallback, failure, failureTrace);
+    }
+    if (_isExpired(entity, now)) return _DropAndDefault(storageKey, fallback);
+    final renewed = renewal(entity, now);
+    return _Hit(storageKey, fallback, entity.value, adapter,
+        renewed == null ? null : _WritePlan(() => _dump(renewed)));
+  }
+
+  /// 外壳完成删除或续期后才上报、转换，保留回调异常和副作用顺序。
+  T? finishRead<T>(_ReadDecision<T> decision) {
+    final key = decision.storageKey;
+    switch (decision) {
+      case _DropAndDefault<T>(:final error, :final trace):
+        if (error != null) reportDecodeError(key, error, trace);
+        return decision.fallback;
+      case _Hit<T>(:final value, :final adapter):
+        return typed(key, value, decision.fallback, adapter);
+      case _Miss<T>():
+        return decision.fallback;
+    }
+  }
+
+  /// 只有 readonly 写入需要外壳读取现值。
+  bool get needsWriteProbe => _opts.readonly;
+
+  /// 静默判定现值是否存活，不删除、不上报、不续期。
+  bool alive(Object? raw, int now) {
+    if (raw is! String) return false;
+    if (_opts.raw) return true;
+    final entity = _load(raw);
+    return entity != null && !_isExpired(entity, now);
+  }
+
+  /// 统一 readonly、raw 和过期参数判定，返回待编码计划或跳过。
+  _WritePlan? decideWrite<T>(String key, T value, Object? raw, int now,
+      {int? ttl, Object? expireAt, ValueAdapter<T>? adapter}) {
+    if (_opts.readonly && alive(raw, now)) return null;
+    if (_opts.raw) {
+      warnRawAdapter(adapter);
+      return acceptsRaw(key, value) ? _WritePlan(() => value as String) : null;
+    }
+    final entity = _mkEntity(value, ttl, expireAt, key, now);
+    return entity == null
+        ? null
+        : _WritePlan(() => encode(entity, value, adapter));
+  }
+
+  /// raw 无需扫描清理，避免枚举后端或读取任何值。
+  bool get canPurge => !_opts.raw;
+
+  /// 仅删除带本库标记的过期信封，损坏及外部数据保持原样。
+  bool shouldPurge(Object? raw, int now) =>
+      canPurge && raw is String && _isExpired(_load(raw), now);
+
+  /// 是否可以整库清空；namespace 或键编码均要求逐个删除自有键。
+  bool get clearsBackend => _ns.isEmpty && !_enckey;
+
+  /// 顺序批读的默认值，短列表按 null 补齐。
+  dynamic batchDefault(List<dynamic>? defaults, int index) =>
+      defaults != null && index < defaults.length ? defaults[index] : null;
+
+  /// 最多指示一次清理重试；最终分类上报，用户处理器异常保持原样传播。
+  bool retryWrite(String key, Object error, StackTrace trace,
+      {required bool retried}) {
+    if (identical(error, _propagatingHandlerError)) {
+      Error.throwWithStackTrace(error, trace);
+    }
+    if (_opts.force && !retried) return true;
+    _reportError(WriteError(key, error, trace));
+    return false;
+  }
 
   /// Rejects non-string raw writes consistently. / 统一拒绝非字符串 raw 写入。
   bool acceptsRaw(String key, Object? value) {

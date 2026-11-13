@@ -265,12 +265,8 @@ class Cacheman {
   /// 实际加前缀/编码后的存储键，例如供 container.listenKey 使用。
   String storageKey(String key) => _core._fullKey(key);
 
-  /// Reads a fresh backend string; foreign non-strings count as absent.
-  /// 每次读取后端字符串，外部非字符串数据视为缺失。
-  String? _get(String key) {
-    final value = getRaw(_core.context(CacheOp.read, key), key);
-    return value is String ? value : null;
-  }
+  /// 每次读取原始后端值，由内核统一判断外部非字符串数据。
+  Object? _get(String key) => getRaw(_core.context(CacheOp.read, key), key);
 
   /// Removes and updates the owned-key snapshot. / 删除并维护自有键快照。
   void _del(String key) {
@@ -325,39 +321,29 @@ class Cacheman {
   /// Snapshot safe for removal during iteration. / 允许遍历中删除的快照。
   List<String> _ownKeys() => _ownSet().toList(growable: false);
 
-  /// Purge silently probes marked envelopes only. / 清理只静默探测带标记的信封。
+  /// 依照内核决策静默删除过期项，raw 跳过后端枚举。
   void _purgeExpired() {
-    if (_core._opts.raw) return;
+    if (!_core.canPurge) return;
     final now = DateTime.now().millisecondsSinceEpoch;
     for (final key in _ownKeys()) {
-      final raw = _get(key);
-      if (raw != null && _core._isExpired(_core._load(raw), now)) _del(key);
+      if (_core.shouldPurge(_get(key), now)) _del(key);
     }
   }
 
-  /// Builds once, then retries only backend writes; background failures stay separate.
-  /// 仅构造一次，然后只重试底层写入；后台失败独立处理。
-  bool _persist(String key, String Function() build) {
+  /// 编码一次并执行 IO；重试和错误分类完全由内核决定。
+  void _persist(String key, _WritePlan plan) {
     assert(_initialized, _initializationMessage);
-    final encoded = _core.build(key, build);
-    if (encoded == null) return false;
-    try {
-      _writeNow(key, encoded);
-      return true;
-    } catch (error, trace) {
-      if (identical(error, _CacheCore._propagatingHandlerError)) rethrow;
-      if (!_core._opts.force) {
-        _core._reportError(WriteError(key, error, trace));
-        return false;
-      }
+    final encoded = _core.build(key, plan.encode);
+    if (encoded == null) return;
+    var retried = false;
+    while (true) {
       try {
-        _purgeExpired();
+        if (retried) _purgeExpired();
         _writeNow(key, encoded);
-        return true;
-      } catch (retryError, retryTrace) {
-        if (identical(retryError, _CacheCore._propagatingHandlerError)) rethrow;
-        _core._reportError(WriteError(key, retryError, retryTrace));
-        return false;
+        return;
+      } catch (error, trace) {
+        if (!_core.retryWrite(key, error, trace, retried: retried)) return;
+        retried = true;
       }
     }
   }
@@ -398,36 +384,28 @@ class Cacheman {
   T? readWith<T>(String key, {T? defaultValue, ValueAdapter<T>? adapter}) =>
       _read(key, defaultValue, adapter);
 
-  /// Shared read orchestration with optional adaptation. / 带可选适配的共用读取编排。
+  /// 执行内核读取决策要求的删除或续期，再完成返回值转换。
   T? _read<T>(String key, T? defaultValue, ValueAdapter<T>? adapter) {
     final sk = storageKey(key);
     final raw = _get(sk);
-    if (raw == null) return defaultValue;
-    if (_core._opts.raw) {
-      _core.warnRawAdapter(adapter);
-      return _core.typed(sk, raw, defaultValue, null);
+    final decision = _core.decideRead(
+        sk, raw, DateTime.now().millisecondsSinceEpoch, defaultValue, adapter);
+    switch (decision) {
+      case _DropAndDefault<T>():
+        _del(sk);
+      case _Hit<T>(:final renewal):
+        if (renewal != null) _persist(sk, renewal);
+      case _Miss<T>():
+        break;
     }
-    final entity = _core._load(raw, onFailure: (error, trace) {
-      _del(sk);
-      _core.reportDecodeError(sk, error, trace);
-    });
-    if (entity == null) return defaultValue;
-    final now = DateTime.now().millisecondsSinceEpoch;
-    if (_core._isExpired(entity, now)) {
-      _del(sk);
-      return defaultValue;
-    }
-    final renewed = _core.renewal(entity, now);
-    if (renewed != null) _persist(sk, () => _core._dump(renewed));
-    return _core.typed(sk, entity.value, defaultValue, adapter);
+    return _core.finishRead(decision);
   }
 
   /// Positional batch read; missing defaults are null. / 按位置批量读取，缺省默认值为 null。
   /// Example / 示例：`cache.readAll(['a', 'b'], [1])`.
   List<dynamic> readAll(List<String> keys, [List<dynamic>? defaults]) => [
         for (var i = 0; i < keys.length; i++)
-          read<dynamic>(keys[i],
-              defaults != null && i < defaults.length ? defaults[i] : null),
+          read<dynamic>(keys[i], _core.batchDefault(defaults, i)),
       ];
 
   /// Writes with millisecond TTL or DateTime/integer absolute expiry.
@@ -443,27 +421,11 @@ class Cacheman {
   void write<T>(String key, T value,
       {int? ttl, Object? expireAt, ValueAdapter<T>? adapter}) {
     final sk = storageKey(key);
-    if (_core._opts.readonly && _alive(sk)) return;
-    if (_core._opts.raw) {
-      _core.warnRawAdapter(adapter);
-      if (_core.acceptsRaw(key, value)) _persist(sk, () => value as String);
-      return;
-    }
-    final entity = _core._mkEntity(value, ttl, expireAt, key);
-    if (entity != null) {
-      _persist(sk, () => _core.encode(entity, value, adapter));
-    }
-  }
-
-  /// Presence probe without deletion, reporting or renewal; null values count.
-  /// 存在性探测不删除、不上报、不续期；存储的 null 值也算存在。
-  bool _alive(String key) {
-    final raw = _get(key);
-    if (raw == null) return false;
-    if (_core._opts.raw) return true;
-    final entity = _core._load(raw);
-    return entity != null &&
-        !_core._isExpired(entity, DateTime.now().millisecondsSinceEpoch);
+    final raw = _core.needsWriteProbe ? _get(sk) : null;
+    final plan = _core.decideWrite(
+        key, value, raw, DateTime.now().millisecondsSinceEpoch,
+        ttl: ttl, expireAt: expireAt, adapter: adapter);
+    if (plan != null) _persist(sk, plan);
   }
 
   /// Positional batch write, warning/skipping missing values; expiry applies to all.
@@ -490,7 +452,7 @@ class Cacheman {
   /// Deletes owned keys with namespace/enckey, otherwise clears the whole backend.
   /// 有 namespace/enckey 时删除自有键，否则清空整个后端，例如 cache.erase()。
   void erase() {
-    if (namespace.isEmpty && !_core._enckey) {
+    if (_core.clearsBackend) {
       _selfDepth++;
       try {
         _observeFlush(_allKeys, clearRaw(_core.context(CacheOp.clear)));
@@ -508,7 +470,7 @@ class Cacheman {
   /// 循环为 O(n²)，请改用一次 keys() 快照。Example / 示例：`for (final k in cache.keys()) ...`.
   @Deprecated('O(index); loops cost O(n²). Use keys() instead. / 请使用 keys()。')
   String? key(int index) {
-    if (namespace.isNotEmpty || _core._enckey) {
+    if (!_core.clearsBackend) {
       final ks = _ownSet();
       return index < 0 || index >= ks.length
           ? null
@@ -531,7 +493,7 @@ class Cacheman {
 
   /// Counts owned keys; global count without namespace/enckey.
   /// 统计自有键；无 namespace/enckey 时为后端全局数量。
-  int get length => namespace.isNotEmpty || _core._enckey
+  int get length => !_core.clearsBackend
       ? _ownSet().length
       : keysRaw(_core.context(CacheOp.keys)).length;
 }
