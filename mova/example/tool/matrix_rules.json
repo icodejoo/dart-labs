@@ -161,7 +161,7 @@
       },
       {
         "kind": "check",
-        "ident": "A2.engine.receipt",
+        "ident": "A2.mova.receipt",
         "assertions": [
           {
             "field": "actual.duration",
@@ -224,9 +224,9 @@
             "other": "expected.fullscreen"
           },
           {
-            "field": "actual.orientation",
+            "field": "actual.orient",
             "op": "eq",
-            "other": "expected.orientation"
+            "other": "expected.orient"
           },
           {
             "field": "actual.pip",
@@ -402,9 +402,9 @@
             "other": "expected.fullscreen"
           },
           {
-            "field": "actual.orientation",
+            "field": "actual.orient",
             "op": "eq",
-            "other": "expected.orientation"
+            "other": "expected.orient"
           },
           {
             "field": "actual.pip",
@@ -1082,7 +1082,7 @@
     "requires": [
       {
         "kind": "check",
-        "ident": "rerun-batch16-engine.fit.contain"
+        "ident": "rerun-batch16-mova.fit.contain"
       },
       {
         "kind": "check",
@@ -1090,7 +1090,7 @@
       },
       {
         "kind": "check",
-        "ident": "rerun-batch16-engine.fit.cover"
+        "ident": "rerun-batch16-mova.fit.cover"
       },
       {
         "kind": "check",
@@ -1098,7 +1098,7 @@
       },
       {
         "kind": "check",
-        "ident": "rerun-batch16-engine.fit.fill"
+        "ident": "rerun-batch16-mova.fit.fill"
       },
       {
         "kind": "check",
@@ -1462,7 +1462,7 @@
     "requires": [
       {
         "kind": "check",
-        "ident": "rerun-batch16-engine.lock"
+        "ident": "rerun-batch16-mova.lock"
       },
       {
         "kind": "check",
@@ -1623,7 +1623,7 @@
     "requires": [
       {
         "kind": "check",
-        "ident": "rerun-batch16-engine.fullscreen.true"
+        "ident": "rerun-batch16-mova.fullscreen.true"
       },
       {
         "kind": "check",
@@ -1631,7 +1631,7 @@
       },
       {
         "kind": "check",
-        "ident": "rerun-batch16-engine.fullscreen.false"
+        "ident": "rerun-batch16-mova.fullscreen.false"
       },
       {
         "kind": "check",
@@ -1800,7 +1800,7 @@
         "ident": "A16.window.landscape",
         "assertions": [
           {
-            "field": "numbers.stateOrientation",
+            "field": "numbers.stateOrient",
             "op": "eq",
             "value": "landscape"
           },
@@ -1821,7 +1821,7 @@
         "ident": "A16.window.portrait",
         "assertions": [
           {
-            "field": "numbers.stateOrientation",
+            "field": "numbers.stateOrient",
             "op": "eq",
             "value": "portrait"
           },
@@ -1842,7 +1842,7 @@
         "ident": "A16.window.auto",
         "assertions": [
           {
-            "field": "numbers.stateOrientation",
+            "field": "numbers.stateOrient",
             "op": "eq",
             "value": "auto"
           },
@@ -2657,7 +2657,7 @@
         "ident": "A29.poolReclaimed",
         "assertions": [
           {
-            "field": "numbers.engineCount",
+            "field": "numbers.movaCount",
             "op": "eq",
             "value": 0
           },
@@ -7615,12 +7615,12 @@
       }
     ]
   },
-  "E.MovaOrientationChange": {
-    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / E.MovaOrientationChange",
+  "E.MovaOrientChange": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / E.MovaOrientChange",
     "requires": [
       {
         "kind": "event",
-        "name": "MovaOrientationChange"
+        "name": "MovaOrientChange"
       }
     ]
   },
@@ -7694,12 +7694,12 @@
       }
     ]
   },
-  "E.MovaSwapChange": {
-    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / E.MovaSwapChange",
+  "E.MovaCutoverChange": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / E.MovaCutoverChange",
     "requires": [
       {
         "kind": "event",
-        "name": "MovaSwapChange"
+        "name": "MovaCutoverChange"
       }
     ]
   },
@@ -7776,21 +7776,21 @@
       }
     ]
   },
-  "E.MovaStandbyChange": {
-    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / E.MovaStandbyChange",
+  "E.MovaKeepAliveChange": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / E.MovaKeepAliveChange",
     "requires": [
       {
         "kind": "event",
-        "name": "MovaStandbyChange"
+        "name": "MovaKeepAliveChange"
       }
     ]
   },
-  "E.MovaStandbyResume": {
-    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / E.MovaStandbyResume",
+  "E.MovaKeepAliveResume": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / E.MovaKeepAliveResume",
     "requires": [
       {
         "kind": "event",
-        "name": "MovaStandbyResume"
+        "name": "MovaKeepAliveResume"
       }
     ]
   },
@@ -8132,7 +8132,7 @@
             }
           },
           {
-            "field": "numbers.engines",
+            "field": "numbers.movas",
             "op": "eq",
             "value": 0
           }
@@ -8209,7 +8209,7 @@
             }
           },
           {
-            "field": "numbers.engines",
+            "field": "numbers.movas",
             "op": "eq",
             "value": 1
           },
@@ -8373,7 +8373,7 @@
             }
           },
           {
-            "field": "numbers.engines",
+            "field": "numbers.movas",
             "op": "eq",
             "value": 1
           },
@@ -13585,7 +13585,7 @@
             "value": 1
           },
           {
-            "field": "numbers.skinIcons",
+            "field": "numbers.uiKitIcons",
             "op": "ge",
             "value": 1
           },
@@ -14120,7 +14120,7 @@
             "value": 3
           },
           {
-            "field": "numbers.engineCount",
+            "field": "numbers.movaCount",
             "op": "le",
             "value": 3
           }
@@ -14156,7 +14156,7 @@
             "value": 3
           },
           {
-            "field": "numbers.engineCount",
+            "field": "numbers.movaCount",
             "op": "le",
             "value": 3
           }
@@ -14192,7 +14192,7 @@
             "value": 3
           },
           {
-            "field": "numbers.engineCount",
+            "field": "numbers.movaCount",
             "op": "le",
             "value": 3
           }
@@ -14228,7 +14228,7 @@
             "value": 3
           },
           {
-            "field": "numbers.engineCount",
+            "field": "numbers.movaCount",
             "op": "le",
             "value": 3
           }
@@ -14264,7 +14264,7 @@
             "value": 3
           },
           {
-            "field": "numbers.engineCount",
+            "field": "numbers.movaCount",
             "op": "le",
             "value": 3
           }
@@ -14300,7 +14300,7 @@
             "value": 3
           },
           {
-            "field": "numbers.engineCount",
+            "field": "numbers.movaCount",
             "op": "le",
             "value": 3
           }
@@ -14342,7 +14342,7 @@
         "ident": "A29.poolReclaimed",
         "assertions": [
           {
-            "field": "numbers.engineCount",
+            "field": "numbers.movaCount",
             "op": "eq",
             "value": 0
           },
@@ -14363,7 +14363,7 @@
             "value": 3
           },
           {
-            "field": "numbers.engines",
+            "field": "numbers.movas",
             "op": "le",
             "value": 3
           },
@@ -14427,7 +14427,7 @@
             "value": 3
           },
           {
-            "field": "numbers.engines",
+            "field": "numbers.movas",
             "op": "le",
             "value": 3
           },
@@ -14491,7 +14491,7 @@
             "value": 3
           },
           {
-            "field": "numbers.engines",
+            "field": "numbers.movas",
             "op": "le",
             "value": 3
           },
@@ -14555,7 +14555,7 @@
             "value": 3
           },
           {
-            "field": "numbers.engines",
+            "field": "numbers.movas",
             "op": "le",
             "value": 3
           },
@@ -14619,7 +14619,7 @@
             "value": 3
           },
           {
-            "field": "numbers.engines",
+            "field": "numbers.movas",
             "op": "le",
             "value": 0
           },
@@ -15677,7 +15677,7 @@
     "requires": [
       {
         "kind": "check",
-        "ident": "rerun-batch16-engine.fitRebuild"
+        "ident": "rerun-batch16-mova.fitRebuild"
       },
       {
         "kind": "check",

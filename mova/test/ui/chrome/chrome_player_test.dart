@@ -8,7 +8,7 @@ import '../../support/fake_bridge_api.dart';
 const _aKey = ValueKey('view-a');
 const _bKey = ValueKey('view-b');
 
-Widget _pair(MovaApi api, {MovaChrome? a, MovaChrome? b}) => MaterialApp(
+Widget _pair(IMovaApi api, {MovaChrome? a, MovaChrome? b}) => MaterialApp(
   home: Column(
     children: [
       SizedBox(
@@ -45,7 +45,7 @@ Future<void> _unmount(WidgetTester t) async {
 }
 
 void main() {
-  testWidgets('同一引擎两个视图点击与控制条显隐独立', (t) async {
+  testWidgets('同一播放器两个视图点击与控制条显隐独立', (t) async {
     final api = FakeBridgeApi();
     final a = MovaChrome(), b = MovaChrome();
     await t.pumpWidget(_pair(api, a: a, b: b));
@@ -138,7 +138,7 @@ void main() {
   testWidgets('Ready 按各自配置显隐并开始自动隐藏', (t) async {
     for (final show in [true, false]) {
       final api = FakeBridgeApi(
-        options: MovaOpts(controls: MovaCtrlsConfig(showOnStart: show)),
+        options: MovaOpts(controls: MovaCtrlsOpts(showOnStart: show)),
       );
       final a = MovaChrome(), b = MovaChrome();
       await t.pumpWidget(_pair(api, a: a, b: b));
@@ -277,15 +277,15 @@ void main() {
         await t.pump();
         await t.runAsync(() => Future<void>.delayed(Duration.zero));
       }
-      expect(done, isTrue, reason: '假引擎操作应在微任务推进后结束');
+      expect(done, isTrue, reason: '假播放器操作应在微任务推进后结束');
       return future;
     }
 
     final made = <FakeBridgeApi>[];
-    final proxy = MovaCutoverEngine(
-      engineFactory: () {
+    final proxy = MovaCutover(
+      movaFactory: () {
         final f = FakeBridgeApi(
-          options: const MovaOpts(cutover: MovaCutoverConfig(enabled: true)),
+          options: const MovaOpts(cutover: MovaCutoverOpts(enabled: true)),
         );
         made.add(f);
         return f;

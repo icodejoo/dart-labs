@@ -10,16 +10,16 @@ enum MovaPlayFailKind {
   /// 内核 `open()` 抛出了异常。仅在 recovery 开启时才被捕获（否则照旧向外抛）。
   openThrew,
 
-  /// No first frame within `MovaRecoveryConfig.startTimeout` of the attempt
+  /// No first frame within `MovaRecoveryOpts.startTimeout` of the attempt
   /// being armed while playback was intended.
   ///
-  /// 播放意图为真时，尝试武装后 `MovaRecoveryConfig.startTimeout` 内没有首帧。
+  /// 播放意图为真时，尝试武装后 `MovaRecoveryOpts.startTimeout` 内没有首帧。
   startTimeout,
 
-  /// Buffering continuously for `MovaRecoveryConfig.stallTimeout` after the
+  /// Buffering continuously for `MovaRecoveryOpts.stallTimeout` after the
   /// first frame, while playing.
   ///
-  /// 出首帧后、播放中连续缓冲达到 `MovaRecoveryConfig.stallTimeout`。
+  /// 出首帧后、播放中连续缓冲达到 `MovaRecoveryOpts.stallTimeout`。
   stallTimeout,
 
   /// Native `END_FILE` with reason `error`; fails fast without waiting for a
@@ -34,14 +34,14 @@ enum MovaPlayFailKind {
   liveEnded,
 }
 
-/// One playback failure, fed to a [MovaRecoveryPolicy].
+/// One playback failure, fed to a [IMovaRecoveryPolicy].
 ///
-/// A plain value so the recovery rule is unit-testable with no player, no
-/// engine and no Flutter binding.
+/// A plain value so the recovery rule is unit-testable with no player and
+/// no Flutter binding.
 ///
-/// 一次播放失败，喂给 [MovaRecoveryPolicy]。
+/// 一次播放失败，喂给 [IMovaRecoveryPolicy]。
 ///
-/// 纯值对象，使恢复规则无需播放器、引擎或 Flutter 绑定即可被测试。
+/// 纯值对象，使恢复规则无需播放器或 Flutter 绑定即可被测试。
 class MovaPlayFail {
   /// What went wrong.
   ///
@@ -124,9 +124,9 @@ class MovaPlayFail {
   });
 }
 
-/// What the engine does next.
+/// What the player does next.
 ///
-/// 引擎接下来要做什么。
+/// 播放器接下来要做什么。
 enum MovaRecoveryAction {
   /// Reload the same address.
   ///
@@ -175,29 +175,29 @@ class MovaRecoveryDecision {
 }
 
 /// Decides how to recover from a playback failure. The playback-side twin of
-/// `MovaAdFailPolicy`: pure and injectable, so hosts with their own retry
+/// `IMovaAdFailPolicy`: pure and injectable, so hosts with their own retry
 /// budgets replace it wholesale.
 ///
-/// 判定如何从一次播放失败中恢复。是播放侧的 `MovaAdFailPolicy`：纯粹、可注入，
+/// 判定如何从一次播放失败中恢复。是播放侧的 `IMovaAdFailPolicy`：纯粹、可注入，
 /// 有自己重试预算的宿主可以整体替换。
 ///
 /// Example / 示例:
 /// ```dart
-/// class GiveUpFast implements MovaRecoveryPolicy {
+/// class GiveUpFast implements IMovaRecoveryPolicy {
 ///   @override
 ///   MovaRecoveryDecision onFailure(MovaPlayFail fail) => const MovaRecoveryDecision.giveUp();
 /// }
 /// ```
-abstract class MovaRecoveryPolicy {
+abstract class IMovaRecoveryPolicy {
   /// Answers what to do about [fail].
   ///
   /// 回答该如何处理 [fail]。
   ///
   /// - [fail]: the failure to judge / 要判定的失败
   ///
-  /// Returns the decision; a thrown error is treated as give-up by the engine.
+  /// Returns the decision; a thrown error is treated as give-up by the player.
   ///
-  /// 返回决策；抛出的异常会被引擎当作放弃。
+  /// 返回决策；抛出的异常会被播放器当作放弃。
   MovaRecoveryDecision onFailure(MovaPlayFail fail);
 }
 
@@ -209,9 +209,9 @@ abstract class MovaRecoveryPolicy {
 ///
 /// Example / 示例:
 /// ```dart
-/// const MovaRecoveryConfig(enabled: true, policy: MovaRetryThenFailover(maxRetries: 2));
+/// const MovaRecoveryOpts(enabled: true, policy: MovaRetryThenFailover(maxRetries: 2));
 /// ```
-class MovaRetryThenFailover implements MovaRecoveryPolicy {
+class MovaRetryThenFailover implements IMovaRecoveryPolicy {
   /// How many times one address is retried before moving on.
   ///
   /// 一个地址在换下一个前重试几次。
@@ -247,12 +247,12 @@ class MovaRetryThenFailover implements MovaRecoveryPolicy {
 ///
 /// Example / 示例:
 /// ```dart
-/// const MovaRecoveryConfig(
+/// const MovaRecoveryOpts(
 ///   enabled: true,
 ///   policy: MovaLiveReconnect(maxDelay: Duration(seconds: 10)),
 /// );
 /// ```
-class MovaLiveReconnect implements MovaRecoveryPolicy {
+class MovaLiveReconnect implements IMovaRecoveryPolicy {
   /// Wait before the first retry; later retries multiply it by [factor].
   ///
   /// 第一次重试前的等待；之后每次再乘以 [factor]。
@@ -318,27 +318,27 @@ class MovaLiveReconnect implements MovaRecoveryPolicy {
   }
 }
 
-/// The policy in effect when `MovaRecoveryConfig.policy` is `null`: VOD sources
+/// The policy in effect when `MovaRecoveryOpts.policy` is `null`: VOD sources
 /// follow [vod] (the long-standing [MovaRetryThenFailover]), live sources
 /// follow [live] ([MovaLiveReconnect]), which keeps reconnecting.
 ///
-/// `MovaRecoveryConfig.policy` 为 `null` 时生效的策略：点播走 [vod]（一直以来的
+/// `MovaRecoveryOpts.policy` 为 `null` 时生效的策略：点播走 [vod]（一直以来的
 /// [MovaRetryThenFailover]），直播走 [live]（[MovaLiveReconnect]，持续重连）。
 ///
 /// Example / 示例:
 /// ```dart
 /// const MovaDefaultRecovery(live: MovaLiveReconnect(maxDelay: Duration(seconds: 5)));
 /// ```
-class MovaDefaultRecovery implements MovaRecoveryPolicy {
+class MovaDefaultRecovery implements IMovaRecoveryPolicy {
   /// Rule for VOD sources.
   ///
   /// 点播源的规则。
-  final MovaRecoveryPolicy vod;
+  final IMovaRecoveryPolicy vod;
 
   /// Rule for live sources.
   ///
   /// 直播源的规则。
-  final MovaRecoveryPolicy live;
+  final IMovaRecoveryPolicy live;
 
   /// Creates the policy.
   ///
@@ -355,9 +355,9 @@ class MovaDefaultRecovery implements MovaRecoveryPolicy {
 ///
 /// Example / 示例:
 /// ```dart
-/// const MovaRecoveryConfig(enabled: true, policy: MovaFailoverOnly());
+/// const MovaRecoveryOpts(enabled: true, policy: MovaFailoverOnly());
 /// ```
-class MovaFailoverOnly implements MovaRecoveryPolicy {
+class MovaFailoverOnly implements IMovaRecoveryPolicy {
   /// Creates the policy.
   ///
   /// 创建策略。

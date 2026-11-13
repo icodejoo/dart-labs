@@ -58,10 +58,10 @@
 ## 里程碑
 
 - [x] **P0** 工程结构（core / controls 分层）
-- [x] **P1** 内核封装（MovaCtrl / MovaSource）
-- [x] **P2** 手势层 + HUD（MovaGestDetect / MovaPlayer）
+- [x] **P1** 内核封装（最早的门面类（已删除） / MovaSource）
+- [x] **P2** 手势层 + HUD（MovaGestureLayerComponent / MovaPlayer）
 - [x] **P3** 观看模式（#5）+ 锁定/沉浸（#4）+ 点播/直播控制条
-- [x] **P4** 方向与全屏（#3）：全屏切换 + 按宽高比定向 + 尺寸流自动重定向 + autoOrientation 开关
+- [x] **P4** 方向与全屏（#3）：全屏切换 + 按宽高比定向 + 尺寸流自动重定向 + autoOrient 开关
 - [x] **P5** 清晰度提取 / 手动切换 / ABR 自适应（#2）：HLS master 解析、手动切档（保位续播）、缓冲卡顿降档；"自动"档委托 libmpv 原生 ABR
 - [x] **P6** 画中画 PiP（#1）：Android 系统级 PiP（ActivityAware + PictureInPictureParams，宽高比钳制）；iOS/桌面返回不支持（见风险），按钮仅在支持平台显示
 - [x] **P7** 发布准备：README、CHANGELOG、LICENSE(MIT)、pubspec 元数据/topics、example 源切换、`pub publish --dry-run` 通过
@@ -73,16 +73,16 @@
       x86/x86_64 及 iOS/macOS/Windows/Linux 仍是 TODO（同一份 README 的"多平台进度"
       表跟踪）；字幕渲染/截图/HLS-FLV直播/avfilter回归/后台中断/AV1高码率场景这 6 项
       真机功能检查也还没测完（同 README"真机测试"一节），不阻塞标记本阶段完成。
-- [ ] **三期** 语音转字幕（STT）：`ZipformerSttEngine` 本身已验证（2026-08-05，Windows
+- [ ] **三期** 语音转字幕（STT）：`ZipformerSttMova` 本身已验证（2026-08-05，Windows
       桌面用真实模型+官方测试 wav 跑通，识别效果正确；Android 真机上验证时踩过两个坑，
       未复测确认稳定，见下方笔记）。**但"打开视频、实时出字幕"这个端到端场景做不出来
-      ——`MovaSttEngine.feed()` 从没有任何调用点，从播放中的视频抽音频喂给引擎这条链路
-      完全没实现**，是比"验证引擎"更大的一块独立工作。**外挂字幕文件（视频自带字幕）
-      功能也完全没有**——`MovaSttApi` 只有实时识别一条路，没有"加载已有字幕文件"的接口，
+      ——`IMovaStt.feed()` 从没有任何调用点，从播放中的视频抽音频喂给播放器这条链路
+      完全没实现**，是比"验证播放器"更大的一块独立工作。**外挂字幕文件（视频自带字幕）
+      功能也完全没有**——`IMovaSttApi` 只有实时识别一条路，没有"加载已有字幕文件"的接口，
       需要新设计 API 形状。批量预转写（点播一次性转写缓存字幕文件）依赖二期 ffmpeg 瘦身
       产出的自建 ffmpeg + FFI 绑定——mpv `ao=pcm` 音频抽取方案真机实测失败且被证实是已知
       不可靠的老驱动，绕开 media_kit 直接 FFI 调 ffmpeg 也没有现成可用的库。详见
-      [doc/notes/2026-08-04-stt-engine-decision.md](notes/2026-08-04-stt-engine-decision.md)。
+      [doc/notes/2026-08-04-stt-recognizer-decision.md](notes/2026-08-04-stt-recognizer-decision.md)。
 
 ## 技术风险（需评估/决策）
 
@@ -106,6 +106,6 @@
   `AVPlayer`（HLS 自适应是 OS 原生能力）。**用户澄清：不是要换内核，是要借鉴这类
   播放器"预取好了再切"的思路，在现有 media_kit 架构上实现类似效果**——复杂度预研见
   [doc/notes/2026-08-05-seamless-quality-switch-feasibility.md](notes/2026-08-05-seamless-quality-switch-feasibility.md)：
-  可行，思路是复用项目里已验证过的"影子引擎预热+热切换"模式（同构于 feed 引擎池的
-  `spike_dual_engine.dart` 内存实测），量级接近阶段 B/C（15/9 Task），核心风险是
+  可行，思路是复用项目里已验证过的"影子播放器预热+热切换"模式（同构于 feed 播放器池的
+  `spike_dual_mova.dart` 内存实测），量级接近阶段 B/C（15/9 Task），核心风险是
   真机预热阈值调参而非能不能做。**尚未拍板是否投入，未拆 Task。**

@@ -4,8 +4,8 @@ import 'package:flutter/widgets.dart';
 
 import '../../core/api.dart';
 import '../../core/mini/placement.dart';
-import '../skins/skin.dart';
-import 'mini_skin.dart';
+import '../ui_kits/ui_kit.dart';
+import 'mini_ui_kit.dart';
 import 'mini_window.dart';
 
 /// How the mini window is mounted into the widget tree.
@@ -33,14 +33,14 @@ enum MovaMiniMount {
 ///
 /// Lives outside the [Navigator] (a host-level singleton, or provided however
 /// the host prefers) so that popping the page that started playback does not
-/// take the engine down with it. It **borrows** the [MovaApi] — it never
+/// take the player down with it. It **borrows** the [IMovaApi] — it never
 /// creates and never disposes one; disposing stays the host's job, exactly as
 /// with `MovaPlayer`.
 ///
 /// 当前在小窗里播放的内容的持有者，独立于路由。
 ///
 /// 它活在 [Navigator] 之外（宿主级单例，或宿主偏好的任何注入方式），使得弹出
-/// 发起播放的那个页面不会把引擎一起带走。它**借用** [MovaApi]——既不创建也不
+/// 发起播放的那个页面不会把播放器一起带走。它**借用** [IMovaApi]——既不创建也不
 /// 销毁；销毁仍然是宿主的职责，与 `MovaPlayer` 的约定完全一致。
 ///
 /// Example / 示例:
@@ -52,12 +52,12 @@ enum MovaMiniMount {
 ///
 /// // 方式 B：跨路由持久（宿主自己在 MaterialApp.builder 里放 Stack）
 /// // MaterialApp(builder: (c, child) => MovaMiniHost(mini: mini, child: child!))
-/// await mini.show(api, skin: const MovaMiniSkin());
-/// Navigator.of(context).pop();   // 引擎不受影响，画面在小窗里继续
+/// await mini.show(api, uiKit: const MovaMiniUiKit());
+/// Navigator.of(context).pop();   // 播放器不受影响，画面在小窗里继续
 /// ```
 class MovaMini extends ChangeNotifier {
-  MovaApi? _api;
-  MovaSkin _skin = const MovaMiniSkin();
+  IMovaApi? _api;
+  IMovaUiKit _uiKit = const MovaMiniUiKit();
   MovaMiniRect? _rect;
   MovaMiniMount _mount = MovaMiniMount.none;
   OverlayEntry? _entry;
@@ -73,12 +73,12 @@ class MovaMini extends ChangeNotifier {
   /// The api currently rendered in the mini window; `null` when hidden.
   ///
   /// 当前渲染在小窗里的 api；隐藏时为 `null`。
-  MovaApi? get api => _api;
+  IMovaApi? get api => _api;
 
-  /// The skin used inside the mini window.
+  /// The UI kit used inside the mini window.
   ///
-  /// 小窗内使用的皮肤。
-  MovaSkin get skin => _skin;
+  /// 小窗内使用的 UI 套件。
+  IMovaUiKit get uiKit => _uiKit;
 
   /// The window's current rectangle; `null` before the first layout.
   ///
@@ -90,10 +90,10 @@ class MovaMini extends ChangeNotifier {
   /// 当前挂载方式；隐藏时为 [MovaMiniMount.none]。
   MovaMiniMount get mount => _mount;
 
-  /// Called after [close]; the host's hook for disposing the engine.
+  /// Called after [close]; the host's hook for disposing the player.
   ///
-  /// [close] 之后触发；宿主销毁引擎的挂钩。
-  void Function(MovaApi api)? onClosed;
+  /// [close] 之后触发；宿主销毁播放器的挂钩。
+  void Function(IMovaApi api)? onClosed;
 
   /// Called when the user taps the mini window's picture (not the close
   /// button). `null` (the default) means the tap does nothing — the host
@@ -104,7 +104,7 @@ class MovaMini extends ChangeNotifier {
   /// 用户点击小窗画面（非关闭按钮）时触发。默认为 `null`——点击不产生任何
   /// 效果，由宿主自行决定"点画面"该做什么，例如接到 [hide] 实现"回到整页
   /// 播放"，或者不设置以确保只有关闭（✕）按钮能收起小窗。
-  void Function(MovaApi api)? onTapContent;
+  void Function(IMovaApi api)? onTapContent;
 
   /// Hands [api] to the mini window and flips `MovaState.mini` on, **without
   /// mounting anything itself** — a host-level [Stack] (e.g. `MovaMiniHost`
@@ -120,11 +120,11 @@ class MovaMini extends ChangeNotifier {
   ///
   /// 同一个 [api] 重复调用是幂等的。已有小窗时 show 另一个 [api]，会先把前一个
   /// 的 `mini` 置回 false（此处永不 dispose 它）。
-  Future<void> show(MovaApi api, {MovaSkin skin = const MovaMiniSkin()}) async {
+  Future<void> show(IMovaApi api, {IMovaUiKit uiKit = const MovaMiniUiKit()}) async {
     if (_disposed || !api.options.mini.enabled) return;
     if (identical(_api, api) && _mount == MovaMiniMount.persistent) return;
     final generation = ++_generation;
-    if (!await _switchTo(api, skin, generation)) return;
+    if (!await _switchTo(api, uiKit, generation)) return;
     _detachEntry();
     _mount = MovaMiniMount.persistent;
     notifyListeners();
@@ -157,8 +157,8 @@ class MovaMini extends ChangeNotifier {
   /// `MovaState.mini` 会停在 `true` 而无人渲染。
   ///
   /// - [context]: locates the target [Overlay] / 用于定位目标 [Overlay]
-  /// - [api]: the borrowed engine / 借用的引擎
-  /// - [skin]: chrome inside the window / 小窗内的皮肤
+  /// - [api]: the borrowed player / 借用的播放器
+  /// - [uiKit]: chrome inside the window / 小窗内的 UI 套件
   /// - [rootOverlay]: insert into the root overlay instead / 改插根 overlay
   ///
   /// Example / 示例:
@@ -170,16 +170,16 @@ class MovaMini extends ChangeNotifier {
   /// ```
   Future<void> showInPage(
     BuildContext context,
-    MovaApi api, {
-    MovaSkin skin = const MovaMiniSkin(),
+    IMovaApi api, {
+    IMovaUiKit uiKit = const MovaMiniUiKit(),
     bool rootOverlay = false,
   }) async {
-    final cfg = api.options.mini;
-    if (_disposed || !cfg.enabled) return;
+    final opts = api.options.mini;
+    if (_disposed || !opts.enabled) return;
     // 提前解析目标 Overlay：await 之后不再触碰 context，避免跨异步间隙使用它。
     final overlay = Overlay.of(context, rootOverlay: rootOverlay);
     final generation = ++_generation;
-    if (!await _switchTo(api, skin, generation)) return;
+    if (!await _switchTo(api, uiKit, generation)) return;
     if (!overlay.mounted) {
       await hide();
       return;
@@ -188,7 +188,7 @@ class MovaMini extends ChangeNotifier {
     _entry = OverlayEntry(
       // 不用 Positioned/maintainState：MovaMiniWindow 自己是全屏 Stack，
       // RenderTheatre 给未定位 child 的是 tight 约束（= Overlay 尺寸）。
-      builder: (_) => MovaMiniWindow(ctl: this, api: api, config: cfg),
+      builder: (_) => MovaMiniWindow(mini: this, api: api, opts: opts),
     );
     overlay.insert(_entry!);
     _mount = MovaMiniMount.page;
@@ -200,26 +200,26 @@ class MovaMini extends ChangeNotifier {
   ///
   /// [show]/[showInPage] 共用的"交接 [api]"逻辑：退出旧 api 的小窗态，置起新
   /// api 的小窗态，重置 [_rect]。
-  Future<bool> _switchTo(MovaApi api, MovaSkin skin, int generation) async {
+  Future<bool> _switchTo(IMovaApi api, IMovaUiKit uiKit, int generation) async {
     if (!identical(_api, api)) {
       final prev = _api;
       _api = api;
-      _skin = skin;
+      _uiKit = uiKit;
       _rect = null;
       _unwatch();
       if (prev != null) await prev.setMini(false);
       if (_disposed || generation != _generation) return false;
     } else {
-      _skin = skin;
+      _uiKit = uiKit;
     }
     await api.setMini(true);
     if (_disposed || generation != _generation) {
       if (!identical(_api, api)) await api.setMini(false);
       return false;
     }
-    // The engine refused the mini window (e.g. system PiP is active): drop the
+    // The player refused the mini window (e.g. system PiP is active): drop the
     // handover so no empty window is mounted.
-    // 引擎拒绝了小窗（如系统 PiP 中）：撤销交接，不挂空窗口。
+    // 播放器拒绝了小窗（如系统 PiP 中）：撤销交接，不挂空窗口。
     if (!api.state.mini) {
       if (identical(_api, api)) {
         _onExternalExit();
@@ -253,12 +253,12 @@ class MovaMini extends ChangeNotifier {
     _detachEntry();
     _clearWindow();
     // Settle MovaState.mini before notifying — a listener reacting to this
-    // controller (e.g. remounting a full-page MovaPlayer) must never observe
-    // a frame where the controller already says "not mini" but
+    // MovaMini (e.g. remounting a full-page MovaPlayer) must never observe
+    // a frame where the MovaMini already says "not mini" but
     // MovaState.mini still says otherwise.
     //
-    // 先落定 MovaState.mini 再通知——响应本 controller 的监听者（例如重新挂载
-    // 整页 MovaPlayer）绝不能看到 controller 已经说"不是小窗"、而
+    // 先落定 MovaState.mini 再通知——响应本 MovaMini 的监听者（例如重新挂载
+    // 整页 MovaPlayer）绝不能看到 MovaMini 已经说"不是小窗"、而
     // MovaState.mini 还没跟上的那一帧。
     await api.setMini(false);
     if (!_disposed && generation == _generation) notifyListeners();
@@ -287,11 +287,11 @@ class MovaMini extends ChangeNotifier {
 
   /// Whether [candidate] is the api the mini window currently renders.
   ///
-  /// Page `dispose()` should consult this before disposing its engine.
+  /// Page `dispose()` should consult this before disposing its player.
   ///
   /// [candidate] 是否就是小窗当前渲染的那个 api。
-  /// 页面 `dispose()` 在销毁引擎前应先问这一句。
-  bool isShowing(MovaApi candidate) => identical(_api, candidate);
+  /// 页面 `dispose()` 在销毁播放器前应先问这一句。
+  bool isShowing(IMovaApi candidate) => identical(_api, candidate);
 
   /// Updates the window rectangle (called by `MovaMiniWindow` while dragging).
   ///
@@ -352,14 +352,14 @@ class MovaMini extends ChangeNotifier {
     // ChangeNotifier.dispose() is sync, so this can't await — but it must
     // still settle MovaState.mini back to false on the still-live api the
     // way [hide]/[close] do, or the page-side player stays hidden forever
-    // (default_skin.dart) and a later engine.dispose() trips its
+    // (default_ui_kit.dart) and a later mova.dispose() trips its
     // `assert(!state.mini, ...)` guard with no obvious link back to this
     // disposal.
     //
     // ChangeNotifier.dispose() 是同步的，不能 await——但仍必须像
     // [hide]/[close] 一样把仍存活的 api 上的 MovaState.mini 落回 false，
-    // 否则页面播放器会永久隐藏（default_skin.dart），后续
-    // engine.dispose() 触发的 `assert(!state.mini, ...)` 也看不出与这次
+    // 否则页面播放器会永久隐藏（default_ui_kit.dart），后续
+    // mova.dispose() 触发的 `assert(!state.mini, ...)` 也看不出与这次
     // 释放的关联。
     final api = _api;
     _unwatch();

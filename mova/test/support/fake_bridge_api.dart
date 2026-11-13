@@ -4,15 +4,15 @@ import 'package:mova/src/core/state/ui_state.dart';
 import 'fake_api.dart';
 
 /// 可独立控制就绪和连接的桥接替身，旧替身保持不变。
-class FakeBridgeApi extends FakeMovaApi implements MovaUiBridge {
-  /// 使用指定引擎选项。
+class FakeBridgeApi extends FakeMovaApi implements IMovaUiBridge {
+  /// 使用指定播放器选项。
   FakeBridgeApi({super.options});
 
   /// 当前是否就绪。
   bool ready = false;
 
   /// 已连接的视图端。
-  final List<MovaUiSink> sinks = [];
+  final List<IMovaUiSink> sinks = [];
   final List<_FakeLink> _links = [];
   bool _closed = false;
 
@@ -20,7 +20,7 @@ class FakeBridgeApi extends FakeMovaApi implements MovaUiBridge {
   bool get uiReady => ready && !_closed;
 
   @override
-  MovaUiLink linkUi(MovaUiSink sink) {
+  IMovaUiLink linkUi(IMovaUiSink sink) {
     final link = _FakeLink(this, sink)..closed = _closed;
     if (!_closed) {
       sinks.add(sink);
@@ -73,10 +73,10 @@ class FakeBridgeApi extends FakeMovaApi implements MovaUiBridge {
   }
 }
 
-class _FakeLink implements MovaUiLink {
+class _FakeLink implements IMovaUiLink {
   _FakeLink(this.api, this.sink);
   final FakeBridgeApi api;
-  final MovaUiSink sink;
+  final IMovaUiSink sink;
   bool closed = false;
 
   @override

@@ -15,14 +15,14 @@ import 'package:mova/src/core/cutover/warm.dart';
 
 void main() {
   group('constructor invariants', () {
-    test('MovaDanmakuConfig rejects a non-positive trackCount', () {
-      expect(() => MovaDanmakuConfig(trackCount: 0), throwsAssertionError);
-      expect(() => MovaDanmakuConfig(trackCount: -1), throwsAssertionError);
+    test('MovaDanmakuOpts rejects a non-positive trackCount', () {
+      expect(() => MovaDanmakuOpts(trackCount: 0), throwsAssertionError);
+      expect(() => MovaDanmakuOpts(trackCount: -1), throwsAssertionError);
     });
 
-    test('MovaGestureConfig rejects maxZoom below 1', () {
-      expect(() => MovaGestureConfig(maxZoom: 0.5), throwsAssertionError);
-      expect(() => MovaGestureConfig(maxZoom: 1.0), returnsNormally);
+    test('MovaGestureOpts rejects maxZoom below 1', () {
+      expect(() => MovaGestureOpts(maxZoom: 0.5), throwsAssertionError);
+      expect(() => MovaGestureOpts(maxZoom: 1.0), returnsNormally);
     });
   });
 
@@ -54,13 +54,13 @@ void main() {
 
   test('MovaOpts.copyWith replaces one section only', () {
     const o = MovaOpts();
-    final n = o.copyWith(controls: const MovaCtrlsConfig(autoHide: false));
+    final n = o.copyWith(controls: const MovaCtrlsOpts(autoHide: false));
     expect(n.controls.autoHide, isFalse);
     expect(n.gesture, o.gesture);
   });
 
-  test('MovaPreviewConfig defaults match DESIGN section 6.1', () {
-    const p = MovaPreviewConfig();
+  test('MovaPreviewOpts defaults match DESIGN section 6.1', () {
+    const p = MovaPreviewOpts();
     expect(p.enabled, isTrue);
     expect(p.network, MovaPreviewNet.wifiOnly);
     expect(p.onBlocked, isNull);
@@ -84,22 +84,22 @@ void main() {
     expect(p.extractor, isNull);
   });
 
-  test('MovaOpts exposes a preview section that defaults to MovaPreviewConfig', () {
+  test('MovaOpts exposes a preview section that defaults to MovaPreviewOpts', () {
     const o = MovaOpts();
-    expect(o.preview, const MovaPreviewConfig());
+    expect(o.preview, const MovaPreviewOpts());
   });
 
   test('MovaOpts.copyWith replaces only the preview section', () {
     const o = MovaOpts();
-    final n = o.copyWith(preview: const MovaPreviewConfig(frameWidth: 320));
+    final n = o.copyWith(preview: const MovaPreviewOpts(frameWidth: 320));
     expect(n.preview.frameWidth, 320);
     expect(n.gesture, o.gesture);
     expect(n.controls, o.controls);
     expect(n, isNot(o));
   });
 
-  test('MovaPreviewConfig.copyWith replaces one knob and compares by value', () {
-    const p = MovaPreviewConfig();
+  test('MovaPreviewOpts.copyWith replaces one knob and compares by value', () {
+    const p = MovaPreviewOpts();
     final n = p.copyWith(network: MovaPreviewNet.never);
     expect(n.network, MovaPreviewNet.never);
     expect(n.frameWidth, p.frameWidth);
@@ -107,23 +107,23 @@ void main() {
     expect(p.copyWith(), p);
   });
 
-  test('every MovaPreviewConfig injection point accepts a custom strategy', () {
-    final p = MovaPreviewConfig(
+  test('every MovaPreviewOpts injection point accepts a custom strategy', () {
+    final p = MovaPreviewOpts(
       probe: MovaAlwaysAllowNetProbe(),
       cacheKeyBuilder: (s, b, w) => 'custom',
       vttUrlResolver: (s) => Uri.parse('https://cdn/t.vtt'),
       onBlocked: (_) {},
       extractPlatforms: const {MovaPlatformKind.windows},
     );
-    expect(p.probe, isA<MovaNetProbe>());
+    expect(p.probe, isA<IMovaNetProbe>());
     expect(p.cacheKeyBuilder!('a', 1, 2), 'custom');
     expect(p.vttUrlResolver!(const MovaSource('x')), Uri.parse('https://cdn/t.vtt'));
     expect(p.onBlocked, isNotNull);
     expect(p.extractPlatforms, {MovaPlatformKind.windows});
   });
 
-  test('MovaLiveConfig defaults keep 0.1.0 behaviour and add the new knobs off', () {
-    const c = MovaLiveConfig();
+  test('MovaLiveOpts defaults keep 0.1.0 behaviour and add the new knobs off', () {
+    const c = MovaLiveOpts();
     expect(c.seekMode, MovaLiveSeekMode.off);
     expect(c.dvrWindow, isNull);
     expect(c.edgeThreshold, const Duration(seconds: 10));
@@ -134,15 +134,15 @@ void main() {
   });
 
   test('effectiveBackToLive derives from seekMode when not configured', () {
-    expect(const MovaLiveConfig(seekMode: MovaLiveSeekMode.dvr).effectiveBackToLive,
+    expect(const MovaLiveOpts(seekMode: MovaLiveSeekMode.dvr).effectiveBackToLive,
         MovaBackToLive.seekEnd);
-    expect(const MovaLiveConfig(seekMode: MovaLiveSeekMode.timeshift).effectiveBackToLive,
+    expect(const MovaLiveOpts(seekMode: MovaLiveSeekMode.timeshift).effectiveBackToLive,
         MovaBackToLive.reopen);
-    expect(const MovaLiveConfig().effectiveBackToLive, MovaBackToLive.seekEnd);
+    expect(const MovaLiveOpts().effectiveBackToLive, MovaBackToLive.seekEnd);
   });
 
   test('an explicit backToLive overrides the derived default', () {
-    const c = MovaLiveConfig(
+    const c = MovaLiveOpts(
       seekMode: MovaLiveSeekMode.timeshift,
       backToLive: MovaBackToLive.seekEnd,
     );
@@ -150,7 +150,7 @@ void main() {
   });
 
   test('urlBuilder and windowResolver are injectable strategies', () {
-    final c = MovaLiveConfig(
+    final c = MovaLiveOpts(
       seekMode: MovaLiveSeekMode.timeshift,
       urlBuilder: (uri, behind, at) => '$uri?behind=${behind.inSeconds}',
       windowResolver: (s) => const Duration(minutes: 30),
@@ -162,24 +162,24 @@ void main() {
     expect(c.windowResolver!(const MovaState()), const Duration(minutes: 30));
   });
 
-  test('MovaLiveConfig.copyWith replaces one field only', () {
-    const c = MovaLiveConfig(seekMode: MovaLiveSeekMode.dvr);
+  test('MovaLiveOpts.copyWith replaces one field only', () {
+    const c = MovaLiveOpts(seekMode: MovaLiveSeekMode.dvr);
     final n = c.copyWith(autoBackToLiveOnStall: true);
     expect(n.autoBackToLiveOnStall, isTrue);
     expect(n.seekMode, MovaLiveSeekMode.dvr);
     expect(n.edgeThreshold, c.edgeThreshold);
   });
 
-  test('MovaDanmakuConfig defaults to disabled and empty', () {
-    const d = MovaDanmakuConfig();
+  test('MovaDanmakuOpts defaults to disabled and empty', () {
+    const d = MovaDanmakuOpts();
     expect(d.enabled, isFalse);
     expect(d.items, isEmpty);
     expect(d.trackCount, 4);
     expect(d.crossDuration, const Duration(seconds: 8));
   });
 
-  test('MovaDanmakuConfig.copyWith replaces one field and compares by value', () {
-    const d = MovaDanmakuConfig();
+  test('MovaDanmakuOpts.copyWith replaces one field and compares by value', () {
+    const d = MovaDanmakuOpts();
     final n = d.copyWith(enabled: true, items: const [MovaDanmakuItem(text: 'hi', time: Duration.zero)]);
     expect(n.enabled, isTrue);
     expect(n.items, hasLength(1));
@@ -187,21 +187,21 @@ void main() {
     expect(n, isNot(d));
   });
 
-  test('MovaOpts exposes a danmaku section that defaults to MovaDanmakuConfig', () {
+  test('MovaOpts exposes a danmaku section that defaults to MovaDanmakuOpts', () {
     const o = MovaOpts();
-    expect(o.danmaku, const MovaDanmakuConfig());
+    expect(o.danmaku, const MovaDanmakuOpts());
   });
 
   test('MovaOpts.copyWith replaces only the danmaku section', () {
     const o = MovaOpts();
-    final n = o.copyWith(danmaku: const MovaDanmakuConfig(enabled: true));
+    final n = o.copyWith(danmaku: const MovaDanmakuOpts(enabled: true));
     expect(n.danmaku.enabled, isTrue);
     expect(n.gesture, o.gesture);
     expect(n, isNot(o));
   });
 
-  test('MovaCutoverConfig defaults are off with the documented tuning values', () {
-    const c = MovaCutoverConfig();
+  test('MovaCutoverOpts defaults are off with the documented tuning values', () {
+    const c = MovaCutoverOpts();
     expect(c.enabled, isFalse);
     expect(c.leadTime, const Duration(seconds: 2));
     expect(c.minWarmDuration, const Duration(seconds: 5));
@@ -211,50 +211,50 @@ void main() {
     expect(c.readyPolicy, isNull);
   });
 
-  test('MovaCutoverConfig.effectiveTrigger falls back to a seeded MovaLeadWarm, or returns the injected one', () {
-    const c = MovaCutoverConfig(leadTime: Duration(seconds: 3), minWarmDuration: Duration(seconds: 6));
+  test('MovaCutoverOpts.effectiveTrigger falls back to a seeded MovaLeadWarm, or returns the injected one', () {
+    const c = MovaCutoverOpts(leadTime: Duration(seconds: 3), minWarmDuration: Duration(seconds: 6));
     final t = c.effectiveTrigger;
     expect(t, isA<MovaLeadWarm>());
     expect((t as MovaLeadWarm).lead, const Duration(seconds: 3));
     expect(t.minDuration, const Duration(seconds: 6));
 
     const injected = MovaEagerWarm();
-    const c2 = MovaCutoverConfig(trigger: injected);
+    const c2 = MovaCutoverOpts(trigger: injected);
     expect(c2.effectiveTrigger, same(injected));
   });
 
-  test('MovaCutoverConfig.newReadyPolicy returns a fresh instance each call, or the injected one', () {
-    const c = MovaCutoverConfig();
+  test('MovaCutoverOpts.newReadyPolicy returns a fresh instance each call, or the injected one', () {
+    const c = MovaCutoverOpts();
     final a = c.newReadyPolicy();
     final b = c.newReadyPolicy();
     expect(identical(a, b), isFalse);
 
     final injected = MovaBufferWarm();
-    final c2 = MovaCutoverConfig(readyPolicy: injected);
+    final c2 = MovaCutoverOpts(readyPolicy: injected);
     expect(c2.newReadyPolicy(), same(injected));
   });
 
-  test('MovaCutoverConfig.copyWith replaces one field only', () {
-    const c = MovaCutoverConfig();
+  test('MovaCutoverOpts.copyWith replaces one field only', () {
+    const c = MovaCutoverOpts();
     final n = c.copyWith(enabled: true);
     expect(n.enabled, isTrue);
     expect(n.leadTime, c.leadTime);
     expect(n.muteWhileWarm, c.muteWhileWarm);
   });
 
-  test('MovaOpts exposes a cutover section that defaults to MovaCutoverConfig and is independently replaceable', () {
+  test('MovaOpts exposes a cutover section that defaults to MovaCutoverOpts and is independently replaceable', () {
     const o = MovaOpts();
-    expect(o.cutover, const MovaCutoverConfig());
-    final n = o.copyWith(cutover: const MovaCutoverConfig(enabled: true));
+    expect(o.cutover, const MovaCutoverOpts());
+    final n = o.copyWith(cutover: const MovaCutoverOpts(enabled: true));
     expect(n.cutover.enabled, isTrue);
     expect(n.gesture, o.gesture);
   });
 
-  group('MovaAdConfig — 0.5.0 ad orchestration knobs', () {
+  group('MovaAdOpts — 0.5.0 ad orchestration knobs', () {
     const adBreak = MovaAdBreak(kind: MovaAdBreakKind.mid, source: MovaSource('https://h/ad.mp4'));
 
     test('all seven new knobs carry their documented defaults', () {
-      const c = MovaAdConfig();
+      const c = MovaAdOpts();
       expect(c.waitForAdReady, isA<MovaAdWaitByKind>());
       expect(c.adReadyTimeout, const Duration(seconds: 5));
       expect(c.notReadyAction, MovaAdNotReady.hardCut);
@@ -285,7 +285,7 @@ void main() {
     });
 
     test('MovaAdBreak.waitForReady overrides the per-kind default in both directions', () {
-      const c = MovaAdConfig();
+      const c = MovaAdOpts();
       const forcedOn = MovaAdBreak(
         kind: MovaAdBreakKind.pre,
         source: MovaSource('https://h/pre.mp4'),
@@ -302,13 +302,13 @@ void main() {
 
     test('waitsFor falls through to the injected policy when the break stays silent', () {
       final policy = RecordingWaitPolicy(answer: true);
-      final c = MovaAdConfig(waitForAdReady: policy);
+      final c = MovaAdOpts(waitForAdReady: policy);
       expect(c.waitsFor(adBreak), isTrue);
       expect(policy.calls, 1, reason: 'the injected policy must actually be consulted');
     });
 
     test('effectiveWarmPlan / effectiveFailPolicy default sensibly and honour injection', () {
-      const c = MovaAdConfig(adReadyTimeout: Duration(seconds: 3));
+      const c = MovaAdOpts(adReadyTimeout: Duration(seconds: 3));
       final plan = c.effectiveWarmPlan;
       expect(plan.trigger, isA<MovaEagerWarm>());
       expect(plan.policy, isA<MovaBufferWarm>());
@@ -318,13 +318,13 @@ void main() {
 
       const injected = MovaWarmPlan(pauseWhenReady: false);
       const abandon = MovaAdAbandonPod();
-      const c2 = MovaAdConfig(adWarmPlan: injected, failPolicy: abandon);
+      const c2 = MovaAdOpts(adWarmPlan: injected, failPolicy: abandon);
       expect(c2.effectiveWarmPlan, same(injected));
       expect(c2.effectiveFailPolicy, same(abandon));
     });
 
     test('copyWith replaces one new field at a time, and MovaOpts.copyWith(ads:) is section-local', () {
-      const c = MovaAdConfig();
+      const c = MovaAdOpts();
       expect(c.copyWith(adReadyTimeout: const Duration(seconds: 9)).adReadyTimeout,
           const Duration(seconds: 9));
       expect(c.copyWith(adReadyTimeout: const Duration(seconds: 9)).loadTimeout, c.loadTimeout);
@@ -339,16 +339,16 @@ void main() {
       expect(c.copyWith(adWarmPlan: const MovaWarmPlan()).adWarmPlan, isNotNull);
 
       const o = MovaOpts();
-      final n = o.copyWith(ads: const MovaAdConfig(loadTimeout: Duration(seconds: 1)));
+      final n = o.copyWith(ads: const MovaAdOpts(loadTimeout: Duration(seconds: 1)));
       expect(n.ads.loadTimeout, const Duration(seconds: 1));
       expect(n.cutover, o.cutover);
       expect(n.gesture, o.gesture);
     });
   });
 
-  group('MovaMiniConfig — in-app mini window', () {
+  group('MovaMiniOpts — in-app mini window', () {
     test('defaults: disabled, 180x(16/9), bottomRight corner', () {
-      const c = MovaMiniConfig();
+      const c = MovaMiniOpts();
       expect(c.enabled, isFalse);
       expect(c.width, 180);
       expect(c.aspectRatio, 16 / 9);
@@ -359,10 +359,10 @@ void main() {
       expect(c.settleDuration, const Duration(milliseconds: 220));
     });
 
-    test('MovaOpts().mini equals a default MovaMiniConfig, and MovaOpts equality/hashCode include it', () {
+    test('MovaOpts().mini equals a default MovaMiniOpts, and MovaOpts equality/hashCode include it', () {
       const o = MovaOpts();
-      expect(o.mini, const MovaMiniConfig());
-      final n = o.copyWith(mini: const MovaMiniConfig(enabled: true));
+      expect(o.mini, const MovaMiniOpts());
+      final n = o.copyWith(mini: const MovaMiniOpts(enabled: true));
       expect(n.mini.enabled, isTrue);
       expect(n, isNot(equals(o)));
       expect(n.hashCode, isNot(equals(o.hashCode)));
@@ -370,7 +370,7 @@ void main() {
     });
 
     test('copyWith replaces only the given field', () {
-      const c = MovaMiniConfig();
+      const c = MovaMiniOpts();
       final n = c.copyWith(enabled: true);
       expect(n.enabled, isTrue);
       expect(n.width, c.width);
@@ -378,17 +378,17 @@ void main() {
     });
 
     test('effectivePlacement falls back to MovaCornerSnap when placement is null, else returns it verbatim', () {
-      const c = MovaMiniConfig();
+      const c = MovaMiniOpts();
       expect(c.effectivePlacement, isA<MovaCornerSnap>());
       final injected = MovaCornerSnap(snap: false);
-      final c2 = MovaMiniConfig(placement: injected);
+      final c2 = MovaMiniOpts(placement: injected);
       expect(c2.effectivePlacement, same(injected));
     });
 
     test('constructor asserts reject non-positive width/aspectRatio and negative margin', () {
-      expect(() => MovaMiniConfig(width: 0), throwsA(isA<AssertionError>()));
-      expect(() => MovaMiniConfig(aspectRatio: -1), throwsA(isA<AssertionError>()));
-      expect(() => MovaMiniConfig(margin: -1), throwsA(isA<AssertionError>()));
+      expect(() => MovaMiniOpts(width: 0), throwsA(isA<AssertionError>()));
+      expect(() => MovaMiniOpts(aspectRatio: -1), throwsA(isA<AssertionError>()));
+      expect(() => MovaMiniOpts(margin: -1), throwsA(isA<AssertionError>()));
     });
 
     test('default MovaOpts() equals a freshly-constructed default (0.5.0 regression guard)', () {
@@ -397,10 +397,10 @@ void main() {
   });
 }
 
-/// A [MovaAdWaitPolicy] that records how often it was consulted.
+/// A [IMovaAdWaitPolicy] that records how often it was consulted.
 ///
-/// 一个记录被咨询次数的 [MovaAdWaitPolicy]。
-class RecordingWaitPolicy implements MovaAdWaitPolicy {
+/// 一个记录被咨询次数的 [IMovaAdWaitPolicy]。
+class RecordingWaitPolicy implements IMovaAdWaitPolicy {
   /// What [waitFor] answers.
   ///
   /// [waitFor] 的回答。

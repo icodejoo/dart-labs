@@ -6,35 +6,35 @@ import 'package:mova/mova.dart';
 
 /// Standalone, no-click acceptance test for the four still-unmeasured
 /// 0.5.0 ad-orchestration checklist groups (A remainder / C / E / F). Every
-/// number reported comes from real event timestamps ([MovaAdConfig.onAdEvent],
-/// [MovaApi.progress], [MovaApi.states]) — never a wall-clock guess or a
+/// number reported comes from real event timestamps ([MovaAdOpts.onAdEvent],
+/// [IMovaApi.progress], [IMovaApi.states]) — never a wall-clock guess or a
 /// seek-near-EOF trick, per this project's real-device-verification
 /// convention.
 ///
 /// Run with: `flutter run -t lib/main_ad_orchestration_verify.dart -d
 /// DEVICE_ID`. Runs all four groups back to back and prints a
 /// final summary; blocks until done (several minutes: group A alone opens
-/// five fresh engines).
+/// five fresh players).
 ///
 /// 针对 0.5.0 广告编排增强仍未测的四组 checklist（A 组剩余部分 / C / E / F）
 /// 做的独立、无需点击的验收测试。每个数字都来自真实事件时间戳
-/// （[MovaAdConfig.onAdEvent]、[MovaApi.progress]、[MovaApi.states]）——绝不是
+/// （[MovaAdOpts.onAdEvent]、[IMovaApi.progress]、[IMovaApi.states]）——绝不是
 /// 墙钟估算或临近 EOF 的 seek 技巧，遵循本项目的真机验证约定。
 ///
 /// 运行：`flutter run -t lib/main_ad_orchestration_verify.dart -d <安卓设备id>`。
 /// 四组依次自动跑完并打印总结；会阻塞直到全部完成（数分钟级，仅 A 组就要开五个
-/// 独立引擎）。
+/// 独立播放器）。
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  MovaEngine.ensureInitialized();
+  Mova.ensureInitialized();
   runApp(const MaterialApp(home: _RunnerPage()));
 }
 
-/// Content source with a cache-busting query parameter so every fresh engine
+/// Content source with a cache-busting query parameter so every fresh player
 /// hits the real network instead of a cached response — otherwise the
 /// warm-up/readiness timings this test measures would be artificially fast.
 ///
-/// 带缓存清除参数的正片源，使每个新引擎都走真实网络请求——否则本测试要测的
+/// 带缓存清除参数的正片源，使每个新播放器都走真实网络请求——否则本测试要测的
 /// 预热/就绪耗时会被人为拉快。
 MovaSource _content() => MovaSource(
       'https://user-images.githubusercontent.com/28951144/229373695-22f88f13-d18f-4288-9bf1-c3e078d83722.mp4'
@@ -63,18 +63,18 @@ void _log(String line) {
   _onLine?.call(stamped);
 }
 
-/// Completes once [engine]'s progress shows playback actually advancing
+/// Completes once [mova]'s progress shows playback actually advancing
 /// (position past zero and not buffering) — see `main_seamless_test.dart`'s
 /// doc comment for why this, not open()'s future, is the real start signal.
 ///
-/// 一旦 [engine] 的进度显示播放真的在推进（位置过零且不在缓冲）就完成——为何
+/// 一旦 [mova] 的进度显示播放真的在推进（位置过零且不在缓冲）就完成——为何
 /// 用这个而非 open() 的 future 作为真实起播信号，见 `main_seamless_test.dart`
 /// 的注释。
-Future<void> _waitForRealPlayback(MovaApi engine) {
+Future<void> _waitForRealPlayback(IMovaApi mova) {
   final completer = Completer<void>();
   late final StreamSubscription<MovaProg> sub;
-  sub = engine.progress.listen((p) {
-    if (p.position > Duration.zero && !engine.state.buffering) {
+  sub = mova.progress.listen((p) {
+    if (p.position > Duration.zero && !mova.state.buffering) {
       unawaited(sub.cancel());
       if (!completer.isCompleted) completer.complete();
     }
@@ -149,25 +149,25 @@ class _RunnerPageState extends State<_RunnerPage> {
 
   /// Runs [n] independent samples of the mid-roll wait-for-ready gap: the
   /// real interval between [MovaAdEventType.pending] (the instant
-  /// `dueMidRoll` fires and the controller decides to insert the mid-roll)
+  /// `dueMidRoll` fires and [MovaAds] decides to insert the mid-roll)
   /// and [MovaAdEventType.started] (the instant the atomic cutover has
   /// committed and the ad is actually on screen).
   ///
-  /// Each sample opens a fresh engine so no state leaks between samples and
+  /// Each sample opens a fresh player so no state leaks between samples and
   /// every content fetch is a fresh network request.
   ///
   /// 对中插"等待就绪"间隔跑 [n] 次独立采样：[MovaAdEventType.pending]（
-  /// `dueMidRoll` 命中、控制器决定插入中插的那一刻）到
+  /// `dueMidRoll` 命中、[MovaAds] 决定插入中插的那一刻）到
   /// [MovaAdEventType.started]（原子切换已提交、广告真正上屏的那一刻）之间的
   /// 真实间隔。
   ///
-  /// 每次采样都开一个全新引擎，样本之间不留状态，每次正片请求都是全新的网络
+  /// 每次采样都开一个全新播放器，样本之间不留状态，每次正片请求都是全新的网络
   /// 请求。
   Future<List<_AGroupSample>> _runGroupA({int n = 5}) async {
     _log('--- Group A: mid-roll wait-for-ready gap ($n samples) ---');
     final results = <_AGroupSample>[];
     for (var i = 1; i <= n; i++) {
-      _log('A sample $i/$n: opening fresh engine');
+      _log('A sample $i/$n: opening fresh player');
       try {
         final sample = await _runOneAGroupSample(i);
         results.add(sample);
@@ -196,7 +196,7 @@ class _RunnerPageState extends State<_RunnerPage> {
       skippableAfter: const Duration(seconds: 2),
     );
     final opts = MovaOpts(
-      ads: MovaAdConfig(
+      ads: MovaAdOpts(
         enabled: true,
         breaks: [mid],
         onAdEvent: (e) {
@@ -209,13 +209,13 @@ class _RunnerPageState extends State<_RunnerPage> {
           }
         },
       ),
-      cutover: const MovaCutoverConfig(enabled: true, trigger: MovaEagerWarm()),
+      cutover: const MovaCutoverOpts(enabled: true, trigger: MovaEagerWarm()),
     );
-    final engine = MovaCutoverEngine(engineFactory: () => createMovaEngine(options: opts));
-    final controller = MovaAds(engine, cutover: engine);
+    final mova = MovaCutover(movaFactory: () => createMova(options: opts));
+    final ads = MovaAds(mova, cutover: mova);
     try {
-      await controller.load(_content());
-      await _waitForRealPlayback(engine);
+      await ads.load(_content());
+      await _waitForRealPlayback(mova);
       final pendingAt = await pendingCompleter.future.timeout(
         const Duration(seconds: 15),
         onTimeout: () => throw StateError('pending event never fired within 15s'),
@@ -226,8 +226,8 @@ class _RunnerPageState extends State<_RunnerPage> {
       );
       return _AGroupSample(startedAt.difference(pendingAt));
     } finally {
-      await controller.dispose();
-      await engine.dispose();
+      await ads.dispose();
+      await mova.dispose();
     }
   }
 
@@ -235,10 +235,10 @@ class _RunnerPageState extends State<_RunnerPage> {
   // Group C: content smoothness during the visible delay countdown.
   // ---------------------------------------------------------------------
 
-  /// Samples [MovaApi.progress] every 250ms from the moment the mid-roll
+  /// Samples [IMovaApi.progress] every 250ms from the moment the mid-roll
   /// enters [MovaAdEventType.pending] (delay countdown starts) until it
   /// starts (delay elapsed + ad warmed up and committed), while the ad is
-  /// warmed up in a shadow engine behind the still-playing content. Verifies
+  /// warmed up in a shadow player behind the still-playing content. Verifies
   /// position is monotonically non-decreasing and no sample-to-sample gap
   /// stalls for longer than the sample interval plus tolerance — the
   /// objective proxy for "no stutter" this task asked for, since true
@@ -246,7 +246,7 @@ class _RunnerPageState extends State<_RunnerPage> {
   ///
   /// 从中插进入 [MovaAdEventType.pending]（倒计时开始）到它真正开始播放
   /// （倒计时走完 + 广告预热就绪并提交）之间，每 250ms 采样一次
-  /// [MovaApi.progress]（此时广告正在仍在播放的正片背后的影子引擎里预热）。
+  /// [IMovaApi.progress]（此时广告正在仍在播放的正片背后的影子播放器里预热）。
   /// 验证位置单调不减、且相邻采样间隔不出现超过采样周期加容差的卡顿——这是
   /// 本任务要求的"无卡顿"客观代理，真正的视觉流畅度仍需人眼判断。
   Future<String> _runGroupC() async {
@@ -274,7 +274,7 @@ class _RunnerPageState extends State<_RunnerPage> {
     DateTime? pendingWallClock;
     DateTime? startedWallClock;
     final opts = MovaOpts(
-      ads: MovaAdConfig(
+      ads: MovaAdOpts(
         enabled: true,
         breaks: [mid],
         onAdEvent: (e) {
@@ -287,19 +287,19 @@ class _RunnerPageState extends State<_RunnerPage> {
           }
         },
       ),
-      cutover: const MovaCutoverConfig(enabled: true, trigger: MovaEagerWarm()),
+      cutover: const MovaCutoverOpts(enabled: true, trigger: MovaEagerWarm()),
     );
-    final engine = MovaCutoverEngine(engineFactory: () => createMovaEngine(options: opts));
-    final controller = MovaAds(engine, cutover: engine);
+    final mova = MovaCutover(movaFactory: () => createMova(options: opts));
+    final ads = MovaAds(mova, cutover: mova);
     StreamSubscription<MovaProg>? sampleSub;
     try {
-      await controller.load(_content());
-      await _waitForRealPlayback(engine);
-      sampleSub = engine.progress.listen((p) {
+      await ads.load(_content());
+      await _waitForRealPlayback(mova);
+      sampleSub = mova.progress.listen((p) {
         samples.add(p.position);
         if (pendingWallClock != null) {
           final elapsedMs = DateTime.now().difference(pendingWallClock!).inMilliseconds;
-          diag.add('  [+${elapsedMs}ms] pos=${p.position} buffering=${engine.state.buffering}');
+          diag.add('  [+${elapsedMs}ms] pos=${p.position} buffering=${mova.state.buffering}');
         }
       });
       await pendingCompleter.future.timeout(const Duration(seconds: 15));
@@ -326,7 +326,7 @@ class _RunnerPageState extends State<_RunnerPage> {
             ? -1
             : DateTime.now().difference(pendingWallClock!).inMilliseconds;
         diag.add('  [+${elapsedMs}ms timer] pos=${samples.isNotEmpty ? samples.last : null} '
-            'buffering=${engine.state.buffering}');
+            'buffering=${mova.state.buffering}');
       }
       await sampleSub.cancel();
       sampleSub = null;
@@ -379,8 +379,8 @@ class _RunnerPageState extends State<_RunnerPage> {
       return 'FAILED: $e';
     } finally {
       await sampleSub?.cancel();
-      await controller.dispose();
-      await engine.dispose();
+      await ads.dispose();
+      await mova.dispose();
     }
   }
 
@@ -390,12 +390,12 @@ class _RunnerPageState extends State<_RunnerPage> {
 
   /// Verifies [MovaAdBreak.duration] fires close to its configured value
   /// (measured started→completed on real [MovaAdEventType] timestamps, not
-  /// the media's own timeline) and that the controller is not wedged
+  /// the media's own timeline) and that [MovaAds] is not wedged
   /// afterwards (content position keeps advancing for a few more seconds).
   ///
   /// 验证 [MovaAdBreak.duration] 在接近配置值处触发（用真实
   /// [MovaAdEventType] 时间戳测 started→completed，不看素材自身时间轴），
-  /// 以及事后控制器没有卡死（正片位置在之后几秒内继续推进）。
+  /// 以及事后 [MovaAds] 没有卡死（正片位置在之后几秒内继续推进）。
   Future<String> _runGroupE() async {
     _log('--- Group E: duration-bounded mid-roll reclaim timing ---');
     const configuredDuration = Duration(seconds: 5);
@@ -419,7 +419,7 @@ class _RunnerPageState extends State<_RunnerPage> {
     final startedCompleter = Completer<void>();
     final completedCompleter = Completer<void>();
     final opts = MovaOpts(
-      ads: MovaAdConfig(
+      ads: MovaAdOpts(
         enabled: true,
         breaks: [mid],
         onAdEvent: (e) {
@@ -432,15 +432,15 @@ class _RunnerPageState extends State<_RunnerPage> {
           }
         },
       ),
-      cutover: const MovaCutoverConfig(enabled: true, trigger: MovaEagerWarm()),
+      cutover: const MovaCutoverOpts(enabled: true, trigger: MovaEagerWarm()),
     );
-    final engine = MovaCutoverEngine(engineFactory: () => createMovaEngine(options: opts));
-    final controller = MovaAds(engine, cutover: engine);
+    final mova = MovaCutover(movaFactory: () => createMova(options: opts));
+    final ads = MovaAds(mova, cutover: mova);
     var lastPos = Duration.zero;
-    final posSub = engine.progress.listen((p) => lastPos = p.position);
+    final posSub = mova.progress.listen((p) => lastPos = p.position);
     try {
-      await controller.load(_content());
-      await _waitForRealPlayback(engine);
+      await ads.load(_content());
+      await _waitForRealPlayback(mova);
       await startedCompleter.future.timeout(const Duration(seconds: 15));
       _log('  ad started at $startedAt, waiting for duration timer to reclaim it');
       await completedCompleter.future.timeout(
@@ -466,8 +466,8 @@ class _RunnerPageState extends State<_RunnerPage> {
       return 'FAILED: $e';
     } finally {
       await posSub.cancel();
-      await controller.dispose();
-      await engine.dispose();
+      await ads.dispose();
+      await mova.dispose();
     }
   }
 
@@ -475,18 +475,18 @@ class _RunnerPageState extends State<_RunnerPage> {
   // Group F: ads/cutover disabled — behaviour must be unchanged.
   // ---------------------------------------------------------------------
 
-  /// Builds a controller with [MovaAdConfig.enabled] and
-  /// [MovaCutoverConfig.enabled] both false (breaks still configured, to prove
+  /// Builds a [MovaAds] with [MovaAdOpts.enabled] and
+  /// [MovaCutoverOpts.enabled] both false (breaks still configured, to prove
   /// they are genuinely ignored, not just empty), plays content for 8s, and
   /// asserts zero [MovaAdEvent]s fired, [MovaState.renderEpoch] never left 0
-  /// (the cutover engine documented as a pure passthrough when disabled), and
+  /// (the `MovaCutover` documented as a pure passthrough when disabled), and
   /// content position advanced steadily — the baseline regression this group
   /// asked for.
   ///
-  /// 构造一个 [MovaAdConfig.enabled] 与 [MovaCutoverConfig.enabled] 均为
-  /// false 的控制器（排期仍然配置着，用以证明它确实被忽略、而非本就是空的），
+  /// 构造一个 [MovaAdOpts.enabled] 与 [MovaCutoverOpts.enabled] 均为
+  /// false 的 [MovaAds]（排期仍然配置着，用以证明它确实被忽略、而非本就是空的），
   /// 播放正片 8 秒，断言零 [MovaAdEvent] 触发、[MovaState.renderEpoch] 从未
-  /// 离开过 0（文档记载的关闭态下切换引擎为纯直通），以及正片位置稳定推进——
+  /// 离开过 0（文档记载的关闭态下 `MovaCutover` 为纯直通），以及正片位置稳定推进——
   /// 本组要求的基线回归。
   Future<String> _runGroupF() async {
     _log('--- Group F: ads/cutover disabled baseline regression ---');
@@ -497,22 +497,22 @@ class _RunnerPageState extends State<_RunnerPage> {
       offset: const Duration(seconds: 2),
     );
     final opts = MovaOpts(
-      ads: MovaAdConfig(
+      ads: MovaAdOpts(
         enabled: false,
         breaks: [mid],
         onAdEvent: (e) => adEvents.add(e.type),
       ),
-      cutover: const MovaCutoverConfig(enabled: false),
+      cutover: const MovaCutoverOpts(enabled: false),
     );
-    final engine = MovaCutoverEngine(engineFactory: () => createMovaEngine(options: opts));
-    final controller = MovaAds(engine, cutover: engine);
+    final mova = MovaCutover(movaFactory: () => createMova(options: opts));
+    final ads = MovaAds(mova, cutover: mova);
     final epochs = <int>{};
-    final sub = engine.states.listen((s) => epochs.add(s.renderEpoch));
+    final sub = mova.states.listen((s) => epochs.add(s.renderEpoch));
     var lastPos = Duration.zero;
-    final posSub = engine.progress.listen((p) => lastPos = p.position);
+    final posSub = mova.progress.listen((p) => lastPos = p.position);
     try {
-      await controller.load(_content());
-      await _waitForRealPlayback(engine);
+      await ads.load(_content());
+      await _waitForRealPlayback(mova);
       final posBefore = lastPos;
       await Future<void>.delayed(const Duration(seconds: 8));
       final posAfter = lastPos;
@@ -527,8 +527,8 @@ class _RunnerPageState extends State<_RunnerPage> {
     } finally {
       await posSub.cancel();
       await sub.cancel();
-      await controller.dispose();
-      await engine.dispose();
+      await ads.dispose();
+      await mova.dispose();
     }
   }
 

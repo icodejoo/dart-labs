@@ -1,28 +1,28 @@
-import '../options/live_config.dart';
+import '../options/live_opts.dart';
 import '../state/state.dart';
 
-/// Resolves the seekable DVR/time-shift window for [s] under [cfg].
+/// Resolves the seekable DVR/time-shift window for [s] under [opts].
 ///
-/// Precedence: an injected [MovaLiveConfig.windowResolver] wins, then an
-/// explicit [MovaLiveConfig.dvrWindow], then the kernel-reported
+/// Precedence: an injected [MovaLiveOpts.windowResolver] wins, then an
+/// explicit [MovaLiveOpts.dvrWindow], then the kernel-reported
 /// [MovaState.duration] (a live HLS stream's "duration" is its sliding-window
 /// length). A negative result is clamped to zero so callers never see a
 /// nonsensical window.
 ///
-/// 在配置 [cfg] 下解析状态 [s] 的可拖动 DVR/时移窗口。
+/// 在配置 [opts] 下解析状态 [s] 的可拖动 DVR/时移窗口。
 ///
-/// 优先级：注入的 [MovaLiveConfig.windowResolver] 最高，其次是显式的
-/// [MovaLiveConfig.dvrWindow]，最后回落到内核报告的 [MovaState.duration]
+/// 优先级：注入的 [MovaLiveOpts.windowResolver] 最高，其次是显式的
+/// [MovaLiveOpts.dvrWindow]，最后回落到内核报告的 [MovaState.duration]
 /// （直播 HLS 流的"时长"即其滑动窗口长度）。结果为负时被 clamp 到零，
 /// 使调用方绝不会拿到荒谬的窗口值。
 ///
 /// - [s]: the current player state / 当前播放器状态
-/// - [cfg]: the live configuration in effect / 生效的直播配置
+/// - [opts]: the live options in effect / 生效的直播配置
 ///
 /// Returns the window length, never negative / 返回窗口长度，绝不为负。
-Duration resolveWindow(MovaState s, MovaLiveConfig cfg) {
-  final resolver = cfg.windowResolver;
-  final raw = resolver != null ? resolver(s) : (cfg.dvrWindow ?? s.duration);
+Duration resolveWindow(MovaState s, MovaLiveOpts opts) {
+  final resolver = opts.windowResolver;
+  final raw = resolver != null ? resolver(s) : (opts.dvrWindow ?? s.duration);
   return raw.isNegative ? Duration.zero : raw;
 }
 

@@ -46,8 +46,8 @@ class _Streams extends Fake implements PlayerStream {
   Stream<int?> get height => const Stream.empty();
 }
 
-/// 实现可选能力的内核，允许检测引擎有没有读取旧 error 入口。
-class _ClassifiedKernel extends FakeKernel implements MovaClassifiedErrorKernel {
+/// 实现可选能力的内核，允许检测播放器有没有读取旧 error 入口。
+class _ClassifiedKernel extends FakeKernel implements IMovaClassifiedErrorKernel {
   /// 分级流，默认异步广播以模拟真实内核。
   final classified = StreamController<MovaKernelError>.broadcast();
 
@@ -79,20 +79,20 @@ class _Hook extends MovaHook {
   void onError(Object error, StackTrace stack) => errors.add(error);
 }
 
-/// 创建真实引擎，默认关闭与错误分级无关的计时器。
-MovaEngine _engine(FakeKernel kernel, {_Hook? hook, bool recovery = false}) => createMovaEngine(
+/// 创建真实播放器，默认关闭与错误分级无关的计时器。
+Mova _mova(FakeKernel kernel, {_Hook? hook, bool recovery = false}) => createMova(
   kernel: kernel, ownsKernel: true,
-  brightness: MovaFallbackBrightnessPort(),
-  pip: MovaNoopPipPort(),
-  orientation: MovaNoopOrientationPort(),
+  brightness: MovaFallbackBrightness(),
+  pip: MovaNoopPip(),
+  orient: MovaNoopOrient(),
   interceptors: [?hook],
   options: MovaOpts(
-    controls: const MovaCtrlsConfig(autoHide: false),
-    recovery: MovaRecoveryConfig(enabled: recovery, policy: const MovaFailoverOnly()),
+    controls: const MovaCtrlsOpts(autoHide: false),
+    recovery: MovaRecoveryOpts(enabled: recovery, policy: const MovaFailoverOnly()),
   ),
 );
 
-/// 构建恢复放弃的输入，不依赖引擎或网络。
+/// 构建恢复放弃的输入，不依赖播放器或网络。
 const _fail = MovaPlayFail(
   kind: MovaPlayFailKind.nativeEndError, sourceIndex: 0, uri: 'https://h/a.mp4',
   sourceCount: 1, attempt: 1, streak: 1,
@@ -219,13 +219,13 @@ void main() {
     await kernel.dispose();
   });
 
-  test('A13 engine prefers classified stream and does not subscribe duplicate legacy error', () {
+  test('A13 player prefers classified stream and does not subscribe duplicate legacy error', () {
     fakeAsync((clock) {
       final kernel = _ClassifiedKernel();
       final hook = _Hook();
-      final engine = _engine(kernel, hook: hook);
+      final mova = _mova(kernel, hook: hook);
       final events = <MovaErrorEvent>[];
-      engine.events.where((e) => e is MovaErrorEvent).cast<MovaErrorEvent>().listen(events.add);
+      mova.events.where((e) => e is MovaErrorEvent).cast<MovaErrorEvent>().listen(events.add);
       kernel.emitError('duplicate');
       kernel.classified.add(const MovaKernelError('tcp: reset', 'ffmpeg'));
       clock.flushMicrotasks();
@@ -233,9 +233,9 @@ void main() {
       expect(events, hasLength(1));
       expect(events.single.fatal, isFalse);
       expect(events.single.code, 'network');
-      expect(engine.state.error, isNull);
+      expect(mova.state.error, isNull);
       expect(hook.errors, ['tcp: reset']);
-      engine.dispose();
+      mova.dispose();
       clock.flushMicrotasks();
     });
   });
@@ -244,18 +244,18 @@ void main() {
     fakeAsync((clock) {
       final kernel = FakeKernel();
       final hook = _Hook();
-      final engine = _engine(kernel, hook: hook);
+      final mova = _mova(kernel, hook: hook);
       final events = <MovaErrorEvent>[];
-      engine.events.where((e) => e is MovaErrorEvent).cast<MovaErrorEvent>().listen(events.add);
+      mova.events.where((e) => e is MovaErrorEvent).cast<MovaErrorEvent>().listen(events.add);
       final error = StateError('recoverable diagnostic');
       kernel.emitError(error);
       clock.flushMicrotasks();
       expect(events.single.error, same(error));
       expect(events.single.fatal, isFalse);
       expect(events.single.code, 'unknown');
-      expect(engine.state.error, isNull);
+      expect(mova.state.error, isNull);
       expect(hook.errors.single, same(error));
-      engine.dispose();
+      mova.dispose();
       clock.flushMicrotasks();
     });
   });
@@ -263,10 +263,10 @@ void main() {
   test('A13 recovery give up event is classified terminal while cleanup is unchanged', () {
     fakeAsync((clock) {
       final kernel = FakeStatsKernel();
-      final engine = _engine(kernel, recovery: true);
+      final mova = _mova(kernel, recovery: true);
       final events = <MovaErrorEvent>[];
-      engine.events.where((e) => e is MovaErrorEvent).cast<MovaErrorEvent>().listen(events.add);
-      engine.open(const MovaSource('https://h/a.mp4'));
+      mova.events.where((e) => e is MovaErrorEvent).cast<MovaErrorEvent>().listen(events.add);
+      mova.open(const MovaSource('https://h/a.mp4'));
       clock.flushMicrotasks();
       kernel.emitBuffering(true);
       kernel.emitEndFile(MovaEndFileReason.error);
@@ -274,10 +274,10 @@ void main() {
       expect(events.single.error, isA<MovaGiveUpError>());
       expect(events.single.fatal, isTrue);
       expect(events.single.code, 'unknown');
-      expect(engine.state.error, same(events.single.error));
-      expect(engine.state.buffering, isFalse);
+      expect(mova.state.error, same(events.single.error));
+      expect(mova.state.buffering, isFalse);
       expect(kernel.calls.last, 'pause');
-      engine.dispose();
+      mova.dispose();
       clock.flushMicrotasks();
       expect(clock.pendingTimers, isEmpty);
     });
@@ -285,26 +285,26 @@ void main() {
 
   test('A13 after first frame diagnostics leave state clear and terminal decoder errors remain fatal', () async {
       final kernel = _ClassifiedKernel();
-      final engine = _engine(kernel);
+      final mova = _mova(kernel);
       final events = <MovaErrorEvent>[];
-      engine.events.where((e) => e is MovaErrorEvent).cast<MovaErrorEvent>().listen(events.add);
-      engine.open(const MovaSource('https://h/a.mp4'));
+      mova.events.where((e) => e is MovaErrorEvent).cast<MovaErrorEvent>().listen(events.add);
+      mova.open(const MovaSource('https://h/a.mp4'));
       await Future<void>.delayed(Duration.zero);
       kernel.emitBuffering(true);
       kernel.emitBuffering(false);
       await Future<void>.delayed(Duration.zero);
-      expect(engine.state.rendered, isTrue);
+      expect(mova.state.rendered, isTrue);
       kernel.classified.add(const MovaKernelError('damaged frame', 'vd'));
       await Future<void>.delayed(Duration.zero);
       expect(events.single.fatal, isFalse);
       expect(events.single.code, 'decode.video');
-      expect(engine.state.error, isNull);
+      expect(mova.state.error, isNull);
       kernel.classified.add(const MovaKernelError('Failed to initialize a decoder for codec h264', 'vd'));
       await Future<void>.delayed(Duration.zero);
       expect(events.last.fatal, isTrue);
       expect(events.last.code, 'decode.video');
-      expect(engine.state.error, events.last.error);
-      await engine.dispose();
+      expect(mova.state.error, events.last.error);
+      await mova.dispose();
       await Future<void>.delayed(Duration.zero);
       expect(kernel.classified.hasListener, isFalse);
       expect(kernel.isDisposed, isTrue);

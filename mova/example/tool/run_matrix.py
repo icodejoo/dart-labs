@@ -335,7 +335,7 @@ def is_unlocked(window):
 
 
 def existing_verdicts(out, prefix):
-    """Reuse unchanged full-ID CHECKs cited by rerun_finalize, in both engines.
+    """Reuse unchanged full-ID CHECKs cited by rerun_finalize, in both implementations (Mova and MovaCutover).
 
     复用终审引用的完整编号 CHECK，必须普通和代理两份均存在。
     """

@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 
 import '../../core/api.dart';
 import '../../core/mini/placement.dart';
-import '../../core/options/mini_config.dart';
+import '../../core/options/mini_opts.dart';
 import '../player.dart';
-import '../skins/skin.dart';
+import '../ui_kits/ui_kit.dart';
 import 'mini.dart';
-import 'mini_skin.dart';
+import 'mini_ui_kit.dart';
 
 /// The draggable mini window itself, holding a `MovaPlayer` on the borrowed
 /// api.
@@ -19,7 +19,7 @@ import 'mini_skin.dart';
 /// and must never be a [Positioned] itself.
 ///
 /// Drag moves it (clamped every frame); release hands the rect to
-/// [MovaMiniConfig.effectivePlacement] and animates to the result. Tapping
+/// [MovaMiniOpts.effectivePlacement] and animates to the result. Tapping
 /// the picture invokes [MovaMini.onTapContent] (a no-op unless the host
 /// sets it); tapping the close affordance always calls [MovaMini.close].
 ///
@@ -31,7 +31,7 @@ import 'mini_skin.dart';
 /// （持久悬浮，经 `MovaMiniHost`）。它绝不许假设自己在哪一种里，也绝不许自己就
 /// 是 [Positioned]。
 ///
-/// 拖动即移动（每帧钳制）；松手把矩形交给 [MovaMiniConfig.effectivePlacement]
+/// 拖动即移动（每帧钳制）；松手把矩形交给 [MovaMiniOpts.effectivePlacement]
 /// 并动画到结果。点画面触发 [MovaMini.onTapContent]（宿主未设置时是空操作）；
 /// 点关闭按钮总是调 [MovaMini.close]。
 class MovaMiniWindow extends StatefulWidget {
@@ -40,25 +40,25 @@ class MovaMiniWindow extends StatefulWidget {
   /// 创建小窗。
   const MovaMiniWindow({
     super.key,
-    required this.ctl,
+    required this.mini,
     required this.api,
-    required this.config,
+    required this.opts,
   });
 
   /// The route-independent holder this window reads/writes its rect through.
   ///
   /// 本窗口读写矩形所经的、独立于路由的持有者。
-  final MovaMini ctl;
+  final MovaMini mini;
 
-  /// The borrowed engine this window plays.
+  /// The borrowed player this window plays.
   ///
-  /// 本窗口播放的、借来的引擎。
-  final MovaApi api;
+  /// 本窗口播放的、借来的播放器。
+  final IMovaApi api;
 
-  /// Sizing/placement/dismiss configuration.
+  /// Sizing/placement/dismiss options.
   ///
   /// 尺寸/落点/关闭行为配置。
-  final MovaMiniConfig config;
+  final MovaMiniOpts opts;
 
   @override
   State<MovaMiniWindow> createState() => _MovaMiniWindowState();
@@ -74,15 +74,15 @@ class _MovaMiniWindowState extends State<MovaMiniWindow> {
   // 主动拖动期间小窗须瞬时跟手——落位动画只在松手后的吸边阶段生效。
   bool _dragging = false;
 
-  /// Recomputes geometry when the borrowed engine or its sizing changes.
+  /// Recomputes geometry when the borrowed player or its sizing changes.
   ///
-  /// 借用的引擎或尺寸配置变化时重新计算窗口几何。
+  /// 借用的播放器或尺寸配置变化时重新计算窗口几何。
   @override
   void didUpdateWidget(covariant MovaMiniWindow oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (!identical(widget.api, oldWidget.api) ||
-        widget.config.width != oldWidget.config.width ||
-        widget.config.aspectRatio != oldWidget.config.aspectRatio) {
+        widget.opts.width != oldWidget.opts.width ||
+        widget.opts.aspectRatio != oldWidget.opts.aspectRatio) {
       _rect = null;
       _lastBounds = null;
       _lastInsets = null;
@@ -108,16 +108,16 @@ class _MovaMiniWindowState extends State<MovaMiniWindow> {
           bottom: mq?.padding.bottom ?? 0,
         );
 
-        final height = widget.config.width / widget.config.aspectRatio;
+        final height = widget.opts.width / widget.opts.aspectRatio;
         var rect =
             _rect ??
             rectForCorner(
-              widget.config.initialCorner,
-              width: widget.config.width,
+              widget.opts.initialCorner,
+              width: widget.opts.width,
               height: height,
               bounds: bounds,
               insets: insets,
-              margin: widget.config.margin,
+              margin: widget.opts.margin,
             );
         // Re-anchor only when the surrounding constraints/insets actually
         // changed since the last build (rotation, host resize) — not on
@@ -144,14 +144,14 @@ class _MovaMiniWindowState extends State<MovaMiniWindow> {
             rect,
             bounds: bounds,
             insets: insets,
-            margin: widget.config.margin,
+            margin: widget.opts.margin,
           );
         }
         _lastBounds = bounds;
         _lastInsets = insets;
         _rect = rect;
 
-        final skin = _effectiveSkin();
+        final uiKit = _effectiveUiKit();
 
         return Stack(
           fit: StackFit.expand,
@@ -159,7 +159,7 @@ class _MovaMiniWindowState extends State<MovaMiniWindow> {
             AnimatedPositioned(
               duration: _dragging
                   ? Duration.zero
-                  : widget.config.settleDuration,
+                  : widget.opts.settleDuration,
               curve: Curves.easeOut,
               left: rect.left,
               top: rect.top,
@@ -171,14 +171,14 @@ class _MovaMiniWindowState extends State<MovaMiniWindow> {
                 onPanStart: (_) => setState(() => _dragging = true),
                 onPanUpdate: (details) => _onDrag(details, bounds, insets),
                 onPanEnd: (details) => _onDragEnd(details, bounds, insets),
-                onTap: () => widget.ctl.onTapContent?.call(widget.api),
+                onTap: () => widget.mini.onTapContent?.call(widget.api),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(8),
                   child: Material(
                     elevation: 8,
                     child: MovaPlayer(
                       api: widget.api,
-                      skin: skin,
+                      uiKit: uiKit,
                       autoLoadQualities: false,
                     ),
                   ),
@@ -191,18 +191,18 @@ class _MovaMiniWindowState extends State<MovaMiniWindow> {
     );
   }
 
-  /// Wires `MovaMini.close` into the skin's close button when the caller
-  /// left [MovaMiniSkin.onClose] unset — sparing callers from having to
-  /// thread `ctl.close` through every custom skin injection.
+  /// Wires `MovaMini.close` into the UI kit's close button when the caller
+  /// left [MovaMiniUiKit.onClose] unset — sparing callers from having to
+  /// thread `mini.close` through every custom UI kit injection.
   ///
-  /// 调用方未设置 [MovaMiniSkin.onClose] 时，把 `MovaMini.close` 接进皮肤
-  /// 的关闭按钮——省得调用方每次注入自定义皮肤都要手动串一遍 `ctl.close`。
-  MovaSkin _effectiveSkin() {
-    final skin = widget.ctl.skin;
-    if (skin is MovaMiniSkin && skin.onClose == null) {
-      return MovaMiniSkin(onClose: widget.ctl.close);
+  /// 调用方未设置 [MovaMiniUiKit.onClose] 时，把 `MovaMini.close` 接进 UI 套件
+  /// 的关闭按钮——省得调用方每次注入自定义 UI 套件都要手动串一遍 `mini.close`。
+  IMovaUiKit _effectiveUiKit() {
+    final uiKit = widget.mini.uiKit;
+    if (uiKit is MovaMiniUiKit && uiKit.onClose == null) {
+      return MovaMiniUiKit(onClose: widget.mini.close);
     }
-    return skin;
+    return uiKit;
   }
 
   void _onDrag(
@@ -217,13 +217,13 @@ class _MovaMiniWindowState extends State<MovaMiniWindow> {
       moved,
       bounds: bounds,
       insets: insets,
-      margin: widget.config.margin,
+      margin: widget.opts.margin,
     );
     setState(() {
       _dragging = true;
       _rect = clamped;
     });
-    widget.ctl.setRect(clamped);
+    widget.mini.setRect(clamped);
   }
 
   /// Closes an outward fling or settles within the effective bounds.
@@ -238,14 +238,14 @@ class _MovaMiniWindowState extends State<MovaMiniWindow> {
     if (current == null) return;
     final velocity = details.velocity.pixelsPerSecond;
 
-    if (widget.config.dismissible &&
+    if (widget.opts.dismissible &&
         _isFlungOffscreen(current, bounds, insets, velocity)) {
       setState(() => _dragging = false);
-      widget.ctl.close();
+      widget.mini.close();
       return;
     }
 
-    final settled = widget.config.effectivePlacement.settle(
+    final settled = widget.opts.effectivePlacement.settle(
       current,
       bounds: bounds,
       insets: insets,
@@ -256,7 +256,7 @@ class _MovaMiniWindowState extends State<MovaMiniWindow> {
       _dragging = false;
       _rect = settled;
     });
-    widget.ctl.setRect(settled);
+    widget.mini.setRect(settled);
   }
 
   /// Detects an outward release at the same safe-area/margin drag boundary.
@@ -269,7 +269,7 @@ class _MovaMiniWindowState extends State<MovaMiniWindow> {
     Offset velocity,
   ) {
     const threshold = 1200.0;
-    final margin = widget.config.margin;
+    final margin = widget.opts.margin;
     final movingLeftOut =
         velocity.dx <= -threshold &&
         rect.left <= bounds.left + insets.left + margin;

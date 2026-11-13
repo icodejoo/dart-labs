@@ -28,7 +28,7 @@ Future<void> drain() async {
   for (var i = 0; i < 60; i++) { await Future<void>.value(); }
 }
 
-class Fetch implements MovaHttpFetch {
+class Fetch implements IMovaHttpFetch {
   final requests = <String>[];
   @override
   Future<Uint8List?> get(Uri uri) async {
@@ -67,7 +67,7 @@ class PendingHook extends MovaHook {
 }
 
 Future<void> run() async {
-  final defaults = const MovaAbrConfig();
+  final defaults = const MovaAbrOpts();
   final probe = read(defaults, 'probeVariants'), auto = read(defaults, 'manageAuto');
   if (probe == null || auto == null) {
     // This detached S00 snapshot predates A1. Absence is not a successful
@@ -77,9 +77,9 @@ Future<void> run() async {
   }
   emit('CONTRACT.defaults', {'probeVariants': probe, 'manageAuto': auto}, probe == true && auto == false);
   for (final enabled in [true, false]) {
-    final abr = Function.apply(MovaAbrConfig.new, [], {#probeVariants: enabled}) as MovaAbrConfig;
+    final abr = Function.apply(MovaAbrOpts.new, [], {#probeVariants: enabled}) as MovaAbrOpts;
     final fetch = Fetch(), kernel = Kernel();
-    final a = MovaEngine(kernel: kernel, fetcher: fetch, options: MovaOpts(abr: abr));
+    final a = Mova(kernel: kernel, fetcher: fetch, options: MovaOpts(abr: abr));
     try {
       await a.open(const MovaSource('https://s00e.invalid/master.m3u8'));
       kernel.land(); await drain();
@@ -94,7 +94,7 @@ Future<void> run() async {
 }
 
 Future<void> errors() async {
-  final k = Kernel(); final a = MovaEngine(kernel: k);
+  final k = Kernel(); final a = Mova(kernel: k);
   final events = <MovaErrorEvent>[];
   final sub = a.events.where((v) => v is MovaErrorEvent).cast<MovaErrorEvent>().listen(events.add);
   try {
@@ -111,7 +111,7 @@ Future<void> errors() async {
 
 Future<void> rejected() async {
   final hook = PendingHook(), k = Kernel();
-  final a = MovaEngine(kernel: k, interceptors: [hook]);
+  final a = Mova(kernel: k, interceptors: [hook]);
   try {
     await a.open(const MovaSource('s00e://accepted'), autoPlay: false); k.land(); await drain();
     final play = a.play(), seek = a.seek(const Duration(seconds: 12));
@@ -128,9 +128,9 @@ Future<void> rejected() async {
 Future<void> replay() async {
   for (final live in [false, true]) {
     final k = Kernel(); final fetch = Fetch();
-    final a = MovaEngine(kernel: k, fetcher: fetch, options: const MovaOpts(
-      live: MovaLiveConfig(backToLive: MovaBackToLive.reopen),
-      recovery: MovaRecoveryConfig(enabled: true, policy: MovaRetryThenFailover(retryDelay: Duration.zero))));
+    final a = Mova(kernel: k, fetcher: fetch, options: const MovaOpts(
+      live: MovaLiveOpts(backToLive: MovaBackToLive.reopen),
+      recovery: MovaRecoveryOpts(enabled: true, policy: MovaRetryThenFailover(retryDelay: Duration.zero))));
     try {
       await a.open(MovaSource('https://s00e.invalid/master.m3u8',
         type: live ? MovaStreamType.live : MovaStreamType.vod,

@@ -19,10 +19,10 @@ void main() {
         final rig = AdOperationRig(breaks: [ad]);
         addTearDown(rig.dispose);
         await rig.ads.load(content);
-        final old = rig.engines.first;
+        final old = rig.movas.first;
         old.pushProgress(const MovaProg(position: Duration(seconds: 4)));
         await settleOperations();
-        final adShadow = rig.engines.last;
+        final adShadow = rig.movas.last;
         // 模拟真机预热耗时 1.12 秒，正片在换指前继续推进。
         const target = Duration(milliseconds: 5120);
         old.pushProgress(const MovaProg(position: target));
@@ -34,7 +34,7 @@ void main() {
             const MovaProg(position: Duration(milliseconds: 100)),
           );
           await settleOperations();
-          final shadow = rig.engines.last;
+          final shadow = rig.movas.last;
           expect(shadow, isNot(same(adShadow)));
           shadow.pushProgress(
             const MovaProg(position: target, buffer: Duration(seconds: 10)),

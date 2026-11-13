@@ -7,7 +7,7 @@
 `pub publish --dry-run`、真机一轮验证，直到 0.2.0 可发布。
 
 **Architecture:** 窗口/落后量/是否在边缘三件事抽成 `lib/src/core/live/timeshift.dart` 的纯函数
-（可单测、可注入覆盖）；`MovaEngine` 只做归约与门控，不含时移算术。`dvr` 模式复用内核原生 seek，
+（可单测、可注入覆盖）；`Mova` 只做归约与门控，不含时移算术。`dvr` 模式复用内核原生 seek，
 `timeshift` 模式在 `seek()` 里用宿主提供的 `urlBuilder` 生成带起播时间的 URL 重开源。UI 侧
 `LiveBarComponent` 复用点播的 `MovaSeekBarComponent`（DESIGN §5.4「一个组件同时服务 VOD 与可拖直播」），
 新增时移标签，`liveBadge` 按是否在边缘换配色与文案。
@@ -24,7 +24,7 @@ Task 12/13/14（阶段 D）里凡涉及阶段 B 的地方都写了「若阶段 B
 **Baseline：** 阶段 A 结束、且 `fix(mova): wire real platform adapters, restoring
 brightness/PiP/orientation`（commit `9c2d4f0`）落地之后为 94 项测试全绿、`flutter analyze`
 0 issues、版本 0.2.0。该 commit 已经创建了 `lib/src/platform_impl/wiring.dart` 与
-`createMovaEngine()`，接好了 brightness/PiP/orientation 三个真实端口——这与阶段 B/C 谁先落地
+`createMova()`，接好了 brightness/PiP/orientation 三个真实平台实现——这与阶段 B/C 谁先落地
 无关，本计划的任何一步都不需要再自己去接这三个端口。**若阶段 B 先落地**，起始基线还要再加上
 阶段 B 新增的测试项数（阶段 B 计划文档里有自己的推进表）。
 
@@ -34,18 +34,18 @@ brightness/PiP/orientation`（commit `9c2d4f0`）落地之后为 94 项测试全
 
 | 已有 | 位置 | 状态 |
 |---|---|---|
-| `MovaLiveSeekMode{off,dvr,timeshift}` | `core/options/live_config.dart` | 完整 |
-| `MovaLiveConfig.dvrWindow` / `edgeThreshold`（默认 10s） | 同上 | 完整 |
+| `MovaLiveSeekMode{off,dvr,timeshift}` | `core/options/live_opts.dart` | 完整 |
+| `MovaLiveOpts.dvrWindow` / `edgeThreshold`（默认 10s） | 同上 | 完整 |
 | `MovaState.liveSeekable` / `seekableWindow` / `timeshiftBehind` | `core/state/state.dart` | 字段与 `copyWith(clearTimeshift:)` 齐备；**`timeshiftBehind` 至今无人写入** |
-| `liveSeekable`/`seekableWindow` 的重算 | `core/engine.dart` 的 `_recomputeLiveSeekable()`，在 `open()` 与 `duration` 变化时触发 | 已接线，但窗口解析 `_resolveWindow()` 只有 `dvrWindow ?? duration`，没有注入点 |
-| `seek()` 的直播门控 `type == vod \|\| liveSeekable` | `core/engine.dart` 的 `seek()` | 已实现 |
+| `liveSeekable`/`seekableWindow` 的重算 | `core/mova.dart` 的 `_recomputeLiveSeekable()`，在 `open()` 与 `duration` 变化时触发 | 已接线，但窗口解析 `_resolveWindow()` 只有 `dvrWindow ?? duration`，没有注入点 |
+| `seek()` 的直播门控 `type == vod \|\| liveSeekable` | `core/mova.dart` 的 `seek()` | 已实现 |
 | 手势横滑的直播门控 | `ui/components/gesture_layer.dart` 的 `_seekAllowed`：`!live \|\| (allowWhenLive && liveSeekable)` | **已实现且刻意为阶段 C 预留**，本计划只补测试（Task 7），不改代码 |
 | `MovaTimeShiftChg(behind)` / `MovaLiveEdgeReach` 事件类 | `core/events/events.dart` | 类已定义；`MovaLiveEdgeReach` 仅被占位实现发过，`MovaTimeShiftChg` 从未被发过 |
 | `MovaStrs.live` / `backToLive` / `timeshift` | `core/options/strings.dart` | 字段已在，`timeshift`/`backToLive` 尚无人使用 |
 | `LiveBarComponent{liveBadge, backToEdge}` | `ui/components/live_bar.dart` | 存在；`backToEdge` 现在调的是 `api.reload()` |
 
-**唯一的占位实现**：`MovaEngine.backToLiveEdge()` 目前是 `reload()` + 发 `MovaLiveEdgeReach`
-（`engine.dart:418-422`），阶段 C 要按 `backToLive` 策略做实。
+**唯一的占位实现**：`Mova.backToLiveEdge()` 目前是 `reload()` + 发 `MovaLiveEdgeReach`
+（`mova.dart:418-422`），阶段 C 要按 `backToLive` 策略做实。
 
 ## 与 DESIGN-0.2.0.md 的偏差（以代码为准）
 
@@ -92,9 +92,9 @@ brightness/PiP/orientation`（commit `9c2d4f0`）落地之后为 94 项测试全
 
 | 文件 | 改动 | 任务 |
 |---|---|---|
-| `lib/src/core/options/live_config.dart` | 加 `urlBuilder` / `backToLive` / `autoBackToLiveOnStall` / `windowResolver` + `effectiveBackToLive` | Task 1 |
+| `lib/src/core/options/live_opts.dart` | 加 `urlBuilder` / `backToLive` / `autoBackToLiveOnStall` / `windowResolver` + `effectiveBackToLive` | Task 1 |
 | `lib/src/core/options/strings.dart` | 删 `backToEdge`（被 `backToLive` 取代） | Task 6 |
-| `lib/src/core/engine.dart` | 窗口解析改走纯函数、归约 `timeshiftBehind`、timeshift 换源 seek、`backToLiveEdge()` 策略化、卡顿自动回边缘 | Task 3/4/5 |
+| `lib/src/core/mova.dart` | 窗口解析改走纯函数、归约 `timeshiftBehind`、timeshift 换源 seek、`backToLiveEdge()` 策略化、卡顿自动回边缘 | Task 3/4/5 |
 | `lib/src/core/state/state.dart` | 加 `pipSupported` 字段 | Task 8 |
 | `lib/src/core/api.dart` | 加 `bool get pipSupported` | Task 8 |
 
@@ -104,7 +104,7 @@ brightness/PiP/orientation`（commit `9c2d4f0`）落地之后为 94 项测试全
 |---|---|---|
 | `lib/src/ui/components/bottom_bar.dart` | `MovaSeekBarComponent` 的量程按直播窗口取值 | Task 6 |
 | `lib/src/ui/components/live_bar.dart` | 加 `seekBar` 与 `timeshift`，`liveBadge` 按边缘态变样，`backToEdge` → `backToLive` | Task 6 |
-| `lib/src/ui/skins/default_skin.dart` | 直播分支传 `seekable` | Task 6 |
+| `lib/src/ui/ui_kits/default_ui_kit.dart` | 直播分支传 `seekable` | Task 6 |
 | `lib/src/ui/components/top_bar.dart` | `MovaPipButtonComponent` 按能力位隐藏 | Task 8 |
 
 **发布收尾（阶段 D）**
@@ -114,19 +114,19 @@ brightness/PiP/orientation`（commit `9c2d4f0`）落地之后为 94 项测试全
 **测试**
 
 `test/core/live/timeshift_test.dart`（新）、`test/core/openness_live_test.dart`（新，Task 9）、
-`test/core/options_test.dart`（增补）、`test/core/engine_test.dart`（增补）、
+`test/core/options_test.dart`（增补）、`test/core/mova_test.dart`（增补）、
 `test/core/state_test.dart`（增补）、`test/ui/live_bar_test.dart`（改 1 项 + 增补）、
 `test/ui/gesture_test.dart`（增补）、`test/ui/top_bar_test.dart`（改 1 项 + 增补）。
 
 ---
 
-## Task 1: `MovaLiveConfig` 扩展（DESIGN §6.2 的四个开放点）
+## Task 1: `MovaLiveOpts` 扩展（DESIGN §6.2 的四个开放点）
 
-先把配置面钉死，后面的纯函数与 engine 才有东西可读。四个新字段全部来自 §6.2 表格里
+先把配置面钉死，后面的纯函数与 player 才有东西可读。四个新字段全部来自 §6.2 表格里
 **当前代码缺失**的行。
 
 **Files:**
-- Modify: `lib/src/core/options/live_config.dart`
+- Modify: `lib/src/core/options/live_opts.dart`
 - Test: `test/core/options_test.dart`（追加 5 项，不动既有 4 项）
 
 **Interfaces:**
@@ -135,12 +135,12 @@ brightness/PiP/orientation`（commit `9c2d4f0`）落地之后为 94 项测试全
   - `typedef MovaTimeShiftBldr = String Function(String uri, Duration behind, DateTime wallClock);`
   - `typedef MovaLiveWindowSolver = Duration Function(MovaState state);`
   - `enum MovaBackToLive { seekEnd, reopen }`
-  - `MovaLiveConfig` 新增字段 `MovaTimeShiftBldr? urlBuilder`、`MovaBackToLive? backToLive`、
+  - `MovaLiveOpts` 新增字段 `MovaTimeShiftBldr? urlBuilder`、`MovaBackToLive? backToLive`、
     `bool autoBackToLiveOnStall = false`、`MovaLiveWindowSolver? windowResolver`
   - `MovaBackToLive get effectiveBackToLive`
-  - `MovaLiveConfig copyWith({...})`
+  - `MovaLiveOpts copyWith({...})`
 
-> **依赖方向自查**：`options/live_config.dart` 将 import `state/state.dart`；而 `state/state.dart`
+> **依赖方向自查**：`options/live_opts.dart` 将 import `state/state.dart`；而 `state/state.dart`
 > 只 import `model/*`，**不** import `options/*`，因此不成环。落地后跑一次
 > `flutter analyze` 确认无 `import_cycle` 类告警。
 
@@ -155,8 +155,8 @@ import 'package:mova/src/core/state/state.dart';
 `main()` 末尾追加：
 
 ```dart
-  test('MovaLiveConfig defaults keep 0.1.0 behaviour and add the new knobs off', () {
-    const c = MovaLiveConfig();
+  test('MovaLiveOpts defaults keep 0.1.0 behaviour and add the new knobs off', () {
+    const c = MovaLiveOpts();
     expect(c.seekMode, MovaLiveSeekMode.off);
     expect(c.dvrWindow, isNull);
     expect(c.edgeThreshold, const Duration(seconds: 10));
@@ -167,15 +167,15 @@ import 'package:mova/src/core/state/state.dart';
   });
 
   test('effectiveBackToLive derives from seekMode when not configured', () {
-    expect(const MovaLiveConfig(seekMode: MovaLiveSeekMode.dvr).effectiveBackToLive,
+    expect(const MovaLiveOpts(seekMode: MovaLiveSeekMode.dvr).effectiveBackToLive,
         MovaBackToLive.seekEnd);
-    expect(const MovaLiveConfig(seekMode: MovaLiveSeekMode.timeshift).effectiveBackToLive,
+    expect(const MovaLiveOpts(seekMode: MovaLiveSeekMode.timeshift).effectiveBackToLive,
         MovaBackToLive.reopen);
-    expect(const MovaLiveConfig().effectiveBackToLive, MovaBackToLive.seekEnd);
+    expect(const MovaLiveOpts().effectiveBackToLive, MovaBackToLive.seekEnd);
   });
 
   test('an explicit backToLive overrides the derived default', () {
-    const c = MovaLiveConfig(
+    const c = MovaLiveOpts(
       seekMode: MovaLiveSeekMode.timeshift,
       backToLive: MovaBackToLive.seekEnd,
     );
@@ -183,7 +183,7 @@ import 'package:mova/src/core/state/state.dart';
   });
 
   test('urlBuilder and windowResolver are injectable strategies', () {
-    final c = MovaLiveConfig(
+    final c = MovaLiveOpts(
       seekMode: MovaLiveSeekMode.timeshift,
       urlBuilder: (uri, behind, at) => '$uri?behind=${behind.inSeconds}',
       windowResolver: (s) => const Duration(minutes: 30),
@@ -195,8 +195,8 @@ import 'package:mova/src/core/state/state.dart';
     expect(c.windowResolver!(const MovaState()), const Duration(minutes: 30));
   });
 
-  test('MovaLiveConfig.copyWith replaces one field only', () {
-    const c = MovaLiveConfig(seekMode: MovaLiveSeekMode.dvr);
+  test('MovaLiveOpts.copyWith replaces one field only', () {
+    const c = MovaLiveOpts(seekMode: MovaLiveSeekMode.dvr);
     final n = c.copyWith(autoBackToLiveOnStall: true);
     expect(n.autoBackToLiveOnStall, isTrue);
     expect(n.seekMode, MovaLiveSeekMode.dvr);
@@ -207,11 +207,11 @@ import 'package:mova/src/core/state/state.dart';
 - [x] **Step 2: 跑测试确认失败**
 
 Run: `flutter test test/core/options_test.dart`
-Expected: FAIL — `The getter 'urlBuilder' isn't defined for the class 'MovaLiveConfig'`
+Expected: FAIL — `The getter 'urlBuilder' isn't defined for the class 'MovaLiveOpts'`
 
-- [x] **Step 3: 实现 `lib/src/core/options/live_config.dart`**
+- [x] **Step 3: 实现 `lib/src/core/options/live_opts.dart`**
 
-文件顶部补 import 与两个 typedef、一个枚举（放在 `MovaLiveSeekMode` 之后、`MovaLiveConfig` 之前）：
+文件顶部补 import 与两个 typedef、一个枚举（放在 `MovaLiveSeekMode` 之后、`MovaLiveOpts` 之前）：
 
 ```dart
 import '../state/state.dart';
@@ -284,7 +284,7 @@ enum MovaBackToLive {
 }
 ```
 
-`MovaLiveConfig` 类内，在 `edgeThreshold` 字段之后追加四个字段：
+`MovaLiveOpts` 类内，在 `edgeThreshold` 字段之后追加四个字段：
 
 ```dart
   /// Builds the time-shifted playback URL; `null` leaves
@@ -365,8 +365,8 @@ enum MovaBackToLive {
   /// - [autoBackToLiveOnStall]: replacement stall behaviour / 替换用的卡顿行为
   /// - [windowResolver]: replacement window resolver / 替换用的窗口解析器
   ///
-  /// Returns the new [MovaLiveConfig] / 返回新的 [MovaLiveConfig]。
-  MovaLiveConfig copyWith({
+  /// Returns the new [MovaLiveOpts] / 返回新的 [MovaLiveOpts]。
+  MovaLiveOpts copyWith({
     MovaLiveSeekMode? seekMode,
     Duration? dvrWindow,
     Duration? edgeThreshold,
@@ -375,7 +375,7 @@ enum MovaBackToLive {
     bool? autoBackToLiveOnStall,
     MovaLiveWindowSolver? windowResolver,
   }) {
-    return MovaLiveConfig(
+    return MovaLiveOpts(
       seekMode: seekMode ?? this.seekMode,
       dvrWindow: dvrWindow ?? this.dvrWindow,
       edgeThreshold: edgeThreshold ?? this.edgeThreshold,
@@ -395,7 +395,7 @@ enum MovaBackToLive {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is MovaLiveConfig &&
+      other is MovaLiveOpts &&
           runtimeType == other.runtimeType &&
           seekMode == other.seekMode &&
           dvrWindow == other.dvrWindow &&
@@ -429,7 +429,7 @@ Expected: 9 项 PASS（既有 4 + 新增 5），analyze 0 issues
 - [x] **Step 5: 跑纯净性守卫**
 
 Run: `flutter test test/core/purity_test.dart`
-Expected: PASS（`live_config.dart` 新增的 import 是 core 内部文件）
+Expected: PASS（`live_opts.dart` 新增的 import 是 core 内部文件）
 
 - [x] **Step 6: Commit**
 
@@ -442,7 +442,7 @@ git commit -m "feat(mova): add timeshift url builder, back-to-live strategy and 
 
 ## Task 2: 时移纯函数 `core/live/timeshift.dart`
 
-DESIGN §8 点名要求的三个可单测纯函数。engine 里**不许**再出现时移算术。
+DESIGN §8 点名要求的三个可单测纯函数。player 里**不许**再出现时移算术。
 
 **Files:**
 - Create: `lib/src/core/live/timeshift.dart`
@@ -450,9 +450,9 @@ DESIGN §8 点名要求的三个可单测纯函数。engine 里**不许**再出�
 - Test: `test/core/live/timeshift_test.dart`
 
 **Interfaces:**
-- Consumes: `MovaState`（已存在）、`MovaLiveConfig` / `MovaLiveWindowSolver`（Task 1）
+- Consumes: `MovaState`（已存在）、`MovaLiveOpts` / `MovaLiveWindowSolver`（Task 1）
 - Produces:
-  - `Duration resolveWindow(MovaState s, MovaLiveConfig cfg)`
+  - `Duration resolveWindow(MovaState s, MovaLiveOpts cfg)`
   - `Duration? behindOf(Duration position, Duration window, Duration edgeThreshold)`
   - `bool atLiveEdge(Duration position, Duration window, Duration edgeThreshold)`
 
@@ -461,7 +461,7 @@ DESIGN §8 点名要求的三个可单测纯函数。engine 里**不许**再出�
 ```dart
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mova/src/core/live/timeshift.dart';
-import 'package:mova/src/core/options/live_config.dart';
+import 'package:mova/src/core/options/live_opts.dart';
 import 'package:mova/src/core/state/state.dart';
 
 /// Ten seconds — the product's default "close enough to the edge" threshold.
@@ -473,18 +473,18 @@ void main() {
   group('resolveWindow', () {
     test('falls back to the kernel-reported duration', () {
       const s = MovaState(duration: Duration(minutes: 5));
-      expect(resolveWindow(s, const MovaLiveConfig()), const Duration(minutes: 5));
+      expect(resolveWindow(s, const MovaLiveOpts()), const Duration(minutes: 5));
     });
 
     test('an explicit dvrWindow wins over the duration', () {
       const s = MovaState(duration: Duration(minutes: 5));
-      const cfg = MovaLiveConfig(dvrWindow: Duration(minutes: 2));
+      const cfg = MovaLiveOpts(dvrWindow: Duration(minutes: 2));
       expect(resolveWindow(s, cfg), const Duration(minutes: 2));
     });
 
     test('an injected windowResolver wins over everything', () {
       const s = MovaState(duration: Duration(minutes: 5));
-      final cfg = MovaLiveConfig(
+      final cfg = MovaLiveOpts(
         dvrWindow: const Duration(minutes: 2),
         windowResolver: (_) => const Duration(hours: 1),
       );
@@ -492,7 +492,7 @@ void main() {
     });
 
     test('an unknown duration resolves to zero, not to a negative window', () {
-      expect(resolveWindow(const MovaState(), const MovaLiveConfig()), Duration.zero);
+      expect(resolveWindow(const MovaState(), const MovaLiveOpts()), Duration.zero);
     });
   });
 
@@ -539,21 +539,21 @@ Expected: FAIL — `Error: Couldn't resolve the package ... live/timeshift.dart`
 - [x] **Step 3: 实现 `lib/src/core/live/timeshift.dart`**
 
 ```dart
-import '../options/live_config.dart';
+import '../options/live_opts.dart';
 import '../state/state.dart';
 
 /// Resolves the seekable DVR/time-shift window for [s] under [cfg].
 ///
-/// Precedence: an injected [MovaLiveConfig.windowResolver] wins, then an
-/// explicit [MovaLiveConfig.dvrWindow], then the kernel-reported
+/// Precedence: an injected [MovaLiveOpts.windowResolver] wins, then an
+/// explicit [MovaLiveOpts.dvrWindow], then the kernel-reported
 /// [MovaState.duration] (a live HLS stream's "duration" is its sliding-window
 /// length). A negative result is clamped to zero so callers never see a
 /// nonsensical window.
 ///
 /// 在配置 [cfg] 下解析状态 [s] 的可拖动 DVR/时移窗口。
 ///
-/// 优先级：注入的 [MovaLiveConfig.windowResolver] 最高，其次是显式的
-/// [MovaLiveConfig.dvrWindow]，最后回落到内核报告的 [MovaState.duration]
+/// 优先级：注入的 [MovaLiveOpts.windowResolver] 最高，其次是显式的
+/// [MovaLiveOpts.dvrWindow]，最后回落到内核报告的 [MovaState.duration]
 /// （直播 HLS 流的"时长"即其滑动窗口长度）。结果为负时被 clamp 到零，
 /// 使调用方绝不会拿到荒谬的窗口值。
 ///
@@ -561,7 +561,7 @@ import '../state/state.dart';
 /// - [cfg]: the live configuration in effect / 生效的直播配置
 ///
 /// Returns the window length, never negative / 返回窗口长度，绝不为负。
-Duration resolveWindow(MovaState s, MovaLiveConfig cfg) {
+Duration resolveWindow(MovaState s, MovaLiveOpts cfg) {
   final resolver = cfg.windowResolver;
   final raw = resolver != null ? resolver(s) : (cfg.dvrWindow ?? s.duration);
   return raw.isNegative ? Duration.zero : raw;
@@ -634,7 +634,7 @@ git commit -m "feat(mova): add pure timeshift window/behind/edge helpers"
 
 ---
 
-## Task 3: engine 归约窗口与 `timeshiftBehind`
+## Task 3: player 归约窗口与 `timeshiftBehind`
 
 把 `_resolveWindow()` 换成 Task 2 的纯函数，并让 `timeshiftBehind` 真正跟着播放位置走、
 发 `MovaTimeShiftChg` / `MovaLiveEdgeReach`。
@@ -644,14 +644,14 @@ git commit -m "feat(mova): add pure timeshift window/behind/edge helpers"
 UI 只显示 `-MM:SS`，秒级精度足够。
 
 **Files:**
-- Modify: `lib/src/core/engine.dart`
-- Test: `test/core/engine_test.dart`（追加 5 项）
+- Modify: `lib/src/core/mova.dart`
+- Test: `test/core/mova_test.dart`（追加 5 项）
 
 **Interfaces:**
 - Consumes: `resolveWindow` / `behindOf`（Task 2）、`MovaTimeShiftChg` / `MovaLiveEdgeReach`（已存在）
 - Produces: 无新公开类型；`MovaState.timeshiftBehind` 首次被写入
 
-- [x] **Step 1: 追加失败测试到 `test/core/engine_test.dart`**
+- [x] **Step 1: 追加失败测试到 `test/core/mova_test.dart`**
 
 `main()` 末尾追加：
 
@@ -666,9 +666,9 @@ UI 只显示 `-MM:SS`，秒级精度足够。
 
   test('a dvr live stream reports how far behind the edge it is', () async {
     final k2 = FakeKernel();
-    final e2 = MovaEngine(
+    final e2 = Mova(
       kernel: k2,
-      options: const MovaOpts(live: MovaLiveConfig(seekMode: MovaLiveSeekMode.dvr)),
+      options: const MovaOpts(live: MovaLiveOpts(seekMode: MovaLiveSeekMode.dvr)),
     );
     await e2.open(const MovaSource('https://host/l.m3u8', type: MovaStreamType.live));
     k2.emitDuration(const Duration(seconds: 300));
@@ -682,9 +682,9 @@ UI 只显示 `-MM:SS`，秒级精度足够。
 
   test('inside the edge threshold clears timeshiftBehind and announces the edge', () async {
     final k2 = FakeKernel();
-    final e2 = MovaEngine(
+    final e2 = Mova(
       kernel: k2,
-      options: const MovaOpts(live: MovaLiveConfig(seekMode: MovaLiveSeekMode.dvr)),
+      options: const MovaOpts(live: MovaLiveOpts(seekMode: MovaLiveSeekMode.dvr)),
     );
     await e2.open(const MovaSource('https://host/l.m3u8', type: MovaStreamType.live));
     k2.emitDuration(const Duration(seconds: 300));
@@ -702,9 +702,9 @@ UI 只显示 `-MM:SS`，秒级精度足够。
 
   test('MovaTimeShiftChg fires only when the whole-second lag changes', () async {
     final k2 = FakeKernel();
-    final e2 = MovaEngine(
+    final e2 = Mova(
       kernel: k2,
-      options: const MovaOpts(live: MovaLiveConfig(seekMode: MovaLiveSeekMode.dvr)),
+      options: const MovaOpts(live: MovaLiveOpts(seekMode: MovaLiveSeekMode.dvr)),
     );
     await e2.open(const MovaSource('https://host/l.m3u8', type: MovaStreamType.live));
     k2.emitDuration(const Duration(seconds: 300));
@@ -728,10 +728,10 @@ UI 只显示 `-MM:SS`，秒级精度足够。
 
   test('an injected windowResolver overrides the kernel duration', () async {
     final k2 = FakeKernel();
-    final e2 = MovaEngine(
+    final e2 = Mova(
       kernel: k2,
       options: MovaOpts(
-        live: MovaLiveConfig(
+        live: MovaLiveOpts(
           seekMode: MovaLiveSeekMode.dvr,
           windowResolver: (_) => const Duration(seconds: 120),
         ),
@@ -747,13 +747,13 @@ UI 只显示 `-MM:SS`，秒级精度足够。
 
 - [x] **Step 2: 跑测试确认失败**
 
-Run: `flutter test test/core/engine_test.dart`
+Run: `flutter test test/core/mova_test.dart`
 Expected: FAIL — 「a dvr live stream reports how far behind the edge it is」等项失败，
 `expected: Duration:0:03:20.000000  actual: <null>`（`timeshiftBehind` 从未被写入）
 
-- [x] **Step 3: engine 改造**
+- [x] **Step 3: player 改造**
 
-`lib/src/core/engine.dart`：
+`lib/src/core/mova.dart`：
 
 1. 顶部补 import：
 
@@ -818,7 +818,7 @@ import 'live/timeshift.dart';
 
 - [x] **Step 4: 跑测试确认通过**
 
-Run: `flutter test test/core/engine_test.dart && flutter analyze`
+Run: `flutter test test/core/mova_test.dart && flutter analyze`
 Expected: 全绿（既有项一项不变 + 新增 5 项），analyze 0 issues
 
 > 若既有的「seek is allowed for live sources in dvr mode and clamped to the window」失败，
@@ -843,24 +843,24 @@ DESIGN §8：「**timeshift**：`onChangeEnd` 时用 `urlBuilder` 生成带起�
 此时 clamp 形同虚设。改成按直播窗口 clamp。
 
 **Files:**
-- Modify: `lib/src/core/engine.dart`
-- Test: `test/core/engine_test.dart`（追加 5 项）
+- Modify: `lib/src/core/mova.dart`
+- Test: `test/core/mova_test.dart`（追加 5 项）
 
 **Interfaces:**
 - Consumes: `MovaTimeShiftBldr`（Task 1）、`MovaTimeShiftChg` / `MovaLiveEdgeReach`（已存在）
 - Produces: 无新公开类型；`seek()` 在 `timeshift` 模式下的换源语义
 
-- [x] **Step 1: 追加失败测试到 `test/core/engine_test.dart`**
+- [x] **Step 1: 追加失败测试到 `test/core/mova_test.dart`**
 
 `main()` 末尾追加：
 
 ```dart
   test('timeshift seek reopens the stream at the url the builder returns', () async {
     final k2 = FakeKernel();
-    final e2 = MovaEngine(
+    final e2 = Mova(
       kernel: k2,
       options: MovaOpts(
-        live: MovaLiveConfig(
+        live: MovaLiveOpts(
           seekMode: MovaLiveSeekMode.timeshift,
           dvrWindow: const Duration(seconds: 600),
           urlBuilder: (uri, behind, at) => '$uri?behind=${behind.inSeconds}',
@@ -880,10 +880,10 @@ DESIGN §8：「**timeshift**：`onChangeEnd` 时用 `urlBuilder` 生成带起�
 
   test('timeshift seek is a no-op when no urlBuilder is supplied', () async {
     final k2 = FakeKernel();
-    final e2 = MovaEngine(
+    final e2 = Mova(
       kernel: k2,
       options: const MovaOpts(
-        live: MovaLiveConfig(
+        live: MovaLiveOpts(
           seekMode: MovaLiveSeekMode.timeshift,
           dvrWindow: Duration(seconds: 600),
         ),
@@ -898,10 +898,10 @@ DESIGN §8：「**timeshift**：`onChangeEnd` 时用 `urlBuilder` 生成带起�
 
   test('a timeshift seek landing inside the edge threshold reports the edge', () async {
     final k2 = FakeKernel();
-    final e2 = MovaEngine(
+    final e2 = Mova(
       kernel: k2,
       options: MovaOpts(
-        live: MovaLiveConfig(
+        live: MovaLiveOpts(
           seekMode: MovaLiveSeekMode.timeshift,
           dvrWindow: const Duration(seconds: 600),
           urlBuilder: (uri, behind, at) => '$uri?behind=${behind.inSeconds}',
@@ -921,10 +921,10 @@ DESIGN §8：「**timeshift**：`onChangeEnd` 时用 `urlBuilder` 生成带起�
 
   test('a live seek is clamped to the window even when duration is unknown', () async {
     final k2 = FakeKernel();
-    final e2 = MovaEngine(
+    final e2 = Mova(
       kernel: k2,
       options: const MovaOpts(
-        live: MovaLiveConfig(
+        live: MovaLiveOpts(
           seekMode: MovaLiveSeekMode.dvr,
           dvrWindow: Duration(seconds: 120),
         ),
@@ -939,11 +939,11 @@ DESIGN §8：「**timeshift**：`onChangeEnd` 时用 `urlBuilder` 生成带起�
 
   test('beforeSeek still gates a timeshift seek', () async {
     final k2 = FakeKernel();
-    final e2 = MovaEngine(
+    final e2 = Mova(
       kernel: k2,
       interceptors: [_CancelSeek()],
       options: MovaOpts(
-        live: MovaLiveConfig(
+        live: MovaLiveOpts(
           seekMode: MovaLiveSeekMode.timeshift,
           dvrWindow: const Duration(seconds: 600),
           urlBuilder: (uri, behind, at) => '$uri?behind=${behind.inSeconds}',
@@ -960,13 +960,13 @@ DESIGN §8：「**timeshift**：`onChangeEnd` 时用 `urlBuilder` 生成带起�
 
 - [x] **Step 2: 跑测试确认失败**
 
-Run: `flutter test test/core/engine_test.dart`
+Run: `flutter test test/core/mova_test.dart`
 Expected: FAIL — 「timeshift seek reopens the stream at the url the builder returns」失败，
 `expected: 'https://host/l.m3u8?behind=500'  actual: 'https://host/l.m3u8'`（当前实现直接 `_kernel.seek`）
 
 - [x] **Step 3: 改造 `seek()` 并加 `_seekTimeshift()`**
 
-`lib/src/core/engine.dart` 的 `seek()` 整体替换为：
+`lib/src/core/mova.dart` 的 `seek()` 整体替换为：
 
 ```dart
   @override
@@ -1005,7 +1005,7 @@ Expected: FAIL — 「timeshift seek reopens the stream at the url the builder r
   ///
   /// Unlike DVR mode there is nothing to seek within: the live URL only ever
   /// serves the edge, so the only way to replay is to open a different URL
-  /// carrying the desired start time. [MovaLiveConfig.urlBuilder] is the sole
+  /// carrying the desired start time. [MovaLiveOpts.urlBuilder] is the sole
   /// source of that URL — without it the mode is inert and this is a no-op,
   /// because guessing a server's time-shift parameter would silently open a
   /// wrong (or 404) stream.
@@ -1013,7 +1013,7 @@ Expected: FAIL — 「timeshift seek reopens the stream at the url the builder r
   /// 通过用宿主构造的 URL 重开流来完成一次时移拖动。
   ///
   /// 与 DVR 模式不同，这里没有可供 seek 的内容：直播地址永远只提供边缘内容，
-  /// 想回看就只能打开另一个携带目标起播时间的地址。[MovaLiveConfig.urlBuilder]
+  /// 想回看就只能打开另一个携带目标起播时间的地址。[MovaLiveOpts.urlBuilder]
   /// 是该地址的唯一来源——没有它本模式不生效、本方法为空操作，因为猜测服务端
   /// 的时移参数只会静默打开一个错误（或 404）的流。
   ///
@@ -1040,7 +1040,7 @@ Expected: FAIL — 「timeshift seek reopens the stream at the url the builder r
 
 - [x] **Step 4: 跑测试确认通过**
 
-Run: `flutter test test/core/engine_test.dart && flutter analyze`
+Run: `flutter test test/core/mova_test.dart && flutter analyze`
 Expected: 全绿（新增 5 项），analyze 0 issues
 
 - [x] **Step 5: Commit**
@@ -1054,7 +1054,7 @@ git commit -m "feat(mova): implement timeshift seeking by reopening at a host-bu
 
 ## Task 5: `backToLiveEdge()` 策略化与卡顿自动回边缘
 
-`backToLiveEdge()` 当前是阶段 A 的占位（`reload()` + 发事件，`engine.dart:418-422`）。
+`backToLiveEdge()` 当前是阶段 A 的占位（`reload()` + 发事件，`mova.dart:418-422`）。
 按 DESIGN §6.2「回直播方式 | dvr→seek 末端；timeshift→重开」做实，并补
 `autoBackToLiveOnStall`（默认关）。
 
@@ -1064,23 +1064,23 @@ git commit -m "feat(mova): implement timeshift seeking by reopening at a host-bu
 始终是**原始**直播地址，而内核当前打开的是带时间参数的时移地址。
 
 **Files:**
-- Modify: `lib/src/core/engine.dart`
-- Test: `test/core/engine_test.dart`（追加 5 项）
+- Modify: `lib/src/core/mova.dart`
+- Test: `test/core/mova_test.dart`（追加 5 项）
 
 **Interfaces:**
-- Consumes: `MovaBackToLive` / `MovaLiveConfig.effectiveBackToLive` / `autoBackToLiveOnStall`（Task 1）
+- Consumes: `MovaBackToLive` / `MovaLiveOpts.effectiveBackToLive` / `autoBackToLiveOnStall`（Task 1）
 - Produces: 无新公开类型；`backToLiveEdge()` 的真实语义
 
-- [x] **Step 1: 追加失败测试到 `test/core/engine_test.dart`**
+- [x] **Step 1: 追加失败测试到 `test/core/mova_test.dart`**
 
 `main()` 末尾追加：
 
 ```dart
   test('backToLiveEdge in dvr mode seeks to the window end without reopening', () async {
     final k2 = FakeKernel();
-    final e2 = MovaEngine(
+    final e2 = Mova(
       kernel: k2,
-      options: const MovaOpts(live: MovaLiveConfig(seekMode: MovaLiveSeekMode.dvr)),
+      options: const MovaOpts(live: MovaLiveOpts(seekMode: MovaLiveSeekMode.dvr)),
     );
     await e2.open(const MovaSource('https://host/l.m3u8', type: MovaStreamType.live));
     k2.emitDuration(const Duration(seconds: 300));
@@ -1096,10 +1096,10 @@ git commit -m "feat(mova): implement timeshift seeking by reopening at a host-bu
 
   test('backToLiveEdge in timeshift mode reopens the original live url', () async {
     final k2 = FakeKernel();
-    final e2 = MovaEngine(
+    final e2 = Mova(
       kernel: k2,
       options: MovaOpts(
-        live: MovaLiveConfig(
+        live: MovaLiveOpts(
           seekMode: MovaLiveSeekMode.timeshift,
           dvrWindow: const Duration(seconds: 600),
           urlBuilder: (uri, behind, at) => '$uri?behind=${behind.inSeconds}',
@@ -1120,10 +1120,10 @@ git commit -m "feat(mova): implement timeshift seeking by reopening at a host-bu
 
   test('an explicit backToLive strategy overrides the mode-derived one', () async {
     final k2 = FakeKernel();
-    final e2 = MovaEngine(
+    final e2 = Mova(
       kernel: k2,
       options: const MovaOpts(
-        live: MovaLiveConfig(
+        live: MovaLiveOpts(
           seekMode: MovaLiveSeekMode.dvr,
           backToLive: MovaBackToLive.reopen,
         ),
@@ -1147,10 +1147,10 @@ git commit -m "feat(mova): implement timeshift seeking by reopening at a host-bu
 
   test('autoBackToLiveOnStall jumps back only while time-shifted and only when on', () async {
     final k2 = FakeKernel();
-    final e2 = MovaEngine(
+    final e2 = Mova(
       kernel: k2,
       options: const MovaOpts(
-        live: MovaLiveConfig(
+        live: MovaLiveOpts(
           seekMode: MovaLiveSeekMode.dvr,
           autoBackToLiveOnStall: true,
         ),
@@ -1184,13 +1184,13 @@ git commit -m "feat(mova): implement timeshift seeking by reopening at a host-bu
 
 - [x] **Step 2: 跑测试确认失败**
 
-Run: `flutter test test/core/engine_test.dart`
+Run: `flutter test test/core/mova_test.dart`
 Expected: FAIL — 「backToLiveEdge in dvr mode seeks to the window end without reopening」失败，
 `expected: ['seek']  actual: ['open']`（当前占位实现走的是 `reload()`）
 
 - [x] **Step 3: 实现**
 
-`lib/src/core/engine.dart`：
+`lib/src/core/mova.dart`：
 
 1. 加重入保护字段（放在 `_abrDownshiftInFlight` 之后）：
 
@@ -1263,13 +1263,13 @@ Expected: FAIL — 「backToLiveEdge in dvr mode seeks to the window end without
   /// Only fires on a rising stall while actually time-shifted: a stall at the
   /// edge has nowhere to jump to, and jumping while the user is deliberately
   /// replaying would silently discard their chosen position — which is why
-  /// [MovaLiveConfig.autoBackToLiveOnStall] defaults to off.
+  /// [MovaLiveOpts.autoBackToLiveOnStall] defaults to off.
   ///
   /// 在配置开启时，卡顿则跳回直播边缘。
   ///
   /// 仅在**确实处于时移状态**且卡顿发生时触发：在边缘卡顿无处可跳；而用户正在
   /// 主动回看时跳走会悄悄丢掉他选定的位置——这正是
-  /// [MovaLiveConfig.autoBackToLiveOnStall] 默认关闭的原因。
+  /// [MovaLiveOpts.autoBackToLiveOnStall] 默认关闭的原因。
   ///
   /// - [buffering]: the latest buffering flag / 最新的缓冲标志
   void _maybeAutoBackToLive(bool buffering) {
@@ -1316,7 +1316,7 @@ DESIGN §8 的 UI 部分 + §5.4 的直播树 `bottomBar/{liveBadge, seekBar, ti
 
 **Files:**
 - Modify: `lib/src/ui/components/live_bar.dart`, `lib/src/ui/components/bottom_bar.dart`,
-  `lib/src/ui/skins/default_skin.dart`, `lib/src/core/options/strings.dart`,
+  `lib/src/ui/ui_kits/default_ui_kit.dart`, `lib/src/core/options/strings.dart`,
   `lib/src/core/options/theme.dart`
 - Test: `test/ui/live_bar_test.dart`（改 1 项 + 追加 6 项）
 
@@ -1489,14 +1489,14 @@ import 'common.dart';
 ///
 /// Layout mirrors DESIGN section 5.4's live tree
 /// `bottomBar/{liveBadge, seekBar, timeshift, backToLive}`. The seek bar is
-/// only *placed* when [seekable]; the skin decides that from
+/// only *placed* when [seekable]; the UI kit decides that from
 /// `MovaState.liveSeekable`, so a non-DVR stream keeps 0.1.0's badge-only bar.
 ///
 /// 直播底部控制条组合组件。
 ///
 /// 布局对应 DESIGN §5.4 的直播树
 /// `bottomBar/{liveBadge, seekBar, timeshift, backToLive}`。进度条仅在
-/// [seekable] 为真时才被**放置**；皮肤依据 `MovaState.liveSeekable` 决定该值，
+/// [seekable] 为真时才被**放置**；UI 套件依据 `MovaState.liveSeekable` 决定该值，
 /// 因此非 DVR 流保持 0.1.0 那种只有角标的底栏。
 class LiveBarComponent extends MovaComp {
   /// Creates the live-bar composite.
@@ -1535,7 +1535,7 @@ class LiveBarComponent extends MovaComp {
       ];
 
   @override
-  Widget build(BuildContext context, MovaApi api, List<Widget> children) {
+  Widget build(BuildContext context, IMovaApi api, List<Widget> children) {
     final theme = api.options.theme;
     return MovaGradBar(
       top: false,
@@ -1582,7 +1582,7 @@ class MovaLiveBadgeComponent extends MovaComp {
   MovaSlot get slot => MovaSlot.bottom;
 
   @override
-  Widget build(BuildContext context, MovaApi api, List<Widget> children) {
+  Widget build(BuildContext context, IMovaApi api, List<Widget> children) {
     final theme = api.options.theme;
     final strings = api.options.strings;
     return MovaSelect<bool>(
@@ -1633,7 +1633,7 @@ class MovaTimeshiftLabelComponent extends MovaComp {
   MovaSlot get slot => MovaSlot.bottom;
 
   @override
-  Widget build(BuildContext context, MovaApi api, List<Widget> children) {
+  Widget build(BuildContext context, IMovaApi api, List<Widget> children) {
     final theme = api.options.theme;
     return MovaSelect<Duration?>(
       selector: (s) => s.timeshiftBehind,
@@ -1656,15 +1656,15 @@ class MovaTimeshiftLabelComponent extends MovaComp {
 
 /// Button returning playback to the live edge.
 ///
-/// Delegates the *how* entirely to [MovaApi.backToLiveEdge], which follows
-/// `MovaLiveConfig.effectiveBackToLive` (seek to the window end for DVR, reopen
+/// Delegates the *how* entirely to [IMovaApi.backToLiveEdge], which follows
+/// `MovaLiveOpts.effectiveBackToLive` (seek to the window end for DVR, reopen
 /// the original URL for time-shift). Replaces 0.1.0's `backToEdge` button,
 /// which called `reload()` unconditionally.
 ///
 /// 让播放回到直播边缘的按钮。
 ///
-/// **具体怎么回**完全交给 [MovaApi.backToLiveEdge]，由
-/// `MovaLiveConfig.effectiveBackToLive` 决定（DVR 跳到窗口末端，时移则重开原始
+/// **具体怎么回**完全交给 [IMovaApi.backToLiveEdge]，由
+/// `MovaLiveOpts.effectiveBackToLive` 决定（DVR 跳到窗口末端，时移则重开原始
 /// 地址）。它取代了 0.1.0 里无条件调用 `reload()` 的 `backToEdge` 按钮。
 class MovaBackToLiveComponent extends MovaComp {
   /// Creates the back-to-live leaf component.
@@ -1682,7 +1682,7 @@ class MovaBackToLiveComponent extends MovaComp {
   MovaSlot get slot => MovaSlot.bottom;
 
   @override
-  Widget build(BuildContext context, MovaApi api, List<Widget> children) {
+  Widget build(BuildContext context, IMovaApi api, List<Widget> children) {
     final theme = api.options.theme;
     final strings = api.options.strings;
     return MovaIconButton(
@@ -1701,7 +1701,7 @@ class MovaBackToLiveComponent extends MovaComp {
 
 ```dart
   @override
-  Widget build(BuildContext context, MovaApi api, List<Widget> children) {
+  Widget build(BuildContext context, IMovaApi api, List<Widget> children) {
     return MovaSelect<Duration>(
       selector: (s) => s.type == MovaStreamType.live && s.liveSeekable
           ? s.seekableWindow
@@ -1723,9 +1723,9 @@ class MovaBackToLiveComponent extends MovaComp {
 /// 点播与可拖直播（DESIGN §5.4）。
 ```
 
-- [x] **Step 6: 皮肤传 `seekable`**
+- [x] **Step 6: UI 套件传 `seekable`**
 
-`lib/src/ui/skins/default_skin.dart` 的 `components(MovaState s)` 里，把
+`lib/src/ui/ui_kits/default_ui_kit.dart` 的 `components(MovaState s)` 里，把
 
 ```dart
         s.type == MovaStreamType.live ? LiveBarComponent() : MovaBottomBarComponent(),
@@ -1744,7 +1744,7 @@ class MovaBackToLiveComponent extends MovaComp {
 Run: `flutter test && flutter analyze`
 Expected: 全绿（live_bar 7 项），analyze 0 issues
 
-`test/ui/skin_test.dart:26`（测试 `'default skin emits the live tree for a live source'`）断言的是
+`test/ui/ui_kit_test.dart:26`（测试 `'default uiKit emits the live tree for a live source'`）断言的是
 
 ```dart
     expect(bottom.children.map((c) => c.name), ['liveBadge', 'backToEdge']);
@@ -1778,7 +1778,7 @@ git commit -m "feat(mova): add seek bar, timeshift indicator and back-to-live bu
 - Test: `test/ui/gesture_test.dart`（追加 4 项，不动既有 4 项）
 
 **Interfaces:**
-- Consumes: `MovaGestureLayerComponent`、`MovaState.liveSeekable`、`MovaGestConfig.allowWhenLive`
+- Consumes: `MovaGestureLayerComponent`、`MovaState.liveSeekable`、`MovaGestureOpts.allowWhenLive`
 - Produces: 无
 
 - [x] **Step 1: 追加失败测试到 `test/ui/gesture_test.dart`**
@@ -1813,7 +1813,7 @@ git commit -m "feat(mova): add seek bar, timeshift indicator and back-to-live bu
 
   testWidgets('allowWhenLive=false blocks seeking even when liveSeekable', (t) async {
     final api = FakeMovaApi(
-      options: const MovaOpts(gesture: MovaGestConfig(allowWhenLive: false)),
+      options: const MovaOpts(gesture: MovaGestureOpts(allowWhenLive: false)),
     );
     api.push(const MovaState(
       type: MovaStreamType.live,
@@ -1880,35 +1880,35 @@ git commit -m "test(mova): pin live-seek gesture gating for dvr streams"
 
 ---
 
-## Task 8: `MovaApi.pipSupported` 同步能力位（阶段 A 遗留 backlog）
+## Task 8: `IMovaApi.pipSupported` 同步能力位（阶段 A 遗留 backlog）
 
 阶段 A 收口 review 记下的缺口，源码注释里也写死了：`lib/src/ui/components/top_bar.dart:108-127`
-的 `MovaPipButtonComponent` 类文档里有一整段 `GAP:` / `缺口：`，说明 `MovaApi` 没有同步的
+的 `MovaPipButtonComponent` 类文档里有一整段 `GAP:` / `缺口：`，说明 `IMovaApi` 没有同步的
 「是否支持 PiP」getter，所以按钮在桌面上**永远渲染且点了没反应**。`test/ui/top_bar_test.dart:24-45`
 也把这个兜底行为写成了测试。本任务补上能力位。
 
-**与阶段 B 的关系**：`MovaEngine` 自身构造函数默认的 pip 端口仍是 `MovaNoopPipPort`（恒 false，
-纯 Dart 单测要用），但真实的 `MovaChannelPipPort` 早就有人构造了——`fix(mova): wire real
+**与阶段 B 的关系**：`Mova` 自身构造函数默认的 pip 端口仍是 `MovaNoopPip`（恒 false，
+纯 Dart 单测要用），但真实的 `MovaPip` 早就有人构造了——`fix(mova): wire real
 platform adapters, restoring brightness/PiP/orientation`（commit `9c2d4f0`）已经补上
-`lib/src/platform_impl/wiring.dart` 的 `createMovaEngine()`，`example/lib/main.dart` 也已经
-改用它，这与阶段 B 是否落地无关。本任务只补 `MovaApi`/`MovaState` 上缺的同步能力位，不涉及
+`lib/src/platform_impl/wiring.dart` 的 `createMova()`，`example/lib/main.dart` 也已经
+改用它，这与阶段 B 是否落地无关。本任务只补 `IMovaApi`/`MovaState` 上缺的同步能力位，不涉及
 端口装配，也不需要碰 `example/lib/main.dart`。
 
 **Files:**
-- Modify: `lib/src/core/state/state.dart`, `lib/src/core/api.dart`, `lib/src/core/engine.dart`,
+- Modify: `lib/src/core/state/state.dart`, `lib/src/core/api.dart`, `lib/src/core/mova.dart`,
   `lib/src/ui/components/top_bar.dart`, `lib/mova.dart`, `test/support/fake_api.dart`
-- Test: `test/core/state_test.dart`（追加 1 项）、`test/core/engine_test.dart`（追加 2 项）、
+- Test: `test/core/state_test.dart`（追加 1 项）、`test/core/mova_test.dart`（追加 2 项）、
   `test/ui/top_bar_test.dart`（**删 1 项、加 2 项**）
 
 **Interfaces:**
-- Consumes: `MovaPipPort`（`core/platform/ports.dart`，已存在）、`MovaChannelPipPort` /
-  `MovaScreenBrightnessPort` / `MovaSystemChromeOrientationPort`（`lib/src/platform_impl/*`，已存在）
+- Consumes: `IMovaPip`（`core/platform/platform.dart`，已存在）、`MovaPip` /
+  `MovaBrightness` / `MovaOrient`（`lib/src/platform_impl/*`，已存在）
 - Produces:
   - `MovaState.pipSupported`（`bool`，默认 `false`，进 `copyWith`/`==`/`hashCode`）
-  - `abstract class MovaApi { bool get pipSupported; }`
-  - barrel 导出 `src/platform_impl/{brightness_impl,orientation_impl,pip_impl}.dart`
+  - `abstract class IMovaApi { bool get pipSupported; }`
+  - barrel 导出 `src/platform_impl/{brightness_impl,orient_impl,pip_impl}.dart`
 
-- [x] **Step 1: 写失败测试 — state 与 engine**
+- [x] **Step 1: 写失败测试 — state 与 player**
 
 `test/core/state_test.dart` 的 `main()` 末尾追加：
 
@@ -1921,12 +1921,12 @@ platform adapters, restoring brightness/PiP/orientation`（commit `9c2d4f0`）�
   });
 ```
 
-`test/core/engine_test.dart` 的 `main()` 末尾追加：
+`test/core/mova_test.dart` 的 `main()` 末尾追加：
 
 ```dart
   test('pipSupported starts false and flips once the port answers', () async {
     final k2 = FakeKernel();
-    final e2 = MovaEngine(kernel: k2, pip: _YesPip());
+    final e2 = Mova(kernel: k2, pip: _YesPip());
     expect(e2.pipSupported, isFalse);
     await Future<void>.delayed(Duration.zero);
     expect(e2.pipSupported, isTrue);
@@ -1936,7 +1936,7 @@ platform adapters, restoring brightness/PiP/orientation`（commit `9c2d4f0`）�
 
   test('pipSupported stays false when the port throws', () async {
     final k2 = FakeKernel();
-    final e2 = MovaEngine(kernel: k2, pip: _ThrowingPip());
+    final e2 = Mova(kernel: k2, pip: _ThrowingPip());
     await Future<void>.delayed(Duration.zero);
     expect(e2.pipSupported, isFalse);
     await e2.dispose();
@@ -1949,7 +1949,7 @@ platform adapters, restoring brightness/PiP/orientation`（commit `9c2d4f0`）�
 /// A pip port that reports support and always succeeds.
 ///
 /// 报告支持画中画且总是成功的 pip 端口。
-class _YesPip implements MovaPipPort {
+class _YesPip implements IMovaPip {
   @override
   Future<bool> isSupported() async => true;
 
@@ -1961,7 +1961,7 @@ class _YesPip implements MovaPipPort {
 /// channel is missing.
 ///
 /// 能力探测会失败的 pip 端口，用于模拟缺少平台通道的平台。
-class _ThrowingPip implements MovaPipPort {
+class _ThrowingPip implements IMovaPip {
   @override
   Future<bool> isSupported() async => throw MissingPluginException('no pip');
 
@@ -1971,15 +1971,15 @@ class _ThrowingPip implements MovaPipPort {
 ```
 
 顶部补 `import 'package:flutter/services.dart';`（`MissingPluginException`）与
-`import 'package:mova/src/core/platform/ports.dart';`。
+`import 'package:mova/src/core/platform/platform.dart';`。
 
 > 测试文件可以 import flutter——`purity_test.dart` 只扫 `lib/src/core/`。
 
 - [x] **Step 2: 写失败测试 — UI**
 
-`test/ui/top_bar_test.dart`：**删掉**第 24–45 行那一整块（`// NOTE: MovaApi exposes no
+`test/ui/top_bar_test.dart`：**删掉**第 24–45 行那一整块（`// NOTE: IMovaApi exposes no
 synchronous …` 注释 + `testWidgets('pip button always shows (no sync capability check on
-MovaApi)', …)` 整项），换成：
+IMovaApi)', …)` 整项），换成：
 
 ```dart
   testWidgets('pip button is hidden when the platform reports no pip support', (t) async {
@@ -2001,9 +2001,9 @@ MovaApi)', …)` 整项），换成：
 
 - [x] **Step 3: 跑测试确认失败**
 
-Run: `flutter test test/core/state_test.dart test/core/engine_test.dart test/ui/top_bar_test.dart`
+Run: `flutter test test/core/state_test.dart test/core/mova_test.dart test/ui/top_bar_test.dart`
 Expected: FAIL — `The named parameter 'pipSupported' isn't defined`（`MovaState.copyWith`）、
-`The getter 'pipSupported' isn't defined for the class 'MovaEngine'`
+`The getter 'pipSupported' isn't defined for the class 'Mova'`
 
 - [x] **Step 4: 加 `MovaState.pipSupported`**
 
@@ -2013,14 +2013,14 @@ Expected: FAIL — `The named parameter 'pipSupported' isn't defined`（`MovaSta
   /// Whether the current platform supports system picture-in-picture at all.
   ///
   /// Distinct from [pip], which says whether PiP is *active*. Resolved once
-  /// per engine from `MovaPipPort.isSupported()`; `false` until that probe
+  /// per player from `IMovaPip.isSupported()`; `false` until that probe
   /// answers, so UI that hides itself on `false` merely appears a frame or two
   /// late instead of flashing a button that does nothing.
   ///
   /// 当前平台是否支持系统画中画。
   ///
-  /// 与 [pip] 不同——后者表示画中画是否**正在生效**。每个 engine 用
-  /// `MovaPipPort.isSupported()` 探测一次；探测返回前为 `false`，因此依赖它隐藏
+  /// 与 [pip] 不同——后者表示画中画是否**正在生效**。每个 player 用
+  /// `IMovaPip.isSupported()` 探测一次；探测返回前为 `false`，因此依赖它隐藏
   /// 自身的 UI 只是晚一两帧出现，而不会先闪一个点了没反应的按钮。
   final bool pipSupported;
 ```
@@ -2032,7 +2032,7 @@ Expected: FAIL — `The named parameter 'pipSupported' isn't defined`（`MovaSta
 `hashCode` 的第一个 `Object.hash(playing, buffering, completed, locked, fullscreen, pip)`
 改为 `Object.hash(playing, buffering, completed, locked, fullscreen, pip, pipSupported)`。
 
-- [x] **Step 5: 加 `MovaApi.pipSupported` 并在 engine 探测**
+- [x] **Step 5: 加 `IMovaApi.pipSupported` 并在 player 探测**
 
 `lib/src/core/api.dart`：在 `Object? get renderHandle;` 之后插入
 
@@ -2052,7 +2052,7 @@ Expected: FAIL — `The named parameter 'pipSupported' isn't defined`（`MovaSta
   bool get pipSupported;
 ```
 
-`lib/src/core/engine.dart`：
+`lib/src/core/mova.dart`：
 
 1. `renderHandle` getter 之后加：
 
@@ -2085,14 +2085,14 @@ Expected: FAIL — `The named parameter 'pipSupported' isn't defined`（`MovaSta
 ```dart
 /// Picture-in-picture entry button; renders nothing where PiP is unsupported.
 ///
-/// Visibility follows [MovaState.pipSupported], which the engine resolves once
-/// from `MovaPipPort.isSupported()` shortly after construction — so on desktop
+/// Visibility follows [MovaState.pipSupported], which the player resolves once
+/// from `IMovaPip.isSupported()` shortly after construction — so on desktop
 /// the button never appears at all, rather than appearing and doing nothing.
 ///
 /// 画中画入口按钮；平台不支持画中画时不渲染任何内容。
 ///
-/// 可见性跟随 [MovaState.pipSupported]——engine 在构造后不久用
-/// `MovaPipPort.isSupported()` 解析一次。因此桌面端该按钮根本不会出现，而不是
+/// 可见性跟随 [MovaState.pipSupported]——player 在构造后不久用
+/// `IMovaPip.isSupported()` 解析一次。因此桌面端该按钮根本不会出现，而不是
 /// 出现了点了没反应。
 ```
 
@@ -2100,7 +2100,7 @@ Expected: FAIL — `The named parameter 'pipSupported' isn't defined`（`MovaSta
 
 ```dart
   @override
-  Widget build(BuildContext context, MovaApi api, List<Widget> children) {
+  Widget build(BuildContext context, IMovaApi api, List<Widget> children) {
     final theme = api.options.theme;
     return MovaSelect<bool>(
       selector: (s) => s.pipSupported,
@@ -2142,26 +2142,26 @@ Expected: FAIL — `The named parameter 'pipSupported' isn't defined`（`MovaSta
 
 3. `enterPip()` 里的 `return pipSupported;` 原样保留（现在读的是 state）。
 
-- [x] **Step 7: 补 `brightness_impl`/`orientation_impl`/`pip_impl` 的 barrel 导出**
+- [x] **Step 7: 补 `brightness_impl`/`orient_impl`/`pip_impl` 的 barrel 导出**
 
 `lib/mova.dart` 末尾（`export 'src/ui/slots/tree.dart';` 之后）追加：
 
 ```dart
 export 'src/platform_impl/brightness_impl.dart';
-export 'src/platform_impl/orientation_impl.dart';
+export 'src/platform_impl/orient_impl.dart';
 export 'src/platform_impl/pip_impl.dart';
 ```
 
 `export 'src/platform_impl/wiring.dart';` 已经存在（`9c2d4f0` 加的），不用再动；这里补的
-只是这三个具体适配器类自身的导出，方便宿主想绕开 `createMovaEngine()` 自己拼装时能直接
+只是这三个具体适配器类自身的导出，方便宿主想绕开 `createMova()` 自己拼装时能直接
 `import 'package:mova/mova.dart'` 拿到它们。`example/lib/main.dart` 已经在用
-`createMovaEngine()`（真实的 brightness/PiP/orientation 三个端口已经装好），本任务不需要
+`createMova()`（真实的 brightness/PiP/orientation 三个端口已经装好），本任务不需要
 再碰它。
 
 - [x] **Step 8: 跑全量测试与分析**
 
 Run: `flutter test && flutter analyze`
-Expected: 全绿（state +1、engine +2、top_bar 由 1 项变 2 项），analyze 0 issues
+Expected: 全绿（state +1、player +2、top_bar 由 1 项变 2 项），analyze 0 issues
 
 - [x] **Step 9: Commit**
 
@@ -2196,42 +2196,42 @@ import 'package:mova/src/core/state/state.dart';
 void main() {
   group('DESIGN section 6.2 openness contract — every row needs default + knob + injection', () {
     test('timeshift mode: off by default, seekMode knob', () {
-      expect(const MovaLiveConfig().seekMode, MovaLiveSeekMode.off);
-      expect(const MovaLiveConfig(seekMode: MovaLiveSeekMode.dvr).seekMode,
+      expect(const MovaLiveOpts().seekMode, MovaLiveSeekMode.off);
+      expect(const MovaLiveOpts(seekMode: MovaLiveSeekMode.dvr).seekMode,
           MovaLiveSeekMode.dvr);
-      expect(const MovaLiveConfig(seekMode: MovaLiveSeekMode.timeshift).seekMode,
+      expect(const MovaLiveOpts(seekMode: MovaLiveSeekMode.timeshift).seekMode,
           MovaLiveSeekMode.timeshift);
     });
 
     test('timeshift url: no default, urlBuilder injection', () {
-      expect(const MovaLiveConfig().urlBuilder, isNull,
+      expect(const MovaLiveOpts().urlBuilder, isNull,
           reason: 'mova must never guess a server timeshift parameter');
-      final c = MovaLiveConfig(urlBuilder: (u, b, t) => '$u!${b.inSeconds}');
+      final c = MovaLiveOpts(urlBuilder: (u, b, t) => '$u!${b.inSeconds}');
       expect(c.urlBuilder!('x', const Duration(seconds: 3), DateTime(2026)), 'x!3');
     });
 
     test('dvr window: duration default, dvrWindow knob, windowResolver injection', () {
       const withDuration = MovaState(duration: Duration(minutes: 4));
-      expect(resolveWindow(withDuration, const MovaLiveConfig()),
+      expect(resolveWindow(withDuration, const MovaLiveOpts()),
           const Duration(minutes: 4));
       expect(
         resolveWindow(withDuration,
-            const MovaLiveConfig(dvrWindow: Duration(minutes: 1))),
+            const MovaLiveOpts(dvrWindow: Duration(minutes: 1))),
         const Duration(minutes: 1),
       );
       expect(
         resolveWindow(
           withDuration,
-          MovaLiveConfig(windowResolver: (_) => const Duration(minutes: 9)),
+          MovaLiveOpts(windowResolver: (_) => const Duration(minutes: 9)),
         ),
         const Duration(minutes: 9),
       );
     });
 
     test('edge threshold: 10s default, edgeThreshold knob', () {
-      expect(const MovaLiveConfig().edgeThreshold, const Duration(seconds: 10));
+      expect(const MovaLiveOpts().edgeThreshold, const Duration(seconds: 10));
       expect(
-        const MovaLiveConfig(edgeThreshold: Duration(seconds: 30)).edgeThreshold,
+        const MovaLiveOpts(edgeThreshold: Duration(seconds: 30)).edgeThreshold,
         const Duration(seconds: 30),
       );
       expect(
@@ -2243,13 +2243,13 @@ void main() {
     });
 
     test('back-to-live: derived default, backToLive knob', () {
-      expect(const MovaLiveConfig(seekMode: MovaLiveSeekMode.dvr).effectiveBackToLive,
+      expect(const MovaLiveOpts(seekMode: MovaLiveSeekMode.dvr).effectiveBackToLive,
           MovaBackToLive.seekEnd);
       expect(
-          const MovaLiveConfig(seekMode: MovaLiveSeekMode.timeshift).effectiveBackToLive,
+          const MovaLiveOpts(seekMode: MovaLiveSeekMode.timeshift).effectiveBackToLive,
           MovaBackToLive.reopen);
       expect(
-        const MovaLiveConfig(
+        const MovaLiveOpts(
           seekMode: MovaLiveSeekMode.timeshift,
           backToLive: MovaBackToLive.seekEnd,
         ).effectiveBackToLive,
@@ -2258,9 +2258,9 @@ void main() {
     });
 
     test('auto back-to-live on stall: off by default, autoBackToLiveOnStall knob', () {
-      expect(const MovaLiveConfig().autoBackToLiveOnStall, isFalse);
+      expect(const MovaLiveOpts().autoBackToLiveOnStall, isFalse);
       expect(
-        const MovaLiveConfig(autoBackToLiveOnStall: true).autoBackToLiveOnStall,
+        const MovaLiveOpts(autoBackToLiveOnStall: true).autoBackToLiveOnStall,
         isTrue,
       );
     });
@@ -2268,7 +2268,7 @@ void main() {
     test('the whole section is replaceable through MovaOpts.copyWith', () {
       const o = MovaOpts();
       final n = o.copyWith(
-          live: const MovaLiveConfig(seekMode: MovaLiveSeekMode.dvr));
+          live: const MovaLiveOpts(seekMode: MovaLiveSeekMode.dvr));
       expect(n.live.seekMode, MovaLiveSeekMode.dvr);
       expect(n.gesture, o.gesture);
       expect(n.theme, o.theme);
@@ -2297,8 +2297,8 @@ Expected: 8 项全 PASS。**任何一项失败都说明 §6.2 有一行没落实
 ```bash
 grep -rn "Colors\.\|Color(0x" lib/src/ui/components/live_bar.dart | grep -v "theme\." ; echo "--- 上面应为空 ---"
 grep -rnP "['\"][\x{4e00}-\x{9fff}]" lib/src/ui/components/live_bar.dart ; echo "--- 上面应为空（中文只许在注释里）---"
-grep -rn "Duration(seconds: 10)" lib/src/core/live lib/src/core/engine.dart ; echo "--- 上面应为空：边缘阈值必须来自 MovaLiveConfig ---"
-grep -rn "timeshift\|behind\|window" lib/src/core/engine.dart | grep -v "resolveWindow\|behindOf\|atLiveEdge\|///\|//" ; echo "--- 上面若出现算术表达式，说明时移算术漏在了 engine 里，应搬进 live/timeshift.dart ---"
+grep -rn "Duration(seconds: 10)" lib/src/core/live lib/src/core/mova.dart ; echo "--- 上面应为空：边缘阈值必须来自 MovaLiveOpts ---"
+grep -rn "timeshift\|behind\|window" lib/src/core/mova.dart | grep -v "resolveWindow\|behindOf\|atLiveEdge\|///\|//" ; echo "--- 上面若出现算术表达式，说明时移算术漏在了 player 里，应搬进 live/timeshift.dart ---"
 ```
 
 - [x] **Step 4: 跑全量**
@@ -2378,14 +2378,14 @@ git commit -m "chore(mova): replace ios podspec template placeholders with real 
 ## Task 11（阶段 D）: example 三个 demo（点播 / 直播 / 时移）
 
 DESIGN §12 阶段 D：「example 三个 demo（VOD/直播/时移）」。现在 example 的三个入口是
-「VOD mp4 / HLS 多清晰度 / 自定义皮肤」——缺直播与时移。
+「VOD mp4 / HLS 多清晰度 / 自定义 UI 套件」——缺直播与时移。
 
 **Files:**
 - Modify: `example/lib/main.dart`
 - Test: 无（实跑验证在 Task 14）
 
 **Interfaces:**
-- Consumes: `MovaSource(type: MovaStreamType.live)`、`MovaOpts(live: MovaLiveConfig(...))`、
+- Consumes: `MovaSource(type: MovaStreamType.live)`、`MovaOpts(live: MovaLiveOpts(...))`、
   `MovaLiveSeekMode`、`MovaTimeShiftBldr`
 - Produces: example 里五个入口（原三个 + 直播 + 时移），每个 demo 带自己的 `MovaOpts`
 
@@ -2433,7 +2433,7 @@ class _Demo {
       title: '直播（DVR 窗口内可回看）',
     ),
     options: const MovaOpts(
-      live: MovaLiveConfig(seekMode: MovaLiveSeekMode.dvr),
+      live: MovaLiveOpts(seekMode: MovaLiveSeekMode.dvr),
     ),
   ),
   _Demo(
@@ -2444,7 +2444,7 @@ class _Demo {
       title: '直播（时移：拖动即换源）',
     ),
     options: MovaOpts(
-      live: MovaLiveConfig(
+      live: MovaLiveOpts(
         seekMode: MovaLiveSeekMode.timeshift,
         dvrWindow: const Duration(minutes: 10),
         // Demo-only: this public test stream has no timeshift endpoint, so the
@@ -2463,43 +2463,43 @@ class _Demo {
 > 时移 demo 的 `urlBuilder` **不会**真的换出可播的流——这是预期行为，Task 14 的核对项写明
 > 「时移入口只验证 UI 与事件流，不验证画面」。
 
-- [x] **Step 3: 切换 demo 时重建 engine**
+- [x] **Step 3: 切换 demo 时重建 player**
 
-`options` 是构造期参数，切 demo 必须重建 engine。example 已经在用
-`createMovaEngine()`（`_engine = createMovaEngine();`，装好了真实的 brightness/PiP/orientation
+`options` 是构造期参数，切 demo 必须重建 player。example 已经在用
+`createMova()`（`_mova = createMova();`，装好了真实的 brightness/PiP/orientation
 三个端口），本步骤只是把这个既有调用改为接收每个 demo 自己的 `options`，不需要另写一个
-重复装配端口的 `_createEngine` 辅助函数。`_PlayerPageState` 改为：
+重复装配平台实现的 `_createMova` 辅助函数。`_PlayerPageState` 改为：
 
 ```dart
   @override
   void initState() {
     super.initState();
-    _engine = createMovaEngine(options: _demos[_index].options);
-    _engine.open(_demos[_index].source);
+    _mova = createMova(options: _demos[_index].options);
+    _mova.open(_demos[_index].source);
   }
 
-  /// Switches to demo source [i], rebuilding the engine because options are
+  /// Switches to demo source [i], rebuilding the player because options are
   /// construction-time.
   ///
-  /// 切换到第 [i] 个演示源；因为配置是构造期参数，需要重建 engine。
+  /// 切换到第 [i] 个演示源；因为配置是构造期参数，需要重建 player。
   ///
   /// - [i]: index into the demo list / 演示列表下标
   Future<void> _switch(int i) async {
-    final old = _engine;
+    final old = _mova;
     setState(() {
       _index = i;
-      _engine = createMovaEngine(options: _demos[i].options);
+      _mova = createMova(options: _demos[i].options);
     });
     await old.dispose();
-    await _engine.open(_demos[i].source);
-    await _engine.loadQualities();
+    await _mova.open(_demos[i].source);
+    await _mova.loadQualities();
     if (mounted) setState(() {});
   }
 ```
 
-`late final MovaEngine _engine;` 改为 `late MovaEngine _engine;`（现在会被重新赋值）。
+`late final Mova _mova;` 改为 `late Mova _mova;`（现在会被重新赋值）。
 
-> 若阶段 B 已落地，`createMovaEngine()` 还会多接好预览相关的端口（缩略图目录/抽帧器），
+> 若阶段 B 已落地，`createMova()` 还会多接好预览相关的端口（缩略图目录/抽帧器），
 > 与这里的直播 `options` 互不冲突，不需要额外处理。
 
 - [x] **Step 4: 校验**
@@ -2538,11 +2538,11 @@ git commit -m "feat(mova): add live and timeshift demos to the example app"
 `CHANGELOG.md` 的 `## 0.2.0` 段追加「直播时移」小节：
 
 - 新增 `MovaLiveSeekMode.dvr` / `.timeshift` 两种可拖直播模式；
-- 新增 `MovaLiveConfig.urlBuilder` / `backToLive` / `autoBackToLiveOnStall` / `windowResolver`；
+- 新增 `MovaLiveOpts.urlBuilder` / `backToLive` / `autoBackToLiveOnStall` / `windowResolver`；
 - 新增 `lib/src/core/live/timeshift.dart` 纯函数 `resolveWindow` / `behindOf` / `atLiveEdge`；
 - `MovaState.timeshiftBehind` 现在真正被写入，并伴随 `MovaTimeShiftChg` / `MovaLiveEdgeReach` 事件；
-- `MovaApi.backToLiveEdge()` 由占位（`reload()`）变为按策略执行；
-- 新增 `MovaApi.pipSupported` / `MovaState.pipSupported`，PiP 按钮在不支持的平台自动隐藏；
+- `IMovaApi.backToLiveEdge()` 由占位（`reload()`）变为按策略执行；
+- 新增 `IMovaApi.pipSupported` / `MovaState.pipSupported`，PiP 按钮在不支持的平台自动隐藏；
 - **破坏性变更表**（0.2.0 内部，相对阶段 A/B 中间态）：
 
 | 旧 | 新 | 说明 |
@@ -2557,16 +2557,16 @@ git commit -m "feat(mova): add live and timeshift demos to the example app"
 
 ```dart
 // DVR：不换源，在服务端滑动窗口内拖动
-final engine = MovaEngine(
+final mova = Mova(
   options: const MovaOpts(
-    live: MovaLiveConfig(seekMode: MovaLiveSeekMode.dvr),
+    live: MovaLiveOpts(seekMode: MovaLiveSeekMode.dvr),
   ),
 );
 
 // 时移：拖动时用你自己的 URL 方案重开源
-final engine = MovaEngine(
+final mova = Mova(
   options: MovaOpts(
-    live: MovaLiveConfig(
+    live: MovaLiveOpts(
       seekMode: MovaLiveSeekMode.timeshift,
       dvrWindow: const Duration(hours: 2),
       urlBuilder: (uri, behind, now) =>
@@ -2579,10 +2579,10 @@ final engine = MovaEngine(
 并说明三点：默认 `off`（保持 0.1.0 禁拖行为）；`timeshift` 模式没有 `urlBuilder` 就不生效；
 `windowResolver` 用于服务端带外声明窗口的场景。
 
-再补一节「平台端口」，说明 `MovaEngine()` 裸构造默认走 noop 端口（供纯 Dart 单测使用），
-应用代码应改用 `lib/src/platform_impl/wiring.dart` 的 `createMovaEngine()`——它默认接好
-`MovaScreenBrightnessPort()` / `MovaChannelPipPort()` / `MovaSystemChromeOrientationPort()`，且与
-阶段 B/C 谁先落地无关；若阶段 B 已落地，`createMovaEngine()` 还会多接好预览相关的端口。
+再补一节「平台端口」，说明 `Mova()` 裸构造默认走 noop 端口（供纯 Dart 单测使用），
+应用代码应改用 `lib/src/platform_impl/wiring.dart` 的 `createMova()`——它默认接好
+`MovaBrightness()` / `MovaPip()` / `MovaOrient()`，且与
+阶段 B/C 谁先落地无关；若阶段 B 已落地，`createMova()` 还会多接好预览相关的端口。
 
 - [x] **Step 3: SPEC**
 
@@ -2590,7 +2590,7 @@ final engine = MovaEngine(
 - 「架构分层」目录树补 `core/live/timeshift.dart`；
 - 新增「直播时移」一节：三种模式的语义、窗口解析优先级（`windowResolver` > `dvrWindow` >
   `duration`）、`behind` 按整秒量化的取舍与理由、`backToLiveEdge` 为何绕过 `open()`；
-- 「关键 API 与不变式」里把「`MovaApi.seek()` 在直播时被引擎忽略」改成
+- 「关键 API 与不变式」里把「`IMovaApi.seek()` 在直播时被播放器忽略」改成
   「直播下 `seek()` 受 `liveSeekable` 门控；`dvr` 走内核 seek，`timeshift` 走 `urlBuilder` 换源」；
 - 「测试」一节补新增测试文件与新的总数；
 - 记一句 podspec 版本必须与 pubspec 同步；
@@ -2683,7 +2683,7 @@ Run: `cd example && flutter run -d <android-device-id>`
 
 1. 点播 mp4 能播、能暂停、进度条走。
 2. **左半屏竖滑改音量**、**右半屏竖滑改亮度**（侧别与 media_kit 内置相反，这是刻意的，
-   不要"修正"）。亮度必须真的改屏幕亮度——若无反应，说明 `MovaScreenBrightnessPort` 没接上
+   不要"修正"）。亮度必须真的改屏幕亮度——若无反应，说明 `MovaBrightness` 没接上
    （见 Task 8 Step 7）。
 3. 横滑改进度、双击左右快退快进 10s、双指缩放。
 4. 控制条 3 秒自动隐藏；点一下重新出现。
@@ -2738,7 +2738,7 @@ git commit -m "docs(mova): record 0.2.0 real-device verification results"
 
 1. `flutter analyze` 0 issues；`flutter test` 全绿，原始输出已抄进 `doc/SPEC.md`。
 2. `test/core/openness_live_test.dart` 8 项全过（DESIGN §6.2 逐行落实）。
-3. `test/core/live/timeshift_test.dart` 9 项全过；engine 里**没有**残留的时移算术。
+3. `test/core/live/timeshift_test.dart` 9 项全过；player 里**没有**残留的时移算术。
 4. `test/core/purity_test.dart` 的 media_kit 例外集合仍恰为 `{'kernel/mpv_kernel.dart'}`。
 5. 阶段 C **未新增任何依赖**。
 6. `ios/mova.podspec` 的 `version` 与 `pubspec.yaml` 一致，无模板占位字段。

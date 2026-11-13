@@ -18,20 +18,20 @@ class _TransientHook extends MovaHook {
   }
 }
 
-/// 用真实引擎验证首次钩子异常后的重试意图。
+/// 用真实播放器验证首次钩子异常后的重试意图。
 void main() {
   for (final pauseOnFailure in [false, true]) {
     test('F-O 首次 beforeOpen 抛错后重试保留 load 意图，失败窗口暂停=$pauseOnFailure', () async {
       final kernel = FakeKernel();
       final hook = _TransientHook();
-      late MovaApi api;
-      api = createMovaEngine(
+      late IMovaApi api;
+      api = createMova(
         kernel: kernel,
-        pip: MovaNoopPipPort(),
-        orientation: MovaNoopOrientationPort(),
-        brightness: MovaFallbackBrightnessPort(),
+        pip: MovaNoopPip(),
+        orient: MovaNoopOrient(),
+        brightness: MovaFallbackBrightness(),
         interceptors: [hook],
-        options: MovaOpts(ads: MovaAdConfig(
+        options: MovaOpts(ads: MovaAdOpts(
           enabled: true,
           breaks: const [MovaAdBreak(
             kind: MovaAdBreakKind.pre,

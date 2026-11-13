@@ -84,7 +84,7 @@ def finish_record(name,item):
 
 unlocked()
 for cutover in [False,True]:
-    tag='batch16-cutover' if cutover else 'batch16-engine'
+    tag='batch16-cutover' if cutover else 'batch16-mova'
     call(tag+'-start',cutover=str(cutover).lower(),style='custom',shot=True)
     call(tag+'-pause','pause')
     for fit in ['contain','cover','fill']:
@@ -121,22 +121,22 @@ for cutover in [False,True]:
     # Keep the raw observations without asserting a retired requirement.
     for value in ['true','false']:
         st=call(tag+'-fullscreen-'+value,'fullscreen',value=value,shot=True);check(tag+'.fullscreen.'+value,st['fullscreen']==(value=='true'),st)
-    for orientation in ['landscape','portrait','auto']:
-        call(tag+'-orientation-'+orientation,'orientation',value=orientation,shot=True)
+    for orient in ['landscape','portrait','auto']:
+        call(tag+'-orient-'+orient,'orient',value=orient,shot=True)
     call(tag+'-declarativeFit','declarativeFit',value='cover');call(tag+'-userFit','fit',value='contain');st=call(tag+'-rebuild','rebuild')
     check(tag+'.fitRebuild',st['fit']=='contain',st)
-    call(tag+'-patch','skin',value='patch',shot=True)
+    call(tag+'-patch','uiKit',value='patch',shot=True)
     call(tag+'-customSurface','surface',value='true',shot=True);call(tag+'-surface-back','surface',value='false')
-    call(tag+'-bilibili','skin',value='bilibili');call(tag+'-play','play');time.sleep(3)
+    call(tag+'-bilibili','uiKit',value='bilibili');call(tag+'-play','play');time.sleep(3)
     call(tag+'-danmaku','controls',value='sticky',shot=True)
     call(tag+'-mini-page','miniPage',shot=True);call(tag+'-mini-info','miniInfo')
     call(tag+'-mini-host','miniHost',shot=True);call(tag+'-mini-rect','miniRect',shot=True)
-    call(tag+'-mini-landscape','orientation',value='landscape',shot=True)
-    call(tag+'-mini-portrait','orientation',value='portrait',shot=True)
+    call(tag+'-mini-landscape','orient',value='landscape',shot=True)
+    call(tag+'-mini-portrait','orient',value='portrait',shot=True)
     gesture(tag+'-mini-drag',(300,370,700,1500),600)
     call(tag+'-mini-after-drag','miniInfo',shot=True)
     call(tag+'-mini-hide','miniHide',shot=True);call(tag+'-mini-page2','miniPage');call(tag+'-mini-close','miniClose',shot=True)
-    call(tag+'-minimal','skin',value='minimal',shot=True);call(tag+'-default','skin',value='default')
+    call(tag+'-minimal','uiKit',value='minimal',shot=True);call(tag+'-default','uiKit',value='default')
     call(tag+'-dispose','dispose')
     update(tag+' 可视/API阶段检查点',[],['- 逐动作原始状态/事件及截图见同前缀；控件/手势断言：','```json',json.dumps([r for r in checks if r['id'].startswith(tag)],ensure_ascii=False,indent=2),'```'])
 

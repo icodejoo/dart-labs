@@ -22,7 +22,7 @@ class _Host extends StatefulWidget {
 }
 
 class _HostState extends State<_Host> with MovaPlugin<_Host> {
-  MovaApi? seenApi;
+  IMovaApi? seenApi;
   @override
   void initState() {
     super.initState();

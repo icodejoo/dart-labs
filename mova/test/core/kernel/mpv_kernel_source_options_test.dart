@@ -360,7 +360,7 @@ void main() {
   });
 
   test('内核具备按源选项能力', () {
-    expect(kernel, isA<MovaSourceOptionsKernel>());
+    expect(kernel, isA<IMovaSourceOptionsKernel>());
   });
 
   test('没有暂存选项：open 前不下发任何属性', () async {

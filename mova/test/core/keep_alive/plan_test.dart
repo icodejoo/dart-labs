@@ -18,7 +18,7 @@ MovaKeepAliveEntry _entry({
   bool recovering = false,
   bool kernelCapable = true,
   MovaKeepAliveMedia? media = _present,
-  MovaKeepAliveConfig config = const MovaKeepAliveConfig(),
+  MovaKeepAliveOpts opts = const MovaKeepAliveOpts(),
 }) =>
     decideKeepAliveEntry(
       phase: phase,
@@ -28,7 +28,7 @@ MovaKeepAliveEntry _entry({
       recovering: recovering,
       kernelCapable: kernelCapable,
       media: media,
-      config: config,
+      opts: opts,
     );
 
 MovaKeepAliveWake _wake({
@@ -44,7 +44,7 @@ MovaKeepAliveWake _wake({
       type: type,
       cause: cause,
       pausedFor: pausedFor,
-      config: const MovaKeepAliveConfig(),
+      opts: const MovaKeepAliveOpts(),
     );
 
 void main() {
@@ -109,7 +109,7 @@ void main() {
     test('no audio with silentStreams pause falls back as silentStream', () {
       final e = _entry(
         media: _absent,
-        config: const MovaKeepAliveConfig(silentStreams: MovaSilentKeepAlive.pause),
+        opts: const MovaKeepAliveOpts(silentStreams: MovaSilentKeepAlive.pause),
       );
       expect(e.kind, MovaKeepAliveEntryKind.fallback);
       expect(e.reason, MovaKeepAliveReason.silentStream);
@@ -118,7 +118,7 @@ void main() {
     test('hls pauses by default, is held with allowHls, and an unknown format counts as mediaUnknown', () {
       const hls = MovaKeepAliveMedia(audio: MovaAudioPresence.present, format: 'hls');
       expect(_entry(media: hls).reason, MovaKeepAliveReason.hls);
-      expect(_entry(media: hls, config: const MovaKeepAliveConfig(allowHls: true)).mode, MovaKeepAliveMode.muted);
+      expect(_entry(media: hls, opts: const MovaKeepAliveOpts(allowHls: true)).mode, MovaKeepAliveMode.muted);
       const noFormat = MovaKeepAliveMedia(audio: MovaAudioPresence.present);
       expect(_entry(media: noFormat).reason, MovaKeepAliveReason.mediaUnknown);
     });

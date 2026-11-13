@@ -6,9 +6,9 @@ import 'package:path_provider/path_provider.dart';
 import '../core/preview/dir_lease.dart';
 import '../core/preview/dir_provider.dart';
 
-/// Cache-root and engine-directory names. / 缓存根目录与引擎目录名称。
+/// Cache-root and player-directory names. / 缓存根目录与播放器目录名称。
 const _defaultFolderName = 'mova_thumbs';
-const _engineDirectoryPrefix = 'engine_';
+const _movaDirectoryPrefix = 'mova_';
 
 /// A temporary thumbnail directory protected by an OS file lease.
 /// First use adopts the newest unowned directory and removes the others;
@@ -17,7 +17,7 @@ const _engineDirectoryPrefix = 'engine_';
 /// 由操作系统文件租约保护的临时缩略图目录。首次使用收养最新无主目录，
 /// 删除其余无主目录；超过七天的无主目录一律删除。
 class MovaTempThumbDirProvider
-    implements MovaThumbDirProvider, MovaThumbDirLease {
+    implements IMovaThumbDirProvider, IMovaThumbDirLease {
   /// Creates a provider under the platform temporary directory.
   /// [folderName] names the shared cache root. Example:
   /// `MovaTempThumbDirProvider(folderName: 'mova_thumbs')`.
@@ -169,7 +169,7 @@ class MovaTempThumbDirProvider
     ).open(mode: FileMode.append);
     try {
       // Serialize cooperating processes too. OS releases this short scan lock
-      // on process exit; engine leases themselves never block.
+      // on process exit; player leases themselves never block.
       //
       // 同时串行化协作进程；进程退出时 OS 释放短期扫描锁，目录租约仍非阻塞。
       await scan.lock(FileLock.blockingExclusive);
@@ -193,7 +193,7 @@ class MovaTempThumbDirProvider
             !entry.uri.pathSegments
                 .where((s) => s.isNotEmpty)
                 .last
-                .startsWith(_engineDirectoryPrefix) ||
+                .startsWith(_movaDirectoryPrefix) ||
             _activePaths.contains(_key(entry.path))) {
           continue;
         }
@@ -218,7 +218,7 @@ class MovaTempThumbDirProvider
         }
       }
       if (newest == null) {
-        final directory = await root.createTemp(_engineDirectoryPrefix);
+        final directory = await root.createTemp(_movaDirectoryPrefix);
         newest = await _tryLease(directory);
         if (newest == null) {
           throw FileSystemException(

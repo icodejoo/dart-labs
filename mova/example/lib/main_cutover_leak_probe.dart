@@ -4,7 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:mova/mova.dart';
 
-/// 0.4.0 无缝引擎切换——内存泄漏定性探针（N 轮重复 + 长观察窗）。
+/// 0.4.0 无缝切换（cutover）——内存泄漏定性探针（N 轮重复 + 长观察窗）。
 ///
 /// 三阶段采样只能看到"切回后没回落"，无法区分**真泄漏**与**一次性开销/分配器
 /// 不还 OS**。本探针改用两条判据：
@@ -14,16 +14,16 @@ import 'package:mova/mova.dart';
 ///
 /// 模式经 `--dart-define=MODE=cutover|hard` 选择（用 `String.fromEnvironment`，
 /// 编译期注入，不受 Android 进程环境变量限制）：
-/// - `cutover`：`MovaCutoverConfig.enabled = true`，走影子引擎预热 + 原子切换，
-///   每轮真实创建/销毁 2 个引擎。
-/// - `hard`：`enabled = false`，`MovaCutoverEngine` 退化为纯直通，全程只有 1 个
-///   引擎，每轮只是 `open()` 换源。作为「额外 open/dispose 循环」的对照组。
+/// - `cutover`：`MovaCutoverOpts.enabled = true`，走影子播放器预热 + 原子切换，
+///   每轮真实创建/销毁 2 个播放器。
+/// - `hard`：`enabled = false`，`MovaCutover` 退化为纯直通，全程只有 1 个
+///   播放器，每轮只是 `open()` 换源。作为「额外 open/dispose 循环」的对照组。
 ///
 /// 跑法：
 /// `flutter run -t lib/main_cutover_leak_probe.dart -d <id> --release --dart-define=MODE=cutover`
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  MovaEngine.ensureInitialized();
+  Mova.ensureInitialized();
   runApp(const MaterialApp(home: _LeakProbePage()));
 }
 
@@ -83,33 +83,33 @@ class _LeakProbePageState extends State<_LeakProbePage> {
   Future<void> _run() async {
     _mark('=== MODE=$kMode rounds=$kRounds ===');
     final opts = MovaOpts(
-      ads: const MovaAdConfig(enabled: true),
-      cutover: MovaCutoverConfig(enabled: kMode == 'cutover', trigger: const MovaEagerWarm()),
+      ads: const MovaAdOpts(enabled: true),
+      cutover: MovaCutoverOpts(enabled: kMode == 'cutover', trigger: const MovaEagerWarm()),
     );
-    final engine = MovaCutoverEngine(engineFactory: () => createMovaEngine(options: opts));
-    final ctrl = MovaAds(engine, cutover: engine);
+    final mova = MovaCutover(movaFactory: () => createMova(options: opts));
+    final ads = MovaAds(mova, cutover: mova);
 
-    await ctrl.load(_content());
-    await _waitPlaying(engine);
+    await ads.load(_content());
+    await _waitPlaying(mova);
     await Future<void>.delayed(const Duration(seconds: 4));
     final baseline = _sample('baseline');
 
     final samples = <int>[];
     for (var i = 1; i <= kRounds; i++) {
       _mark('--- round $i: 插播广告 ---');
-      await ctrl.playAdNow(MovaAdBreak(
+      await ads.playAdNow(MovaAdBreak(
         kind: MovaAdBreakKind.mid,
         source: _adSource(),
         skippableAfter: Duration.zero,
       ));
-      final gotAd = await _waitAd(ctrl, true);
+      final gotAd = await _waitAd(ads, true);
       if (!gotAd) _mark('round $i: 广告未起播（超时），继续');
       await Future<void>.delayed(const Duration(seconds: 3));
       _sample('round $i 广告中');
 
       _mark('--- round $i: skip 回切正片 ---');
-      ctrl.skip();
-      await _waitAd(ctrl, false);
+      ads.skip();
+      await _waitAd(ads, false);
       await Future<void>.delayed(const Duration(seconds: 4));
       samples.add(_sample('round $i 切回正片后'));
     }
@@ -121,8 +121,8 @@ class _LeakProbePageState extends State<_LeakProbePage> {
     }
 
     _mark('=== 全部 dispose 后再观察 20s ===');
-    await ctrl.dispose();
-    await engine.dispose();
+    await ads.dispose();
+    await mova.dispose();
     for (var t = 5; t <= 20; t += 5) {
       await Future<void>.delayed(const Duration(seconds: 5));
       _sample('disposed +${t}s');
@@ -139,12 +139,12 @@ class _LeakProbePageState extends State<_LeakProbePage> {
   }
 
   /// 等待广告阶段变为 [wanted]；超时 30s 返回 false。
-  Future<bool> _waitAd(MovaAds ctrl, bool wanted) async {
-    if (ctrl.isShowingAd == wanted) return true;
+  Future<bool> _waitAd(MovaAds ads, bool wanted) async {
+    if (ads.isShowingAd == wanted) return true;
     final completer = Completer<bool>();
     late final StreamSubscription<void> sub;
-    sub = ctrl.changes.listen((_) {
-      if (ctrl.isShowingAd == wanted && !completer.isCompleted) {
+    sub = ads.changes.listen((_) {
+      if (ads.isShowingAd == wanted && !completer.isCompleted) {
         unawaited(sub.cancel());
         completer.complete(true);
       }
@@ -156,11 +156,11 @@ class _LeakProbePageState extends State<_LeakProbePage> {
   }
 
   /// 等待真正出画（position 前进且非缓冲）。
-  Future<void> _waitPlaying(MovaCutoverEngine engine) {
+  Future<void> _waitPlaying(MovaCutover mova) {
     final completer = Completer<void>();
     late final StreamSubscription<MovaProg> sub;
-    sub = engine.progress.listen((p) {
-      if (p.position > Duration.zero && !engine.state.buffering) {
+    sub = mova.progress.listen((p) {
+      if (p.position > Duration.zero && !mova.state.buffering) {
         unawaited(sub.cancel());
         if (!completer.isCompleted) completer.complete();
       }

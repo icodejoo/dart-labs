@@ -19,6 +19,6 @@ Future<void> main() async {
   } finally {
     client.close();
   }
-  MovaEngine.ensureInitialized();
+  Mova.ensureInitialized();
   runApp(const MaterialApp(home: KeepAliveAutoPage()));
 }

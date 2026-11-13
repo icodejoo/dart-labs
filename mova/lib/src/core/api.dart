@@ -1,6 +1,6 @@
 import 'events/events.dart';
 import 'model/fit.dart';
-import 'model/orientation.dart';
+import 'model/orient_mode.dart';
 import 'model/quality.dart';
 import 'model/source.dart';
 import 'options/options.dart';
@@ -14,16 +14,16 @@ import 'stt/api.dart';
 /// The capability surface the UI layer depends on.
 ///
 /// This is the sole abstraction the `controls` layer (widgets, gestures,
-/// skins) is allowed to talk to — it never reaches into [MovaKernel] or any
+/// UI kits) is allowed to talk to — it never reaches into [IMovaKernel] or any
 /// concrete implementation directly. Production code is backed by the
 /// kernel-driven implementation; tests use `FakeMovaApi`.
 ///
 /// UI 层依赖的唯一能力面。
 ///
-/// 这是 `controls` 层（组件、手势、皮肤）唯一允许打交道的抽象——它绝不会
-/// 直接触达 [MovaKernel] 或任何具体实现。生产环境由内核驱动的实现支撑；
+/// 这是 `controls` 层（组件、手势、UI 套件）唯一允许打交道的抽象——它绝不会
+/// 直接触达 [IMovaKernel] 或任何具体实现。生产环境由内核驱动的实现支撑；
 /// 测试用 `FakeMovaApi`。
-abstract class MovaApi {
+abstract class IMovaApi {
   /// Discrete, low-frequency lifecycle/change events (source changed,
   /// quality switched, errors, …).
   ///
@@ -62,7 +62,7 @@ abstract class MovaApi {
   /// 计划下个版本弃用，新代码请用 `MovaChrome.of(context)`。
   MovaUiState get uiState;
 
-  /// The configuration this instance was constructed with.
+  /// The options this instance was constructed with.
   ///
   /// 构造该实例时使用的配置。
   MovaOpts get options;
@@ -95,13 +95,13 @@ abstract class MovaApi {
   /// thumbnail stream, and cache control.
   ///
   /// 拖动预览能力面：缩略图请求、已解析缩略图的流，以及缓存控制。
-  MovaPreviewApi get preview;
+  IMovaPreviewApi get preview;
 
   /// The speech-to-text subtitle capability surface: recognized cues and
   /// start/stop control.
   ///
   /// 语音转字幕能力面：识别出的字幕，以及启停控制。
-  MovaSttApi get stt;
+  IMovaSttApi get stt;
 
   /// Opens [source] for playback.
   ///
@@ -115,11 +115,11 @@ abstract class MovaApi {
   ///
   /// Returns whether [source] was accepted as the current source: `false` when
   /// a `beforeOpen` hook rejected it, a later `open()` superseded it, or the
-  /// engine was disposed. A load failure is not `false` — it is reported
+  /// player was disposed. A load failure is not `false` — it is reported
   /// through events/recovery, and an unhandled one still throws.
   ///
   /// 返回 [source] 是否被接受为当前源：`beforeOpen` 钩子拒绝、被更晚的 `open()`
-  /// 取代、或引擎已销毁时为 `false`。加载失败不算 `false`——它经事件/恢复机制上报，
+  /// 取代、或播放器已销毁时为 `false`。加载失败不算 `false`——它经事件/恢复机制上报，
   /// 未被处理时仍会抛出。
   ///
   /// Example / 示例:
@@ -254,23 +254,23 @@ abstract class MovaApi {
 
   /// Forces the screen orientation, independent of fullscreen.
   ///
-  /// [MovaOrientation.auto] restores the aspect-ratio/fullscreen-derived
-  /// behavior; [MovaOrientation.portrait]/[MovaOrientation.landscape] pin that
+  /// [MovaOrientMode.auto] restores the aspect-ratio/fullscreen-derived
+  /// behavior; [MovaOrientMode.portrait]/[MovaOrientMode.landscape] pin that
   /// orientation. Only mobile platforms honor this; desktop is a no-op.
   ///
   /// 强制屏幕方向，与全屏状态无关。
   ///
-  /// [MovaOrientation.auto] 恢复按宽高比/全屏推导的行为；
-  /// [MovaOrientation.portrait]/[MovaOrientation.landscape] 固定该方向。仅移动端
+  /// [MovaOrientMode.auto] 恢复按宽高比/全屏推导的行为；
+  /// [MovaOrientMode.portrait]/[MovaOrientMode.landscape] 固定该方向。仅移动端
   /// 生效，桌面端为空操作。
   ///
   /// - [o]: the target orientation override / 目标方向覆盖
   ///
   /// Example / 示例:
   /// ```dart
-  /// await api.setOrientation(MovaOrientation.landscape);
+  /// await api.setOrient(MovaOrientMode.landscape);
   /// ```
-  Future<void> setOrientation(MovaOrientation o);
+  Future<void> setOrient(MovaOrientMode o);
 
   /// Loads the available quality list for the current source, if any.
   ///
@@ -366,14 +366,14 @@ abstract class MovaApi {
   /// core state change and so never appears on [events] on its own — e.g.
   /// opening a settings panel. For events that already fire on [events]
   /// (play/pause/error/…), mova reports those itself; call this only for
-  /// actions the skin/component layer alone knows about.
+  /// actions the UI kit/component layer alone knows about.
   ///
   /// [name] is the reported action's name. [params] is optional structured
   /// data attached to the report.
   ///
   /// 上报一条用户操作事件：纯 UI 语义、未触发任何 core 状态变化、因而不会自行
   /// 出现在 [events] 上的动作——例如打开设置面板。已在 [events] 上广播的事件
-  /// （播放/暂停/错误等）mova 会自行上报；本方法只用于皮肤/组件层才知道的动作。
+  /// （播放/暂停/错误等）mova 会自行上报；本方法只用于 UI 套件/组件层才知道的动作。
   ///
   /// [name] 为上报的动作名称。[params] 为附加的可选结构化数据。
   ///
@@ -383,10 +383,10 @@ abstract class MovaApi {
   /// ```
   void report(MovaReportName name, {Map<String, dynamic>? params});
 
-  /// Releases resources when the player is torn down. MovaEngine and
-  /// MovaCutoverEngine implement idempotent disposal; repeated calls are safe.
+  /// Releases resources when the player is torn down. Mova and
+  /// MovaCutover implement idempotent disposal; repeated calls are safe.
   ///
-  /// 播放器销毁时释放资源。MovaEngine 与 MovaCutoverEngine 的实现幂等，
+  /// 播放器销毁时释放资源。Mova 与 MovaCutover 的实现幂等，
   /// 重复调用安全；宿主仍应明确资源所有权，及时释放自己持有的实例。
   Future<void> dispose();
 }

@@ -26,9 +26,9 @@ HEAD 已按广告 URI 找排期。本次使用 session.events 携带的 node.ite
 
 ## 5. pod2 迭代释放
 
-`matrix-cp2-pod2-resume-20261104-182714` 原始失败日志与 JSON 存在原生音频/解码初始化错误，后段 wait.ad2.5 epoch1=epoch2=1。旧包注入内核未移交 ownsKernel；HEAD 已补 true。本次核实 cutover.commit 仍以 unawaited(old.dispose()) 退休旧引擎，因此仅等待 cutover.dispose 不保证所有退休 native Player 释放完成。
+`matrix-cp2-pod2-resume-20261104-182714` 原始失败日志与 JSON 存在原生音频/解码初始化错误，后段 wait.ad2.5 epoch1=epoch2=1。旧包注入内核未移交 ownsKernel；HEAD 已补 true。本次核实 cutover.commit 仍以 unawaited(old.dispose()) 退休旧播放器，因此仅等待 cutover.dispose 不保证所有退休 native Player 释放完成。
 
-夹具内核缓存唯一 dispose Future；h.release 在引擎销毁后等待本轮全部 active/warming/retired 内核的真实释放，完成前不清映射、不进入下一轮，记录 KERNEL_RELEASE/RELEASE_DRAINED。pod2 即使 ads.dispose 抛错仍走 release；view 同样先 await engine dispose，避免 widget 的 unawaited 清理越过迭代边界。资源释放失败/超时会阻止下一轮。pod2 epoch 与首帧/path 判据保持原样，需隔离重测才能判断产品疑点。
+夹具内核缓存唯一 dispose Future；h.release 在播放器销毁后等待本轮全部 active/warming/retired 内核的真实释放，完成前不清映射、不进入下一轮，记录 KERNEL_RELEASE/RELEASE_DRAINED。pod2 即使 ads.dispose 抛错仍走 release；view 同样先 await 播放器 dispose，避免 widget 的 unawaited 清理越过迭代边界。资源释放失败/超时会阻止下一轮。pod2 epoch 与首帧/path 判据保持原样，需隔离重测才能判断产品疑点。
 
 ## 6. warmmute 系统音量采样
 

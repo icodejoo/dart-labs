@@ -18,18 +18,18 @@
 
 | 现状 | 位置 | 问题 |
 |---|---|---|
-| `loadQualities()` 自己 HTTP 拉 m3u8 + `parseHlsMasterPlaylist` 解析变体 | `engine.dart:780`、`model/quality.dart` | 只对含 `.m3u8` 的 URI 生效；多一次 HTTP |
-| `switchQuality(q)` **重开变体 URL** `_kernel.open(q.uri)` + `seek` 回原位 | `engine.dart:809` 附近 | 每次切档**重新缓冲**、有黑屏/卡顿风险 |
-| `downshiftQuality()` 手动降一档 | `engine.dart` | 靠"重开+变体列表"才成立，是上一条的连带产物 |
-| `MovaBufferAbr` + `_handleAbrBuffering` 手动 ABR 监测 | `engine.dart:1065`、`options/abr_config.dart` | mpv 已有原生 ABR；手动这套主要因为没走原生 track |
-| `MovaKernel` **未暴露** track 流 / `setVideoTrack` | `kernel/kernel.dart` | 迁移的前置：kernel 抽象面要加 |
+| `loadQualities()` 自己 HTTP 拉 m3u8 + `parseHlsMasterPlaylist` 解析变体 | `mova.dart:780`、`model/quality.dart` | 只对含 `.m3u8` 的 URI 生效；多一次 HTTP |
+| `switchQuality(q)` **重开变体 URL** `_kernel.open(q.uri)` + `seek` 回原位 | `mova.dart:809` 附近 | 每次切档**重新缓冲**、有黑屏/卡顿风险 |
+| `downshiftQuality()` 手动降一档 | `mova.dart` | 靠"重开+变体列表"才成立，是上一条的连带产物 |
+| `MovaBufferAbr` + `_handleAbrBuffering` 手动 ABR 监测 | `mova.dart:1065`、`options/abr_opts.dart` | mpv 已有原生 ABR；手动这套主要因为没走原生 track |
+| `IMovaKernel` **未暴露** track 流 / `setVideoTrack` | `kernel/kernel.dart` | 迁移的前置：kernel 抽象面要加 |
 
 **原生路能替换的：** `tracks.video`（枚举）+ `setVideoTrack(track)`（同会话切换）+ `VideoTrack.auto()`
 （Auto 交 mpv ABR）。迁过去后 `parseHlsMasterPlaylist` + 重开式 `switchQuality` + `downshiftQuality`
 + `MovaBufferAbr` 监测**大部分可删**。
 
 **保留：** MP4 多档（非自适应、`sources` 多路 URL）没有单一自适应清单，切档**仍只能重开**——这条留着，
-与 HLS 原生路并存（用 `MovaQual.uri` 是否非空区分）。
+与 HLS 原生路并存（用 `MovaQuality.uri` 是否非空区分）。
 
 ---
 
@@ -39,7 +39,7 @@
 稳定。**这是 go/no-go 闸门，不通过就不迁移。**
 
 - [x] **T1 造探针**（已完成）：`example/lib/spike_native_tracks.dart`——裸驱动 media_kit
-  `Player`（绕开尚未暴露 track 的 `MovaKernel`），源切换 chip + 打印
+  `Player`（绕开尚未暴露 track 的 `IMovaKernel`），源切换 chip + 打印
   `player.stream.tracks.video`（`id/w/h/title/bitrate/codec`）、`player.state.tracks.video`
   按钮，点击即 `setVideoTrack`，并打点切换耗时；已接入 example 主页 AppBar
   「原生 track spike」图标。`flutter analyze` 0 issues。
@@ -60,7 +60,7 @@
 
 ## 阶段 2：迁移（**仅当阶段 1 通过**）
 
-- [x] **T5 kernel 抽象面扩展**（已完成）：`MovaKernel` 加
+- [x] **T5 kernel 抽象面扩展**（已完成）：`IMovaKernel` 加
   `Stream<List<MovaVideoTrack>> videoTracks`、`Stream<MovaVideoTrack> videoTrack`、
   `Future<void> setVideoTrack(MovaVideoTrack)`。`MovaVideoTrack` 定义在
   `core/model/quality.dart`（不是 kernel.dart——因为 `qualitiesFromVideoTracks`
@@ -69,26 +69,26 @@
   `player.setVideoTrack`，并过滤掉 mpv 的 `id:'no'`（"关闭视频"）条目——真机 spike
   踩过这个坑，见附录 A。`FakeKernel` 补了 `emitVideoTracks`/`lastVideoTrack` 测试桩。
   `purity_test` 仍绿（media_kit 依赖只在 `mpv_kernel.dart`）。
-- [x] **T6 engine 改造**（已完成）：`loadQualities()` 对 HLS 改为等
+- [x] **T6 播放器改造**（已完成）：`loadQualities()` 对 HLS 改为等
   `_kernel.videoTracks` 首次非空推送（8s 超时兜底），用纯函数
   `qualitiesFromVideoTracks`（`core/model/quality.dart`）按 height 去重（同高度保留
   首个/最高码率）、排序、补 auto；`switchQuality(q)` 按 `q.trackId` 是否非空路由：
   非空调 `setVideoTrack`（不重开、不 seek 回位），否则走原 `q.uri` 重开路径（预留给
   未来的非自适应多源场景，目前没有生产者接入，`MovaSource` 还没有多源字段）。
-  `MovaQualListChg`/`MovaQualChg` 事件契约不变，UI 零改动。
+  `MovaQualityListChange`/`MovaQualityChange` 事件契约不变，UI 零改动。
   `downshiftQuality()` 改按 `trackId ?? uri` 定位当前档下标，兼容两条路径。
 - [x] **T7 删冗余**（已完成，范围比原计划小）：`parseHlsMasterPlaylist`
   （及 `_parseAttrs` 辅助函数、`test/core/model_test.dart` 里的 3 项测试）已删——
   确认过 `loadQualities()` 已改走 `qualitiesFromVideoTracks`，且仓库内外均无其他调用点
-  （公开 API 删除，破坏性变更，已执行）。`core/engine.dart` 的 `_httpGetString` 及
+  （公开 API 删除，破坏性变更，已执行）。`core/mova.dart` 的 `_httpGetString` 及
   跟着变孤儿的 `dart:convert`/`dart:io` 两个 import 一并删除。
-  **`downshiftQuality`/`_handleAbrBuffering`/`MovaBufferAbr`/`MovaAbrConfig` 保留，
+  **`downshiftQuality`/`_handleAbrBuffering`/`MovaBufferAbr`/`MovaAbrOpts` 保留，
   没有删**——新方案下 `switchQuality` 的内部实现（原生 track 还是重开）对它们完全
   透明，之前计划文档"若 Auto 完全交 mpv ABR 则可删"这一前提没有变化，继续按现状
   留着，不是遗漏。
 - [x] **T8 测试**（已完成）：`test/core/model_test.dart` 新增 `qualitiesFromVideoTracks`
   分组（auto 排前+按高度排序、同高度去重保留首个、无 height 时退化 bitrate 标签、
-  空/仅 auto 输入返回空列表）；`test/core/engine_test.dart` 新增
+  空/仅 auto 输入返回空列表）；`test/core/mova_test.dart` 新增
   `loadQualities()` 从 `FakeKernel.emitVideoTracks` 构建清单、非 HLS 源不碰内核、
   `switchQuality()` 带 `trackId` 调 `setVideoTrack` 而非 `open` 三个测试。
 - [x] **T9 校验 + 回写**（已完成）：`flutter analyze` 0 issues（`lib`+`test`）、
@@ -128,7 +128,7 @@
 demuxer 打开一次就能解析出全部变体，`setVideoTrack` 才能同会话切换。**多个独立 URL
 的 MP4 文件不适用**——mpv 不知道这些互不相关的源是同一内容的不同清晰度，只能走现状的
 "重开 URL + seek 回位"。**结论（用户已拍板）：两条路并存，不是二选一**——
-`MovaQual.uri` 是否指向自适应清单来路由：HLS/DASH 走原生 `setVideoTrack`（无缝），
+`MovaQuality.uri` 是否指向自适应清单来路由：HLS/DASH 走原生 `setVideoTrack`（无缝），
 MP4 多路 `sources` 仍走现有重开逻辑。T6 的实现思路本就是这个方向，本次 spike 确认了
 这个判断的必要性和正确性。
 
@@ -152,28 +152,28 @@ MP4 多路 `sources` 仍走现有重开逻辑。T6 的实现思路本就是这�
 
 **代码改动**（不依赖真机，本机 `flutter analyze`/`flutter test` 已验证）：
 
-- `lib/src/core/kernel/kernel.dart`：`MovaKernel` 新增 `videoTracks`/`videoTrack`/
+- `lib/src/core/kernel/kernel.dart`：`IMovaKernel` 新增 `videoTracks`/`videoTrack`/
   `setVideoTrack`。
 - `lib/src/core/model/quality.dart`：新增 `MovaVideoTrack`、`qualitiesFromVideoTracks`；
-  `MovaQual` 新增 `trackId` 字段，`uri` 改为可选（默认空）。
+  `MovaQuality` 新增 `trackId` 字段，`uri` 改为可选（默认空）。
 - `lib/src/core/kernel/mpv_kernel.dart`：映射 media_kit 的 `stream.tracks`/
   `stream.track`/`setVideoTrack`，过滤 `id:'no'`。
-- `lib/src/core/engine.dart`：`loadQualities()`/`switchQuality()`/`downshiftQuality()`
+- `lib/src/core/mova.dart`：`loadQualities()`/`switchQuality()`/`downshiftQuality()`
   改走上述新面；`_httpGetString` 已删（无调用点），跟着变孤儿的 `dart:convert`/
   `dart:io` 两个 import 一并删除。
 - `lib/src/core/model/quality.dart`：`parseHlsMasterPlaylist`/`_parseAttrs` 已删
   （公开 API 删除——确认无生产调用点后执行，不是遗漏）。
 - `test/support/fake_kernel.dart`：补 `videoTracks`/`videoTrack`/`setVideoTrack` 测试桩。
 - 测试：`test/core/model_test.dart` 删掉 `parseHlsMasterPlaylist` 的 3 项、新增
-  `qualitiesFromVideoTracks` 4 项；`test/core/engine_test.dart` 新增
+  `qualitiesFromVideoTracks` 4 项；`test/core/mova_test.dart` 新增
   `loadQualities`/`switchQuality` 原生路径 3 项。
 
 **校验结果：** `flutter analyze`（`lib`+`test`）0 issues；`flutter test` 449 项全绿
 （445 起点 + 新增 7 − 删掉 3）；`purity_test` 单独跑通过（media_kit 依赖仍只在
 `mpv_kernel.dart`）。
 
-**`MovaEngine` 真实链路真机验证（2026-08-05，同一台华为 STG-AL00）：** 走 example 主页
-「HLS · 多清晰度」demo（真实 `MovaEngine.loadQualities()`/`switchQuality()`，不是
+**`Mova` 真实链路真机验证（2026-08-05，同一台华为 STG-AL00）：** 走 example 主页
+「HLS · 多清晰度」demo（真实 `Mova.loadQualities()`/`switchQuality()`，不是
 独立探针页），清晰度切换正常生效，logcat 无 `mpv[error]`/`player error`。用户反馈
 "切换正常，就是要等"——与阶段 1 结论一致（比重开快，但不是无缝，有等待感），阶段 2
 的代码改动在真实链路上确认无问题。

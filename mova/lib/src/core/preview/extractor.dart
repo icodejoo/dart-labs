@@ -16,7 +16,7 @@ import 'source.dart';
 /// 之所以做成端口而非具体类：唯一的实现会另起一个隐藏的 media_kit `Player`，
 /// 而 `lib/src/core/**` 必须与 media_kit 解耦——实现放在
 /// `lib/src/platform_impl/mpv_extractor_impl.dart`。
-abstract class MovaFramePuller {
+abstract class IMovaFramePuller {
   /// Extracts the frame of [uri] at [at], encoded as JPEG.
   ///
   /// 抽取 [uri] 在 [at] 处的一帧，编码为 JPEG。
@@ -50,7 +50,7 @@ abstract class MovaFramePuller {
 }
 
 /// 可选的带头抽帧能力；不改变旧抽帧端口的签名。
-abstract class MovaHeaderedFramePuller implements MovaFramePuller {
+abstract class IMovaHeaderedFramePuller implements IMovaFramePuller {
   /// 用本次 [headers] 抽取指定位置的帧；请求头不跨源复用。
   Future<Uint8List?> extractWithHeaders(
     String uri,
@@ -61,17 +61,17 @@ abstract class MovaHeaderedFramePuller implements MovaFramePuller {
   });
 }
 
-/// Adapts a [MovaFramePuller] to the [MovaThumbSource] contract so the preview
+/// Adapts a [IMovaFramePuller] to the [IMovaThumbSource] contract so the preview
 /// service can treat extraction as just another entry in its ordered source
 /// list.
 ///
 /// An extracted frame is always the whole image, so [MovaThumb.crop] is null.
 ///
-/// 把 [MovaFramePuller] 适配为 [MovaThumbSource] 契约，让预览服务可以把抽帧
+/// 把 [IMovaFramePuller] 适配为 [IMovaThumbSource] 契约，让预览服务可以把抽帧
 /// 当作有序来源表里的普通一项对待。
 ///
 /// 抽出来的帧总是整张图，因此 [MovaThumb.crop] 恒为 null。
-class MovaPullerThumbSource implements MovaThumbSource {
+class MovaPullerThumbSource implements IMovaThumbSource {
   /// Creates an extractor-backed thumbnail source.
   ///
   /// 创建基于抽帧器的缩略图来源。
@@ -88,7 +88,7 @@ class MovaPullerThumbSource implements MovaThumbSource {
   /// The frame extractor this source drives.
   ///
   /// 该来源驱动的抽帧端口。
-  final MovaFramePuller extractor;
+  final IMovaFramePuller extractor;
 
   /// Target frame width in pixels.
   ///
@@ -106,7 +106,7 @@ class MovaPullerThumbSource implements MovaThumbSource {
   @override
   Future<MovaThumb?> thumbAt(MovaSource source, Duration bucket) async {
     final puller = extractor;
-    final bytes = puller is MovaHeaderedFramePuller
+    final bytes = puller is IMovaHeaderedFramePuller
         ? await puller.extractWithHeaders(
             source.uri,
             bucket,

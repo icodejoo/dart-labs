@@ -44,15 +44,15 @@ class MatrixTests(unittest.TestCase):
             self.assertEqual(len(verdicts.evidence_errors), 3)
             self.assertEqual(verdicts['A4']['status'], 'PASS')
 
-    def test_pool_reclaimed_checks_every_created_engine_without_fixed_size(self):
+    def test_pool_reclaimed_checks_every_created_mova_without_fixed_size(self):
         from matrix_evidence import Evidence
         rules = json.loads((matrix.TOOL/'matrix_rules.json').read_text(encoding='utf8'))
         clauses = next(r['assertions'] for r in rules['A29']['requires'] if r.get('ident') == 'A29.poolReclaimed')
         for accepts in ([False, False], [False, False, False]):
-            self.assertEqual(Evidence.assertions(dict(numbers=dict(engineCount=0, accepts=accepts)), clauses), 'PASS')
+            self.assertEqual(Evidence.assertions(dict(numbers=dict(movaCount=0, accepts=accepts)), clauses), 'PASS')
         for accepts in ([], [False, True]):
-            self.assertEqual(Evidence.assertions(dict(numbers=dict(engineCount=0, accepts=accepts)), clauses), 'FAIL')
-        self.assertEqual(Evidence.assertions(dict(numbers=dict(engineCount=1, accepts=[False, False])), clauses), 'FAIL')
+            self.assertEqual(Evidence.assertions(dict(numbers=dict(movaCount=0, accepts=accepts)), clauses), 'FAIL')
+        self.assertEqual(Evidence.assertions(dict(numbers=dict(movaCount=1, accepts=[False, False])), clauses), 'FAIL')
 
     """Test manifest, selection, verdicts and report logic / 测清单、选择、判定和汇总。"""
     def setUp(self):
@@ -65,7 +65,7 @@ class MatrixTests(unittest.TestCase):
             root=Path(folder)
             unused=root/'unit-unused.logcat.txt'
             unused.write_text('unrelated capture',encoding='utf-8')
-            for mode in ('engine','cutover'):
+            for mode in ('mova','cutover'):
                 for value in (-10,0,1,30,50,100,110):
                     native=root/f'unit-rerun-native-{mode}-volume{value}.native.txt'
                     native.write_text(f'volume is {round(15*max(0,min(100,value))/100)} in range [0..15]',encoding='utf-8')
@@ -80,7 +80,7 @@ class MatrixTests(unittest.TestCase):
                 self.assertEqual(reads,[])
                 self.assertEqual(evidence.volume()[0],'PASS')
                 self.assertEqual(len(reads),14)
-                (root/'unit-rerun-native-engine-volume30.native.txt').write_text('volume is 15 in range [0..15]',encoding='utf-8')
+                (root/'unit-rerun-native-mova-volume30.native.txt').write_text('volume is 15 in range [0..15]',encoding='utf-8')
                 self.assertEqual(evidence.volume()[0],'FAIL')
 
     def test_s00e_native_host_parsers_keep_unknown_and_target_device(self):
@@ -303,7 +303,7 @@ class MatrixTests(unittest.TestCase):
         self.assertEqual(Evidence.assertions(sample,cs),'BLOCKED')
         before=dict(rss=100,threads=4,handles=5,cpuTicks=10)
         after=dict(rss=110,threads=4,handles=5,cpuTicks=15)
-        sample=dict(numbers=dict(before=before,after=after,created=3,engineCount=3))
+        sample=dict(numbers=dict(before=before,after=after,created=3,movaCount=3))
         cs=clauses('F13','F13.resources.20')
         self.assertEqual(Evidence.assertions(sample,cs),'PASS')
         sample['numbers']['created']=4
@@ -318,11 +318,11 @@ class MatrixTests(unittest.TestCase):
         sample['numbers']['destinationHeight']=250
         self.assertEqual(Evidence.assertions(sample,cs),'FAIL')
 
-    def test_s00d_receipts_compare_every_field_and_keep_engine_identity_separate(self):
+    def test_s00d_receipts_compare_every_field_and_keep_mova_identity_separate(self):
         from matrix_evidence import Evidence
         rules=json.loads((matrix.TOOL/'matrix_rules.json').read_text(encoding='utf-8'))
         specs=[s for s in rules['A2']['requires'] if s.get('ident','').endswith('.receipt')]
-        self.assertEqual({s['ident'] for s in specs},{'A2.engine.receipt','A2.cutover.receipt'})
+        self.assertEqual({s['ident'] for s in specs},{'A2.mova.receipt','A2.cutover.receipt'})
         fields={c['field'].split('.',1)[1] for c in specs[0]['assertions'] if c['field'].startswith('actual.')}
         self.assertTrue({'position','intent','renderEpoch','sourceIndex','buffering','width','height'}<=fields)
         for spec in specs:
@@ -381,7 +381,7 @@ class MatrixTests(unittest.TestCase):
         with tempfile.TemporaryDirectory(dir=matrix.TOOL) as folder:
             path=Path(folder)/'unit-keepalive-core.log'
             row=dict(kind='CHECK',id='S6.publicFallback',numbers=dict(phase='fallback'),**{'pass':True})
-            content='[STANDBY] MATRIX_RECORD '+json.dumps(row)+'\n'
+            content='[KEEP_ALIVE] MATRIX_RECORD '+json.dumps(row)+'\n'
             path.write_text(content)
             self.assertEqual(Evidence(folder,'unit-').check('S6.publicFallback')[0],'BLOCKED')
             path.write_text(content+'AUTORUN DONE\n')
@@ -432,14 +432,14 @@ class MatrixTests(unittest.TestCase):
         self.assertEqual(close_bounds(xml.replace('other.app','com.android.systemui')),[10,10])
         self.assertIsNone(close_bounds('broken'))
 
-    def test_evidence_reducer_failure_missing_alias_and_no_ledger(self):
+    def test_evidence_reducer_failure_missing_and_no_ledger(self):
         from matrix_evidence import reduce_evidence
         with tempfile.TemporaryDirectory(dir=matrix.TOOL) as folder:
             out=Path(folder)
-            m=dict(ids=['A6','A7','E.MovaSwapChange'],manual=[])
+            m=dict(ids=['A6','A7','E.MovaCutoverChange'],manual=[])
             rules={'A6':dict(requires=[dict(kind='check',ident='A6.pause')]),
                    'A7':dict(requires=[dict(kind='check',ident='A7.seek')],missing=['seekBy']),
-                   'E.MovaSwapChange':dict(requires=[dict(kind='event',name='MovaSwapChange')])}
+                   'E.MovaCutoverChange':dict(requires=[dict(kind='event',name='MovaCutoverChange')])}
             (out/'unit-ledger.json').write_text(json.dumps(dict(rows=[dict(id='A6',status='PASS')])))
             records=[dict(kind='CHECK',id='A6.pause',**{'pass':False}),dict(kind='BEGIN'),
                      dict(kind='CHECK',id='A6.pause',**{'pass':True}),
@@ -449,7 +449,7 @@ class MatrixTests(unittest.TestCase):
             v=reduce_evidence(m,out,'unit-',rules)
             self.assertEqual(v['A6']['status'],'PASS')
             self.assertEqual(v['A7']['status'],'FAIL')
-            self.assertEqual(v['E.MovaSwapChange']['status'],'PASS')
+            self.assertEqual(v['E.MovaCutoverChange']['status'],'PASS')
             self.assertTrue(all(r['status']=='BLOCKED' for r in reduce_evidence(m,out,'other-',rules).values()))
             records[-2]['pass']='false'
             (out/'unit-test.json').write_text(json.dumps(dict(status='done',records=records)))
@@ -581,9 +581,9 @@ class MatrixTests(unittest.TestCase):
         result['verdicts'][0]['status']='INVALID'
         with self.assertRaises(ValueError):matrix.gap_result_kind(result,'unit','random',0)
 
-    def test_skin_batch_wired_to_driver_group(self):
-        """gap-skin covers the S-ids it runs and targets a group the driver accepts."""
-        batch=next(b for b in self.manifest['batches'] if b['id']=='gap-skin')
+    def test_ui_kit_batch_wired_to_driver_group(self):
+        """gap-ui-kit covers the S-ids it runs and targets a group the driver accepts."""
+        batch=next(b for b in self.manifest['batches'] if b['id']=='gap-ui-kit')
         self.assertTrue({'S1','S7','S9','S12','S13','S14'}<=set(batch['covers_ext']))
         self.assertFalse(batch['fast'])
         self.assertTrue(batch['screen_on'] and batch['native_driver'])
@@ -596,7 +596,7 @@ class MatrixTests(unittest.TestCase):
         flags={a.value for n in ast.walk(source) if isinstance(n,ast.Call)
                and isinstance(n.func,ast.Attribute) and n.func.attr=='add_argument'
                for a in n.args if isinstance(a,ast.Constant) and str(a.value).startswith('--')}
-        self.assertIn('--skins',flags)
+        self.assertIn('--ui-kits',flags)
 
     def test_native_driver_requires_owned_metadata(self):
         batch=next(b for b in self.manifest['batches'] if b.get('native_driver'))
@@ -701,7 +701,7 @@ class MatrixTests(unittest.TestCase):
         self.assertIn(False,values)
 
     def test_existing_full_id_checks(self):
-        """Require both engines and trim accumulated records / 要求两实现并切除累计旧记录。"""
+        """Require both implementations and trim accumulated records / 要求两实现并切除累计旧记录。"""
         with tempfile.TemporaryDirectory(dir=matrix.TOOL) as folder:
             out=Path(folder)
             records=[dict(kind='CHECK',id='A4',**{'pass':False}),dict(kind='BEGIN'),dict(kind='CHECK',id='A4',**{'pass':True})]
@@ -839,8 +839,8 @@ class Cp1Tests(unittest.TestCase):
 
     def test_cp1_manifest_isolated_registration(self):
         manifest=json.loads(matrix.MANIFEST.read_text(encoding='utf-8'))
-        selected=matrix.select_batches(manifest,'cp1-wakeswap,cp1-pool')
-        self.assertEqual([b['id'] for b in selected],['cp1-wakeswap','cp1-pool'])
+        selected=matrix.select_batches(manifest,'cp1-wakecutover,cp1-pool')
+        self.assertEqual([b['id'] for b in selected],['cp1-wakecutover','cp1-pool'])
         for b in selected:
             self.assertTrue(b['native_driver'] and b['cp1_driver'])
             self.assertEqual(b['covers'],[])

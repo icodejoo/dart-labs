@@ -4,7 +4,7 @@ import 'package:mova/mova.dart';
 typedef ReceiptSink = void Function(String, Map<String, Object?>);
 
 /// Independent state/event subscriptions deliberately expose H77 ordering.
-/// Never infer the implementation from an old engine hash.
+/// Never infer the implementation from an old player hash.
 class ReceiptAudit {
   ReceiptAudit(this.api, this.sink) {
     latest = values(api.state);
@@ -16,7 +16,7 @@ class ReceiptAudit {
     });
     eventSub = api.events.listen(receive);
   }
-  final MovaApi api;
+  final IMovaApi api;
   final ReceiptSink sink;
   late Map<String, Object?> latest;
   int positionMs = 0;
@@ -37,7 +37,7 @@ class ReceiptAudit {
     'zoom': s.zoom,
     'locked': s.locked,
     'fullscreen': s.fullscreen,
-    'orientation': s.orientation.name,
+    'orient': s.orient.name,
     'pip': s.pip,
     'mini': s.mini,
     'rendered': s.rendered,
@@ -92,7 +92,7 @@ class ReceiptAudit {
       MovaZoomChange() => {'zoom': e.zoom},
       MovaLockChange() => {'locked': e.value},
       MovaFullScreenChange() => {'fullscreen': e.value},
-      MovaOrientationChange() => {'orientation': e.orientation.name},
+      MovaOrientChange() => {'orient': e.orient.name},
       MovaPipChange() => {'pip': e.value},
       MovaMiniChange() => {'mini': e.mini},
       MovaFirstFrame() => {'rendered': true},
@@ -111,10 +111,10 @@ class ReceiptAudit {
         .where((k) => !_equal(expected[k], actual[k]))
         .toList();
     sink('CHECK', {
-      'id': 'A2.${api is MovaCutoverEngine ? 'cutover' : 'engine'}.receipt',
+      'id': 'A2.${api is MovaCutover ? 'cutover' : 'mova'}.receipt',
       'pass': differences.isEmpty,
       'origin': 'public-api-receipt',
-      'engine': identityHashCode(api),
+      'mova': identityHashCode(api),
       'event': e.runtimeType.toString(),
       'expected': expected,
       'actual': actual,
@@ -122,8 +122,8 @@ class ReceiptAudit {
       if (e is MovaSeeked) 'seekReceipt': {
         'payloadMs': e.position.inMilliseconds,
         'lastProgressMs': positionMs,
-        'progressValueMs': api is MovaProgressSource
-            ? (api as MovaProgressSource).progressValue.position.inMilliseconds
+        'progressValueMs': api is IMovaProgressSource
+            ? (api as IMovaProgressSource).progressValue.position.inMilliseconds
             : null,
         'landingVerified': false,
       },

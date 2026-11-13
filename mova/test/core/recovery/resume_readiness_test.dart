@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mova/src/core/engine.dart';
+import 'package:mova/src/core/mova.dart';
 import 'package:mova/src/core/events/events.dart';
 import 'package:mova/src/core/model/source.dart';
 import 'package:mova/src/core/options/options.dart';
@@ -45,14 +45,14 @@ class _LoadingKernel extends FakeStatsKernel {
   }
 }
 
-/// Builds an engine with deterministic recovery and no control timers.
+/// Builds a player with deterministic recovery and no control timers.
 ///
-/// 构建恢复行为确定且没有控制条计时器的引擎。
-MovaEngine _engine(_LoadingKernel k, {bool failover = false}) => MovaEngine(
+/// 构建恢复行为确定且没有控制条计时器的播放器。
+Mova _mova(_LoadingKernel k, {bool failover = false}) => Mova(
   kernel: k,
   options: MovaOpts(
-    controls: const MovaCtrlsConfig(autoHide: false),
-    recovery: MovaRecoveryConfig(startTimeout: Duration(seconds: 10), stallTimeout: Duration(seconds: 10), 
+    controls: const MovaCtrlsOpts(autoHide: false),
+    recovery: MovaRecoveryOpts(startTimeout: Duration(seconds: 10), stallTimeout: Duration(seconds: 10), 
       enabled: true,
       policy: failover
           ? const MovaFailoverOnly()
@@ -74,7 +74,7 @@ void main() {
       test('HE V6 ${live ? "live" : "VOD"} $path waits for load readiness', () {
         fakeAsync((a) {
           final k = _LoadingKernel()..nativeRestartAvailable = true;
-          final e = _engine(k, failover: path == 'failover');
+          final e = _mova(k, failover: path == 'failover');
           final events = <MovaEvent>[];
           e.events.listen(events.add);
           e.open(
@@ -133,7 +133,7 @@ void main() {
     test('HE V6 VOD resumes on $signal without a new duration', () {
       fakeAsync((a) {
         final k = _LoadingKernel();
-        final e = _engine(k);
+        final e = _mova(k);
         e.open(const MovaSource('https://h/a.mp4'));
         a.flushMicrotasks();
         k.emitDuration(duration);
@@ -174,7 +174,7 @@ void main() {
   test('HE V6 late failed frame preserves resume point for the next retry', () {
     fakeAsync((a) {
       final k = _LoadingKernel();
-      final e = _engine(k);
+      final e = _mova(k);
       e.open(const MovaSource('https://h/a.mp4'));
       a.flushMicrotasks();
       k.land(a);
@@ -198,7 +198,7 @@ void main() {
   test('HE V6 new session discards an unlanded recovery seek', () {
     fakeAsync((a) {
       final k = _LoadingKernel();
-      final e = _engine(k);
+      final e = _mova(k);
       e.open(const MovaSource('https://h/a.mp4'));
       a.flushMicrotasks();
       k.land(a);

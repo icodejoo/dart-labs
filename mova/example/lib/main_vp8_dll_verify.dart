@@ -11,7 +11,7 @@ final String srcDir = Platform.environment['SRC_DIR'] ?? '';
 final String outPath = Platform.environment['OUT'] ?? 'vp8_verify_out.jsonl';
 final String tag = Platform.environment['TAG'] ?? 'dll';
 
-final screen = ValueNotifier<MovaApi?>(null);
+final screen = ValueNotifier<IMovaApi?>(null);
 late final IOSink sink;
 
 /// 写一行带墙钟（仅用于与外部 CPU 采样对时）的 JSON 记录。
@@ -24,13 +24,13 @@ void mark(String kind, Map<String, Object?> data) {
 void main() {
   runZonedGuarded(() async {
     WidgetsFlutterBinding.ensureInitialized();
-    MovaEngine.ensureInitialized();
+    Mova.ensureInitialized();
     sink = File(outPath).openWrite();
-    runApp(MaterialApp(home: Scaffold(body: ValueListenableBuilder<MovaApi?>(
+    runApp(MaterialApp(home: Scaffold(body: ValueListenableBuilder<IMovaApi?>(
       valueListenable: screen,
       builder: (_, api, child) => api == null
           ? const Center(child: Text('VP8 dll verify'))
-          : MovaPlayer(api: api, skin: const MovaMinimalSkin())))));
+          : MovaPlayer(api: api, uiKit: const MovaMinimalUiKit())))));
     await WidgetsBinding.instance.endOfFrame;
     mark('BEGIN', {'pid': pid});
     try {
@@ -55,7 +55,7 @@ Future<String?> prop(NativePlayer n, String k) async {
 Future<void> probe(String file, int run, int watch) async {
   final player = Player();
   final kernel = MovaMpvKernel(player: player, lazyVideo: true);
-  final api = createMovaEngine(kernel: kernel, preciseFirstFrame: true);
+  final api = createMova(kernel: kernel, preciseFirstFrame: true);
   final native = player.platform as NativePlayer;
   var errors = 0, firstFrames = 0, sizeChanges = 0;
   final errTexts = <String>[];

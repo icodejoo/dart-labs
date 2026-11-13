@@ -1,11 +1,11 @@
-/// Lowest accepted playback-rate multiplier; `MovaApi.setRate` clamps below it.
+/// Lowest accepted playback-rate multiplier; `IMovaApi.setRate` clamps below it.
 ///
-/// 可接受的最低倍速；`MovaApi.setRate` 低于它会被钳到此值。
+/// 可接受的最低倍速；`IMovaApi.setRate` 低于它会被钳到此值。
 const double kMovaMinRate = 0.25;
 
-/// Highest accepted playback-rate multiplier; `MovaApi.setRate` clamps above it.
+/// Highest accepted playback-rate multiplier; `IMovaApi.setRate` clamps above it.
 ///
-/// 可接受的最高倍速；`MovaApi.setRate` 高于它会被钳到此值。
+/// 可接受的最高倍速；`IMovaApi.setRate` 高于它会被钳到此值。
 const double kMovaMaxRate = 4.0;
 
 /// Neutral playback rate, also what a NaN request resolves to.

@@ -8,7 +8,7 @@ Only this device is addressed; no delegation, commit, stash, reset, or lib/ edit
 
 V1 observations:
 1. Default provider.resolve(), actual .lease existence, random marker bytes,
-   absolute directory A, and sorted engine_* listing. Persist identity and list
+   absolute directory A, and sorted mova_* listing. Persist identity and list
    with flush=true. Hold a strong provider reference and do not dispose.
 2. After READY_FORCE_STOP, host issues am force-stop and verifies pidof is empty.
 3. Install phase 2 with adb install -r, start a fresh process. Compare actual
@@ -16,7 +16,7 @@ V1 observations:
    count must equal phase 1 count.
 4. Resolve second default provider in the same process. B != A, A marker stays
    intact, and directory count grows by exactly one.
-5. Create engine_old and engine_fresh without .lease. Apply File.setLastModified
+5. Create mova_old and mova_fresh without .lease. Apply File.setLastModified
    to the directories, setting old to now-8 days. Verify stat age and missing
    lease files before scanning. Resolve third default provider; old must be
    absent, fresh must remain and be adopted, and A/B must remain.

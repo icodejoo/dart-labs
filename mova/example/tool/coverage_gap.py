@@ -235,7 +235,7 @@ class GapDriver(matrix.Driver):
             self.note('VERDICT', 'BLOCKED manual native route confirmation', 'gap:G2.2.network')
 
     def run_cases(self, args):
-        self.http('/run', group=args.group, run=args.run_id, iterations=args.iterations, seed=args.seed, actions=args.actions, skins=args.skins)
+        self.http('/run', group=args.group, run=args.run_id, iterations=args.iterations, seed=args.seed, actions=args.actions, uiKits=args.ui_kits)
         seen = 0
         shots = set()
         acted = False
@@ -301,12 +301,12 @@ class GapDriver(matrix.Driver):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('group', choices=['prepare', 'assumptions', 'lifecycle', 'local', 'formats', 'random', 'focus', 'focus-gsm', 'network', 'screen', 'skin', 'build-variants'])
+    parser.add_argument('group', choices=['prepare', 'assumptions', 'lifecycle', 'local', 'formats', 'random', 'focus', 'focus-gsm', 'network', 'screen', 'ui-kit', 'build-variants'])
     parser.add_argument('--run-id', default=datetime.now().strftime('%Y%m%d-%H%M%S'))
     parser.add_argument('--iterations', type=int, default=3)
     parser.add_argument('--seed', type=int, default=20261028)
     parser.add_argument('--actions', type=int, default=80)
-    parser.add_argument('--skins', default='default,bilibili,douyin,minimal,mini', help='skin group only: comma-separated skins to run')
+    parser.add_argument('--ui-kits', default='default,bilibili,douyin,minimal,mini', help='ui-kit group only: comma-separated UI kits to run')
     parser.add_argument('--timeout', type=int, default=1800)
     parser.add_argument('--network-url', default=os.environ.get('MOVA_GAP_NETWORK_URL'))
     args = parser.parse_args()

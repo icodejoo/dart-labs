@@ -13,7 +13,7 @@ import 'models.dart';
 /// 预览服务按顺序遍历来源列表，取第一个非 null 的结果；因此来源只要返回 null
 /// 即表示"我无法服务该媒体"。策略拒绝信号须透传服务；坏掉的缩略图轨只能让气泡降级，
 /// 绝不能影响播放。
-abstract class MovaThumbSource {
+abstract class IMovaThumbSource {
   /// Stable identifier used in diagnostics and tests, e.g. `vtt`.
   ///
   /// 用于诊断与测试的稳定标识，例如 `vtt`。

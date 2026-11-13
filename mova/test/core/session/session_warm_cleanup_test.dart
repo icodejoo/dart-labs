@@ -27,10 +27,10 @@ void main() {
         } else {
           await rig.api.prepare(b, plan: plan);
         }
-        final shadow = rig.engines.last;
+        final shadow = rig.movas.last;
         expect(rig.api.cutoverPhase, MovaCutoverPhase.warming);
         if (cleanup == 'idle') {
-          rig.engines.first.emitDone();
+          rig.movas.first.emitDone();
           await settleOperations();
           expect(rig.ads.session.cursor.phase, MovaSessionPhase.idle);
         } else {
@@ -60,15 +60,15 @@ void main() {
         b,
         plan: const MovaWarmPlan(trigger: MovaEagerWarm()),
       ))!;
-      final shadow = rig.engines.last;
+      final shadow = rig.movas.last;
       await rig.ready(shadow);
-      final gate = rig.engines.first.pauseGate = Completer<void>();
+      final gate = rig.movas.first.pauseGate = Completer<void>();
       addTearDown(() {
         if (!gate.isCompleted) gate.complete();
       });
       final committing = rig.api.commitOwned(ticket);
       await settleOperations();
-      expect(rig.engines.first.calls, contains('pause'));
+      expect(rig.movas.first.calls, contains('pause'));
       await rig.ads.dispose();
       expect(shadow.disposeCount, 0);
       gate.complete();

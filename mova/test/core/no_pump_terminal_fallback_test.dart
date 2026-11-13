@@ -11,11 +11,11 @@ import '../support/fake_kernel.dart';
 import '../support/keep_alive_rig.dart';
 
 /// 提供错误级日志，保留子系统及地址供兜底判断。
-mixin _Logs implements MovaClassifiedErrorKernel {
+mixin _Logs implements IMovaClassifiedErrorKernel {
   /// 原始日志错误流。
   final classifiedErrors = StreamController<MovaKernelError>.broadcast();
 
-  /// 供引擎读取的分级错误端口。
+  /// 供播放器读取的分级错误端口。
   @override
   Stream<MovaKernelError> get kernelErrors => classifiedErrors.stream;
 
@@ -24,7 +24,7 @@ mixin _Logs implements MovaClassifiedErrorKernel {
       classifiedErrors.add(MovaKernelError(text, prefix));
 }
 
-/// 不具备 StatsProbe，模拟直接构造引擎时没有原生事件端口。
+/// 不具备 StatsProbe，模拟直接构造播放器时没有原生事件端口。
 class _NoProbeKernel extends FakeKernel with _Logs {
   /// 关闭注入日志及普通内核流。
   @override
@@ -35,7 +35,7 @@ class _NoProbeKernel extends FakeKernel with _Logs {
 }
 
 /// 可在打开后改变泵状态，END_FILE 独立于 RESTART 可用性。
-class _PumpKernel extends FakeStatsKernel with _Logs implements MovaAttemptEventKernel {
+class _PumpKernel extends FakeStatsKernel with _Logs implements IMovaAttemptEventKernel {
   /// 当前加载尝试编号。
   int attempt = 0;
 
@@ -71,19 +71,19 @@ class _KeepAliveKernel extends FakeKeepAliveStatsKernel with _Logs {
 }
 
 /// 收集错误事件，验证诊断与终结的次数。
-List<MovaErrorEvent> _errors(MovaEngine engine) {
+List<MovaErrorEvent> _errors(Mova mova) {
   final result = <MovaErrorEvent>[];
-  engine.events.where((v) => v is MovaErrorEvent).cast<MovaErrorEvent>().listen(result.add);
+  mova.events.where((v) => v is MovaErrorEvent).cast<MovaErrorEvent>().listen(result.add);
   return result;
 }
 
-/// 无平台端口的引擎，关闭自动隐藏和网络探测。
-MovaEngine _engine(FakeKernel kernel, {bool recovery = false}) => MovaEngine(
+/// 无平台端口的播放器，关闭自动隐藏和网络探测。
+Mova _mova(FakeKernel kernel, {bool recovery = false}) => Mova(
   kernel: kernel,
   options: MovaOpts(
-    controls: const MovaCtrlsConfig(autoHide: false),
-    abr: const MovaAbrConfig(probeVariants: false),
-    recovery: MovaRecoveryConfig(enabled: recovery, policy: const MovaFailoverOnly()),
+    controls: const MovaCtrlsOpts(autoHide: false),
+    abr: const MovaAbrOpts(probeVariants: false),
+    recovery: MovaRecoveryOpts(enabled: recovery, policy: const MovaFailoverOnly()),
   ),
 );
 
@@ -93,7 +93,7 @@ void main() {
   for (final prefix in ['stream', 'cplayer', 'ffmpeg']) {
     test('F-I no StatsProbe main open error terminates prefix=$prefix', () async {
       final k = _NoProbeKernel();
-      final e = _engine(k);
+      final e = _mova(k);
       final errors = _errors(e);
       await e.open(const MovaSource(mainUri));
       k.fail('Failed to open $mainUri: 404 / connection refused / certificate error', prefix);
@@ -111,7 +111,7 @@ void main() {
   for (final address in ['https://h/captions.srt', 'https://h/audio.m4a', 'https://h/segment-1.ts']) {
     test('F-I auxiliary address remains diagnostic $address', () async {
       final k = _NoProbeKernel();
-      final e = _engine(k);
+      final e = _mova(k);
       final errors = _errors(e);
       await e.open(const MovaSource(mainUri));
       k.fail('Failed to open $address');
@@ -126,7 +126,7 @@ void main() {
   for (final availableAtError in [true, false]) {
     test('F-I checks pump at error delivery available=$availableAtError', () async {
       final k = _PumpKernel()..endFileAvailable = !availableAtError;
-      final e = _engine(k);
+      final e = _mova(k);
       final errors = _errors(e);
       await e.open(const MovaSource(mainUri));
       k.endFileAvailable = availableAtError;
@@ -148,7 +148,7 @@ void main() {
 
   test('F-I missing local main file terminates without a pump', () async {
     final k = _NoProbeKernel();
-    final e = _engine(k);
+    final e = _mova(k);
     await e.open(const MovaSource('file:///missing.mp4'));
     k.fail('Failed to open file:///missing.mp4');
     await pumpEventQueue();
@@ -158,7 +158,7 @@ void main() {
 
   test('F-I unrelated prefix and empty active URI cannot terminate', () async {
     final k = _NoProbeKernel();
-    final e = _engine(k);
+    final e = _mova(k);
     final errors = _errors(e);
     k.fail('Failed to open $mainUri');
     await pumpEventQueue();
@@ -172,7 +172,7 @@ void main() {
 
   test('F-I legacy error with explicit stream prefix terminates', () async {
     final k = FakeKernel();
-    final e = _engine(k);
+    final e = _mova(k);
     await e.open(const MovaSource(mainUri));
     k.emitError('stream: Failed to open $mainUri');
     await pumpEventQueue();
@@ -182,7 +182,7 @@ void main() {
 
   test('F-I main error during open defers terminal pause and keeps prefix', () async {
     final k = _NoProbeKernel()..openGate = Completer<void>();
-    final e = _engine(k);
+    final e = _mova(k);
     final errors = _errors(e);
     final opening = e.open(const MovaSource(mainUri));
     await pumpEventQueue();
@@ -201,7 +201,7 @@ void main() {
 
   test('F-I no pump main error uses recovery giveUp when enabled', () async {
     final k = _PumpKernel();
-    final e = _engine(k, recovery: true);
+    final e = _mova(k, recovery: true);
     final errors = _errors(e);
     await e.open(const MovaSource(mainUri));
     k.fail('Failed to open $mainUri');
@@ -216,16 +216,16 @@ void main() {
       final k = _KeepAliveKernel();
       final r = KeepAliveRig(async, k)..playLive(uri: mainUri)..land();
       r.keepAlive(true);
-      expect(r.engine.state.keepAlivePhase, MovaKeepAlivePhase.holding);
+      expect(r.mova.state.keepAlivePhase, MovaKeepAlivePhase.holding);
       final opens = k.openedUris.length;
       k.fail('Failed to open $mainUri');
       r.settle();
       expect(r.events.whereType<MovaErrorEvent>(), isEmpty);
-      expect(r.engine.state.error, isNull);
+      expect(r.mova.state.error, isNull);
       expect(r.changes.last.reason, MovaKeepAliveReason.failed);
       r.keepAlive(false);
       expect(k.openedUris.length, opens + 1);
-      r.engine.dispose();
+      r.mova.dispose();
       r.settle();
     });
   });

@@ -16,9 +16,9 @@ const _pre = MovaAdBreak(
   source: MovaSource('https://host/pre.mp4'),
 );
 
-/// Yields a few microtasks so chained awaits inside the controller settle.
+/// Yields a few microtasks so chained awaits inside [MovaAds] settle.
 ///
-/// 让出几个微任务，使控制器内部链式 await 结算完毕。
+/// 让出几个微任务，使 MovaAds 内部链式 await 结算完毕。
 Future<void> settle() async {
   for (var i = 0; i < 5; i++) {
     await Future<void>.delayed(Duration.zero);
@@ -28,7 +28,7 @@ Future<void> settle() async {
 void main() {
   group('MovaAds 会话隔离（旧解析结果不得污染新会话）', () {
     test('loadDeferred(R1) 未返回时再 loadDeferred(R2)：R2 用自己的结果，R1 迟到结果不重开旧正片', () async {
-      final api = FakeMovaApi(options: const MovaOpts(ads: MovaAdConfig(enabled: true, breaks: [])));
+      final api = FakeMovaApi(options: const MovaOpts(ads: MovaAdOpts(enabled: true, breaks: [])));
       final c = MovaAds(api);
       final r1 = Completer<MovaSource>();
       final f1 = c.loadDeferred(() => r1.future);
@@ -45,7 +45,7 @@ void main() {
     });
 
     test('loadDeferred(R1) 未返回时 load(B)：R1 迟到结果不覆盖 B', () async {
-      final api = FakeMovaApi(options: const MovaOpts(ads: MovaAdConfig(enabled: true, breaks: [])));
+      final api = FakeMovaApi(options: const MovaOpts(ads: MovaAdOpts(enabled: true, breaks: [])));
       final c = MovaAds(api);
       final r1 = Completer<MovaSource>();
       final f1 = c.loadDeferred(() => r1.future);
@@ -61,7 +61,7 @@ void main() {
     });
 
     test('解析途中 dispose：迟到结果不再 open 正片', () async {
-      final api = FakeMovaApi(options: const MovaOpts(ads: MovaAdConfig(enabled: true, breaks: [])));
+      final api = FakeMovaApi(options: const MovaOpts(ads: MovaAdOpts(enabled: true, breaks: [])));
       final c = MovaAds(api);
       final r1 = Completer<MovaSource>();
       final f1 = c.loadDeferred(() => r1.future);
@@ -75,9 +75,9 @@ void main() {
     });
 
     test('预热等待解析期间换了会话：旧结果不触发 prepare', () async {
-      final cutover = FakeCutoverCtl();
+      final cutover = FakeCutover();
       final api = FakeMovaApi(
-        options: const MovaOpts(ads: MovaAdConfig(enabled: true, breaks: [_pre])),
+        options: const MovaOpts(ads: MovaAdOpts(enabled: true, breaks: [_pre])),
       );
       final c = MovaAds(api, cutover: cutover);
       final r1 = Completer<MovaSource>();

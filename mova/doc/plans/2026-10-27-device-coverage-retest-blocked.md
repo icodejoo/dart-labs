@@ -27,9 +27,9 @@
 
 | 项目 | 上一轮 | 本次结论与次数 | 本次证据 |
 |---|---|---|---|
-| F3 换档续播 | FAIL，39/40；失败 RESTART 为 [23,23]ms | BLOCKED；代理播放 0/100、普通引擎 0/30、暂停态 0/30 | rerun2-preflight-window.txt |
+| F3 换档续播 | FAIL，39/40；失败 RESTART 为 [23,23]ms | BLOCKED；代理播放 0/100、普通播放器 0/30、暂停态 0/30 | rerun2-preflight-window.txt |
 | A17 清晰度切换续播 | FAIL，同 F3 的一次失败 | BLOCKED；与 F3 共用计数，本次 0 次 | rerun2-preflight-window.txt |
-| A15/F5 MiniHost→enterPip→展开 | FAIL，mini=false 仍残留小窗 | BLOCKED；0 次，未读取 controller 或拍摄验证截图 | rerun2-preflight-window.txt |
+| A15/F5 MiniHost→enterPip→展开 | FAIL，mini=false 仍残留小窗 | BLOCKED；0 次，未读取 `MovaMini` 状态或拍摄验证截图 | rerun2-preflight-window.txt |
 | A23 二次 dispose | FAIL，两实现第二次抛 disposed | BLOCKED；普通 audioOnly 0 次、cutover audioOnly 0 次 | rerun2-preflight-window.txt |
 | A12 setZoom 下限 | FAIL，-1/0 可塌缩，100 接受 | BLOCKED；-1/0/100 均 0 次 | rerun2-preflight-window.txt |
 

@@ -37,18 +37,18 @@ Uri? defaultVttUrl(MovaSource source) {
   return u.replace(path: '${u.path}.vtt');
 }
 
-/// A [MovaThumbSource] backed by a server-provided WebVTT thumbnail track and
+/// A [IMovaThumbSource] backed by a server-provided WebVTT thumbnail track and
 /// its sprite sheets.
 ///
 /// Successful tracks are memoised per media; failures use a bounded retry
 /// cooldown so a 404 never triggers a fetch on every scrub tick. Sprite sheets
 /// are memoised too, bounded by `maxSprites` in least-recently-used order.
 ///
-/// 基于服务端提供的 WebVTT 缩略图轨及其雪碧图的 [MovaThumbSource]。
+/// 基于服务端提供的 WebVTT 缩略图轨及其雪碧图的 [IMovaThumbSource]。
 ///
 /// 每个媒体记忆成功结果，失败结果只记忆一个重试冷却期：404 不能让每次拖动 tick 都
 /// 重新发请求。雪碧图同样被记忆，按最近最少使用顺序、以 `maxSprites` 为上限。
-class MovaVttThumbSource implements MovaThumbSource {
+class MovaVttThumbSource implements IMovaThumbSource {
   /// Creates a VTT-backed thumbnail source.
   ///
   /// 创建基于 VTT 的缩略图来源。
@@ -84,7 +84,7 @@ class MovaVttThumbSource implements MovaThumbSource {
   /// HTTP port used for the track and its sprite sheets.
   ///
   /// 拉取轨及其雪碧图所用的 HTTP 端口。
-  final MovaHttpFetch fetcher;
+  final IMovaHttpFetch fetcher;
 
   /// 销毁时是否关闭 HTTP 端口；借用宿主端口时设为 false，默认 true。
   final bool closeFetcher;

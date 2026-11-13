@@ -1,7 +1,7 @@
 import 'package:mova/src/testing/hooks.dart';
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mova/src/core/engine.dart';
+import 'package:mova/src/core/mova.dart';
 import 'package:mova/src/core/interceptor/interceptor.dart';
 import 'package:mova/src/core/model/source.dart';
 import 'package:mova/src/core/options/options.dart';
@@ -9,9 +9,9 @@ import 'package:mova/src/core/recovery/fail.dart';
 
 import '../support/fake_kernel.dart';
 
-/// The address every engine-level case opens.
+/// The address every player-level case opens.
 ///
-/// 引擎层用例统一打开的地址。
+/// 播放器层用例统一打开的地址。
 const _uri = 'https://host/a.m3u8';
 
 /// A hook that records every error and optionally throws from `onError`.
@@ -194,12 +194,12 @@ void main() {
     });
   });
 
-  group('engine → hooks.onError', () {
+  group('player → hooks.onError', () {
     test('a kernel error reaches every hook, throwing one included, without writing nonterminal state', () async {
       final k = FakeKernel();
       final bad = _ErrorHook(throwing: true);
       final good = _ErrorHook();
-      final e = MovaEngine(fetcher: const MovaTestHttpFetch(), kernel: k, interceptors: [bad, good]);
+      final e = Mova(fetcher: const MovaTestHttpFetch(), kernel: k, interceptors: [bad, good]);
       k.emitError('boom');
       await Future<void>.delayed(Duration.zero);
       expect(bad.errors, ['boom']);
@@ -212,16 +212,16 @@ void main() {
       fakeAsync((async) {
         final k = FakeKernel();
         final hook = _ErrorHook();
-        final e = MovaEngine(fetcher: const MovaTestHttpFetch(),
+        final e = Mova(fetcher: const MovaTestHttpFetch(),
           kernel: k,
           interceptors: [hook],
           options: const MovaOpts(
-            recovery: MovaRecoveryConfig(
+            recovery: MovaRecoveryOpts(
               enabled: true,
               startTimeout: Duration(seconds: 10),
               stallTimeout: Duration(seconds: 10),
             ),
-            controls: MovaCtrlsConfig(autoHide: false),
+            controls: MovaCtrlsOpts(autoHide: false),
           ),
         );
         e.open(const MovaSource(_uri));
@@ -234,16 +234,16 @@ void main() {
     });
   });
 
-  group('engine ← a hook that throws from before*', () {
+  group('player ← a hook that throws from before*', () {
     // Current contract: the host's exception surfaces to the caller of the verb
-    // (it is not swallowed the way onError failures are), and the engine stays
+    // (it is not swallowed the way onError failures are), and the player stays
     // usable for the next call.
     //
     // 现行契约：宿主钩子的异常会冒给该动词的调用方（不像 onError 那样被吞），
-    // 引擎对下一次调用仍可用。
+    // 播放器对下一次调用仍可用。
     test('beforePlay: play() throws to the caller and playbackIntent stays unchanged', () async {
       final k = FakeKernel();
-      final e = MovaEngine(fetcher: const MovaTestHttpFetch(), kernel: k, interceptors: [_ThrowingBeforeHook()]);
+      final e = Mova(fetcher: const MovaTestHttpFetch(), kernel: k, interceptors: [_ThrowingBeforeHook()]);
       final before = e.state.playbackIntent;
       await expectLater(e.play(), throwsA(isA<StateError>()));
       expect(e.state.playbackIntent, before);
@@ -253,7 +253,7 @@ void main() {
 
     test('beforeSeek: seek() throws to the caller and nothing reaches the kernel', () async {
       final k = FakeKernel();
-      final e = MovaEngine(fetcher: const MovaTestHttpFetch(), kernel: k, interceptors: [_ThrowingBeforeHook()]);
+      final e = Mova(fetcher: const MovaTestHttpFetch(), kernel: k, interceptors: [_ThrowingBeforeHook()]);
       await expectLater(e.seek(const Duration(seconds: 5)), throwsA(isA<StateError>()));
       expect(k.calls, isNot(contains('seek')));
       await e.dispose();
@@ -261,7 +261,7 @@ void main() {
 
     test('beforeOpen: open() throws to the caller and no source is loaded', () async {
       final k = FakeKernel();
-      final e = MovaEngine(fetcher: const MovaTestHttpFetch(), kernel: k, interceptors: [_ThrowingBeforeHook()]);
+      final e = Mova(fetcher: const MovaTestHttpFetch(), kernel: k, interceptors: [_ThrowingBeforeHook()]);
       await expectLater(e.open(const MovaSource(_uri)), throwsA(isA<StateError>()));
       expect(k.openedUris, isEmpty);
       await e.dispose();

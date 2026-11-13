@@ -73,20 +73,20 @@
     "E.MovaZoomChange",
     "E.MovaLockChange",
     "E.MovaFullScreenChange",
-    "E.MovaOrientationChange",
+    "E.MovaOrientChange",
     "E.MovaPipChange",
     "E.MovaMiniChange",
     "E.MovaTimeShiftChange",
     "E.MovaLiveEdgeReach",
     "E.MovaPreviewBlock",
     "E.MovaSttBlock",
-    "E.MovaSwapChange",
+    "E.MovaCutoverChange",
     "E.MovaErrorEvent",
     "E.MovaPlayFailure",
     "E.MovaRecovered",
     "E.MovaFailover",
-    "E.MovaStandbyChange",
-    "E.MovaStandbyResume",
+    "E.MovaKeepAliveChange",
+    "E.MovaKeepAliveResume",
     "E1",
     "E2",
     "U1",
@@ -473,8 +473,8 @@
         "C15",
         "F6",
         "N20",
-        "E.MovaStandbyChange",
-        "E.MovaStandbyResume"
+        "E.MovaKeepAliveChange",
+        "E.MovaKeepAliveResume"
       ],
       "evidence_prefix": "{prefix}keepalive-core",
       "screen_on": true,
@@ -509,7 +509,7 @@
         "N11",
         "N13",
         "N20",
-        "E.MovaSwapChange"
+        "E.MovaCutoverChange"
       ],
       "evidence_prefix": "{prefix}rerun-batch",
       "screen_on": true,
@@ -556,7 +556,7 @@
         "E.MovaFitChange",
         "E.MovaLockChange",
         "E.MovaFullScreenChange",
-        "E.MovaOrientationChange",
+        "E.MovaOrientChange",
         "E.MovaMiniChange"
       ],
       "evidence_prefix": "{prefix}rerun-batch16-",
@@ -1031,7 +1031,7 @@
     {
       "id": "cp0-autotier",
       "description": "CP0 P1-3 mpv auto 三档 HLS 限速五轮及不限速对照",
-      "why": "默认引擎，不手选 ABR；记录原生档位和缓存状态，无产品通过线",
+      "why": "默认播放器，不手选 ABR；记录原生档位和缓存状态，无产品通过线",
       "covers": [],
       "dependencies": [
         "build"
@@ -1531,13 +1531,13 @@
       "result_path": "{tool}/coverage_evidence/matrix-{run_id}-gap-focus-gsm/gap-result.json"
     },
     {
-      "id": "gap-skin",
-      "description": "S 皮肤专项：五套皮肤的组件树对账、按钮点击、锁定屏蔽、补丁、主题文案注入、运行中换皮肤；视觉项出截图记 manual",
-      "why": "补验收矩阵 §3.3 S 皮肤专项（整项 PASS 此前为 0）；应用内合成指针事件 + 原生属性读回，独立验证页和 L 日志，未运行不得认定通过。",
+      "id": "gap-ui-kit",
+      "description": "S UI 套件专项：五套 UI 套件的组件树对账、按钮点击、锁定屏蔽、补丁、主题文案注入、运行中换 UI 套件；视觉项出截图记 manual",
+      "why": "补验收矩阵 §3.3 S UI 套件专项（整项 PASS 此前为 0）；应用内合成指针事件 + 原生属性读回，独立验证页和 L 日志，未运行不得认定通过。",
       "argv": [
         "{python}",
         "{tool}/coverage_gap.py",
-        "skin",
+        "ui-kit",
         "--run-id",
         "{run_id}",
         "--timeout",
@@ -1577,11 +1577,11 @@
         "C10",
         "N16"
       ],
-      "evidence_prefix": "{prefix}gap-skin-",
+      "evidence_prefix": "{prefix}gap-ui-kit-",
       "screen_on": true,
       "fast": false,
       "native_driver": true,
-      "result_path": "{tool}/coverage_evidence/matrix-{run_id}-gap-skin/gap-result.json"
+      "result_path": "{tool}/coverage_evidence/matrix-{run_id}-gap-ui-kit/gap-result.json"
     },
     {
       "id": "perf-regular",
@@ -1708,8 +1708,8 @@
       "fast": false
     },
     {
-      "id": "cp1-wakeswap",
-      "description": "CP1 wakeswap 独立验证（未上机）",
+      "id": "cp1-wakecutover",
+      "description": "CP1 wakecutover 独立验证（未上机）",
       "why": "统一编排 §4 CP1；缺原生证据 BLOCKED；不比较 CP0",
       "covers": [],
       "dependencies": [
@@ -1718,7 +1718,7 @@
       "argv": [
         "{python}",
         "{tool}/coverage_cp1.py",
-        "wakeswap",
+        "wakecutover",
         "--run-id",
         "{run_id}",
         "--runs",
@@ -1726,13 +1726,13 @@
         "--timeout",
         "7200"
       ],
-      "evidence_prefix": "{prefix}cp1-wakeswap",
+      "evidence_prefix": "{prefix}cp1-wakecutover",
       "screen_on": true,
       "fast": false,
       "timeout": 7300,
       "native_driver": true,
       "cp1_driver": true,
-      "result_path": "{evidence}/{prefix}cp1-wakeswap.json"
+      "result_path": "{evidence}/{prefix}cp1-wakecutover.json"
     },
     {
       "id": "cp1-edgepause",
@@ -2965,11 +2965,11 @@
         "gap-random",
         "gap-focus",
         "gap-network",
-        "gap-skin",
+        "gap-ui-kit",
         "perf-regular",
         "perf-soak",
         "perf-audio",
-        "cp1-wakeswap",
+        "cp1-wakecutover",
         "cp1-edgepause",
         "cp1-errclass",
         "cp1-probe",
@@ -2999,11 +2999,11 @@
         "cp1-edgepause",
         "cp1-bblock",
         "cp1-danmaku",
-        "gap-skin",
+        "gap-ui-kit",
         "cp3-cp1gap-bottom"
       ],
       "source": "CP1 BLOCKED rows; measurements only, historical blockers remain",
-      "count": "20 / 10 / 5 / source skin counts"
+      "count": "20 / 10 / 5 / source UI kit counts"
     },
     "cp3-f3": {
       "batches": [

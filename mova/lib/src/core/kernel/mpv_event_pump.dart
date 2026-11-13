@@ -35,7 +35,7 @@ class MovaMpvEventPump {
     required this.onEndFile,
   });
 
-  final MovaMpvEventBackend _backend;
+  final IMovaMpvEventBackend _backend;
 
   /// 客户端名称。
   final String name;
@@ -98,9 +98,9 @@ class MovaMpvEventPump {
 
       // 即使 restrict 部分失败，也继续 armWakeup
       _backend.restrictEvents({
-        MovaMpvEventBackend.eventShutdown,
-        MovaMpvEventBackend.eventEndFile,
-        MovaMpvEventBackend.eventPlaybackRestart,
+        IMovaMpvEventBackend.eventShutdown,
+        IMovaMpvEventBackend.eventEndFile,
+        IMovaMpvEventBackend.eventPlaybackRestart,
       });
 
       if (_state == _PumpState.closing || _state == _PumpState.closed) {
@@ -154,7 +154,7 @@ class MovaMpvEventPump {
     try {
       MovaRawEvent? event;
       while ((event = _backend.poll()) != null) {
-        if (event!.id == MovaMpvEventBackend.eventShutdown) {
+        if (event!.id == IMovaMpvEventBackend.eventShutdown) {
           _coreGone = true;
           break;
         }
@@ -181,16 +181,16 @@ class MovaMpvEventPump {
 
       if (event == null) break;
 
-      if (event.id == MovaMpvEventBackend.eventShutdown) {
+      if (event.id == IMovaMpvEventBackend.eventShutdown) {
         _coreGone = true;
         break;
       }
 
-      if (event.id == MovaMpvEventBackend.eventPlaybackRestart) {
+      if (event.id == IMovaMpvEventBackend.eventPlaybackRestart) {
         try {
           onRestart();
         } catch (_) {}
-      } else if (event.id == MovaMpvEventBackend.eventEndFile) {
+      } else if (event.id == IMovaMpvEventBackend.eventEndFile) {
         try {
           if (event.endFileReason != null) {
             onEndFile(event.endFileReason!);

@@ -38,7 +38,7 @@ class MovaBufferingComponent extends MovaComponent {
   MovaSlot get slot => MovaSlot.center;
 
   @override
-  Widget build(BuildContext context, MovaApi api, List<Widget> children) {
+  Widget build(BuildContext context, IMovaApi api, List<Widget> children) {
     final theme = MovaPlayerStyle.themeOf(context);
     return MovaSelect<bool>(
       selector: (s) => s.buffering,
@@ -60,13 +60,13 @@ class MovaBufferingComponent extends MovaComponent {
 }
 
 /// Playback-error overlay; shown whenever [MovaState.error] is non-null, with
-/// the error's text and a retry button that calls [MovaApi.reload].
+/// the error's text and a retry button that calls [IMovaApi.reload].
 ///
 /// New in this refactor plan — 0.1.0 had no error-state UI at all. Layout
 /// and copy are a reasonable, simple default, not a 0.1.0 port.
 ///
 /// 播放错误叠加层；[MovaState.error] 非空时显示，含错误文案与调用
-/// [MovaApi.reload] 的重试按钮。用户文案读取 MovaStrs，原始错误只在 debug 显示。
+/// [IMovaApi.reload] 的重试按钮。用户文案读取 MovaStrs，原始错误只在 debug 显示。
 ///
 /// 本次重构计划中新增——0.1.0 完全没有错误态 UI。布局与文案为合理的简单
 /// 默认实现，并非移植自 0.1.0。
@@ -88,7 +88,7 @@ class MovaErrorComponent extends MovaComponent {
   MovaSlot get slot => MovaSlot.center;
 
   @override
-  Widget build(BuildContext context, MovaApi api, List<Widget> children) {
+  Widget build(BuildContext context, IMovaApi api, List<Widget> children) {
     final theme = MovaPlayerStyle.themeOf(context);
     final strings = MovaPlayerStyle.stringsOf(context);
     return MovaSelect<Object?>(
@@ -137,14 +137,14 @@ class MovaErrorComponent extends MovaComponent {
 ///
 /// Only absorbs taps so gestures/buttons underneath don't receive them while
 /// locked; when not locked it renders nothing. The unlock affordance itself
-/// is a separate, always-on-top layer (see [MovaDefaultSkin.assemble]) so it
+/// is a separate, always-on-top layer (see [MovaDefaultUiKit.assemble]) so it
 /// can never end up underneath this mask regardless of slot/stacking order.
 ///
 /// [MovaState.locked] 为真时显示的全尺寸吞点击遮罩。
 ///
 /// 只负责吞掉点击，使下层手势/按钮在锁定期间收不到事件；未锁定时不渲染任何
 /// 内容。解锁入口本身是独立的、恒定处于最上层的一层（见
-/// [MovaDefaultSkin.assemble]），因此无论槽位/层叠顺序如何，都不会被本遮罩盖住。
+/// [MovaDefaultUiKit.assemble]），因此无论槽位/层叠顺序如何，都不会被本遮罩盖住。
 class MovaLockMaskComponent extends MovaComponent {
   /// Creates the lock-mask leaf component.
   ///
@@ -163,7 +163,7 @@ class MovaLockMaskComponent extends MovaComponent {
   MovaSlot get slot => MovaSlot.overlay;
 
   @override
-  Widget build(BuildContext context, MovaApi api, List<Widget> children) {
+  Widget build(BuildContext context, IMovaApi api, List<Widget> children) {
     return MovaSelect<bool>(
       selector: (s) => s.locked,
       builder: (context, locked) {

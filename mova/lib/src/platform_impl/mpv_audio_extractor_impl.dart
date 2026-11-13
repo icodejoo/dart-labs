@@ -7,7 +7,7 @@ import 'package:path_provider/path_provider.dart';
 import '../core/stt/audio_extractor.dart';
 
 /// ⚠️ **Unverified spike, not a settled implementation.** A candidate
-/// [MovaAudioPuller] built on mpv's `ao=pcm`/`ao-pcm-file` audio-output
+/// [IMovaAudioPuller] built on mpv's `ao=pcm`/`ao-pcm-file` audio-output
 /// driver (documented mpv behavior: it decodes straight to a WAV file
 /// instead of a real audio device) via a second, headless media_kit
 /// `Player` — the same "second hidden player" pattern [MovaFrameExtractor]
@@ -35,7 +35,7 @@ import '../core/stt/audio_extractor.dart';
 /// ⚠️ **未验证的 spike，不是定案实现。** 基于 mpv 的 `ao=pcm`/
 /// `ao-pcm-file` 音频输出驱动（mpv 文档记录的行为：直接把解码结果写成 WAV
 /// 文件，而非送到真实音频设备）、借助第二个无头 media_kit `Player` 构建的
-/// 候选 [MovaAudioPuller]——跟 [MovaFrameExtractor] 抽帧用的"第二个隐藏
+/// 候选 [IMovaAudioPuller]——跟 [MovaFrameExtractor] 抽帧用的"第二个隐藏
 /// player"是同一套打法，只是这次抽的是音频。
 ///
 /// **没有验证过**的地方（从未在真实设备/真实构建上跑过）：
@@ -51,7 +51,7 @@ import '../core/stt/audio_extractor.dart';
 ///
 /// 在真实设备/桌面构建上跑过 spike 之前，每次调用都可能是错的——写出这个
 /// 形状是为了有东西可以迭代，不是因为已知它能跑通。
-class MovaAudioExtractor implements MovaAudioPuller {
+class MovaAudioExtractor implements IMovaAudioPuller {
   /// Creates an extractor; the hidden player is created lazily on first use.
   /// [playerFactory] creates the owned player, [tempDirectory] supplies output
   /// storage, and [timeout] bounds extraction; see the example below.

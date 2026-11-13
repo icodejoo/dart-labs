@@ -19,7 +19,7 @@ Future<HttpServer> _server(void Function(HttpRequest) serve) async {
 Uri _url(HttpServer server) => Uri.parse('http://127.0.0.1:${server.port}/a');
 
 /// 模拟原生 seek 无法确认的抽帧器。
-class _UnconfirmedPuller implements MovaFramePuller {
+class _UnconfirmedPuller implements IMovaFramePuller {
   /// 截图调用次数；未落地时必须为零。
   int captures = 0;
 
@@ -92,7 +92,7 @@ void main() {
     releaseBody.complete();
   });
 
-  test('预览 404 body 悬挂时引擎 dispose 在期限内完成并释放主内核', () async {
+  test('预览 404 body 悬挂时播放器 dispose 在期限内完成并释放主内核', () async {
     final headers = Completer<void>();
     final server = await _server((req) {
       req.response.statusCode = 404;
@@ -100,22 +100,22 @@ void main() {
       unawaited(req.response.flush().then((_) => headers.complete()));
     });
     final k = FakeKernel();
-    final engine = createMovaEngine(kernel: k, ownsKernel: true,
-      pip: MovaNoopPipPort(), orientation: MovaNoopOrientationPort(), brightness: MovaFallbackBrightnessPort(),
+    final mova = createMova(kernel: k, ownsKernel: true,
+      pip: MovaNoopPip(), orient: MovaNoopOrient(), brightness: MovaFallbackBrightness(),
       fetcher: MovaIoHttpFetcher(timeout: const Duration(seconds: 30)),
-      options: MovaOpts(preview: MovaPreviewConfig(enabled: true, debounce: Duration.zero,
+      options: MovaOpts(preview: MovaPreviewOpts(enabled: true, debounce: Duration.zero,
         cache: MovaMemoryThumbCache(), network: MovaPreviewNet.always)));
-    await engine.open(MovaSource(_url(server).toString()));
-    engine.preview.requestAt(Duration.zero);
+    await mova.open(MovaSource(_url(server).toString()));
+    mova.preview.requestAt(Duration.zero);
     await headers.future;
-    await engine.dispose().timeout(const Duration(seconds: 1));
+    await mova.dispose().timeout(const Duration(seconds: 1));
     expect(k.isDisposed, isTrue);
   });
 
   test('落地轮询超时返回 null，不截图也不缓存；确认后才允许截图', () async {
     final puller = _UnconfirmedPuller();
     final service = MovaPreviewService(
-      config: const MovaPreviewConfig(enabled: true, debounce: Duration.zero, network: MovaPreviewNet.always),
+      opts: const MovaPreviewOpts(enabled: true, debounce: Duration.zero, network: MovaPreviewNet.always),
       cache: MovaMemoryThumbCache(), probe: MovaAlwaysAllowNetProbe(),
       sources: [MovaPullerThumbSource(extractor: puller)],
     )..attach(const MovaSource('https://host/a.mp4'));

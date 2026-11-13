@@ -48,7 +48,7 @@ class _Rig {
     collector = MovaQoeCollector(
       events: events.stream,
       reporter: MovaCallbackReporter(reports.add),
-      config: const MovaReportConfig(qoe: true, heartbeat: Duration(seconds: 1)),
+      opts: const MovaReportOpts(qoe: true, heartbeat: Duration(seconds: 1)),
       probe: probe,
       now: () => clock,
     );
@@ -183,13 +183,13 @@ void main() {
   test('sessionStart 延后至内核加载完成且只采样一次', () async {
     final k = _LoadingKernel();
     final reports = <MovaReportEvent>[];
-    final e = createMovaEngine(
+    final e = createMova(
       kernel: k,
-      pip: MovaNoopPipPort(),
-      orientation: MovaNoopOrientationPort(),
-      brightness: MovaFallbackBrightnessPort(),
+      pip: MovaNoopPip(),
+      orient: MovaNoopOrient(),
+      brightness: MovaFallbackBrightness(),
       reporter: MovaCallbackReporter(reports.add),
-      options: const MovaOpts(report: MovaReportConfig(qoe: true)),
+      options: const MovaOpts(report: MovaReportOpts(qoe: true)),
     );
     final opening = e.open(const MovaSource('https://host/a.mp4'));
     expect(reports.where((e) => e.name == MovaReportName.sessionStart), isEmpty);

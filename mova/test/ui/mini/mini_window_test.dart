@@ -16,9 +16,9 @@ import '../../support/fake_api.dart';
 /// `bounds`，而非依赖默认的测试画布尺寸。
 Future<void> pumpWindow(
   WidgetTester tester, {
-  required MovaMini ctl,
+  required MovaMini mini,
   required FakeMovaApi api,
-  MovaMiniConfig config = const MovaMiniConfig(enabled: true),
+  MovaMiniOpts opts = const MovaMiniOpts(enabled: true),
   Size size = const Size(400, 800),
 }) async {
   await tester.binding.setSurfaceSize(Size(size.width + 20, size.height + 20));
@@ -29,44 +29,44 @@ Future<void> pumpWindow(
       child: SizedBox(
         width: size.width,
         height: size.height,
-        child: MovaMiniWindow(key: ValueKey(size), ctl: ctl, api: api, config: config),
+        child: MovaMiniWindow(key: ValueKey(size), mini: mini, api: api, opts: opts),
       ),
     ),
   ));
 }
 
 void main() {
-  late MovaMini ctl;
+  late MovaMini mini;
   late FakeMovaApi api;
 
   setUp(() {
-    ctl = MovaMini();
-    api = FakeMovaApi(options: const MovaOpts(mini: MovaMiniConfig(enabled: true)));
+    mini = MovaMini();
+    api = FakeMovaApi(options: const MovaOpts(mini: MovaMiniOpts(enabled: true)));
   });
 
-  testWidgets('reused window applies the next engine size and aspect ratio', (tester) async {
+  testWidgets('reused window applies the next player size and aspect ratio', (tester) async {
     final next = FakeMovaApi();
-    await pumpWindow(tester, ctl: ctl, api: api,
-        config: const MovaMiniConfig(enabled: true, width: 180));
+    await pumpWindow(tester, mini: mini, api: api,
+        opts: const MovaMiniOpts(enabled: true, width: 180));
     final window = find.byKey(const ValueKey('movaMiniWindowGesture'));
     expect(tester.getSize(window).width, 180);
-    await pumpWindow(tester, ctl: ctl, api: next,
-        config: const MovaMiniConfig(enabled: true, width: 300, aspectRatio: 1));
+    await pumpWindow(tester, mini: mini, api: next,
+        opts: const MovaMiniOpts(enabled: true, width: 300, aspectRatio: 1));
     await tester.pumpAndSettle();
     expect(tester.getSize(window), const Size(300, 300));
     await tester.pumpWidget(const SizedBox());
     await next.dispose();
     await api.dispose();
-    ctl.dispose();
+    mini.dispose();
   });
 
   for (final corner in MovaMiniCorner.values) {
     testWidgets('first frame lands at ${corner.name}', (tester) async {
       await pumpWindow(
         tester,
-        ctl: ctl,
+        mini: mini,
         api: api,
-        config: MovaMiniConfig(enabled: true, initialCorner: corner, margin: 10, width: 100),
+        opts: MovaMiniOpts(enabled: true, initialCorner: corner, margin: 10, width: 100),
       );
       final topLeft = tester.getTopLeft(find.byKey(const ValueKey('movaMiniWindowGesture')));
       final expected = rectForCorner(
@@ -89,8 +89,8 @@ void main() {
     //
     // 关掉 snapToEdge——开着的话松手会重新吸边，会掩盖"拖动-钳制"这段数学本身
     // 到底有没有真的移动/钳制；纯钳制落点策略把它单独隔离出来看。
-    const config = MovaMiniConfig(enabled: true, snapToEdge: false, settleDuration: Duration.zero);
-    await pumpWindow(tester, ctl: ctl, api: api, config: config);
+    const opts = MovaMiniOpts(enabled: true, snapToEdge: false, settleDuration: Duration.zero);
+    await pumpWindow(tester, mini: mini, api: api, opts: opts);
     final before = tester.getTopLeft(find.byKey(const ValueKey('movaMiniWindowGesture')));
     await tester.drag(find.byKey(const ValueKey('movaMiniWindowGesture')), const Offset(-30, 0));
     await tester.pump();
@@ -108,9 +108,9 @@ void main() {
     final injected = _FixedPlacement(const MovaMiniRect(left: 5, top: 5, width: 180, height: 101.25));
     await pumpWindow(
       tester,
-      ctl: ctl,
+      mini: mini,
       api: api,
-      config: MovaMiniConfig(enabled: true, placement: injected),
+      opts: MovaMiniOpts(enabled: true, placement: injected),
     );
     await tester.drag(find.byKey(const ValueKey('movaMiniWindowGesture')), const Offset(20, 20));
     await tester.pumpAndSettle();
@@ -121,14 +121,14 @@ void main() {
   });
 
   testWidgets('tapping the picture is a no-op when onTapContent is unset', (tester) async {
-    await pumpWindow(tester, ctl: ctl, api: api);
-    await ctl.show(api);
-    // The exact center coincides with MovaMiniSkin's center play/pause
+    await pumpWindow(tester, mini: mini, api: api);
+    await mini.show(api);
+    // The exact center coincides with MovaMiniUiKit's center play/pause
     // button (deliberately still tappable to toggle playback) — tap a corner
     // of the window's own hit area instead, well clear of that button and of
     // the close (✕) button in the opposite corner.
     //
-    // 正中心与 MovaMiniSkin 的中央播放/暂停按钮重合（刻意保留可点，用于切换
+    // 正中心与 MovaMiniUiKit 的中央播放/暂停按钮重合（刻意保留可点，用于切换
     // 播放）——改点窗口自身命中区域的一角，避开该按钮，也避开另一角的关闭
     // （✕）按钮。
     final rect = tester.getRect(find.byKey(const ValueKey('movaMiniWindowGesture')));
@@ -139,24 +139,24 @@ void main() {
     //
     // 默认：宿主未设置 onTapContent 时，点画面无任何效果——只有关闭按钮能
     // 收起小窗。
-    expect(ctl.isShowing(api), isTrue);
+    expect(mini.isShowing(api), isTrue);
     expect(api.calls, isNot(contains('pause')));
   });
 
   testWidgets('tapping the picture invokes onTapContent when the host wires it', (tester) async {
-    await pumpWindow(tester, ctl: ctl, api: api);
-    await ctl.show(api);
-    MovaApi? tapped;
-    ctl.onTapContent = (a) => tapped = a;
+    await pumpWindow(tester, mini: mini, api: api);
+    await mini.show(api);
+    IMovaApi? tapped;
+    mini.onTapContent = (a) => tapped = a;
     final rect = tester.getRect(find.byKey(const ValueKey('movaMiniWindowGesture')));
     await tester.tapAt(rect.bottomLeft + const Offset(4, -4));
     await tester.pump();
     expect(tapped, same(api));
   });
 
-  testWidgets('tapping the close button calls ctl.close()', (tester) async {
-    await pumpWindow(tester, ctl: ctl, api: api);
-    await ctl.show(api);
+  testWidgets('tapping the close button calls mini.close()', (tester) async {
+    await pumpWindow(tester, mini: mini, api: api);
+    await mini.show(api);
     await tester.tap(find.byIcon(Icons.close));
     await tester.pump();
     expect(api.calls, contains('pause'));
@@ -165,19 +165,19 @@ void main() {
   testWidgets('dismissible: false ignores a fast fling-away and only clamps back', (tester) async {
     await pumpWindow(
       tester,
-      ctl: ctl,
+      mini: mini,
       api: api,
-      config: const MovaMiniConfig(enabled: true, dismissible: false),
+      opts: const MovaMiniOpts(enabled: true, dismissible: false),
     );
-    await ctl.show(api);
+    await mini.show(api);
     await tester.fling(find.byKey(const ValueKey('movaMiniWindowGesture')), const Offset(-400, 0), 3000);
     await tester.pumpAndSettle();
     expect(api.calls, isNot(contains('pause')), reason: 'close() should never fire when dismissible is false');
   });
 
   testWidgets('shrinking the outer constraints (simulated rotation) keeps the window fully inside', (tester) async {
-    await pumpWindow(tester, ctl: ctl, api: api, size: const Size(400, 800));
-    await pumpWindow(tester, ctl: ctl, api: api, size: const Size(200, 150));
+    await pumpWindow(tester, mini: mini, api: api, size: const Size(400, 800));
+    await pumpWindow(tester, mini: mini, api: api, size: const Size(200, 150));
     final rect = tester.getRect(find.byKey(const ValueKey('movaMiniWindowGesture')));
     expect(rect.left, greaterThanOrEqualTo(0));
     expect(rect.top, greaterThanOrEqualTo(0));
@@ -196,9 +196,9 @@ void main() {
           width: 200,
           height: 200,
           child: MovaMiniWindow(
-            ctl: ctl,
+            mini: mini,
             api: api,
-            config: const MovaMiniConfig(enabled: true, width: 100, margin: 0),
+            opts: const MovaMiniOpts(enabled: true, width: 100, margin: 0),
           ),
         ),
       ),
@@ -210,7 +210,7 @@ void main() {
   });
 
   testWidgets('MovaMiniWindow build root is LayoutBuilder, not Positioned', (tester) async {
-    await pumpWindow(tester, ctl: ctl, api: api);
+    await pumpWindow(tester, mini: mini, api: api);
     // findsWidgets (not findsOneWidget): MovaPlayer's internal render-rect
     // LayoutBuilder (see lib/src/ui/player.dart, added for the video-content
     // letterbox rect) is a second, unrelated LayoutBuilder descendant now —
@@ -224,13 +224,13 @@ void main() {
   });
 
   testWidgets('internal MovaPlayer has autoLoadQualities false', (tester) async {
-    await pumpWindow(tester, ctl: ctl, api: api);
+    await pumpWindow(tester, mini: mini, api: api);
     final player = tester.widget<MovaPlayer>(find.byType(MovaPlayer));
     expect(player.autoLoadQualities, isFalse);
   });
 
   testWidgets('exactly one MovaPlayer exists throughout a drag (no Draggable feedback subtree)', (tester) async {
-    await pumpWindow(tester, ctl: ctl, api: api);
+    await pumpWindow(tester, mini: mini, api: api);
     final gesture = await tester.startGesture(tester.getCenter(find.byKey(const ValueKey('movaMiniWindowGesture'))));
     await gesture.moveBy(const Offset(20, 20));
     await tester.pump();
@@ -241,11 +241,11 @@ void main() {
   });
 }
 
-/// A fixed-answer [MovaMiniPlacement] test double that records how many
+/// A fixed-answer [IMovaMiniPlacement] test double that records how many
 /// times it was consulted.
 ///
-/// 固定答案的 [MovaMiniPlacement] 测试替身，记录被咨询的次数。
-class _FixedPlacement implements MovaMiniPlacement {
+/// 固定答案的 [IMovaMiniPlacement] 测试替身，记录被咨询的次数。
+class _FixedPlacement implements IMovaMiniPlacement {
   _FixedPlacement(this.answer);
 
   final MovaMiniRect answer;

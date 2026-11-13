@@ -1,5 +1,5 @@
 import '../model/fit.dart';
-import '../model/orientation.dart';
+import '../model/orient_mode.dart';
 import '../model/quality.dart';
 import '../model/source.dart';
 import '../keep_alive/keep_alive.dart';
@@ -15,7 +15,7 @@ import '../keep_alive/keep_alive.dart';
 /// 这是 core 层"除进度外的一切播放相关信息"的值类型——播放标志位、几何尺寸、
 /// 音量/亮度/倍速/缩放、清晰度列表与当前选择，以及直播特有字段。
 class MovaState {
-  /// Whether the engine is currently playing (not paused).
+  /// Whether the player is currently playing (not paused).
   ///
   /// 内核当前是否处于播放（非暂停）状态。
   final bool playing;
@@ -27,7 +27,7 @@ class MovaState {
   /// 最近接受的播放意图，独立于内核观测；用于守卫延迟播放。
   final bool playbackIntent;
 
-  /// Whether the engine is buffering (stalled waiting for data).
+  /// Whether the player is buffering (stalled waiting for data).
   ///
   /// 内核是否正在缓冲（因数据不足而卡顿）。
   final bool buffering;
@@ -47,11 +47,11 @@ class MovaState {
   /// 播放器当前是否处于全屏模式。
   final bool fullscreen;
 
-  /// The forced screen-orientation override; [MovaOrientation.auto] by default,
+  /// The forced screen-orientation override; [MovaOrientMode.auto] by default,
   /// which keeps the aspect-ratio/fullscreen-derived behavior.
   ///
-  /// 强制屏幕方向覆盖；默认 [MovaOrientation.auto]，即保持按宽高比/全屏推导的行为。
-  final MovaOrientation orientation;
+  /// 强制屏幕方向覆盖；默认 [MovaOrientMode.auto]，即保持按宽高比/全屏推导的行为。
+  final MovaOrientMode orient;
 
   /// Whether the player is currently in picture-in-picture mode.
   ///
@@ -61,25 +61,25 @@ class MovaState {
   /// Whether the current platform supports system picture-in-picture at all.
   ///
   /// Distinct from [pip], which says whether PiP is *active*. Resolved once
-  /// per engine from `MovaPipPort.isSupported()`; `false` until that probe
+  /// per player from `IMovaPip.isSupported()`; `false` until that probe
   /// answers, so UI that hides itself on `false` merely appears a frame or two
   /// late instead of flashing a button that does nothing.
   ///
   /// 当前平台是否支持系统画中画。
   ///
-  /// 与 [pip] 不同——后者表示画中画是否**正在生效**。每个 engine 用
-  /// `MovaPipPort.isSupported()` 探测一次；探测返回前为 `false`，因此依赖它隐藏
+  /// 与 [pip] 不同——后者表示画中画是否**正在生效**。每个播放器用
+  /// `IMovaPip.isSupported()` 探测一次；探测返回前为 `false`，因此依赖它隐藏
   /// 自身的 UI 只是晚一两帧出现，而不会先闪一个点了没反应的按钮。
   final bool pipSupported;
 
   /// Whether the picture is currently rendered in the in-app mini window.
   ///
   /// Orthogonal to [pip] (system-level) and mutually exclusive with it and
-  /// with [fullscreen]: the engine clears the other two when this turns on.
+  /// with [fullscreen]: the player clears the other two when this turns on.
   ///
   /// 画面当前是否渲染在 App 内小窗里。
   ///
-  /// 与 [pip]（系统级）正交，且与它和 [fullscreen] 互斥：该位置真时 engine 会
+  /// 与 [pip]（系统级）正交，且与它和 [fullscreen] 互斥：该位置真时播放器会
   /// 清掉另外两个。
   final bool mini;
 
@@ -156,7 +156,7 @@ class MovaState {
 
   /// 最近一次终结播放的错误；非终结内核日志只经 MovaErrorEvent 与错误钩子通知。
   /// 从 A14b 起收窄此字段，诊断监听请迁移到事件流；新 open 或恢复成功会清空。
-  /// 示例：`if (engine.state.error != null) showRetry()`。
+  /// 示例：`if (mova.state.error != null) showRetry()`。
   final Object? error;
 
   /// Title of the currently open source, or null before [MovaState] has any
@@ -175,23 +175,23 @@ class MovaState {
   final String? sourceTitle;
 
   /// Monotonic counter bumped whenever the render handle behind this state
-  /// changes identity. Always 0 for a plain [MovaEngine]; only
-  /// [MovaCutoverEngine] advances it, and only to force the render surface to
-  /// re-read [MovaApi.renderHandle] — the surface selector watches fit/zoom
+  /// changes identity. Always 0 for a plain [Mova]; only
+  /// [MovaCutover] advances it, and only to force the render surface to
+  /// re-read [IMovaApi.renderHandle] — the surface selector watches fit/zoom
   /// and would otherwise never rebuild on a cutover.
   ///
   /// 单调递增计数器，在该状态背后的渲染句柄身份变化时加一。对普通
-  /// [MovaEngine] 恒为 0；只有 [MovaCutoverEngine] 会推进它，其唯一用途是强制
-  /// 渲染面重新读取 [MovaApi.renderHandle]——渲染面的 selector 观察的是
+  /// [Mova] 恒为 0；只有 [MovaCutover] 会推进它，其唯一用途是强制
+  /// 渲染面重新读取 [IMovaApi.renderHandle]——渲染面的 selector 观察的是
   /// fit/zoom，否则切换时永远不会重建。
   final int renderEpoch;
 
   /// Whether the current source has started presenting media: its first video
-  /// frame is on screen, or — for a source/engine without video — its first
+  /// frame is on screen, or — for a source/player without video — its first
   /// audio is playing. Reset to false by every `open()`; internal reloads
   /// (quality switch, back-to-live reopen, recovery retries) leave it alone.
   ///
-  /// 当前源是否已开始呈现媒体：视频源的首帧已上屏；无视频的源/引擎则是首段音频
+  /// 当前源是否已开始呈现媒体：视频源的首帧已上屏；无视频的源/播放器则是首段音频
   /// 已在播放。每次 `open()` 都会重置为 false；内部重载（换档、回直播边缘重开、
   /// 恢复重试）不动它。
   final bool rendered;
@@ -204,10 +204,10 @@ class MovaState {
   final int sourceIndex;
 
   /// Where this player is in the keepAlive lifecycle; [MovaKeepAlivePhase.off]
-  /// unless someone called `MovaKeepAlive.setKeepAlive`.
+  /// unless someone called `IMovaKeepAlive.setKeepAlive`.
   ///
   /// 本播放器处于待机生命周期的哪一段；除非有人调用了
-  /// `MovaKeepAlive.setKeepAlive`，否则恒为 [MovaKeepAlivePhase.off]。
+  /// `IMovaKeepAlive.setKeepAlive`，否则恒为 [MovaKeepAlivePhase.off]。
   ///
   /// Example / 示例:
   /// ```dart
@@ -217,12 +217,6 @@ class MovaState {
   /// )
   /// ```
   final MovaKeepAlivePhase keepAlivePhase;
-
-  /// Old name of [keepAlivePhase].
-  ///
-  /// [keepAlivePhase] 的旧名。
-  @Deprecated('Use keepAlivePhase')
-  MovaKeepAlivePhase get standby => keepAlivePhase;
 
   /// Creates a state snapshot; all fields default to the 0.1.0 baseline
   /// behaviour (stopped, full volume/brightness/rate/zoom, contain fit,
@@ -237,7 +231,7 @@ class MovaState {
     this.completed = false,
     this.locked = false,
     this.fullscreen = false,
-    this.orientation = MovaOrientation.auto,
+    this.orient = MovaOrientMode.auto,
     this.pip = false,
     this.pipSupported = false,
     this.mini = false,
@@ -282,7 +276,7 @@ class MovaState {
     bool? completed,
     bool? locked,
     bool? fullscreen,
-    MovaOrientation? orientation,
+    MovaOrientMode? orient,
     bool? pip,
     bool? pipSupported,
     bool? mini,
@@ -318,7 +312,7 @@ class MovaState {
       completed: completed ?? this.completed,
       locked: locked ?? this.locked,
       fullscreen: fullscreen ?? this.fullscreen,
-      orientation: orientation ?? this.orientation,
+      orient: orient ?? this.orient,
       pip: pip ?? this.pip,
       pipSupported: pipSupported ?? this.pipSupported,
       mini: mini ?? this.mini,
@@ -359,7 +353,7 @@ class MovaState {
         other.completed == completed &&
         other.locked == locked &&
         other.fullscreen == fullscreen &&
-        other.orientation == orientation &&
+        other.orient == orient &&
         other.pip == pip &&
         other.pipSupported == pipSupported &&
         other.mini == mini &&
@@ -394,7 +388,7 @@ class MovaState {
       completed,
       locked,
       fullscreen,
-      orientation,
+      orient,
       pip,
       pipSupported,
       rendered,

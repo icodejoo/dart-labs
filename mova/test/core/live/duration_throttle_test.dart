@@ -1,6 +1,6 @@
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mova/src/core/engine.dart';
+import 'package:mova/src/core/mova.dart';
 import 'package:mova/src/core/events/events.dart';
 import 'package:mova/src/core/model/source.dart';
 import 'package:mova/src/core/options/options.dart';
@@ -10,18 +10,18 @@ import '../../support/fake_kernel.dart';
 /// 直播 duration 持续增长时 MovaDurationChange 的节流：变化不足 durationStep 的更新被吞掉。
 void main() {
   late FakeKernel kernel;
-  late MovaEngine engine;
+  late Mova mova;
   late List<MovaDurationChange> changes;
 
-  Future<void> setUp0({MovaLiveConfig live = const MovaLiveConfig(), MovaStreamType type = MovaStreamType.live}) async {
+  Future<void> setUp0({MovaLiveOpts live = const MovaLiveOpts(), MovaStreamType type = MovaStreamType.live}) async {
     kernel = FakeKernel();
-    engine = MovaEngine(kernel: kernel, options: MovaOpts(live: live));
+    mova = Mova(kernel: kernel, options: MovaOpts(live: live));
     changes = [];
-    addTearDown(engine.dispose);
-    engine.events.listen((e) {
+    addTearDown(mova.dispose);
+    mova.events.listen((e) {
       if (e is MovaDurationChange) changes.add(e);
     });
-    await engine.open(MovaSource('https://h/a', type: type));
+    await mova.open(MovaSource('https://h/a', type: type));
   }
 
   /// 以 [stepMs] 毫秒为步长推送 [n] 次递增的 duration，起点 [startMs]。
@@ -33,8 +33,8 @@ void main() {
   }
 
   test('默认 durationStep 为 2 秒；copyWith / == / hashCode 带上该字段', () {
-    expect(const MovaLiveConfig().durationStep, const Duration(seconds: 2));
-    const c = MovaLiveConfig();
+    expect(const MovaLiveOpts().durationStep, const Duration(seconds: 2));
+    const c = MovaLiveOpts();
     expect(c.copyWith(durationStep: const Duration(seconds: 5)).durationStep, const Duration(seconds: 5));
     expect(c.copyWith().durationStep, c.durationStep);
     expect(c, isNot(c.copyWith(durationStep: Duration.zero)));
@@ -56,10 +56,10 @@ void main() {
     await setUp0();
     await grow(startMs: 1500, n: 1);
     expect(changes.single.duration, const Duration(milliseconds: 1500));
-    expect(engine.state.duration, const Duration(milliseconds: 1500));
+    expect(mova.state.duration, const Duration(milliseconds: 1500));
     await grow(startMs: 1600, n: 5); // 仅增长 0.5s，不足阈值
     expect(changes, hasLength(1));
-    expect(engine.state.duration, const Duration(milliseconds: 1500));
+    expect(mova.state.duration, const Duration(milliseconds: 1500));
   });
 
   test('直播：回落到 0（换流重置）与反向跳变超过阈值都会上报', () async {
@@ -75,7 +75,7 @@ void main() {
   });
 
   test('durationStep 为 0：关闭节流，每次变化都上报', () async {
-    await setUp0(live: const MovaLiveConfig(durationStep: Duration.zero));
+    await setUp0(live: const MovaLiveOpts(durationStep: Duration.zero));
     await grow(startMs: 1000, n: 50);
     expect(changes, hasLength(50));
   });
@@ -90,7 +90,7 @@ void main() {
     await setUp0();
     await grow(startMs: 60000, n: 1);
     expect(changes, hasLength(1));
-    await engine.open(const MovaSource('https://h/b', type: MovaStreamType.live));
+    await mova.open(const MovaSource('https://h/b', type: MovaStreamType.live));
     await grow(startMs: 60500, n: 1);
     expect(changes, hasLength(2));
   });

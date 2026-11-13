@@ -14,12 +14,12 @@ WAV。当前唯一相关实现 `MovaAudioExtractor`（`platform_impl/mpv_audio_e
 必须先有二期 ffmpeg 瘦身产出的自建 FFI 绑定（`vm_extract_audio_chunk` 或等价物）才能接入
 阶段 3 及之后。阶段 1/2/6 是纯 Dart 逻辑，不依赖此前提，可以现在先做。
 
-**Tech Stack:** 沿用现有 `mova_stt` 包（`sherpa_onnx` + `ZipformerSttEngine`），新增模块
+**Tech Stack:** 沿用现有 `mova_stt` 包（`sherpa_onnx` + `ZipformerSttMova`），新增模块
 放在 `mova_stt/lib/src/`（调度/清单/去重为纯 Dart）与 `mova` 主包
-`lib/src/core/stt/`（`MovaApi` 暴露的分片状态视图）。不新增第三方依赖。
+`lib/src/core/stt/`（`IMovaApi` 暴露的分片状态视图）。不新增第三方依赖。
 
 设计讨论依据：本次对话（2026-08-06），承接
-[2026-08-04-stt-engine-decision.md](../notes/2026-08-04-stt-engine-decision.md)
+[2026-08-04-stt-recognizer-decision.md](../notes/2026-08-04-stt-recognizer-decision.md)
 "批量预转写"一节记录的 ffmpeg FFI 阻塞现状。
 
 ---
@@ -66,7 +66,7 @@ class ChunkScheduler {
   默认 2，可配置但不建议超过 3）。
 - `chunk[0]` 启动时直接 `enqueueHigh(0)`。
 - 每个 worker 循环 `nextTask()` 拿分片索引 → 调 extractor 抽取 → 喂
-  `ZipformerSttEngine` 解码 → 标记 `done` → 发出"分片完成"事件。
+  `ZipformerSttMova` 解码 → 标记 `done` → 发出"分片完成"事件。
 
 ## 3. seek / 快进快退 → 抢占高优先级
 
@@ -108,10 +108,10 @@ List"改成"按分片完成事件增量合入 `SplayTreeMap<Duration, MovaSttCue
 `.srt`"改成"按 `(sourceHash, chunkIndex)` 存每片"**。重新打开同一视频：已 `done` 的分片
 读缓存直接标记完成、跳过重新入队；`pending` 的分片正常走调度。
 
-## 7. `MovaApi` 新增状态面
+## 7. `IMovaApi` 新增状态面
 
 ```dart
-abstract class MovaSttApi {
+abstract class IMovaSttApi {
   // ...已有字段...
   Stream<Map<int, SttChunkState>> get chunkStates;  // 供 UI 显示"这段还没生成"
 }
@@ -124,8 +124,8 @@ abstract class MovaSttApi {
 | 0 | 二期 ffmpeg 瘦身 → 产出 `vm_extract_audio_chunk` 或等价 FFI | **是，硬阻塞** |
 | 1 | `ChunkManifest` + `ChunkScheduler`（注入假 extractor 单测） | 否 |
 | 2 | 边界去重纯函数 + seek 防抖纯函数 | 否 |
-| 3 | 接入真实 extractor + `ZipformerSttEngine` 单片解码联调 | 是 |
-| 4 | seek 抢占接入真实 `MovaApi` seek 事件 | 是（联调） |
+| 3 | 接入真实 extractor + `ZipformerSttMova` 单片解码联调 | 是 |
+| 4 | seek 抢占接入真实 `IMovaApi` seek 事件 | 是（联调） |
 | 5 | `MovaSubtitleOverlayComponent`/`MovaSttSvc` 接入合并展示 | 是 |
 | 6 | 断点续存缓存（按分片存取） | 否/是均可，独立模块 |
 | 7 | 真机端到端验证（本项目 STT 相关迄今全部未做过完整端到端真机验证，见

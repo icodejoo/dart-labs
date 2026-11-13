@@ -11,7 +11,7 @@ import 'dir_provider.dart';
 /// 每个缓存缩略图文件使用的扩展名后缀。
 const String _kSuffix = '.thumb';
 
-/// A [MovaThumbCache] backed by a directory of files, evicting by total bytes
+/// A [IMovaThumbCache] backed by a directory of files, evicting by total bytes
 /// with least-recently-touched-first ordering.
 ///
 /// Recency is the file's last-modified stamp: [write] sets it implicitly and
@@ -19,12 +19,12 @@ const String _kSuffix = '.thumb';
 /// Every filesystem error is swallowed — a broken cache directory must degrade
 /// the preview feature, never crash playback.
 ///
-/// 以文件目录为后端的 [MovaThumbCache]，按总字节数淘汰，最久未触碰者先删。
+/// 以文件目录为后端的 [IMovaThumbCache]，按总字节数淘汰，最久未触碰者先删。
 ///
 /// "最近使用"以文件的 last-modified 时间戳为准：[write] 会隐式更新它，
 /// [read] 会主动刷新它，因此反复被读取的缩略图不会被淘汰。所有文件系统错误
 /// 都被吞掉——缓存目录坏掉只能让预览功能降级，绝不能让播放崩溃。
-class MovaDiskThumbCache implements MovaThumbCache {
+class MovaDiskThumbCache implements IMovaThumbCache {
   /// Creates a disk cache rooted at [dir]'s resolved path.
   ///
   /// 创建一个以 [dir] 解析出的路径为根的磁盘缓存。
@@ -37,7 +37,7 @@ class MovaDiskThumbCache implements MovaThumbCache {
   /// Resolver for the cache directory.
   ///
   /// 缓存目录的解析器。
-  final MovaThumbDirProvider dir;
+  final IMovaThumbDirProvider dir;
 
   /// Total byte budget across all cached files.
   ///
@@ -233,6 +233,6 @@ class MovaDiskThumbCache implements MovaThumbCache {
     // resolvers retain their contract without a new port requirement.
     //
     // 只有租约 provider 选择由缓存负责销毁；普通解析器契约不变，端口不加新要求。
-    if (dir case final MovaThumbDirLease lease) await lease.dispose();
+    if (dir case final IMovaThumbDirLease lease) await lease.dispose();
   }
 }

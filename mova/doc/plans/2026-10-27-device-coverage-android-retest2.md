@@ -62,7 +62,7 @@
 
 - 开始收尾：经现有验证页恢复媒体音量30%=6/20，USB常亮恢复7，force-stop隔离包；保留原生设置、进程与屏幕状态，再结束仅本次启动的两个源进程。
 
-- 收尾检查点：隔离包pid为空（force-stop），USB常亮=7，媒体streamVolume=6/20；仍isKeyguardShowing=false、mScreenOnFully=true；本次两个源PID已结束，engine.dart哈希与安装时一致。证据 rerun3-final-state.json / rerun3-final-*.txt。
+- 收尾检查点：隔离包pid为空（force-stop），USB常亮=7，媒体streamVolume=6/20；仍isKeyguardShowing=false、mScreenOnFully=true；本次两个源PID已结束，player.dart哈希与安装时一致。证据 rerun3-final-state.json / rerun3-final-*.txt。
 
 - 开始交付核验：核对源端口已关闭、受保护源码哈希保持、61份有效失败与15份剔除上下文及2份重发成功完整时间线存在；生成最终报告和证据链接检查。
 
@@ -226,7 +226,7 @@ landed 为完整 RESTART 序列中首个 target±500ms；播放态 continued 由
 | 126542 | HLS_RESTART {'run': 62, 'position': 23, 'path': 'http://127.0.0.1:18084/high/index.m3u8', 'pause': 'no'} |
 | 131241 | HLS_RESULT {'run': 62, 'cutover': True, 'paused': False, 'target': 14423, 'landed': -1, 'continued': 4663, 'restarts': [23, 23], 'resumed': False, 'continuedOk': False, 'pass': False, 'pause': 'no', 'path': 'http://127.0.0.1:18084/high/index.m3u8'} |
 
-进度流中的短暂目标值不视为原生落点；例如首个失败可从 NATIVE_PROGRESS 核对瞬态目标值后回零，验收仍以原生 RESTART 与 time-pos 为准。未直接观测引擎私有 _pendingSeekTarget，本轮不将未重发的内部原因当作已证实根因。
+进度流中的短暂目标值不视为原生落点；例如首个失败可从 NATIVE_PROGRESS 核对瞬态目标值后回零，验收仍以原生 RESTART 与 time-pos 为准。未直接观测播放器私有 _pendingSeekTarget，本轮不将未重发的内部原因当作已证实根因。
 
 ABR MovaAbrDownShift 出现于有效样本：{'cutover': [63, 128], 'normal': [57], 'paused': [], 'normal-extra': [], 'paused-extra': []}；按每次切档列出，不将 EVENT/HLS_EVENT 的同一事件重复计数。
 
@@ -237,7 +237,7 @@ ABR MovaAbrDownShift 出现于有效样本：{'cutover': [63, 128], 'normal': [5
 - 安装前 lastUpdateTime=2026-10-27 21:09:46；安装后 `lastUpdateTime=2026-10-27 21:27:08`；SERVER build=rerun3-20261027。
 - Gradle APK SHA256：`5146bdaf5ab43a1b55583cd14a2bcacf99522d4b8b4be76ebaa94697f339450e`。
 - 重签APK与设备拉回APK一致：`f51f3b4bd4245b3bc49c1e8c3d041aaeb38a6b00ae83c2d155d7a608e3bbafba`。
-- engine.dart SHA256：`4870693f841f85e512d2ac0d649e18215cc11d9176125ac961559a383b00d68c`，与起测和收尾一致，未修改或转换CRLF。
+- mova.dart SHA256：`4870693f841f85e512d2ac0d649e18215cc11d9176125ac961559a383b00d68c`，与起测和收尾一致，未修改或转换CRLF。
 - [rerun3-build-manifest.json](../../example/tool/coverage_evidence/rerun3-build-manifest.json)、[rerun3-package-before.txt](../../example/tool/coverage_evidence/rerun3-package-before.txt)、[rerun3-package-after.txt](../../example/tool/coverage_evidence/rerun3-package-after.txt)、[rerun3-certificate.txt](../../example/tool/coverage_evidence/rerun3-certificate.txt)、[rerun3-start.json](../../example/tool/coverage_evidence/rerun3-start.json)。
 
 ## 最终设备状态与范围

@@ -1,24 +1,24 @@
 // 未上机。网络闸门的 entered/released 作为重开在途的证据。
 import 'package:mova/mova.dart';
 import 'cp1_harness.dart';
-import 'cp1_wakeswap_auto.dart' show cp1Live;
+import 'cp1_wakecutover_auto.dart' show cp1Live;
 
 Future<void> runEdgepause(Cp1Harness h) async {
   for (final fallback in [false, true]) {
     for (var run = 0; run < h.runs; run++) {
       await h.control('reset');
-      final a = createMovaEngine(
+      final a = createMova(
         preciseFirstFrame: true,
         options: const MovaOpts(
-          live: MovaLiveConfig(backToLive: MovaBackToLive.reopen),
-          keepAlive: MovaKeepAliveConfig(allowHls: false),
+          live: MovaLiveOpts(backToLive: MovaBackToLive.reopen),
+          keepAlive: MovaKeepAliveOpts(allowHls: false),
         ),
       );
       await h.mount(a);
       await a.open(cp1Live('live'));
       await h.until(() => a.state.rendered);
       if (fallback) {
-        await (a as MovaKeepAlive).setKeepAlive(true);
+        await (a as IMovaKeepAlive).setKeepAlive(true);
       }
       final phase = a.state.keepAlivePhase.name;
       await h.control('arm', {'kind': 'reopen'});

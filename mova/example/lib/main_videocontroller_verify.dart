@@ -60,7 +60,7 @@ class _Host extends StatefulWidget {
 }
 
 class _HostState extends State<_Host> {
-  MovaApi? _engine;
+  IMovaApi? _mova;
 
   @override
   void initState() {
@@ -81,12 +81,12 @@ class _HostState extends State<_Host> {
   /// E2：创建后真挂 MovaPlayer 再卸载，连续 N 次。
   Future<void> _e2() async {
     for (var i = 0; i < kN; i++) {
-      final e = createMovaEngine();
-      setState(() => _engine = e);
+      final e = createMova();
+      setState(() => _mova = e);
       await Future<void>.delayed(const Duration(milliseconds: 500));
       unawaited(e.open(MovaSource('$kUrl?t=${DateTime.now().microsecondsSinceEpoch}')));
       await Future<void>.delayed(const Duration(seconds: 1));
-      setState(() => _engine = null);
+      setState(() => _mova = null);
       await Future<void>.delayed(const Duration(milliseconds: 300));
       final (ms, to) = await _timed(e.dispose);
       _out('E2 round=$i disposeMs=$ms hung=$to');
@@ -140,10 +140,10 @@ class _HostState extends State<_Host> {
     }
   }
 
-  /// E6：createMovaEngine() 默认（懒创建），从不挂界面，连续创建销毁 N 次。
+  /// E6：createMova() 默认（懒创建），从不挂界面，连续创建销毁 N 次。
   Future<void> _e6() async {
     for (var i = 0; i < kN; i++) {
-      final e = createMovaEngine();
+      final e = createMova();
       await Future<void>.delayed(const Duration(milliseconds: 300));
       unawaited(e.open(MovaSource('$kUrl?t=${DateTime.now().microsecondsSinceEpoch}')));
       await Future<void>.delayed(const Duration(milliseconds: 800));
@@ -155,7 +155,7 @@ class _HostState extends State<_Host> {
   /// E7：先 open 播放、1s 后才挂上 MovaPlayer，确认画面尺寸事件正常、销毁正常。
   Future<void> _e7() async {
     for (var i = 0; i < 3; i++) {
-      final e = createMovaEngine();
+      final e = createMova();
       var w = 0, h = 0;
       final sub = e.events.listen((ev) {
         if (ev is MovaSizeChange) {
@@ -166,11 +166,11 @@ class _HostState extends State<_Host> {
       unawaited(e.open(MovaSource('$kUrl?t=${DateTime.now().microsecondsSinceEpoch}')));
       await Future<void>.delayed(const Duration(seconds: 1));
       final sizeBefore = '${w}x$h';
-      setState(() => _engine = e); // 此刻才读取 renderHandle，创建 VideoController
+      setState(() => _mova = e); // 此刻才读取 renderHandle，创建 VideoController
       await Future<void>.delayed(const Duration(seconds: 2));
       final sizeAfter = '${w}x$h';
       final playing = e.state.playing;
-      setState(() => _engine = null);
+      setState(() => _mova = null);
       await Future<void>.delayed(const Duration(milliseconds: 300));
       await sub.cancel();
       final (ms, to) = await _timed(e.dispose);
@@ -178,12 +178,12 @@ class _HostState extends State<_Host> {
     }
   }
 
-  /// E8：无缝切换回归——影子引擎预热期间就要有画面管线，切换后新 active 能出画面。
+  /// E8：无缝切换回归——影子播放器预热期间就要有画面管线，切换后新 active 能出画面。
   Future<void> _e8() async {
-    final cutover = MovaCutoverEngine(
-      engineFactory: () => createMovaEngine(options: const MovaOpts(cutover: MovaCutoverConfig(enabled: true))),
+    final cutover = MovaCutover(
+      movaFactory: () => createMova(options: const MovaOpts(cutover: MovaCutoverOpts(enabled: true))),
     );
-    setState(() => _engine = cutover);
+    setState(() => _mova = cutover);
     await Future<void>.delayed(const Duration(milliseconds: 500));
     unawaited(cutover.open(MovaSource('http://127.0.0.1:8098/t5.mp4?t=${DateTime.now().microsecondsSinceEpoch}')));
     await Future<void>.delayed(const Duration(seconds: 2));
@@ -194,7 +194,7 @@ class _HostState extends State<_Host> {
     await Future<void>.delayed(const Duration(seconds: 2));
     _out('E8 cutoverOk=$ok cutoverMs=$ms epoch $epochBefore->${cutover.state.renderEpoch} playing=${cutover.state.playing} '
         'size=${cutover.state.width}x${cutover.state.height}');
-    setState(() => _engine = null);
+    setState(() => _mova = null);
     await Future<void>.delayed(const Duration(milliseconds: 300));
     final (dms, to) = await _timed(cutover.dispose);
     _out('E8 disposeMs=$dms hung=$to');
@@ -345,7 +345,7 @@ class _HostState extends State<_Host> {
 
   @override
   Widget build(BuildContext context) {
-    final e = _engine;
+    final e = _mova;
     return Scaffold(
       backgroundColor: Colors.black,
       body: Center(

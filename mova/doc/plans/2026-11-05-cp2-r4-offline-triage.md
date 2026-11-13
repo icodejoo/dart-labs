@@ -8,14 +8,14 @@
 
 依据：
 
-- `lib/src/core/options/ad_config.dart`：MovaAdWaitByKind 前/后贴片默认 false；注释明确“不等待”回到普通打开行为。`waitsFor` 由广告位覆盖值优先、否则配置策略裁决。
+- `lib/src/core/options/ad_opts.dart`：MovaAdWaitByKind 前/后贴片默认 false；注释明确“不等待”回到普通打开行为。`waitsFor` 由广告位覆盖值优先、否则配置策略裁决。
 - `lib/src/core/session/session.dart`：`_wantsWait` 同时检查切换能力和 `waitsFor`；`_playAd` 的 oneShot 仅等待型走 `_warm` / `_commit`，nowait 直接 `_api.open`。`_resumeAdCore` 串播下一条也经过这个判断。`ads.dart` 为共享会话薄适配器，没有另一套 pod 策略。
-- `lib/src/core/cutover/cutover_engine.dart`：open 委派当前 `_active.open`；epoch 表示渲染引擎换指，普通打开不递增。
+- `lib/src/core/cutover/cutover.dart`：open 委派当前 `_active.open`；epoch 表示播放器换指，普通打开不递增。
 - 总计划 §CP0 第一轮落地记录已经更正：未配置等待的前贴片按设计直接 open，0→0 不能证明 cutoverTo 回落。A27 是等待型 prepare+commit 的修复；CHANGELOG“广告 pod 的每条等待型广告”及只读 CLAUDE.md 遗留③的“等待型 pod”范围一致。
 
 本次更新总计划 CP2 行和 CHANGELOG，明确 wait/nowait 两组判据；不修改 CLAUDE.md，不改变产品实现。
 
-交给 wt-mova-cp2 修改 `example/lib/verify_auto/cp2_pod2_auto.dart` 的 pass 条件：保留 `epoch1 >= epoch0`、两条 path 和按源首帧时序校验，将无条件 `api.state.renderEpoch > epoch1` 改为 `(!wait || api.state.renderEpoch > epoch1)`。nowait 可另报 engine 身份/epoch 是否保持，不能要求递增；wait 仍要求递增。保留原始 FAIL，修正判据后使用新 run-id 复验，不把离线定性冒充新真机 PASS。
+交给 wt-mova-cp2 修改 `example/lib/verify_auto/cp2_pod2_auto.dart` 的 pass 条件：保留 `epoch1 >= epoch0`、两条 path 和按源首帧时序校验，将无条件 `api.state.renderEpoch > epoch1` 改为 `(!wait || api.state.renderEpoch > epoch1)`。nowait 可另报播放器身份/epoch 是否保持，不能要求递增；wait 仍要求递增。保留原始 FAIL，修正判据后使用新 run-id 复验，不把离线定性冒充新真机 PASS。
 
 ## 暂停/后台：夹具把媒体位置当 slot 时钟
 

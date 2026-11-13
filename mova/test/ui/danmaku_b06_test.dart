@@ -7,7 +7,7 @@ import '../support/pump.dart';
 
 /// 创建已播放的弹幕替身，可注入密集列表。
 FakeMovaApi _api({List<MovaDanmakuItem>? items}) {
-  final api = FakeMovaApi(options: MovaOpts(danmaku: MovaDanmakuConfig(
+  final api = FakeMovaApi(options: MovaOpts(danmaku: MovaDanmakuOpts(
     enabled: true, crossDuration: const Duration(seconds: 4),
     items: items ?? const [MovaDanmakuItem(text: 'bullet', time: Duration(seconds: 1))],
   )));

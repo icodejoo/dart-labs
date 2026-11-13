@@ -46,10 +46,10 @@ class MovaProg {
   int get hashCode => Object.hash(position, buffer);
 }
 
-/// 可选的同步进度能力；不要求已有 MovaApi 实现增加成员。
+/// 可选的同步进度能力；不要求已有 IMovaApi 实现增加成员。
 ///
-/// 示例：`if (api is MovaProgressSource) print(api.progressValue.position);`
-abstract interface class MovaProgressSource {
+/// 示例：`if (api is IMovaProgressSource) print(api.progressValue.position);`
+abstract interface class IMovaProgressSource {
   /// 返回当前播放位置与缓冲快照，无参数；不等待下一个 tick。
   ///
   /// 示例：`final position = source.progressValue.position;`

@@ -84,12 +84,12 @@ MovaRawEvent? copyEvent(int id, int? Function() reasonReader) {
   return MovaRawEvent(id, endFileReason: reason);
 }
 
-/// 提供 MovaMpvEventBackend 的 FFI 工厂函数。
+/// 提供 IMovaMpvEventBackend 的 FFI 工厂函数。
 ///
 /// [native] 是 [NativePlayer] 实例。
 /// [handleAddress] 是其底层 handle 指针的地址。
 /// [pollInDebug] 决定是否在调试模式下降级为轮询（比如热重载后原生回调可能失效）。
-MovaMpvEventBackend createFfiMpvEventBackend(
+IMovaMpvEventBackend createFfiMpvEventBackend(
   NativePlayer native,
   int handleAddress, {
   required bool pollInDebug,
@@ -101,8 +101,8 @@ MovaMpvEventBackend createFfiMpvEventBackend(
   );
 }
 
-/// 基于 `dart:ffi` 的 [MovaMpvEventBackend] 实现，封装了 mpv 的弱客户端逻辑。
-class FfiMpvEventBackend implements MovaMpvEventBackend {
+/// 基于 `dart:ffi` 的 [IMovaMpvEventBackend] 实现，封装了 mpv 的弱客户端逻辑。
+class FfiMpvEventBackend implements IMovaMpvEventBackend {
   /// 构造 FFI 后端。
   ///
   /// [mpv] 是生成绑定的对象。

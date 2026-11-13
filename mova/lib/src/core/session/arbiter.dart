@@ -1,6 +1,6 @@
 import '../ad/fail.dart';
 import '../model/ad.dart';
-import '../options/ad_config.dart';
+import '../options/ad_opts.dart';
 import 'timeline.dart';
 
 /// 节点失败裁决；示例：`event.verdict == MovaNodeFailVerdict.failItem`。
@@ -17,7 +17,7 @@ enum MovaNodeFailVerdict {
   /// 结束当前条目，等待宿主处理。
   failItem,
 
-  /// 保留当前播放或交给引擎恢复。
+  /// 保留当前播放或交给播放器恢复。
   ignore,
 }
 
@@ -41,19 +41,19 @@ class MovaNodeFailure {
   final MovaAdBreak? adBreak;
 }
 
-/// 纯裁决：广告策略只调用一次，正片恢复期间由引擎负责。
+/// 纯裁决：广告策略只调用一次，正片恢复期间由播放器负责。
 MovaNodeFailVerdict movaArbitrate(
   MovaNodeFailure f, {
-  required MovaAdConfig ads,
-  required bool engineRecovering,
+  required MovaAdOpts ads,
+  required bool movaRecovering,
 }) {
   if (f.node.kind == MovaNodeKind.content) {
-    if (engineRecovering && !f.giveUp) return MovaNodeFailVerdict.ignore;
+    if (movaRecovering && !f.giveUp) return MovaNodeFailVerdict.ignore;
     return f.fatal || f.giveUp
         ? MovaNodeFailVerdict.failItem
         : MovaNodeFailVerdict.ignore;
   }
-  if (engineRecovering &&
+  if (movaRecovering &&
       !f.fatal &&
       !f.giveUp &&
       f.kind == MovaAdFailKind.playerError) {

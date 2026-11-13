@@ -6,7 +6,7 @@ import 'package:mova/mova.dart';
 /// `switchQuality` 换档续播的真机验证探针。
 ///
 /// 验证目标：换档在内核侧是一次 `open()`，紧随其后的续播 seek 若直接下发会被
-/// mpv 丢弃、真机上还会把播放器卡死（见 `MovaEngine.open` 的注释）。修复后该
+/// mpv 丢弃、真机上还会把播放器卡死（见 `Mova.open` 的注释）。修复后该
 /// seek 走与 `seek()` 相同的寄存判据，应当做到：换档后从原播放位置续播、不从
 /// 头开始、也不卡死。
 ///
@@ -18,7 +18,7 @@ import 'package:mova/mova.dart';
 /// 跑法：`flutter run -t lib/main_quality_switch_verify.dart -d <id> --release`
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  MovaEngine.ensureInitialized();
+  Mova.ensureInitialized();
   runApp(const MaterialApp(home: _Page()));
 }
 
@@ -65,10 +65,10 @@ class _PageState extends State<_Page> {
     // 在换档后约 0.5s 又自动触发一次 downshift、把寄存的续播 seek 冲掉。
     // `switchQuality` 里的 `_abrPolicy.reset()` 就是为这个加的，这里必须开着
     // ABR 才验得到。
-    final engine = createMovaEngine();
+    final mova = createMova();
     Duration? latestPos;
-    final progSub = engine.progress.listen((p) => latestPos = p.position);
-    final evSub = engine.events.listen((e) {
+    final progSub = mova.progress.listen((p) => latestPos = p.position);
+    final evSub = mova.events.listen((e) {
       if (e is MovaDurationChange) _mark('MovaDurationChange ${e.duration}');
       if (e is MovaQualityChange) _mark('MovaQualityChange ${e.quality.label}');
       if (e is MovaQualityListChange) _mark('MovaQualityListChange n=${e.qualities.length}');
@@ -79,19 +79,19 @@ class _PageState extends State<_Page> {
       if (e is MovaSeeked) _mark('MovaSeeked ${e.position}');
     });
 
-    await engine.open(const MovaSource(_kMaster, title: '多码率 HLS'));
-    await _waitPlaying(engine);
-    _mark('起播成功，position=$latestPos duration=${engine.state.duration}');
+    await mova.open(const MovaSource(_kMaster, title: '多码率 HLS'));
+    await _waitPlaying(mova);
+    _mark('起播成功，position=$latestPos duration=${mova.state.duration}');
 
-    await engine.loadQualities();
-    final qs = engine.state.qualities.where((q) => !q.isAuto).toList();
+    await mova.loadQualities();
+    final qs = mova.state.qualities.where((q) => !q.isAuto).toList();
     _mark('档位解析：${qs.map((q) => '${q.label}(${q.height})').join(', ')}');
     if (qs.length < 2) {
       _mark('=== 结论：档位不足 2 个，无法验证换档 ===');
-      await _teardown(engine, progSub, evSub);
+      await _teardown(mova, progSub, evSub);
       return;
     }
-    final cur = engine.state.currentQuality;
+    final cur = mova.state.currentQuality;
     final target = qs.firstWhere((q) => q.uri != cur?.uri, orElse: () => qs.last);
 
     _mark('先播 ${_kSwitchAfter.inSeconds}s 再换档');
@@ -110,9 +110,9 @@ class _PageState extends State<_Page> {
     int? tMoved;
     Duration? lowestAfter;
     final samples = <String>[];
-    final watch = engine.progress.listen((p) {
+    final watch = mova.progress.listen((p) {
       samples.add('${_clock.elapsedMilliseconds - tSwitch}ms=${p.position.inMilliseconds}ms');
-      // 跳过换档瞬间那一两个尚属旧引擎的读数。
+      // 跳过换档瞬间那一两个尚属旧播放器的读数。
       if (_clock.elapsedMilliseconds - tSwitch > 300) {
         final lo = lowestAfter;
         if (lo == null || p.position < lo) lowestAfter = p.position;
@@ -123,7 +123,7 @@ class _PageState extends State<_Page> {
       }
     });
 
-    await engine.switchQuality(target);
+    await mova.switchQuality(target);
     _mark('switchQuality 返回（耗时 ${_clock.elapsedMilliseconds - tSwitch}ms）');
 
     final deadline = DateTime.now().add(_kObserve);
@@ -152,22 +152,22 @@ class _PageState extends State<_Page> {
           '停在续播点那几秒是新档位缓冲，属正常。';
     }
     _mark('=== 结论：$verdict ===');
-    _mark('最终 currentQuality=${engine.state.currentQuality?.label} '
-        'duration=${engine.state.duration} error=${engine.state.error}');
+    _mark('最终 currentQuality=${mova.state.currentQuality?.label} '
+        'duration=${mova.state.duration} error=${mova.state.error}');
 
-    await _teardown(engine, progSub, evSub);
+    await _teardown(mova, progSub, evSub);
   }
 
-  /// 拆掉订阅并释放引擎（`dispose()` 挂住本身就是卡死的症状之一）。
+  /// 拆掉订阅并释放播放器（`dispose()` 挂住本身就是卡死的症状之一）。
   Future<void> _teardown(
-    MovaApi engine,
+    IMovaApi mova,
     StreamSubscription<MovaProg> progSub,
     StreamSubscription<MovaEvent> evSub,
   ) async {
     await progSub.cancel();
     await evSub.cancel();
     final t = _clock.elapsedMilliseconds;
-    await engine.dispose().timeout(const Duration(seconds: 8), onTimeout: () {
+    await mova.dispose().timeout(const Duration(seconds: 8), onTimeout: () {
       _mark('!!! dispose() 8s 未返回——播放器已卡死');
     });
     _mark('dispose 完成，耗时 ${_clock.elapsedMilliseconds - t}ms');
@@ -175,11 +175,11 @@ class _PageState extends State<_Page> {
   }
 
   /// 等到真正有播放进度为止。
-  Future<void> _waitPlaying(MovaApi engine) {
+  Future<void> _waitPlaying(IMovaApi mova) {
     final completer = Completer<void>();
     late final StreamSubscription<MovaProg> sub;
-    sub = engine.progress.listen((p) {
-      if (p.position > Duration.zero && !engine.state.buffering) {
+    sub = mova.progress.listen((p) {
+      if (p.position > Duration.zero && !mova.state.buffering) {
         unawaited(sub.cancel());
         if (!completer.isCompleted) completer.complete();
       }

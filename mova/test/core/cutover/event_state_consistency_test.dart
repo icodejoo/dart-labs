@@ -6,7 +6,7 @@ import '../../support/fake_api.dart';
 import '../../support/fake_kernel.dart';
 import 'cutover_operation_test.dart' show settleOperations;
 
-/// 模拟 state 比 events 多一层投递的实际引擎组合，不能依赖两条流的偶然先后。
+/// 模拟 state 比 events 多一层投递的实际播放器组合，不能依赖两条流的偶然先后。
 class DelayedStatesApi extends FakeMovaApi {
   DelayedStatesApi({super.options});
   @override
@@ -18,7 +18,7 @@ class DelayedStatesApi extends FakeMovaApi {
 
 void main() {
   test('H77 代理缓冲事件接收时 state 与载荷一致', () async {
-    final api = MovaCutoverEngine(engineFactory: () => DelayedStatesApi());
+    final api = MovaCutover(movaFactory: () => DelayedStatesApi());
     addTearDown(api.dispose);
     final active = api.active as FakeMovaApi;
     active.push(active.state.copyWith(buffering: true));
@@ -36,13 +36,13 @@ void main() {
     expect(seen, [(false, false, 0)]);
   });
   test('H77 换指后事件使用新 epoch 与同一状态，重入通知顺序稳定', () async {
-    final engines = <DelayedStatesApi>[];
-    final api = MovaCutoverEngine(
-      engineFactory: () {
+    final movas = <DelayedStatesApi>[];
+    final api = MovaCutover(
+      movaFactory: () {
         final e = DelayedStatesApi(
-          options: const MovaOpts(cutover: MovaCutoverConfig(enabled: true)),
+          options: const MovaOpts(cutover: MovaCutoverOpts(enabled: true)),
         );
-        engines.add(e);
+        movas.add(e);
         return e;
       },
     );
@@ -51,7 +51,7 @@ void main() {
       const MovaSource('https://host/new.mp4'),
       plan: const MovaWarmPlan(trigger: MovaEagerWarm()),
     );
-    final shadow = engines.last;
+    final shadow = movas.last;
     const tick = MovaProg(
       position: Duration(seconds: 1),
       buffer: Duration(seconds: 10),
@@ -79,18 +79,18 @@ void main() {
     await settleOperations();
     expect(seen, [(false, false, 1)]);
   });
-  test('普通 MovaEngine 缓冲事件接收时 state 与载荷一致', () async {
+  test('普通 Mova 缓冲事件接收时 state 与载荷一致', () async {
     final kernel = FakeKernel();
-    final engine = MovaEngine(
+    final mova = Mova(
       kernel: kernel,
       fetcher: const MovaTestHttpFetch(),
     );
-    addTearDown(engine.dispose);
-    await engine.open(const MovaSource('https://host/ordinary.mp4'));
+    addTearDown(mova.dispose);
+    await mova.open(const MovaSource('https://host/ordinary.mp4'));
     final seen = <(bool, bool)>[];
-    engine.events.listen((e) {
+    mova.events.listen((e) {
       if (e is MovaBufferChange) {
-        seen.add((e.buffering, engine.state.buffering));
+        seen.add((e.buffering, mova.state.buffering));
       }
     });
     kernel.emitBuffering(true);
@@ -98,23 +98,23 @@ void main() {
     kernel.emitBuffering(false);
     await settleOperations();
     expect(seen, [(true, true), (false, false)]);
-    expect(engine.state.renderEpoch, 0);
+    expect(mova.state.renderEpoch, 0);
   });
-  test('普通 MovaEngine 时长与播放事件接收时 state 一致', () async {
+  test('普通 Mova 时长与播放事件接收时 state 一致', () async {
     final kernel = FakeKernel();
-    final engine = MovaEngine(
+    final mova = Mova(
       kernel: kernel,
       fetcher: const MovaTestHttpFetch(),
     );
-    addTearDown(engine.dispose);
-    await engine.open(const MovaSource('https://host/ordinary.mp4'));
+    addTearDown(mova.dispose);
+    await mova.open(const MovaSource('https://host/ordinary.mp4'));
     final durations = <(Duration, Duration)>[];
     final playing = <bool>[];
-    engine.events.listen((e) {
+    mova.events.listen((e) {
       if (e is MovaDurationChange) {
-        durations.add((e.duration, engine.state.duration));
+        durations.add((e.duration, mova.state.duration));
       }
-      if (e is MovaPlay) playing.add(engine.state.playing);
+      if (e is MovaPlay) playing.add(mova.state.playing);
     });
     kernel.emitDuration(const Duration(seconds: 30));
     await settleOperations();

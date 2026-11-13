@@ -5,20 +5,20 @@ import 'package:mova/src/core/state/state.dart';
 import 'package:mova/src/core/state/ui_state.dart';
 import 'package:mova/src/ui/components/gesture_layer.dart';
 import 'package:mova/src/ui/player.dart';
-import 'package:mova/src/ui/skins/bilibili_skin.dart';
-import 'package:mova/src/ui/skins/default_skin.dart';
+import 'package:mova/src/ui/ui_kits/bilibili_ui_kit.dart';
+import 'package:mova/src/ui/ui_kits/default_ui_kit.dart';
 
 import '../support/fake_api.dart';
 import '../support/pump.dart';
 
 /// Scenario 1 / 场景 1: full interaction sequences against an audio-only
-/// engine, i.e. one whose [FakeMovaApi.renderHandle] is `null` for the whole
+/// player, i.e. one whose [FakeMovaApi.renderHandle] is `null` for the whole
 /// test — there is never a real video picture underneath the chrome.
 ///
 /// These go past "it renders without throwing": each test drives a *sequence*
 /// of taps/drags and asserts the ordered calls that reached the api.
 ///
-/// 场景 1：针对仅音频 engine（整场测试中 [FakeMovaApi.renderHandle] 恒为 `null`，
+/// 场景 1：针对仅音频播放器（整场测试中 [FakeMovaApi.renderHandle] 恒为 `null`，
 /// 控件下方从来没有真实视频画面）的完整交互序列。
 ///
 /// 这些测试越过了"渲染不崩"的浅层断言：每条都驱动一串点击/拖动，并断言到达
@@ -38,7 +38,7 @@ Future<FakeMovaApi> pumpAudioPlayer(
   await t.pumpWidget(MaterialApp(
     home: MovaPlayer(
       api: api,
-      skin: bilibili ? MovaBilibiliSkin() : const MovaDefaultSkin(),
+      uiKit: bilibili ? MovaBilibiliUiKit() : const MovaDefaultUiKit(),
       surface: surface,
     ),
   ));
@@ -150,11 +150,11 @@ void main() {
     });
 
     testWidgets('the speed button cycles the rate across repeated taps', (t) async {
-      // The bilibili skin puts a MovaSpeedButtonComponent in the top bar; the
-      // default skin has none. Audio is exactly where playback rate matters
+      // The bilibili UI kit puts a MovaSpeedButtonComponent in the top bar; the
+      // default UI kit has none. Audio is exactly where playback rate matters
       // most (podcasts/audiobooks), so it is worth exercising here.
       //
-      // bilibili 皮肤在顶栏放了 MovaSpeedButtonComponent，默认皮肤没有。倍速恰恰
+      // bilibili UI 套件在顶栏放了 MovaSpeedButtonComponent，默认 UI 套件没有。倍速恰恰
       // 是音频场景（播客/有声书）最在意的能力，值得在这里走一遍。
       final api = await pumpAudioPlayer(t, bilibili: true);
 
@@ -223,9 +223,9 @@ void main() {
 
     testWidgets('a left-side vertical drag still adjusts brightness (no-op but not broken)', (t) async {
       // Brightness is meaningless for audio, but the gesture must still be
-      // routed rather than throwing — a shared skin does not know the mode.
+      // routed rather than throwing — a shared UI kit does not know the mode.
       //
-      // 亮度对音频无意义，但手势仍须被正常路由而不是抛错——共用皮肤并不知道
+      // 亮度对音频无意义，但手势仍须被正常路由而不是抛错——共用 UI 套件并不知道
       // 当前是哪种模式。
       final api = FakeMovaApi();
       api.push(const MovaState(volume: 50, brightness: 0.5));

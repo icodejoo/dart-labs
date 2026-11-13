@@ -6,7 +6,7 @@
 **结论先行：选 ③ 折中，且这个折中比预想的便宜得多——因为 media_kit 的
 `Player` 默认就是 `--vid=no`（不解码视频），是 mova 自己在 `MovaMpvKernel` 构造里
 无条件 `VideoController(_player)` 把视频管线打开的。所以"音频模式"的核心
-改动只有一句：不建那个 `VideoController`。放开 `MovaKernel.renderHandle` 的
+改动只有一句：不建那个 `VideoController`。放开 `IMovaKernel.renderHandle` 的
 可空性 + 一个 `audioOnly` 开关 + 一份文档，约 3–4 Task，远不到阶段 C（9 Task）
 的量级。**
 
@@ -78,9 +78,9 @@ GPU 纹理、Flutter Texture 注册，都是 0 而不是变小。这就是两个
 **怎么测的**：`example/lib/perf_probe_audio_only.dart`，读 `dart:io` 的
 `ProcessInfo.currentRss`——本进程真实的常驻内存，直接来自操作系统，不是推算。
 release 构建、Windows 桌面、**同一条素材**（854×480 H.264 + AAC，60.1 秒），
-三阶段采样：进程基线（引擎尚未创建）/ 稳定播放 60 秒后 / `dispose()` 后。
+三阶段采样：进程基线（播放器尚未创建）/ 稳定播放 60 秒后 / `dispose()` 后。
 探针挂载真实 `MovaPlayer`，使视频模式确实注册并合成 Flutter 纹理——测一个无人渲染的
-视频引擎会低估它的开销。每个进程只跑一种模式（单进程给不出两个干净基线）。
+视频播放器会低估它的开销。每个进程只跑一种模式（单进程给不出两个干净基线）。
 
 | 轮次 | 模式 | 基线 | 播放中 | dispose 后 | **播放中 − 基线** |
 |---|---|---|---|---|---|
@@ -162,7 +162,7 @@ ffmpeg -i source.mp4 -vn -acodec copy source_audio.m4a   # AAC 131 kbps / 60.07s
 
 | 播放器 / 模式 | 轮次 | 基线 | 播放中 | 播放中 − 基线 |
 |---|---|---|---|---|
-| mova 视频引擎 | #0 / #1 | 137.49 / 179.89 | 337.58 / 374.17 | **+200.09 / +194.28**（均值 197.19） |
+| mova 视频播放器 | #0 / #1 | 137.49 / 179.89 | 337.58 / 374.17 | **+200.09 / +194.28**（均值 197.19） |
 | mova audioOnly（远端 mp4） | #0 / #1 | 179.60 / 180.23 | 277.32 / 274.75 | **+97.72 / +94.52**（均值 96.12） |
 | mova audioOnly（本地 m4a） | #0 / #1 | 182.01 / 180.27 | 274.64 / 275.16 | **+92.63 / +94.89**（均值 93.76） |
 | **`just_audio`（本地 m4a）** | #0 / #1 / #2 | 179.50 / 177.40 / 177.23 | 199.96 / 198.19 / 198.29 | **+20.46 / +20.79 / +21.06**（均值 **20.77**） |
@@ -206,7 +206,7 @@ ffmpeg -i source.mp4 -vn -acodec copy source_audio.m4a   # AAC 131 kbps / 60.07s
    `audio_service` 就能拿到 mova 根本没有的熄屏后台常驻/锁屏控制。这与 §3.4 的分流判据
    一致，本次只是给它补上了数字。
 2. **App 既放视频又放音频（本工程的实际情况）** → **不值得只为内存引入**。视频路径
-   已经让 libmpv 常驻，音频再走 mova 的增量成本只是"多一个 engine 实例"；换来的是
+   已经让 libmpv 常驻，音频再走 mova 的增量成本只是"多一个 player 实例"；换来的是
    两套播放器 API、两套怪癖（如上面那个 `setFilePath` 坑）、两份依赖，而省下的 73 MiB
    只在"正在放音频且没在放视频"的那段时间里成立。**除非确实需要熄屏后台常驻 + 系统
    媒体控制**——那才是引入 `just_audio` + `audio_service` 的真正理由，内存只是附带。
@@ -280,12 +280,12 @@ mpv 语义上也确认了正确姿势：**`--vid=no` 才是省解码开销的做
 | `lib/src/core/kernel/kernel.dart:148` | `Object get renderHandle;`（**非空**） | 需放宽为 `Object?` |
 | `lib/src/core/kernel/mpv_kernel.dart:152` | `Object get renderHandle => _controller;`（`late final`，构造期绑死） | `audioOnly` 时返回 `null` |
 | `lib/src/core/api.dart:71` | `Object? get renderHandle;`（**已经可空**） | 不动 |
-| `lib/src/core/engine.dart:74` | `Object? get renderHandle => _kernel.renderHandle;` | 不动 |
-| `lib/src/core/swap/swap_engine.dart:161` | `Object? get renderHandle => _active.renderHandle;` | 不动 |
+| `lib/src/core/mova.dart:74` | `Object? get renderHandle => _kernel.renderHandle;` | 不动 |
+| `lib/src/core/cutover/cutover.dart:161` | `Object? get renderHandle => _active.renderHandle;` | 不动 |
 
 **只有 `kernel.dart:148` 一行要改**（`Object` → `Object?`）。对实现者不是破坏性改动
 （返回 `Object` 仍满足 `Object?`），对调用者只多一个 null 分支——而唯一的调用者
-`MovaEngine` 早就声明成可空了。测试替身 `test/support/fake_api.dart:182` 也已是
+`Mova` 早就声明成可空了。测试替身 `test/support/fake_api.dart:182` 也已是
 `Object? renderHandle`。
 
 UI 层更省事，`_RenderSurface`（`lib/src/ui/player.dart:191-198`）本来就是：
@@ -300,21 +300,21 @@ final video = handle is VideoController
 音频模式白捡。
 
 而且"黑块"并不是音频 UI 的最终答案，也不需要为此改结构——`MovaPlayer` 已经有
-`surface` 参数（`player.dart:73`，feed 页用它传"引擎未就绪"的占位）。音频场景直接
+`surface` 参数（`player.dart:73`，feed 页用它传"播放器未就绪"的占位）。音频场景直接
 复用同一个口子传封面图/波形/歌词面即可，**UI 侧一行结构改动都不用**。
 
 ### 2.3 剩下的零碎（都不是硬骨头）
 
 - **视频语义的状态与组件**：`MovaState.size`、`fit`/`zoom`、全屏、PiP、亮度手势在音频下
-  无意义。最干净的做法是写一个 `MovaAudioSkin`（`lib/src/ui/skins/` 下已有
+  无意义。最干净的做法是写一个 `MovaAudioUiKit`（`lib/src/ui/ui_kits/` 下已有
   default/bilibili/douyin 三个，加一个是熟路），`components()` 里不装这些组件——
   **而不是**在每个组件里加 if。
 - **`screenshot()`**（`mpv_kernel.dart:117`，阶段 B 预览抽帧的兜底）在音频下应返回 `null`；
-  预览缩略图功能整块对音频无意义，`MovaPrevConfig` 关掉即可。
+  预览缩略图功能整块对音频无意义，`MovaPreviewOpts` 关掉即可。
 - **`loadQualities()`** 对非 HLS 已经是 no-op（`player.dart:88-95` 的注释写明了），不用管。
-- **配置落点现成**：`MovaOpts` 已经是一组 `MovaXxxConfig` 的组合
+- **配置落点现成**：`MovaOpts` 已经是一组 `MovaXxxOpts` 的组合
   （`lib/src/core/options/options.dart:39-98`：preview/live/gesture/abr/controls/danmaku/
-  stt/playlist/ads/swap），加一个 `MovaAudioConfig` 或直接在 `createMovaEngine()` 上加
+  stt/playlist/ads/cutover），加一个 `MovaAudioOpts` 或直接在 `createMova()` 上加
   `audioOnly` 参数（`lib/src/platform_impl/wiring.dart:99`）都顺理成章。
 - **可选的更狠一步**：换成官方的 `media_kit_libs_*_audio` 包，连视频原生库都不打进去。
   但这是**编译期**二选一——官方 README 明说两者不可混用，且换了之后
@@ -327,7 +327,7 @@ final video = handle is VideoController
 | 方案 | 量级 | 校准参照 |
 |---|---|---|
 | 最小改动（`audioOnly` 开关 + `renderHandle` 可空 + 文档 + 单测） | **3–4 Task** | 远小于阶段 C（直播时移，9 Task） |
-| 上面 + `MovaAudioSkin`（封面/歌词/音频控制条） | 6–8 Task | 接近阶段 C |
+| 上面 + `MovaAudioUiKit`（封面/歌词/音频控制条） | 6–8 Task | 接近阶段 C |
 | 一等公民音频模式（含后台常驻、锁屏/通知栏、耳机线控、音频焦点、gapless、播放列表） | **≥ 15 Task，且大头是新原生代码** | 超过阶段 B（拖动预览，15 Task） |
 
 第三档为什么最贵：Android 要 `MediaSessionService` + 前台服务 + 通知栏 + `AudioFocus`，
@@ -414,11 +414,11 @@ GitHub star：just_audio ~1.2k、audioplayers ~2.1k、audio_service ~854、media
 
 照阶段 B/C 的规矩拆一份逐 Task 计划落在 `doc/plans/`，骨架大致是：
 
-1. `MovaKernel.renderHandle` 放宽为 `Object?`（`kernel.dart:148`），跑一遍 `flutter analyze` 确认无连带破坏。
+1. `IMovaKernel.renderHandle` 放宽为 `Object?`（`kernel.dart:148`），跑一遍 `flutter analyze` 确认无连带破坏。
 2. `MovaMpvKernel({bool audioOnly = false})`：`audioOnly` 时不建 `VideoController`，`renderHandle` 返回 `null`，`screenshot()` 返回 `null`。
-3. `createMovaEngine(audioOnly: ...)` 透传（`wiring.dart:99`）；`MovaSource` 上是否也要一个 `audio` 类型待定（当前 `MovaStreamType` 只有 vod/live，`model/source.dart:4-14`）——倾向**不加**，因为"音频"是引擎构造期的资源决策，不是源的流类型。
-4. 单测：`audioOnly` 引擎的 `renderHandle` 为 null；`MovaPlayer` 在 null handle 下不抛、渲染占位；`surface` 参数传自定义封面面时正常。
+3. `createMova(audioOnly: ...)` 透传（`wiring.dart:99`）；`MovaSource` 上是否也要一个 `audio` 类型待定（当前 `MovaStreamType` 只有 vod/live，`model/source.dart:4-14`）——倾向**不加**，因为"音频"是播放器构造期的资源决策，不是源的流类型。
+4. 单测：`audioOnly` 播放器的 `renderHandle` 为 null；`MovaPlayer` 在 null handle 下不抛、渲染占位；`surface` 参数传自定义封面面时正常。
 5. README/SPEC 补一节，写清 §3.4 的分流判据。
-6. 真机验证一次内存差（`dumpsys meminfo` 三阶段对比，沿用 feed 引擎池那次的测法，`doc/SPEC.md:279-284`）——**这是唯一能把 §1 的推算变成实测数字的机会，值得顺手做**。
+6. 真机验证一次内存差（`dumpsys meminfo` 三阶段对比，沿用 feed 播放器池那次的测法，`doc/SPEC.md:279-284`）——**这是唯一能把 §1 的推算变成实测数字的机会，值得顺手做**。
 
 **本次先停在可行性预研，等确认要不要投入再拆计划。**

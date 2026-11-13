@@ -22,19 +22,19 @@ final _subtitleChoices = Expando<ValueNotifier<bool>>();
 /// Returns the UI visibility signal for [stt], initially visible.
 ///
 /// 返回 [stt] 的 UI 显隐信号，初始允许显示。
-ValueNotifier<bool> _subtitleChoice(MovaSttApi stt) =>
+ValueNotifier<bool> _subtitleChoice(IMovaSttApi stt) =>
     _subtitleChoices[stt] ??= ValueNotifier(true);
 
 /// STT subtitle overlay: renders the cue covering the current playback
 /// position, or nothing when none does.
 ///
-/// Hidden entirely when no engine is configured (`MovaApi.stt.languages` is
+/// Hidden entirely when no recognizer is configured (`IMovaApi.stt.languages` is
 /// empty) — mirrors [MovaPipButtonComponent]'s "don't render a dead control"
 /// convention, just for an overlay instead of a button.
 ///
 /// STT 字幕叠加层：渲染覆盖当前播放位置的字幕；没有则不渲染任何内容。
 ///
-/// 未配置引擎时（`MovaApi.stt.languages` 为空）整体不渲染——对应
+/// 未配置识别器时（`IMovaApi.stt.languages` 为空）整体不渲染——对应
 /// [MovaPipButtonComponent]"不渲染一个死掉的控件"的约定，只是这里换成了叠加层
 /// 而非按钮。
 class MovaSubtitleOverlayComponent extends MovaComponent {
@@ -55,18 +55,18 @@ class MovaSubtitleOverlayComponent extends MovaComponent {
   MovaSlot get slot => MovaSlot.overlay;
 
   @override
-  Widget build(BuildContext context, MovaApi api, List<Widget> children) {
+  Widget build(BuildContext context, IMovaApi api, List<Widget> children) {
     if (api.stt.languages.isEmpty) return const SizedBox.shrink();
     return _SubtitleOverlay(api: api);
   }
 }
 
-/// Stateful body of [MovaSubtitleOverlayComponent]: re-reads `MovaApi.stt.current`
+/// Stateful body of [MovaSubtitleOverlayComponent]: re-reads `IMovaApi.stt.current`
 /// whenever a new cue arrives or playback position ticks, since a cue can
 /// stop covering the position (its `end` passed) without a new cue arriving.
 ///
 /// [MovaSubtitleOverlayComponent] 的有状态主体：每当新字幕产出或播放位置推进时
-/// 都重新读取 `MovaApi.stt.current`——因为字幕可能在没有新字幕产出的情况下
+/// 都重新读取 `IMovaApi.stt.current`——因为字幕可能在没有新字幕产出的情况下
 /// 就不再覆盖当前位置（其 `end` 已经过去）。
 class _SubtitleOverlay extends StatefulWidget {
   /// Creates the overlay widget.
@@ -77,7 +77,7 @@ class _SubtitleOverlay extends StatefulWidget {
   /// The capability surface this overlay reads from.
   ///
   /// 该叠加层读取的能力面。
-  final MovaApi api;
+  final IMovaApi api;
 
   @override
   State<_SubtitleOverlay> createState() => _SubtitleOverlayState();
@@ -110,9 +110,9 @@ class _SubtitleOverlayState extends State<_SubtitleOverlay> {
     super.dispose();
   }
 
-  /// Re-reads `MovaApi.stt.current` and rebuilds only if it actually changed.
+  /// Re-reads `IMovaApi.stt.current` and rebuilds only if it actually changed.
   ///
-  /// 重新读取 `MovaApi.stt.current`，只有真的变化了才重建。
+  /// 重新读取 `IMovaApi.stt.current`，只有真的变化了才重建。
   void _refresh() {
     if (!mounted) return;
     final next = widget.api.stt.current;
@@ -216,23 +216,23 @@ class _SubtitleOverlayState extends State<_SubtitleOverlay> {
   }
 }
 
-/// Subtitle entry button; renders nothing when no STT engine is configured
-/// (`MovaApi.stt.languages` is empty), matching [MovaPipButtonComponent]'s
+/// Subtitle entry button; renders nothing when no STT recognizer is configured
+/// (`IMovaApi.stt.languages` is empty), matching [MovaPipButtonComponent]'s
 /// unsupported-capability convention.
 ///
-/// Tap opens a picker listing every language the configured engine covers
-/// (a single joint entry for a bilingual engine like the default Zipformer,
+/// Tap opens a picker listing every language the configured recognizer covers
+/// (a single joint entry for a bilingual recognizer like the default Zipformer,
 /// not one row per language — see
-/// `doc/notes/2026-08-04-stt-engine-decision.md`: only one engine is
+/// `doc/notes/2026-08-04-stt-recognizer-decision.md`: only one recognizer is
 /// supported per player in this version) plus a "turn off" row.
 ///
-/// 字幕入口按钮；未配置 STT 引擎时（`MovaApi.stt.languages` 为空）不渲染任何
+/// 字幕入口按钮；未配置 STT 识别器时（`IMovaApi.stt.languages` 为空）不渲染任何
 /// 内容，对应 [MovaPipButtonComponent] 的"能力不支持"约定。
 ///
-/// 点击弹出选择器，列出已配置引擎覆盖的语言（像默认 Zipformer 这样的双语引擎
+/// 点击弹出选择器，列出已配置识别器覆盖的语言（像默认 Zipformer 这样的双语识别器
 /// 是一整条联合入口，不是每个语言一行——见
-/// `doc/notes/2026-08-04-stt-engine-decision.md`：本版本每个播放器只支持一个
-/// 引擎），外加一行"关闭字幕"。
+/// `doc/notes/2026-08-04-stt-recognizer-decision.md`：本版本每个播放器只支持一个
+/// 识别器），外加一行"关闭字幕"。
 class MovaSubtitleButtonComponent extends MovaComponent {
   /// Creates the subtitle-button leaf component.
   ///
@@ -251,7 +251,7 @@ class MovaSubtitleButtonComponent extends MovaComponent {
   MovaSlot get slot => MovaSlot.top;
 
   @override
-  Widget build(BuildContext context, MovaApi api, List<Widget> children) {
+  Widget build(BuildContext context, IMovaApi api, List<Widget> children) {
     if (api.stt.languages.isEmpty) return const SizedBox.shrink();
     return _SubtitleButton(api: api);
   }
@@ -271,7 +271,7 @@ class _SubtitleButton extends StatefulWidget {
   /// The capability surface this button drives.
   ///
   /// 该按钮驱动的能力面。
-  final MovaApi api;
+  final IMovaApi api;
 
   @override
   State<_SubtitleButton> createState() => _SubtitleButtonState();
@@ -302,10 +302,10 @@ class _SubtitleButtonState extends State<_SubtitleButton> {
     );
   }
 
-  /// Opens a bottom sheet offering the configured engine's languages (as one
+  /// Opens a bottom sheet offering the configured recognizer's languages (as one
   /// joint entry) or turning subtitles off.
   ///
-  /// 弹出底部选择器，提供已配置引擎的语言（作为一整条联合入口）或关闭字幕。
+  /// 弹出底部选择器，提供已配置识别器的语言（作为一整条联合入口）或关闭字幕。
   ///
   /// - [theme]: theme used to style the sheet's text / 用于弹层文字样式的主题
   void _showMenu(MovaTheme theme) {

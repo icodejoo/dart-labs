@@ -11,7 +11,7 @@ import 'package:mova/src/platform_impl/mpv_event_backend_ffi.dart';
 Future<void> runErrclass(Cp1Harness h) async {
   for (final kind in ['nonfatal', 'fatal', 'poster']) {
     for (var run = 0; run < h.runs; run++) {
-      final a = createMovaEngine(); // poster must enable restart itself.
+      final a = createMova(); // poster must enable restart itself.
       if (kind == 'poster') {
         h.poster = ColoredBox(key: h.posterKey, color: Colors.orange);
       }

@@ -1,4 +1,4 @@
-src/core/options/stt_config.dart;
+src/core/options/stt_opts.dart;
 src/core/stt/api.dart;
 src/core/stt/audio_extractor.dart;
 src/core/stt/chunk_subtitle_store.dart;
@@ -6,9 +6,9 @@ src/core/stt/cue.dart;
 src/core/stt/model_dir_provider.dart;
 src/core/stt/model_provider.dart;
 src/core/stt/model_spec.dart;
-src/core/stt/port.dart;
 src/core/stt/service.dart;
 src/core/stt/srt.dart;
+src/core/stt/stt.dart;
 src/core/stt/subtitle_dir_provider.dart;
 src/core/stt/subtitle_store.dart;
 src/platform_impl/mpv_audio_extractor_impl.dart;

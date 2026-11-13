@@ -7,10 +7,10 @@ Future<void> runP02(Cp0Harness h) async {
     for(var run=0;run<h.runs;run++) {
       final aSource=h.source('a');final bSource=h.source('b');final ad=h.source('ad');
       final kind=trigger=='midPending'?MovaAdBreakKind.mid:trigger=='postLoad'?MovaAdBreakKind.post:MovaAdBreakKind.pre;
-      final opts=MovaOpts(cutover:const MovaCutoverConfig(enabled:true,minWarmDuration:Duration.zero,leadTime:Duration(seconds:20)),
-        ads:MovaAdConfig(enabled:true,breaks:[MovaAdBreak(kind:kind,source:ad,
+      final opts=MovaOpts(cutover:const MovaCutoverOpts(enabled:true,minWarmDuration:Duration.zero,leadTime:Duration(seconds:20)),
+        ads:MovaAdOpts(enabled:true,breaks:[MovaAdBreak(kind:kind,source:ad,
           offset:const Duration(milliseconds:500),delay:kind==MovaAdBreakKind.mid?const Duration(seconds:3):Duration.zero)]));
-      final api=MovaCutoverEngine(engineFactory:()=>createMovaEngine(options:opts,preciseFirstFrame:true));
+      final api=MovaCutover(movaFactory:()=>createMova(options:opts,preciseFirstFrame:true));
       await h.mount(api);final ads=MovaAds(api,cutover:api);
       final load=h.call('ads.load',aSource.uri,()=>ads.load(aSource));
       if(trigger=='contentWarm') {

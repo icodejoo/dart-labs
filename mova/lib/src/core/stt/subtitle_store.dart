@@ -11,19 +11,19 @@ import 'subtitle_dir_provider.dart';
 /// only ever gets transcribed once regardless of how many times it's
 /// re-watched.
 ///
-/// A distinct concept from [MovaSttEngine]'s live `feed`/`cues` loop: this
+/// A distinct concept from [IMovaStt]'s live `feed`/`cues` loop: this
 /// store holds the *finished result* of a one-shot batch transcription
-/// (see `doc/notes/2026-08-04-stt-engine-decision.md`'s "批量预转写" section),
+/// (see `doc/notes/2026-08-04-stt-recognizer-decision.md`'s "批量预转写" section),
 /// not a running recognizer.
 ///
 /// 把一次性批量转写出的字幕列表缓存到磁盘，按来源做 key，使同一个点播视频
 /// 不管重播多少次都只转写一次。
 ///
-/// 与 [MovaSttEngine] 那套 `feed`/`cues` 实时循环是不同的概念：本存储持有的是
+/// 与 [IMovaStt] 那套 `feed`/`cues` 实时循环是不同的概念：本存储持有的是
 /// 一次性批量转写的**完成结果**（见
-/// `doc/notes/2026-08-04-stt-engine-decision.md` 的"批量预转写"一节），而不是
+/// `doc/notes/2026-08-04-stt-recognizer-decision.md` 的"批量预转写"一节），而不是
 /// 一个正在运行的识别器。
-abstract class MovaSttSubtitleStore {
+abstract class IMovaSttSubtitleStore {
   /// Returns the cached cues for [sourceKey], or null if nothing is cached.
   ///
   /// 返回 [sourceKey] 已缓存的字幕；未缓存则返回 null。
@@ -48,13 +48,13 @@ abstract class MovaSttSubtitleStore {
   Future<void> remove(String sourceKey);
 }
 
-/// The production [MovaSttSubtitleStore]: one `.srt` file per source, named by
+/// The production [IMovaSttSubtitleStore]: one `.srt` file per source, named by
 /// [fnv1a64] of [sourceKey] (same key-shape convention as the scrub-preview
 /// cache's `defaultCacheKey`).
 ///
-/// 生产环境的 [MovaSttSubtitleStore]：每个来源一个 `.srt` 文件，以 [sourceKey]
+/// 生产环境的 [IMovaSttSubtitleStore]：每个来源一个 `.srt` 文件，以 [sourceKey]
 /// 的 [fnv1a64] 命名（与拖动预览缓存 `defaultCacheKey` 同一套 key 命名约定）。
-class MovaFileSttSubtitleStore implements MovaSttSubtitleStore {
+class MovaFileSttSubtitleStore implements IMovaSttSubtitleStore {
   /// Creates a file-based subtitle store.
   ///
   /// 创建一个基于文件的字幕存储。
@@ -65,7 +65,7 @@ class MovaFileSttSubtitleStore implements MovaSttSubtitleStore {
   /// Resolves the cache directory.
   ///
   /// 解析缓存目录。
-  final MovaSttSubtitleDirProvider dir;
+  final IMovaSttSubtitleDirProvider dir;
 
   @override
   Future<List<MovaSttCue>?> load(String sourceKey) async {

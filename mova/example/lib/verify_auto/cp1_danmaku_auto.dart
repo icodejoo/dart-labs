@@ -16,10 +16,10 @@ Future<void> runDanmaku(Cp1Harness h) async {
       }
     }
 
-    final a = createMovaEngine(
+    final a = createMova(
       preciseFirstFrame: true,
       options: MovaOpts(
-        danmaku: MovaDanmakuConfig(
+        danmaku: MovaDanmakuOpts(
           enabled: true,
           items: List.generate(
             5000,

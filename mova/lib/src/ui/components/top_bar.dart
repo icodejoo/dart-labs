@@ -8,7 +8,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/api.dart';
 import '../../core/model/fit.dart';
-import '../../core/model/orientation.dart';
+import '../../core/model/orient_mode.dart';
 import '../../core/model/quality.dart';
 import '../../core/options/theme.dart';
 import '../scope/selector.dart';
@@ -57,7 +57,7 @@ class MovaTopBarComponent extends MovaComponent {
     MovaQualityButtonComponent(),
     MovaSubtitleButtonComponent(),
     MovaFitButtonComponent(),
-    MovaOrientationButtonComponent(),
+    MovaOrientButtonComponent(),
     MovaFullscreenButtonComponent(),
   ];
 
@@ -65,7 +65,7 @@ class MovaTopBarComponent extends MovaComponent {
   /// Expands only the title role after applying patches.
   ///
   /// 应用补丁后仅让标题角色撑开。
-  Widget build(BuildContext context, MovaApi api, List<Widget> children) {
+  Widget build(BuildContext context, IMovaApi api, List<Widget> children) {
     if (children.isEmpty) return const SizedBox.shrink();
     final theme = MovaPlayerStyle.themeOf(context);
     return MovaGradBar(
@@ -116,7 +116,7 @@ class MovaTitleComponent extends MovaComponent {
   MovaSlot get slot => MovaSlot.top;
 
   @override
-  Widget build(BuildContext context, MovaApi api, List<Widget> children) {
+  Widget build(BuildContext context, IMovaApi api, List<Widget> children) {
     final theme = MovaPlayerStyle.themeOf(context);
     return MovaSelect<String?>(
       selector: (s) => s.sourceTitle,
@@ -138,14 +138,14 @@ class MovaTitleComponent extends MovaComponent {
 
 /// Picture-in-picture entry button; renders nothing where PiP is unsupported.
 ///
-/// Visibility follows [MovaState.pipSupported], which the engine resolves once
-/// from `MovaPipPort.isSupported()` shortly after construction — so on desktop
+/// Visibility follows [MovaState.pipSupported], which the player resolves once
+/// from `IMovaPip.isSupported()` shortly after construction — so on desktop
 /// the button never appears at all, rather than appearing and doing nothing.
 ///
 /// 画中画入口按钮；平台不支持画中画时不渲染任何内容。
 ///
-/// 可见性跟随 [MovaState.pipSupported]——engine 在构造后不久用
-/// `MovaPipPort.isSupported()` 解析一次。因此桌面端该按钮根本不会出现，而不是
+/// 可见性跟随 [MovaState.pipSupported]——播放器在构造后不久用
+/// `IMovaPip.isSupported()` 解析一次。因此桌面端该按钮根本不会出现，而不是
 /// 出现了点了没反应。
 class MovaPipButtonComponent extends MovaComponent {
   /// Creates the pip-button leaf component.
@@ -165,7 +165,7 @@ class MovaPipButtonComponent extends MovaComponent {
   MovaSlot get slot => MovaSlot.top;
 
   @override
-  Widget build(BuildContext context, MovaApi api, List<Widget> children) {
+  Widget build(BuildContext context, IMovaApi api, List<Widget> children) {
     final theme = MovaPlayerStyle.themeOf(context);
     return MovaSelect<bool>(
       selector: (s) => s.pipSupported,
@@ -188,13 +188,13 @@ class MovaPipButtonComponent extends MovaComponent {
 /// Reproduces 0.1.0's `showModalBottomSheet` quality picker
 /// (`player.dart`'s `_showQualityMenu`): a bottom sheet listing every
 /// `MovaQuality`, checkmarking the active one, and calling
-/// [MovaApi.switchQuality] on tap.
+/// [IMovaApi.switchQuality] on tap.
 ///
 /// 清晰度选择按钮；当前源无可选清晰度档位时隐藏。
 ///
 /// 复刻 0.1.0 的 `showModalBottomSheet` 清晰度选择器（`player.dart` 的
 /// `_showQualityMenu`）：底部弹出列出全部 `MovaQuality`，勾选当前档位，点击
-/// 调用 [MovaApi.switchQuality]。
+/// 调用 [IMovaApi.switchQuality]。
 class MovaQualityButtonComponent extends MovaComponent {
   /// Creates the quality-button leaf component.
   ///
@@ -216,7 +216,7 @@ class MovaQualityButtonComponent extends MovaComponent {
   ///
   /// 构建清晰度控件，文字与语义共用一次格式化的说明。
   @override
-  Widget build(BuildContext context, MovaApi api, List<Widget> children) {
+  Widget build(BuildContext context, IMovaApi api, List<Widget> children) {
     final theme = MovaPlayerStyle.themeOf(context);
     return MovaSelect<List<MovaQuality>>(
       selector: (s) => s.qualities,
@@ -246,9 +246,9 @@ class MovaQualityButtonComponent extends MovaComponent {
   }
 
   /// Opens a bottom sheet to pick a quality; tapping an item calls
-  /// [MovaApi.switchQuality] and dismisses the sheet.
+  /// [IMovaApi.switchQuality] and dismisses the sheet.
   ///
-  /// 打开底部弹出选择清晰度；点击某项调用 [MovaApi.switchQuality] 并关闭弹层。
+  /// 打开底部弹出选择清晰度；点击某项调用 [IMovaApi.switchQuality] 并关闭弹层。
   ///
   /// - [context]: build context used to show the sheet / 用于弹出弹层的构建上下文
   /// - [api]: capability surface to switch quality on / 用于切换清晰度的能力面
@@ -257,7 +257,7 @@ class MovaQualityButtonComponent extends MovaComponent {
   /// - [theme]: theme used to style the sheet's text / 用于弹层文字样式的主题
   Future<void> _showQualityMenu(
     BuildContext context,
-    MovaApi api,
+    IMovaApi api,
     List<MovaQuality> qualities,
     MovaQuality? current,
     MovaTheme theme,
@@ -292,10 +292,10 @@ class MovaQualityButtonComponent extends MovaComponent {
   }
 }
 
-/// Fit-mode cycling button; label reflects [MovaApi.options]'s configured
+/// Fit-mode cycling button; label reflects [IMovaApi.options]'s configured
 /// [MovaStrs], tap cycles `MovaFit.contain → cover → fill → contain`.
 ///
-/// 观看模式循环切换按钮；标签取自 [MovaApi.options] 配置的 `MovaStrs`，点击
+/// 观看模式循环切换按钮；标签取自 [IMovaApi.options] 配置的 `MovaStrs`，点击
 /// 循环 `MovaFit.contain → cover → fill → contain`。
 class MovaFitButtonComponent extends MovaComponent {
   /// Creates the fit-button leaf component.
@@ -318,7 +318,7 @@ class MovaFitButtonComponent extends MovaComponent {
   ///
   /// 构建填充控件，为当前模式复用一次解析的名称。
   @override
-  Widget build(BuildContext context, MovaApi api, List<Widget> children) {
+  Widget build(BuildContext context, IMovaApi api, List<Widget> children) {
     final theme = MovaPlayerStyle.themeOf(context);
     return MovaSelect<MovaFit>(
       selector: (s) => s.fit,
@@ -338,30 +338,30 @@ class MovaFitButtonComponent extends MovaComponent {
 }
 
 /// Forced-orientation toggle button; tap switches the device between forced
-/// landscape and portrait via [MovaApi.setOrientation], independent of
+/// landscape and portrait via [IMovaApi.setOrient], independent of
 /// fullscreen.
 ///
 /// Renders nothing off mobile (`defaultTargetPlatform` not Android/iOS), where
 /// forcing device orientation has no effect — mirroring how the pip button
-/// hides where PiP is unsupported. Watches [MovaState.orientation] so its toggle
+/// hides where PiP is unsupported. Watches [MovaState.orient] so its toggle
 /// target follows the current forced state.
 ///
-/// 强制方向切换按钮；点击经 [MovaApi.setOrientation] 在强制横屏与竖屏间切换，与
+/// 强制方向切换按钮；点击经 [IMovaApi.setOrient] 在强制横屏与竖屏间切换，与
 /// 全屏无关。
 ///
 /// 非移动端（`defaultTargetPlatform` 不是 Android/iOS）不渲染任何内容——那里
 /// 强制设备方向本就无效，与画中画按钮在不支持处隐藏一致。监听
-/// [MovaState.orientation]，使切换目标跟随当前强制状态。
-class MovaOrientationButtonComponent extends MovaComponent {
+/// [MovaState.orient]，使切换目标跟随当前强制状态。
+class MovaOrientButtonComponent extends MovaComponent {
   /// Creates the orientation-button leaf component.
   ///
   /// 创建方向按钮叶子组件。
-  MovaOrientationButtonComponent();
+  MovaOrientButtonComponent();
 
   /// This component's path segment for `MovaPatch` addressing.
   ///
   /// 该组件在 `MovaPatch` 寻址体系里的路径片段。
-  static const String componentName = 'orientationButton';
+  static const String componentName = 'orientButton';
 
   @override
   String get name => componentName;
@@ -370,20 +370,20 @@ class MovaOrientationButtonComponent extends MovaComponent {
   MovaSlot get slot => MovaSlot.top;
 
   @override
-  Widget build(BuildContext context, MovaApi api, List<Widget> children) {
+  Widget build(BuildContext context, IMovaApi api, List<Widget> children) {
     final isMobile =
         defaultTargetPlatform == TargetPlatform.android ||
         defaultTargetPlatform == TargetPlatform.iOS;
     if (!isMobile) return const SizedBox.shrink();
     final theme = MovaPlayerStyle.themeOf(context);
-    return MovaSelect<MovaOrientation>(
-      selector: (s) => s.orientation,
-      builder: (context, orientation) {
+    return MovaSelect<MovaOrientMode>(
+      selector: (s) => s.orient,
+      builder: (context, orient) {
         return MovaIconButton(
           label: MovaPlayerStyle.stringsOf(context).rotate,
           icon: MovaPlayerStyle.iconsOf(context).rotate,
           theme: theme,
-          onPressed: () => api.setOrientation(orientation.toggled),
+          onPressed: () => api.setOrient(orient.toggled),
         );
       },
     );
@@ -412,7 +412,7 @@ class MovaFullscreenButtonComponent extends MovaComponent {
   MovaSlot get slot => MovaSlot.top;
 
   @override
-  Widget build(BuildContext context, MovaApi api, List<Widget> children) {
+  Widget build(BuildContext context, IMovaApi api, List<Widget> children) {
     final theme = MovaPlayerStyle.themeOf(context);
     return MovaSelect<bool>(
       selector: (s) => s.fullscreen,

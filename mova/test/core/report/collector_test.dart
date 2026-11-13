@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mova/src/core/events/events.dart';
 import 'package:mova/src/core/model/source.dart';
-import 'package:mova/src/core/options/report_config.dart';
+import 'package:mova/src/core/options/report_opts.dart';
 import 'package:mova/src/core/report/collector.dart';
 import 'package:mova/src/core/report/report.dart';
 
@@ -23,7 +23,7 @@ Future<List<MovaReportEvent>> _runSequence({required bool qoe}) async {
   final collector = MovaQoeCollector(
     events: events.stream,
     reporter: MovaCallbackReporter(received.add),
-    config: MovaReportConfig(qoe: qoe),
+    opts: MovaReportOpts(qoe: qoe),
   );
   collector.onOpen(const MovaSource('https://host/a.mp4'), autoPlay: true);
   events.add(const MovaSourceChange(MovaSource('https://host/a.mp4')));
@@ -39,8 +39,8 @@ Future<List<MovaReportEvent>> _runSequence({required bool qoe}) async {
 
 void main() {
   group('MovaQoeCollector — Task 4 skeleton wiring', () {
-    test('reporter: null means the engine never constructs a collector, so a probe is never subscribed', () async {
-      // This is exercised at the MovaEngine level (report_engine_test.dart);
+    test('reporter: null means the player never constructs a collector, so a probe is never subscribed', () async {
+      // This is exercised at the Mova level (report_mova_test.dart);
       // here we just confirm a collector with a null-probe FakeStatsProbe
       // that is never even listened to proves the same contract at this
       // layer: nothing subscribes unless qoe is on.
@@ -49,7 +49,7 @@ void main() {
       MovaQoeCollector(
         events: events.stream,
         reporter: MovaCallbackReporter((_) {}),
-        config: const MovaReportConfig(), // qoe defaults to false
+        opts: const MovaReportOpts(), // qoe defaults to false
         probe: probe,
       );
       await Future<void>.delayed(Duration.zero);
@@ -67,7 +67,7 @@ void main() {
       MovaQoeCollector(
         events: events.stream,
         reporter: MovaCallbackReporter((_) {}),
-        config: const MovaReportConfig(qoe: true),
+        opts: const MovaReportOpts(qoe: true),
         probe: probe,
       );
       await Future<void>.delayed(Duration.zero);
@@ -127,7 +127,7 @@ void main() {
         final collector = MovaQoeCollector(
           events: events.stream,
           reporter: MovaCallbackReporter(received.add),
-          config: const MovaReportConfig(qoe: true),
+          opts: const MovaReportOpts(qoe: true),
           probe: probe,
         );
         // onOpen kicks off an async sessionStart (awaiting probe.sample())
@@ -152,7 +152,7 @@ void main() {
       final collector = MovaQoeCollector(
         events: events.stream,
         reporter: MovaCallbackReporter(received.add),
-        config: const MovaReportConfig(qoe: true),
+        opts: const MovaReportOpts(qoe: true),
       );
       collector.onOpen(const MovaSource('https://host/a.mp4'), autoPlay: true);
       collector.onTeardown();
@@ -174,7 +174,7 @@ void main() {
       final collector = MovaQoeCollector(
         events: events.stream,
         reporter: MovaCallbackReporter(received.add),
-        config: const MovaReportConfig(qoe: true),
+        opts: const MovaReportOpts(qoe: true),
         now: () => clock,
       );
       // 会话 A：连续两个递增位置落地首帧，再看 60s。
@@ -187,7 +187,7 @@ void main() {
       collector.onPosition(const Duration(milliseconds: 200));
       clock = clock.add(const Duration(seconds: 60));
       collector.onPosition(const Duration(seconds: 60));
-      // 引擎顺序：先 onTeardown(A)，再 onOpen(B)。
+      // 播放器顺序：先 onTeardown(A)，再 onOpen(B)。
       collector.onTeardown();
       // A 与 B 之间空档 30s，不应算观看时间。
       clock = clock.add(const Duration(seconds: 30));

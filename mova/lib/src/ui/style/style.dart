@@ -7,7 +7,7 @@ import 'icons.dart';
 /// 播放器视图的样式；各节整体替换、独立回落。
 /// 优先级：视图参数 > ThemeExtension > 旧 options > 默认值。
 /// 图标节没有旧配置，对应回落直接使用默认集合。
-/// 切换主题只更新视图，不重建引擎。
+/// 切换主题只更新视图，不重建播放器。
 /// 示例：`MovaPlayerStyle(strings: MovaStrs(live: 'ON AIR'))`。
 @immutable
 class MovaPlayerStyle extends ThemeExtension<MovaPlayerStyle> {
@@ -28,10 +28,10 @@ class MovaPlayerStyle extends ThemeExtension<MovaPlayerStyle> {
   final MovaStrs? strings;
 
   /// 手势映射与灵敏度；null 时回落。
-  final MovaGestureConfig? gesture;
+  final MovaGestureOpts? gesture;
 
   /// 控制条行为；null 时回落。
-  final MovaCtrlsConfig? controls;
+  final MovaCtrlsOpts? controls;
 
   /// 弹幕展示样式；null 时回落。
   final MovaDanmakuStyle? danmaku;
@@ -48,18 +48,18 @@ class MovaPlayerStyle extends ThemeExtension<MovaPlayerStyle> {
       _pick(context, (s) => s.strings) ?? movaLegacyOptionsOf(context).strings;
 
   /// 返回当前视图生效的手势映射与灵敏度；在构建或事件回调中调用。
-  static MovaGestureConfig gestureOf(BuildContext context) =>
+  static MovaGestureOpts gestureOf(BuildContext context) =>
       _pick(context, (s) => s.gesture) ?? movaLegacyOptionsOf(context).gesture;
 
   /// 返回当前视图生效的控制条行为；在构建或事件回调中调用。
-  static MovaCtrlsConfig controlsOf(BuildContext context) =>
+  static MovaCtrlsOpts controlsOf(BuildContext context) =>
       _pick(context, (s) => s.controls) ??
       movaLegacyOptionsOf(context).controls;
 
   /// 返回当前视图生效的弹幕展示样式；在构建或事件回调中调用。
   static MovaDanmakuStyle danmakuOf(BuildContext context) =>
       _pick(context, (s) => s.danmaku) ??
-      MovaDanmakuStyle.fromConfig(movaLegacyOptionsOf(context).danmaku);
+      MovaDanmakuStyle.fromOpts(movaLegacyOptionsOf(context).danmaku);
 
   /// 返回当前视图的图标集合；在构建或事件回调中调用。
   static MovaIcons iconsOf(BuildContext context) =>
@@ -70,8 +70,8 @@ class MovaPlayerStyle extends ThemeExtension<MovaPlayerStyle> {
   MovaPlayerStyle copyWith({
     MovaTheme? theme,
     MovaStrs? strings,
-    MovaGestureConfig? gesture,
-    MovaCtrlsConfig? controls,
+    MovaGestureOpts? gesture,
+    MovaCtrlsOpts? controls,
     MovaDanmakuStyle? danmaku,
     MovaIcons? icons,
   }) => MovaPlayerStyle(
@@ -130,17 +130,17 @@ class MovaDanmakuStyle {
   final Duration crossDuration;
 
   /// 从旧配置提取五个展示字段。
-  factory MovaDanmakuStyle.fromConfig(MovaDanmakuConfig config) =>
+  factory MovaDanmakuStyle.fromOpts(MovaDanmakuOpts opts) =>
       MovaDanmakuStyle(
-        trackCount: config.trackCount,
-        trackHeight: config.trackHeight,
-        fontSize: config.fontSize,
-        opacity: config.opacity,
-        crossDuration: config.crossDuration,
+        trackCount: opts.trackCount,
+        trackHeight: opts.trackHeight,
+        fontSize: opts.fontSize,
+        opacity: opts.opacity,
+        crossDuration: opts.crossDuration,
       );
 
   /// 覆盖 data 的展示字段，保留开关与条目引用。
-  MovaDanmakuConfig applyTo(MovaDanmakuConfig data) => data.copyWith(
+  MovaDanmakuOpts applyTo(MovaDanmakuOpts data) => data.copyWith(
     trackCount: trackCount,
     trackHeight: trackHeight,
     fontSize: fontSize,
@@ -192,7 +192,7 @@ MovaOpts movaLegacyOptionsOf(BuildContext context) =>
     const MovaOpts();
 
 /// 包内：供位于自身作用域之外的播放器解析控制条配置。
-MovaCtrlsConfig movaResolveControls(
+MovaCtrlsOpts movaResolveControls(
   BuildContext context,
   MovaPlayerStyle? local,
   MovaOpts fallback,

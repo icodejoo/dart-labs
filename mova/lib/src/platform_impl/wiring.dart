@@ -1,21 +1,21 @@
-// Wires a [MovaEngine] to the real platform adapters implemented under
-// `lib/src/platform_impl/`. This file — not `core/engine.dart` — is the only
+// Wires a [Mova] to the real platform adapters implemented under
+// `lib/src/platform_impl/`. This file — not `core/mova.dart` — is the only
 // place allowed to reference those adapters, since `lib/src/core/**` must
 // never import `package:flutter/*` or any `platform_impl/*` file (enforced
 // by `test/core/purity_test.dart`).
 //
-// 把 [MovaEngine] 接到 `lib/src/platform_impl/` 下的真实平台适配器。只有本文件
-// （而非 `core/engine.dart`）允许引用这些适配器，因为 `lib/src/core/**` 绝不能
+// 把 [Mova] 接到 `lib/src/platform_impl/` 下的真实平台适配器。只有本文件
+// （而非 `core/mova.dart`）允许引用这些适配器，因为 `lib/src/core/**` 绝不能
 // 引入 `package:flutter/*` 或任何 `platform_impl/*` 文件（由
 // `test/core/purity_test.dart` 强制检查）。
 
 import 'package:flutter/foundation.dart';
 
-import '../core/engine.dart';
+import '../core/mova.dart';
 import '../core/interceptor/interceptor.dart';
 import '../core/kernel/kernel.dart';
 import '../core/options/options.dart';
-import '../core/platform/ports.dart';
+import '../core/platform/platform.dart';
 import '../core/preview/dir_provider.dart';
 import '../core/preview/extractor.dart';
 import '../core/preview/fetcher.dart';
@@ -28,62 +28,62 @@ import 'brightness_impl.dart';
 import 'net_probe_impl.dart';
 import 'frame_yield.dart';
 import 'mpv_event_backend_ffi.dart';
-import 'orientation_impl.dart';
+import 'orient_impl.dart';
 import 'pip_impl.dart';
 import 'thumb_dir_impl.dart';
 import 'volume_impl.dart';
 
-/// The default [MovaVolumePort] for this platform: the native system-media-volume
-/// port on Android, and `null` elsewhere so the engine keeps the player-volume
+/// The default [IMovaVolume] for this platform: the native system-media-volume
+/// port on Android, and `null` elsewhere so the player keeps the player-volume
 /// path (iOS restricts programmatic system volume; desktop has no channel impl).
 ///
-/// 本平台的默认 [MovaVolumePort]：Android 上是原生系统媒体音量端口，其余平台为
-/// `null`，让引擎保持播放器音量路径（iOS 限制代码改系统音量；桌面无通道实现）。
-MovaVolumePort? _defaultVolumePort() {
+/// 本平台的默认 [IMovaVolume]：Android 上是原生系统媒体音量端口，其余平台为
+/// `null`，让播放器保持播放器音量路径（iOS 限制代码改系统音量；桌面无通道实现）。
+IMovaVolume? _defaultVolume() {
   switch (defaultTargetPlatform) {
     case TargetPlatform.android:
-      return MovaSystemVolumePort();
+      return MovaSystemVolume();
     default:
       return null;
   }
 }
 
-/// Creates a [MovaEngine] wired to the real platform adapters
-/// ([MovaScreenBrightnessPort], [MovaChannelPipPort], [MovaSystemChromeOrientationPort],
-/// and — since phase B — [MovaThumbDirProvider]/[MovaFramePuller] for scrub
-/// preview) instead of [MovaEngine]'s own noop/fallback defaults.
+/// Creates a [Mova] wired to the real platform adapters
+/// ([MovaBrightness], [MovaPip], [MovaOrient],
+/// and — since phase B — [IMovaThumbDirProvider]/[IMovaFramePuller] for scrub
+/// preview) instead of [Mova]'s own noop/fallback defaults.
 ///
-/// [MovaEngine]'s bare constructor intentionally defaults to zero-dependency
+/// [Mova]'s bare constructor intentionally defaults to zero-dependency
 /// noop ports so it stays usable from pure-Dart unit tests that can't touch
 /// platform channels; app code should call this factory instead so the
 /// brightness-drag gesture, PiP, fullscreen-orientation, and scrub-preview
 /// thumbnails actually work. Any port can still be overridden (e.g. with a
-/// fake, in a widget test that exercises the real engine wiring).
+/// fake, in a widget test that exercises the real player wiring).
 ///
-/// 创建一个接入真实平台适配器（[MovaScreenBrightnessPort]、[MovaChannelPipPort]、
-/// [MovaSystemChromeOrientationPort]，以及阶段 B 起新增的拖动预览端口
-/// [MovaThumbDirProvider]/[MovaFramePuller]）的 [MovaEngine]，而非使用 [MovaEngine]
+/// 创建一个接入真实平台适配器（[MovaBrightness]、[MovaPip]、
+/// [MovaOrient]，以及阶段 B 起新增的拖动预览端口
+/// [IMovaThumbDirProvider]/[IMovaFramePuller]）的 [Mova]，而非使用 [Mova]
 /// 自身的空/兜底默认实现。
 ///
-/// [MovaEngine] 的裸构造函数刻意默认使用零依赖的空端口，以便纯 Dart 单测（无法
+/// [Mova] 的裸构造函数刻意默认使用零依赖的空端口，以便纯 Dart 单测（无法
 /// 触达平台通道）也能直接使用；app 代码应改用本工厂函数，这样亮度拖拽手势、
 /// 画中画、全屏方向、拖动预览缩略图这些功能才能真正生效。每个端口仍可分别
-/// 覆盖（例如在验证真实 engine 接线的 widget 测试中传入 fake）。
+/// 覆盖（例如在验证真实播放器接线的 widget 测试中传入 fake）。
 ///
 /// - [kernel]: the playback kernel; defaults to a new `MovaMpvKernel` injected with FFI event backend
-///   (see [MovaEngine.new]) / 播放内核，省略时默认新建已注入 FFI 事件后端的 `MovaMpvKernel`（见
-///   [MovaEngine.new]）
-/// - [audioOnly]: builds an audio-only engine — the default kernel skips its
+///   (see [Mova.new]) / 播放内核，省略时默认新建已注入 FFI 事件后端的 `MovaMpvKernel`（见
+///   [Mova.new]）
+/// - [audioOnly]: builds an audio-only player — the default kernel skips its
 ///   `VideoController` and the frame-extraction fallback is left unwired,
 ///   so no video pipeline of any kind is created. `renderHandle` is then
 ///   `null` and `MovaPlayer` renders its placeholder (or the `surface` you
 ///   pass it). Ignored when [kernel] is supplied. Hosts should also turn
-///   scrub preview off (`MovaPreviewConfig(enabled: false)`) — there are no
+///   scrub preview off (`MovaPreviewOpts(enabled: false)`) — there are no
 ///   frames to preview /
-///   构建仅音频引擎——默认内核跳过 `VideoController`，抽帧兜底也不接线，
+///   构建仅音频播放器——默认内核跳过 `VideoController`，抽帧兜底也不接线，
 ///   因此不会创建任何形式的视频管线。此时 `renderHandle` 为 `null`，
 ///   `MovaPlayer` 渲染占位符（或你传入的 `surface`）。传入 [kernel] 时本参数
-///   的资源行为由注入内核决定；本标记仍影响预览、STT 与上报。宿主还应关掉拖动预览（`MovaPreviewConfig(enabled: false)`）——
+///   的资源行为由注入内核决定；本标记仍影响预览、STT 与上报。宿主还应关掉拖动预览（`MovaPreviewOpts(enabled: false)`）——
 ///   没有帧可预览
 /// - [tlsVerify]: strict TLS certificate verification (mpv `tls-verify=yes`),
 ///   default `false` = nothing sent, libmpv default (no verification on
@@ -93,44 +93,44 @@ MovaVolumePort? _defaultVolumePort() {
 /// - [tlsCaFile]: absolute path of a PEM CA bundle (`tls-ca-file`), used only
 ///   with [tlsVerify]. Required on Android / PEM 格式 CA 证书包绝对路径
 ///   （`tls-ca-file`），仅配合 [tlsVerify] 使用，Android 上必需
-/// - [options]: engine configuration / engine 配置
+/// - [options]: player options / 播放器配置
 /// - [interceptors]: interceptor chain consulted before open/seek/play /
 ///   在 open/seek/play 前咨询的拦截链
-/// - [brightness]: overrides the real [MovaScreenBrightnessPort] default /
-///   覆盖默认的真实 [MovaScreenBrightnessPort]
+/// - [brightness]: overrides the real [MovaBrightness] default /
+///   覆盖默认的真实 [MovaBrightness]
 /// - [restoreBrightness]: 离场时还原已修改的亮度，默认 true；false 由宿主接管。
-///   示例：`createMovaEngine(restoreBrightness: false)`。
+///   示例：`createMova(restoreBrightness: false)`。
 /// - [volume]: overrides the default volume port. Defaults to the native
-///   [MovaSystemVolumePort] on Android and `null` (player-volume path) elsewhere;
-///   pass a [MovaCallbackVolumePort] to drive system volume yourself on any
-///   platform / 覆盖默认音量端口。Android 默认接原生 [MovaSystemVolumePort]，其余
-///   平台默认 `null`（播放器音量路径）；任意平台都可传 [MovaCallbackVolumePort]
+///   [MovaSystemVolume] on Android and `null` (player-volume path) elsewhere;
+///   pass a [MovaCallbackVolume] to drive system volume yourself on any
+///   platform / 覆盖默认音量端口。Android 默认接原生 [MovaSystemVolume]，其余
+///   平台默认 `null`（播放器音量路径）；任意平台都可传 [MovaCallbackVolume]
 ///   自行驱动系统音量
-/// - [pip]: overrides the real [MovaChannelPipPort] default / 覆盖默认的真实
-///   [MovaChannelPipPort]
-/// - [orientation]: overrides the real [MovaSystemChromeOrientationPort] default
-///   / 覆盖默认的真实 [MovaSystemChromeOrientationPort]
-/// - [orientationConfig]: 宿主的方向和系统栏还原声明，仅用于默认方向端口。
-///   示例：`createMovaEngine(orientationConfig: MovaOrientationConfig())`。
+/// - [pip]: overrides the real [MovaPip] default / 覆盖默认的真实
+///   [MovaPip]
+/// - [orient]: overrides the real [MovaOrient] default
+///   / 覆盖默认的真实 [MovaOrient]
+/// - [orientOpts]: 宿主的方向和系统栏还原声明，仅用于默认方向端口。
+///   示例：`createMova(orientOpts: MovaOrientOpts())`。
 /// - [thumbDir]: overrides the real [MovaTempThumbDirProvider] default used for
 ///   the on-disk thumbnail cache / 覆盖默认的真实 [MovaTempThumbDirProvider]（磁盘
 ///   缓存图缓存目录）
 /// - [extractor]: 拖动预览抽帧兜底，默认 `null`，不会自动构造第二个视频内核。
-///   需要抽帧时显式传入 `MovaFrameExtractor()`；仅音频引擎不执行预览抽帧。
-///   示例：`createMovaEngine(extractor: MovaFrameExtractor())`。
+///   需要抽帧时显式传入 `MovaFrameExtractor()`；仅音频播放器不执行预览抽帧。
+///   示例：`createMova(extractor: MovaFrameExtractor())`。
 /// - [probe]: wifiOnly 预览的显式连通性探针；优先于默认探针。
 ///   未注入时按需创建 MovaConnectivityNetProbe，只有实际拉取远程预览资源才查询。
 ///   自定义来源无法判断具体资源地址，默认保留放行行为；需门控时显式传 [probe]。
 ///   此决定推翻旧的“不默认接线”决定：connectivity_plus 已是硬依赖，旧 tree-shaking
 ///   注释不再成立。关闭预览、缓存命中、本地资源不创建或查询默认探针。
 /// - [fetcher]: overrides the HTTP fetcher used to pull WebVTT tracks and
-///   sprites; left null, [MovaEngine] falls back to its own `MovaIoHttpFetcher()` /
-///   覆盖拉取 WebVTT 轨与雪碧图的 HTTP 客户端；留空则由 [MovaEngine] 自己兜底为
+///   sprites; left null, [Mova] falls back to its own `MovaIoHttpFetcher()` /
+///   覆盖拉取 WebVTT 轨与雪碧图的 HTTP 客户端；留空则由 [Mova] 自己兜底为
 ///   `MovaIoHttpFetcher()`
-/// - [reporter]: unified reporting sink for [MovaApi.report] and the
-///   whitelisted subset of [MovaApi.events]. `null` by default — reporting is
+/// - [reporter]: unified reporting sink for [IMovaApi.report] and the
+///   whitelisted subset of [IMovaApi.events]. `null` by default — reporting is
 ///   then fully off at zero cost (no subscription is created) / 统一上报出口，
-///   承接 [MovaApi.report] 及白名单内的 [MovaApi.events]。默认 `null`——此时
+///   承接 [IMovaApi.report] 及白名单内的 [IMovaApi.events]。默认 `null`——此时
 ///   上报功能完全关闭、零开销（不会创建任何订阅）
 /// - [preciseFirstFrame]: subscribe to libmpv's native `PLAYBACK_RESTART` even
 ///   without a reporter, so `MovaState.rendered`/`MovaFirstFrame` land on the
@@ -142,44 +142,44 @@ MovaVolumePort? _defaultVolumePort() {
 ///   准，约晚 200ms），复用首次 open 才创建的 END_FILE 弱客户端。
 ///   默认 `false`；传入 [kernel] 时忽略
 /// - [ownsKernel]: 默认只销毁工厂自建内核，注入内核由宿主持有；设为 true 显式移交。
-///   示例：`createMovaEngine(kernel: kernel, ownsKernel: true)`。
+///   示例：`createMova(kernel: kernel, ownsKernel: true)`。
 /// - [fit]: the initial `MovaState.fit`; defaults to [MovaFit.contain]. This is
 ///   a starting value, not a lock — `setFit()` and the fit button still change
 ///   it at runtime / 初始的 `MovaState.fit`，默认 [MovaFit.contain]。只是初值不是
 ///   锁定——运行时 `setFit()` 与 fit 按钮照常可改
 ///
-/// Returns a [MovaEngine] ready for use by app code.
+/// Returns a [Mova] ready for use by app code.
 ///
-/// 返回一个可供 app 代码直接使用的 [MovaEngine]。
-MovaEngine createMovaEngine({
-  MovaKernel? kernel,
+/// 返回一个可供 app 代码直接使用的 [Mova]。
+Mova createMova({
+  IMovaKernel? kernel,
   bool? ownsKernel,
   bool audioOnly = false,
   bool tlsVerify = false,
   String? tlsCaFile,
   MovaOpts options = const MovaOpts(),
   List<MovaHook> interceptors = const [],
-  MovaBrightPort? brightness,
+  IMovaBrightness? brightness,
   bool restoreBrightness = true,
-  MovaVolumePort? volume,
-  MovaPipPort? pip,
-  MovaOrientationPort? orientation,
-  MovaOrientationConfig orientationConfig = const MovaOrientationConfig(),
-  MovaThumbDirProvider? thumbDir,
-  MovaFramePuller? extractor,
-  MovaNetProbe? probe,
-  MovaHttpFetch? fetcher,
-  MovaReporter? reporter,
+  IMovaVolume? volume,
+  IMovaPip? pip,
+  IMovaOrient? orient,
+  MovaOrientOpts orientOpts = const MovaOrientOpts(),
+  IMovaThumbDirProvider? thumbDir,
+  IMovaFramePuller? extractor,
+  IMovaNetProbe? probe,
+  IMovaHttpFetch? fetcher,
+  IMovaReporter? reporter,
   bool preciseFirstFrame = false,
   MovaFit fit = MovaFit.contain,
 }) {
   // Test seam (package:mova/testing.dart): with test kernels installed and no
-  // explicit kernel, build the engine on a scripted kernel, and leave every
-  // platform port at the engine's own no-op default so nothing touches a
+  // explicit kernel, build the player on a scripted kernel, and leave every
+  // platform port at the player's own no-op default so nothing touches a
   // platform channel. Explicit ports still win.
   //
   // 测试接缝（package:mova/testing.dart）：装了测试内核且没显式传 kernel 时，用可编程
-  // 内核构建引擎，所有平台端口保持引擎自带的空实现，不触碰任何平台通道。显式传入的端口
+  // 内核构建播放器，所有平台端口保持播放器自带的空实现，不触碰任何平台通道。显式传入的端口
   // 仍然优先。
   assert(() {
     if (kernel != null) {
@@ -190,7 +190,7 @@ MovaEngine createMovaEngine({
         if (preciseFirstFrame) 'preciseFirstFrame',
       ];
       if (ignored.isNotEmpty) {
-        debugPrint('createMovaEngine 已传入 kernel，以下默认内核参数被忽略：${ignored.join(', ')}');
+        debugPrint('createMova 已传入 kernel，以下默认内核参数被忽略：${ignored.join(', ')}');
       }
     }
     return true;
@@ -201,7 +201,7 @@ MovaEngine createMovaEngine({
       'Android tlsVerify: true 必须同时提供非空 tlsCaFile（PEM CA 证书包）');
   final testKernel = movaTestKernelFactory;
   if (kernel == null && testKernel != null) {
-    return MovaEngine(
+    return Mova(
       kernel: testKernel(),
       ownsKernel: true,
       audioOnly: audioOnly,
@@ -211,7 +211,7 @@ MovaEngine createMovaEngine({
       restoreBrightness: restoreBrightness,
       volume: volume,
       pip: pip,
-      orientation: orientation,
+      orient: orient,
       thumbDir: thumbDir,
       extractor: extractor,
       fetcher: fetcher ?? const MovaTestHttpFetch(),
@@ -224,7 +224,7 @@ MovaEngine createMovaEngine({
     preciseFirstFrame: preciseFirstFrame,
     recovery: options.recovery.enabled,
   );
-  return MovaEngine(
+  return Mova(
     kernel: kernel ?? MovaMpvKernel(
       audioOnly: audioOnly,
       lazyVideo: true,
@@ -241,11 +241,11 @@ MovaEngine createMovaEngine({
     audioOnly: audioOnly,
     options: probe == null ? options : options.copyWith(preview: options.preview.copyWith(probe: probe)),
     interceptors: interceptors,
-    brightness: brightness ?? MovaScreenBrightnessPort(),
+    brightness: brightness ?? MovaBrightness(),
     restoreBrightness: restoreBrightness,
-    volume: volume ?? _defaultVolumePort(),
-    pip: pip ?? MovaChannelPipPort(),
-    orientation: orientation ?? MovaSystemChromeOrientationPort(config: orientationConfig),
+    volume: volume ?? _defaultVolume(),
+    pip: pip ?? MovaPip(),
+    orient: orient ?? MovaOrient(opts: orientOpts),
     thumbDir: thumbDir ?? MovaTempThumbDirProvider(),
     extractor: extractor,
     fetcher: fetcher,

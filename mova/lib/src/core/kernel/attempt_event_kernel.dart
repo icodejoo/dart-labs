@@ -4,7 +4,7 @@ import '../report/stats_probe.dart';
 typedef MovaAttemptEnd = ({int attempt, MovaEndFileReason reason});
 
 /// 包内可选事件能力，不扩展公开内核和统计端口。
-abstract interface class MovaAttemptEventKernel {
+abstract interface class IMovaAttemptEventKernel {
   /// 暂存尝试编号；实现须在实际加载前同步排空旧队列并绑定编号。
   void prepareAttempt(int attempt);
 

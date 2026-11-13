@@ -44,7 +44,7 @@ mixin MovaPlugin<T extends StatefulWidget> on State<T> {
   /// The capability surface, read as a stable handle (no rebuild dependency).
   ///
   /// 能力面，作为稳定句柄读取（不建立重建依赖）。
-  MovaApi get api => MovaScope.readOf(context);
+  IMovaApi get api => MovaScope.readOf(context);
 
   /// Active subscriptions opened via [bind], cancelled in [dispose].
   ///

@@ -7,10 +7,10 @@ import 'package:mova/src/platform_impl/wiring.dart';
 
 import '../support/fake_kernel.dart';
 
-/// A fake [PathProviderPlatform] so `createMovaEngine()`'s real disk-cache
+/// A fake [PathProviderPlatform] so `createMova()`'s real disk-cache
 /// wiring can dispose cleanly in this plain-Dart test suite.
 ///
-/// 假的 [PathProviderPlatform]，让 `createMovaEngine()` 的真实磁盘缓存接线在本
+/// 假的 [PathProviderPlatform]，让 `createMova()` 的真实磁盘缓存接线在本
 /// 纯 Dart 测试套件里也能正常 dispose。
 class _FakePathProviderPlatform extends PathProviderPlatform
     with MockPlatformInterfaceMixin {
@@ -18,7 +18,7 @@ class _FakePathProviderPlatform extends PathProviderPlatform
   Future<String?> getTemporaryPath() async => Directory.systemTemp.path;
 }
 
-/// The `MovaOpts` config sections, read straight from the source so the count
+/// The `MovaOpts` sections, read straight from the source so the count
 /// cannot silently drift.
 ///
 /// 直接从源码读出的 `MovaOpts` 配置节，避免数量悄悄漂移。
@@ -37,11 +37,11 @@ void main() {
 
   group('audio-only openness contract — default + knob + injection per decision', () {
     test('whether a video pipeline is built: built by default', () {
-      final engine = createMovaEngine(kernel: FakeKernel());
-      addTearDown(engine.dispose);
+      final mova = createMova(kernel: FakeKernel());
+      addTearDown(mova.dispose);
 
       expect(
-        engine.renderHandle,
+        mova.renderHandle,
         isNotNull,
         reason: 'audioOnly defaults to false, so nothing about the render '
             'handle changes / audioOnly 默认 false，渲染句柄一切照旧',
@@ -49,25 +49,25 @@ void main() {
       // Changed 2026-09-25: the frame-extraction fallback (unlike the render
       // handle) is orthogonal to audioOnly and now defaults to null
       // regardless — MovaFrameExtractor pulls in media_kit_video as a
-      // statically reachable dependency the moment createMovaEngine()
+      // statically reachable dependency the moment createMova()
       // references it by default, defeating tree-shaking for hosts that
       // never use scrub preview. See test/platform_impl/wiring_test.dart for
       // the explicit-injection coverage.
       //
       // 2026-09-25 变更：抽帧兜底（与渲染句柄不同）跟 audioOnly 正交，现在
-      // 无论如何都默认 null——MovaFrameExtractor 一旦被 createMovaEngine()
+      // 无论如何都默认 null——MovaFrameExtractor 一旦被 createMova()
       // 默认引用，就会把 media_kit_video 变成静态可达依赖，让从不使用拖动预览
       // 的宿主也摇不掉它。显式注入的覆盖见
       // test/platform_impl/wiring_test.dart。
-      expect(engine.debugExtractor, isNull);
+      expect(mova.debugExtractor, isNull);
     });
 
     test('the audioOnly knob turns both the render handle and the extractor off', () {
-      final engine = createMovaEngine(kernel: FakeKernel.audioOnly(), audioOnly: true);
-      addTearDown(engine.dispose);
+      final mova = createMova(kernel: FakeKernel.audioOnly(), audioOnly: true);
+      addTearDown(mova.dispose);
 
-      expect(engine.renderHandle, isNull);
-      expect(engine.debugExtractor, isNull);
+      expect(mova.renderHandle, isNull);
+      expect(mova.debugExtractor, isNull);
     });
 
     test('audioOnly deliberately did NOT become a MovaOpts section', () {

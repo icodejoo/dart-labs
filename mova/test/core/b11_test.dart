@@ -5,9 +5,9 @@ import '../support/fake_api.dart';
 
 /// B11 的拒绝、失败恢复、完整规格与在途绑定回归。
 void main() {
-  test('拒绝 open 撤销复用引擎的绑定，不 ready、不播放旧素材', () async {
+  test('拒绝 open 撤销复用播放器的绑定，不 ready、不播放旧素材', () async {
     final api = FakeMovaApi();
-    final pool = MovaFeedEnginePool(engineFactory: () => api, size: 1);
+    final pool = MovaFeedPool(movaFactory: () => api, size: 1);
     addTearDown(pool.dispose);
     await pool.bind(0, const MovaSource('old'));
     api.acceptOpens = false;
@@ -18,15 +18,15 @@ void main() {
     await pool.focus(1);
     expect(api.calls, isNot(contains('play')));
     expect(api.calls, contains('pause'));
-    expect(pool.engineCount, 1);
+    expect(pool.movaCount, 1);
   });
-  test('首次 open 抛错撤销绑定，同源重试复用原引擎成功', () async {
+  test('首次 open 抛错撤销绑定，同源重试复用原播放器成功', () async {
     final api = FakeMovaApi()
       ..openThrows = StateError('open')
       ..openThrowsOnce = true;
     var creates = 0;
-    final pool = MovaFeedEnginePool(
-      engineFactory: () {
+    final pool = MovaFeedPool(
+      movaFactory: () {
         creates++;
         return api;
       },
@@ -41,7 +41,7 @@ void main() {
   });
   test('同 URL 修改 mpv、demuxer、类型或备选源均重新打开', () async {
     final api = FakeMovaApi();
-    final pool = MovaFeedEnginePool(engineFactory: () => api, size: 1);
+    final pool = MovaFeedPool(movaFactory: () => api, size: 1);
     addTearDown(pool.dispose);
     final sources = [
       const MovaSource('a'),
@@ -62,7 +62,7 @@ void main() {
   });
   test('sameAs 相同仅元数据变化时复用，不重新 open', () async {
     final api = FakeMovaApi();
-    final pool = MovaFeedEnginePool(engineFactory: () => api);
+    final pool = MovaFeedPool(movaFactory: () => api);
     addTearDown(pool.dispose);
     await pool.bind(
       0,
@@ -82,7 +82,7 @@ void main() {
       final api = FakeMovaApi()
         ..openGate = gate
         ..acceptOpens = accepted;
-      final pool = MovaFeedEnginePool(engineFactory: () => api);
+      final pool = MovaFeedPool(movaFactory: () => api);
       final first = pool.bind(0, const MovaSource('a'));
       var settled = false;
       final repeated = pool
@@ -106,7 +106,7 @@ void main() {
     for (final throws in [false, true]) {
       final gate = Completer<void>();
       final api = FakeMovaApi()..openGate = gate;
-      final pool = MovaFeedEnginePool(engineFactory: () => api, size: 1);
+      final pool = MovaFeedPool(movaFactory: () => api, size: 1);
       final stale = pool.bind(0, const MovaSource('old'));
       final checked = expectLater(stale, throws ? throwsStateError : completes);
       api.openGate = null;

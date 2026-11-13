@@ -123,7 +123,7 @@ enum MovaEndFileReason {
 ///
 /// 可选的内核能力，暴露 libmpv 自己的统计量。未实现它的内核只会让 QoE 层降级，
 /// 绝不构成错误。
-abstract class MovaStatsProbe {
+abstract class IMovaStatsProbe {
   /// Fires once per `MPV_EVENT_PLAYBACK_RESTART` — libmpv's own signal that
   /// "playback was reinitialized, usually at start of playback and after
   /// seeking". This is the precise, native TTFF landing signal (2026-09-29

@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mova/src/core/options/controls_config.dart';
+import 'package:mova/src/core/options/controls_opts.dart';
 import 'package:mova/src/core/state/ui_state.dart';
 import 'package:mova/src/ui/chrome/chrome.dart';
 
@@ -110,7 +110,7 @@ void main() {
     '关闭自动隐藏不创建计时器',
     () => fakeAsync((a) {
       final c = MovaChrome();
-      movaSetChromeControls(c, const MovaCtrlsConfig(autoHide: false));
+      movaSetChromeControls(c, const MovaCtrlsOpts(autoHide: false));
       c.show();
       expect(a.nonPeriodicTimerCount, 0);
       a.elapse(const Duration(seconds: 10));

@@ -3,11 +3,11 @@
 状态：2026-07-30 原始设计，core/ui 分层及阶段 A/B/C 已实现；本文保留设计意图与历史签名。
 
 > **现行规则（2026-11-04 C17）**：会话层 MovaSession、错误分级与加载规格、
-> MovaWarmOwner 预热归属、每视图 MovaChrome/MovaUiBridge、MovaPlayerStyle、
+> IMovaWarmOwner 预热归属、每视图 MovaChrome/IMovaUiBridge、MovaPlayerStyle、
 > 能力分入口及导出面已在后续实现中调整。**设计意图看 DESIGN，签名与落点看
 > [SPEC.md](SPEC.md#当前契约与历史设计2026-11-04c17) 和代码**。
 > 本文的 kernel 签名、sourceTitle/renderHandle、ABR 落点、sha1、平台接线目录、
-> 单一主入口及引擎持有 UI 交互态等旧描述不应直接作为实现依据。
+> 单一主入口及播放器持有 UI 交互态等旧描述不应直接作为实现依据。
 
 上游文档：[PRD.md](PRD.md)、[SPEC.md](SPEC.md)、[ROADMAP.md](ROADMAP.md)。
 
@@ -16,20 +16,20 @@
 ## 1. 背景与目标
 
 0.1.0 的结构是 `core/`（薄封装 media_kit）+ `controls/`（UI 与手势）两层，但 UI 直接持有
-`MovaCtrl` 并各自订阅 media_kit 的属性流，控制条是三个大 Widget，外部无法替换局部、
+最早的门面类（已删除）并各自订阅 media_kit 的属性流，控制条是三个大 Widget，外部无法替换局部、
 无法插入自有组件（弹幕、水印、广告），文案与配色硬编码。要继续加功能（拖动预览、直播时移、
 后续弹幕/字幕/投屏），这个结构会越改越贵。
 
 0.2.0 做三件事：
 
-1. **重构**为 `core/`（行为）+ `ui/`（表现），Stream 做通信层，UI 拆成可寻址的组件树 + 皮肤。
+1. **重构**为 `core/`（行为）+ `ui/`（表现），Stream 做通信层，UI 拆成可寻址的组件树 + UI 套件。
 2. **新功能 B**：拖动进度条时显示缩略图预览（服务端雪碧图 / WebVTT，缺元数据时 libmpv 抽帧兜底，
    两级缓存，退出清理，默认仅 WiFi）。
 3. **新功能 C**：斗鱼式直播 ↔ 点播（时移）切换，拖动进度条即可回看，可回到直播边缘。
 
 参考架构：[bytedance/xgplayer](https://github.com/bytedance/xgplayer)（EventEmitter 核心 +
-Plugin 挂载点 + hooks + presets 皮肤）。移植到 Flutter 时两处变形：DOM → Widget，
-CSS 皮肤 → 组合装配。
+Plugin 挂载点 + hooks + presets UI 套件）。移植到 Flutter 时两处变形：DOM → Widget，
+CSS 主题→ 组合装配。
 
 ### 非目标
 
@@ -42,7 +42,7 @@ CSS 皮肤 → 组合装配。
 ## 2. 命名与版本
 
 - 包名 `mova`，公开类前缀 `Vm`（短，且不与 Flutter 的 `VideoPlayer` 相撞）。
-- `src/` 内文件名不带前缀（`core/controller.dart`、`ui/components/seek_bar.dart`）。
+- `src/` 内文件名不带前缀（`core/mova.dart`、`ui/components/seek_bar.dart`）。
 - 原生侧用 `MovaPlugin` / `MovaPluginCApi`，channel 名 `mova`，Android 包
   `com.icodejoo.mova`。
 - 版本 **0.2.0**（破坏性变更）。
@@ -54,16 +54,16 @@ CSS 皮肤 → 组合装配。
 ```
                  ┌──────────────── ui/ （表现）────────────────┐
                  │  MovaPlayer（门面）                            │
-                 │    └ MovaScope(InheritedWidget: MovaApi)         │
-                 │        └ MovaSkin.assemble(slots, video)       │
-                 │            └ 组件树（MovaComp，可寻址）    │
+                 │    └ MovaScope(InheritedWidget: IMovaApi)         │
+                 │        └ IMovaUiKit.assemble(slots, video)       │
+                 │            └ 组件树（MovaComponent，可寻址）    │
                  └──────────┬──────────────────▲───────────────┘
         api.play()/seek()   │                  │  events / states / progress / uiStates
                             ▼                  │
                  ┌──────────────── core/ （行为）───────────────┐
-                 │  MovaApi（抽象能力面）                          │
-                 │  MovaEngine implements MovaApi                   │
-                 │    ├ MovaKernel（抽象内核）→ MovaMpvKernel          │
+                 │  IMovaApi（抽象能力面）                          │
+                 │  Mova implements IMovaApi                   │
+                 │    ├ IMovaKernel（抽象内核）→ MovaMpvKernel          │
                  │    ├ MovaBus（broadcast + 节流/去重）           │
                  │    ├ 状态归约 → MovaState / MovaProg / MovaUiState │
                  │    ├ MovaHook 链（4 个拦截点）           │
@@ -72,7 +72,7 @@ CSS 皮肤 → 组合装配。
                  │    └ platform/（亮度/PiP/方向 抽象端口）      │
                  └──────────────────────────────────────────────┘
                             ▲
-                 platform_impl/（Flutter 侧实现，注入 engine）
+                 platform_impl/（Flutter 侧实现，注入 `Mova`）
 ```
 
 **通信是单向的**：UI → core 走**直接方法调用**（类型安全、可 await、能拿错误）；
@@ -84,9 +84,9 @@ core → UI 走**广播流**（只播"已发生的事"）。不做双向 emit。
 lib/mova.dart                      barrel，只导公开面
 lib/src/
   core/
-    api.dart                           MovaApi 抽象能力面
-    engine.dart                        MovaEngine 实现
-    kernel/kernel.dart                 MovaKernel 抽象（可 fake）
+    api.dart                           IMovaApi 抽象能力面
+    mova.dart                        Mova 实现
+    kernel/kernel.dart                 IMovaKernel 抽象（可 fake）
     kernel/mpv_kernel.dart             唯一 import media_kit 的文件
     bus/bus.dart                       MovaBus：broadcast + throttle/distinct
     events/events.dart                 sealed MovaEvent 事件表
@@ -95,44 +95,44 @@ lib/src/
     state/ui_state.dart                MovaUiState（控制条可见/HUD/预览位置）
     interceptor/interceptor.dart       MovaHook
     options/options.dart               MovaOpts 聚合
-    options/preview_config.dart        MovaPrevConfig
-    options/live_config.dart           MovaLiveConfig
-    options/gesture_config.dart        MovaGestConfig（自 0.1.0 迁入）
-    options/abr_config.dart            MovaAbrConfig
-    options/controls_config.dart       MovaCtrlsConfig
+    options/preview_opts.dart        MovaPreviewOpts
+    options/live_opts.dart           MovaLiveOpts
+    options/gesture_opts.dart        MovaGestureOpts（自 0.1.0 迁入）
+    options/abr_opts.dart            MovaAbrOpts
+    options/controls_opts.dart       MovaCtrlsOpts
     options/strings.dart               MovaStrs（文案外置）
     options/theme.dart                 MovaTheme（配色/尺寸外置）
     model/source.dart                  MovaSource / MovaStreamType
-    model/quality.dart                 MovaQual + parseHlsMasterPlaylist
+    model/quality.dart                 MovaQuality + parseHlsMasterPlaylist
     model/fit.dart                     MovaFit + movaBoxFit
     model/abr.dart                     BufferingAbr → MovaBufferAbr
     preview/
       models.dart                      MovaThumb / MovaThumbCue / MovaThumbIndex
-      source.dart                      MovaThumbSource 抽象
+      source.dart                      IMovaThumbSource 抽象
       vtt.dart                         parseVttThumbs()（纯函数）
       vtt_source.dart                  MovaVttThumbSource
-      extractor.dart                   MovaFramePuller 抽象
+      extractor.dart                   IMovaFramePuller 抽象
       mpv_extractor.dart               MovaFrameExtractor（隐藏 Player）
-      cache.dart                       MovaThumbCache 抽象 + MovaTwoLevelCache
-      service.dart                     MovaPrevSvc implements MovaPrevApi
-      net_probe.dart                   MovaNetProbe 抽象
+      cache.dart                       IMovaThumbCache 抽象 + MovaTwoLevelCache
+      service.dart                     MovaPreviewService implements IMovaPreviewApi
+      net_probe.dart                   IMovaNetProbe 抽象
     live/timeshift.dart                窗口/behind 纯函数
-    platform/ports.dart                MovaBrightPort / MovaPipPort / MovaOrientPort
+    platform/platform.dart                IMovaBrightness / IMovaPip / IMovaOrient
   platform_impl/
     brightness_impl.dart               screen_brightness
     pip_impl.dart                      MethodChannel（现有 platform_interface 收纳于此）
-    orientation_impl.dart              SystemChrome
+    orient_impl.dart              SystemChrome
     net_probe_impl.dart                connectivity_plus
   ui/
     player.dart                        MovaPlayer 门面
     scope/scope.dart                   MovaScope
     scope/selector.dart                MovaSelect<T>
     slots/slot.dart                    MovaSlot 枚举 + MovaSlotBundle
-    slots/component.dart               MovaComp
+    slots/component.dart               MovaComponent
     slots/patch.dart                   MovaPatch（路径寻址增删换）
     slots/tree.dart                    组件树解析与构建
-    skins/skin.dart                    MovaSkin 抽象
-    skins/default_skin.dart            MovaDefSkin（VOD/Live 共用，按 state 出树）
+    ui_kits/ui_kit.dart                    IMovaUiKit 抽象
+    ui_kits/default_ui_kit.dart            MovaDefaultUiKit（VOD/Live 共用，按 state 出树）
     components/…                       见 5.4
 ```
 
@@ -140,12 +140,12 @@ lib/src/
 
 ## 4. core 设计
 
-### 4.1 MovaApi（能力面）
+### 4.1 IMovaApi（能力面）
 
 UI 只依赖这个抽象类；测试用 `FakeMovaApi`。
 
 ```dart
-abstract class MovaApi {
+abstract class IMovaApi {
   // ── 订阅（四条流，按频率拆开）
   Stream<MovaEvent> get events;        // 离散事件，低频
   Stream<MovaState> get states;        // 快照，去重
@@ -170,7 +170,7 @@ abstract class MovaApi {
   Future<void> setLocked(bool v);
   Future<void> setFullscreen(bool v);
   Future<void> loadQualities();
-  Future<void> switchQuality(MovaQual q);
+  Future<void> switchQuality(MovaQuality q);
   Future<bool> enterPip();
   Future<void> reload();
   Future<void> backToLiveEdge();
@@ -181,17 +181,17 @@ abstract class MovaApi {
   void showHud(MovaHud hud);
   void setDragging(bool v, {Duration? previewAt});
 
-  MovaPrevApi get preview;
+  IMovaPreviewApi get preview;
   Future<void> dispose();
 }
 ```
 
-### 4.2 MovaKernel（内核抽象）
+### 4.2 IMovaKernel（内核抽象）
 
 隔离 media_kit，使 core 可在纯 Dart 下测试。
 
 ```dart
-abstract class MovaKernel {
+abstract class IMovaKernel {
   Future<void> open(String uri, {bool play = true});
   Future<void> play();
   Future<void> pause();
@@ -225,21 +225,21 @@ sealed class MovaEvent { const MovaEvent(); }
 | 事件 | 载荷 |
 |---|---|
 | `MovaReady` | — |
-| `MovaSourceChg` | `MovaSource source` |
+| `MovaSourceChange` | `MovaSource source` |
 | `MovaPlay` / `MovaPause` / `MovaDone` | — |
 | `MovaSeek` / `MovaSeeked` | `Duration target` / `Duration position` |
-| `MovaBufferChg` | `bool buffering` |
-| `MovaDurChg` | `Duration duration` |
-| `MovaSizeChg` | `int width, height` |
-| `MovaVolumeChg` / `MovaBrightChg` / `MovaRateChg` | `double value` |
-| `MovaQualListChg` | `List<MovaQual> qualities` |
-| `MovaQualChg` | `MovaQual quality` |
-| `MovaAbrDownShift` | `MovaQual from, to` |
-| `MovaFitChg` / `MovaZoomChg` | 新值 |
-| `MovaLockChg` / `MovaFullScreenChg` / `MovaPipChg` | `bool value` |
-| `MovaTimeShiftChg` | `Duration behind` |
+| `MovaBufferChange` | `bool buffering` |
+| `MovaDurationChange` | `Duration duration` |
+| `MovaSizeChange` | `int width, height` |
+| `MovaVolumeChange` / `MovaBrightChange` / `MovaRateChange` | `double value` |
+| `MovaQualityListChange` | `List<MovaQuality> qualities` |
+| `MovaQualityChange` | `MovaQuality quality` |
+| `MovaAbrDownShift` | `MovaQuality from, to` |
+| `MovaFitChange` / `MovaZoomChange` | 新值 |
+| `MovaLockChange` / `MovaFullScreenChange` / `MovaPipChange` | `bool value` |
+| `MovaTimeShiftChange` | `Duration behind` |
 | `MovaLiveEdgeReach` | — |
-| `MovaPrevBlock` | `MovaPrevBlockReason reason` |
+| `MovaPreviewBlock` | `MovaPreviewBlockReason reason` |
 | `MovaErrorEvent` | `Object error, StackTrace? stack` |
 
 ### 4.4 状态
@@ -251,8 +251,8 @@ class MovaState {                       // 不可变 + copyWith
   final int width, height;
   final double volume, brightness, rate, zoom;
   final MovaFit fit;
-  final List<MovaQual> qualities;
-  final MovaQual? currentQuality;
+  final List<MovaQuality> qualities;
+  final MovaQuality? currentQuality;
   final MovaStreamType type;
   final bool liveSeekable;            // 直播是否可拖
   final Duration seekableWindow;      // 可拖窗口
@@ -297,8 +297,8 @@ abstract class MovaHook {
 
 ```dart
 class MovaScope extends InheritedWidget {
-  final MovaApi api;
-  static MovaApi of(BuildContext c);
+  final IMovaApi api;
+  static IMovaApi of(BuildContext c);
 }
 
 /// 只在 selector 结果变化时 rebuild
@@ -315,35 +315,35 @@ class MovaSelect<T> extends StatelessWidget {
 enum MovaSlot { gesture, hud, top, center, bottomAbove, bottom, overlay }
 // 视频画面本身不是组件：它由 MovaPlayer 构建后作为 assemble(video) 参数传入，永远在最底层。
 
-abstract class MovaComp {
+abstract class MovaComponent {
   String get name;                                 // 唯一名，路径寻址用
   MovaSlot get slot;                                 // 顶层挂载点；作为子组件时被父级忽略
   int get order => 0;                              // 同槽排序
-  List<MovaComp> get children => const [];      // 空 = 细粒度原子组件
+  List<MovaComponent> get children => const [];      // 空 = 细粒度原子组件
   /// children 已由框架构建完毕传入；父级只排布（Row/Column/Stack）
-  Widget build(BuildContext c, MovaApi api, List<Widget> children);
+  Widget build(BuildContext c, IMovaApi api, List<Widget> children);
 }
 ```
 
 **细/中两种粒度统一**：中粒度（`topBar`、`bottomBar`、`hudLayer`）就是持有 children 的组合组件。
 
-### 5.3 皮肤与补丁
+### 5.3 UI 套件与补丁
 
 ```dart
-abstract class MovaSkin {
-  List<MovaComp> components(MovaState s);   // 可按 vod/live/时移 动态出树
+abstract class IMovaUiKit {
+  List<MovaComponent> components(MovaState s);   // 可按 vod/live/时移 动态出树
   Widget assemble(BuildContext c, MovaSlotBundle slots, Widget video);
 }
 
 sealed class MovaPatch {
-  factory MovaPatch.replace(String path, MovaComp c);
+  factory MovaPatch.replace(String path, MovaComponent c);
   factory MovaPatch.remove(String path);
-  factory MovaPatch.insertAfter(String path, MovaComp c);
-  factory MovaPatch.add(MovaSlot slot, MovaComp c, {int order});
+  factory MovaPatch.insertAfter(String path, MovaComponent c);
+  factory MovaPatch.add(MovaSlot slot, MovaComponent c, {int order});
 }
 
-class MovaDefSkin implements MovaSkin {
-  const MovaDefSkin({List<MovaPatch> patches = const []});
+class MovaDefaultUiKit implements IMovaUiKit {
+  const MovaDefaultUiKit({List<MovaPatch> patches = const []});
 }
 ```
 
@@ -352,7 +352,7 @@ class MovaDefSkin implements MovaSkin {
 ```dart
 MovaPlayer(
   api: api,
-  skin: MovaDefSkin(patches: [
+  uiKit: MovaDefaultUiKit(patches: [
     MovaPatch.replace('bottomBar/seekBar', MySeekBar()),   // 换细组件
     MovaPatch.remove('topBar/pip'),                        // 删按钮
     MovaPatch.replace('bottomBar', MyBottomBar()),         // 换整块中粒度
@@ -375,7 +375,7 @@ bottom     bottomBar/{position, seekBar, duration}                      # VOD
 overlay    buffering, error, lockMask
 ```
 
-`seekBar` 一个组件同时服务 VOD 与可拖直播；直播不可拖时默认皮肤不出该组件。
+`seekBar` 一个组件同时服务 VOD 与可拖直播；直播不可拖时默认 UI 套件不出该组件。
 
 组件内部只做两件事：`MovaSelect` 订字段渲染 + 调 `api.xxx()`。**无组件持有另一组件引用**；
 跨组件协同（控制条自动隐藏、HUD、预览位置）全部经 `MovaUiState`。
@@ -391,13 +391,13 @@ review 时逐条对账。
 
 | 决策 | 默认 | 配置项 | 可注入 |
 |---|---|---|---|
-| 网络限制 | `wifiOnly` | `network` | `probe`（`MovaNetProbe`） |
+| 网络限制 | `wifiOnly` | `network` | `probe`（`IMovaNetProbe`） |
 | 被拦提示 | 静默 | — | `onBlocked(reason)` |
-| 缩略图来源 | `[vtt, mpvExtract]` | `sources` 有序表 | 自定义 `MovaThumbSource` |
+| 缩略图来源 | `[vtt, mpvExtract]` | `sources` 有序表 | 自定义 `IMovaThumbSource` |
 | VTT 地址 | 约定 `<video>.vtt` | `vttUrl` | `vttUrlResolver` |
-| 抽帧兜底 | 开 | `extractFallback`、`platforms` | 自定义 `MovaFramePuller` |
+| 抽帧兜底 | 开 | `extractFallback`、`platforms` | 自定义 `IMovaFramePuller` |
 | 帧宽 / 桶间隔 / 硬解 | 160px / 10s / off | 均可配 | — |
-| 内存上限 | 40 张 | `memMaxEntries` | 自定义 `MovaThumbCache` |
+| 内存上限 | 40 张 | `memMaxEntries` | 自定义 `IMovaThumbCache` |
 | 磁盘上限 / 目录 | 64MB / 临时目录 | `diskMaxBytes`、`diskDir` | 同上 |
 | 缓存 key | `sha1(src|bucket|w)` | — | `cacheKeyBuilder` |
 | 退出清理 | 开 | `clearOnDispose` | 同上 |
@@ -421,24 +421,24 @@ review 时逐条对账。
 |---|---|
 | `MovaStrs` | `'适应'/'裁剪'/'拉伸'/'回到直播'/'LIVE'/'时移'` 等全部外置，整表可换，宿主自接 l10n |
 | `MovaTheme` | 颜色/图标/字号/进度条高度/渐变，替代散落的 `Colors.white`、`Color(0xFFE53935)` |
-| `MovaGestConfig` | 补 `hSeekSpanPerScreen`（原硬编码满屏 90s）、`vSensitivity`、`allowWhenLive` |
-| `MovaAbrConfig` | `policy` 可注入，替换 `MovaBufferAbr` |
-| `MovaCtrlsConfig` | `autoHide`、`autoHideDelay`（3s）、`showOnStart` |
+| `MovaGestureOpts` | 补 `hSeekSpanPerScreen`（原硬编码满屏 90s）、`vSensitivity`、`allowWhenLive` |
+| `MovaAbrOpts` | `policy` 可注入，替换 `MovaBufferAbr` |
+| `MovaCtrlsOpts` | `autoHide`、`autoHideDelay`（3s）、`showOnStart` |
 | `kernel` | 可注入自研内核 / 测试 fake |
 | `platform` | 亮度/PiP/方向三端口均可注入 |
 | `interceptors` | 4 个拦截点 |
-| `skin` + `patches` | 组件树任意增删换 |
+| `uiKit` + `patches` | 组件树任意增删换 |
 
 聚合入口：
 
 ```dart
 class MovaOpts {
   const MovaOpts({
-    this.preview = const MovaPrevConfig(),
-    this.live = const MovaLiveConfig(),
-    this.gesture = const MovaGestConfig(),
-    this.abr = const MovaAbrConfig(),
-    this.controls = const MovaCtrlsConfig(),
+    this.preview = const MovaPreviewOpts(),
+    this.live = const MovaLiveOpts(),
+    this.gesture = const MovaGestureOpts(),
+    this.abr = const MovaAbrOpts(),
+    this.controls = const MovaCtrlsOpts(),
     this.strings = const MovaStrs(),
     this.theme = const MovaTheme(),
   });
@@ -454,7 +454,7 @@ class MovaOpts {
 
 ```
 拖动位置 t（按 interval 取桶 → bucket）
- ├ 网络策略检查（wifiOnly 且当前蜂窝 → emit MovaPrevBlock，不请求）
+ ├ 网络策略检查（wifiOnly 且当前蜂窝 → emit MovaPreviewBlock，不请求）
  ├ 内存命中？ → 同帧同步返回，无闪烁
  ├ 磁盘命中？ → 异步读 → 显示 + 回填内存
  ├ sources 依次尝试：
@@ -506,8 +506,8 @@ sprite-0.jpg#xywh=160,0,160,90
 ### 7.5 网络策略
 
 ```dart
-enum MovaPrevNet { wifiOnly, always, never }   // 默认 wifiOnly
-abstract class MovaNetProbe { Future<bool> allowHeavy(); Stream<bool> get changes; }
+enum MovaPreviewNet { wifiOnly, always, never }   // 默认 wifiOnly
+abstract class IMovaNetProbe { Future<bool> allowHeavy(); Stream<bool> get changes; }
 ```
 
 默认实现 `MovaConnectivityNetProbe`（新增 `connectivity_plus`）：wifi/ethernet/vpn → 允许，
@@ -519,7 +519,7 @@ mobile → 拦，unknown/桌面 → 允许（不误伤桌面）。用户可注�
 
 ```dart
 enum MovaLiveSeekMode { off, dvr, timeshift }
-typedef MovaTimeShiftBldr = String Function(String uri, Duration behind, DateTime wallClock);
+typedef MovaTimeShiftBuilder = String Function(String uri, Duration behind, DateTime wallClock);
 enum MovaBackToLive { seekEnd, reopen }
 ```
 
@@ -539,7 +539,7 @@ UI：`bottomBar` 在 `liveSeekable` 时出 `seekBar`；`liveBadge` 在边缘为�
 纯函数（`live/timeshift.dart`，可单测）：
 
 ```dart
-Duration resolveWindow(MovaState s, MovaLiveConfig cfg);
+Duration resolveWindow(MovaState s, MovaLiveOpts cfg);
 Duration? behindOf(Duration position, Duration window, Duration edgeThreshold);
 bool atLiveEdge(Duration position, Duration window, Duration edgeThreshold);
 ```
@@ -556,9 +556,9 @@ bool atLiveEdge(Duration position, Duration window, Duration edgeThreshold);
 
 ## 9. 兼容与迁移
 
-- `MovaPlayer` 对外签名保持兼容，新增可选 `skin` / `options` 参数。
-- `MovaCtrl` 保留为 `MovaEngine` 的 `@Deprecated` 门面（转发全部方法）。
-- `VodControls` / `LiveControls` / `MovaGestDetect` 标 `@Deprecated`，0.3.0 删除。
+- `MovaPlayer` 对外签名保持兼容，新增可选 `uiKit` / `options` 参数。
+- 最早的门面类（已删除）曾保留为 `Mova` 的 `@Deprecated` 门面（转发全部方法）。
+- 旧版控制条与手势组件（均已删除）曾标 `@Deprecated`，0.3.0 删除。
 - `CHANGELOG` 写明破坏性变更与替换表。
 
 ---
@@ -567,7 +567,7 @@ bool atLiveEdge(Duration position, Duration window, Duration edgeThreshold);
 
 **core（纯 Dart，`FakeKernel` 推状态）**
 
-- 事件序列：open → `MovaSourceChg`/`MovaReady`/`MovaPlay`；seek → `MovaSeek`→`MovaSeeked`。
+- 事件序列：open → `MovaSourceChange`/`MovaReady`/`MovaPlay`；seek → `MovaSeek`→`MovaSeeked`。
 - 状态归约：各字段跟随内核流；`copyWith` 不丢字段。
 - `progress` 节流：高频 position 输入 → 输出条数受限。
 - `states` 去重：相同快照不重复发。
@@ -610,7 +610,7 @@ bool atLiveEdge(Duration position, Duration window, Duration edgeThreshold);
 
 | 阶段 | 内容 | 出口条件 |
 |---|---|---|
-| **A：重构** | core 骨架（api/engine/kernel/bus/events/state/interceptor/options）+ 现有 5 个控件平移成组件树 + 皮肤/补丁 + 文案与主题外置 + 兼容门面 | **功能零变化**；`flutter analyze` 0；现有 19 项测试改造后全绿 + 新增 core/ui 骨架测试全绿 |
+| **A：重构** | core 骨架（api/mova/kernel/bus/events/state/interceptor/options）+ 现有 5 个控件平移成组件树 + UI 套件/补丁 + 文案与主题外置 + 兼容门面 | **功能零变化**；`flutter analyze` 0；现有 19 项测试改造后全绿 + 新增 core/ui 骨架测试全绿 |
 | **B：拖动预览** | `preview/` 全套 + `preview` 组件 + 网络策略 + 两级缓存 + 清理 | 抽帧分辨率实测通过；预览单测全绿；Windows 实跑可见气泡 |
 | **C：直播时移** | `live/` + seekBar 复用 + liveBadge/timeshift/backToLive 组件 + 手势门控 | 时移单测全绿；模拟 DVR m3u8 实跑可拖可回边缘 |
 | **D：收尾** | README/CHANGELOG/example 三个 demo（VOD/直播/时移）、`pub publish --dry-run` 0 warnings、真机一轮 | 发布 0.2.0 |

@@ -1,14 +1,14 @@
 import 'package:screen_brightness/screen_brightness.dart';
 
-import '../core/platform/ports.dart';
+import '../core/platform/platform.dart';
 
-/// A [MovaBrightPort] implementation backed by the `screen_brightness`
+/// A [IMovaBrightness] implementation backed by the `screen_brightness`
 /// plugin. Reads the app's current screen brightness and applies changes to
 /// it; any plugin error falls back to a brightness of `1.0`.
 ///
-/// 基于 `screen_brightness` 插件实现的 [MovaBrightPort]。读取应用当前屏幕
+/// 基于 `screen_brightness` 插件实现的 [IMovaBrightness]。读取应用当前屏幕
 /// 亮度并应用变更；插件出现任何异常时兜底为亮度 `1.0`。
-class MovaScreenBrightnessPort implements MovaBrightPort, MovaBrightRestore {
+class MovaBrightness implements IMovaBrightness, IMovaBrightnessRestore {
   /// 进入播放器前是否已有应用亮度覆盖；读取失败时不猜测宿主控制权。
   bool? _hadApplicationOverride;
 

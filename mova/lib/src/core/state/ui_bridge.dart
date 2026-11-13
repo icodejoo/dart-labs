@@ -67,28 +67,28 @@ class MovaUiHandoff {
 }
 
 /// 包内：接收从最后一个视图交还的 UI 责任。
-abstract interface class MovaUiHandoffReceiver {
+abstract interface class IMovaUiHandoffReceiver {
   /// 恢复旧镜像，不重新计算剩余期限。
   void resumeUi(MovaUiHandoff handoff);
 }
 
 /// 可在解绑时移交计时责任的连接；不扩充自定义连接必需成员。
-abstract interface class MovaUiHandoffLink implements MovaUiLink {
+abstract interface class IMovaUiHandoffLink implements IMovaUiLink {
   /// 仅末次解绑移交，其余解绑取消本视图计时器。
   void unlinkWith(MovaUiHandoff handoff);
 }
 
-/// 支持每视图交互态的包内过渡能力，不扩充 MovaApi。
-abstract interface class MovaUiBridge {
+/// 支持每视图交互态的包内过渡能力，不扩充 IMovaApi。
+abstract interface class IMovaUiBridge {
   /// 当前源是否已宣布就绪。
   bool get uiReady;
 
   /// 挂接视图；销毁后返回已关闭的连接。
-  MovaUiLink linkUi(MovaUiSink sink);
+  IMovaUiLink linkUi(IMovaUiSink sink);
 }
 
 /// 接收旧 UI 动词的视图端。
-abstract interface class MovaUiSink {
+abstract interface class IMovaUiSink {
   /// 显示控制条。
   void legacyShow({required bool sticky});
 
@@ -102,8 +102,8 @@ abstract interface class MovaUiSink {
   void legacyDragging(bool dragging, Duration? previewAt);
 }
 
-/// 视图与引擎之间可幂等断开的连接。
-abstract interface class MovaUiLink {
+/// 视图与播放器之间可幂等断开的连接。
+abstract interface class IMovaUiLink {
   /// 写给旧读者的镜像；多视图时后写者胜出。
   void mirror(MovaUiState state);
 
@@ -139,7 +139,7 @@ class MovaUiConnections {
   bool get isEmpty => _links.isEmpty;
 
   /// 建立连接，销毁后不再持有视图。
-  MovaUiLink link(MovaUiSink sink) {
+  IMovaUiLink link(IMovaUiSink sink) {
     final link = _UiLink(this, sink);
     if (_closed) return link..closed = true;
     if (isEmpty) onFirst?.call();
@@ -148,7 +148,7 @@ class MovaUiConnections {
   }
 
   /// 广播旧动词，允许回调重入时断开连接。
-  void broadcast(void Function(MovaUiSink) call) {
+  void broadcast(void Function(IMovaUiSink) call) {
     for (final link in [..._links]) {
       if (!link.closed) call(link.sink);
     }
@@ -164,10 +164,10 @@ class MovaUiConnections {
   }
 }
 
-class _UiLink implements MovaUiHandoffLink {
+class _UiLink implements IMovaUiHandoffLink {
   _UiLink(this.owner, this.sink);
   final MovaUiConnections owner;
-  final MovaUiSink sink;
+  final IMovaUiSink sink;
   bool closed = false;
 
   @override

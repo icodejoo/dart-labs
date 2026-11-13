@@ -15,9 +15,9 @@
 广告计划的 1x、正片计划的显式恢复值、commit 的继承规则均按传入值执行，
 A27 prepare+commit 并未自行把 1.5 改成 1.0，错误恢复值在进入广告前已保存。
 
-修复代理 setRate 完成时发布当前生效引擎快照，并以引擎身份及 renderEpoch
+修复代理 setRate 完成时发布当前生效播放器快照，并以播放器身份及 renderEpoch
 隔离迟到写入。没有新增方向枚举，沿用 MovaWarmPlan.rate。
-真实 MovaEngine + FakeKernel 回归覆盖直接返回与影子提交返回，内核最后一次
+真实 Mova + FakeKernel 回归覆盖直接返回与影子提交返回，内核最后一次
 setRate 参数和代理最终状态都为 1.5，广告时内核参数为 1.0。
 仅撤去 lib 修复后两项均变红（期望 1.5，实际 1.0），恢复修复两项通过。
 
@@ -55,15 +55,15 @@ epoch1=1、epoch2=2；第六轮第二条 path/首帧存在而 epoch2=1。
 同批后续场景已无法起播，符合资源逐步耗尽，不能把未换指直接视作 pod 仲裁失效。
 
 只读 `git show 996b324f:mova/example/lib/verify_auto/cp2_common.dart` 确认
-实测版本注入 MovaMpvKernel 却缺少 ownsKernel:true；默认借用内核，销毁引擎
+实测版本注入 MovaMpvKernel 却缺少 ownsKernel:true；默认借用内核，销毁播放器
 不会释放 Player。当前只读树的夹具已补该参数，不能拿其当前内容冒充实测版本。
 
 当前 lib 的第二条 `_playAd` 在等待策略下走 prepareOwned+commitOwned。
-只有影子失败/未就绪时才按既有 hardCut 契约在当前生效引擎 open；没有换渲染引擎，
-renderEpoch 不增长是预期。正常路径未发现回落到主引擎 open 的问题。
+只有影子失败/未就绪时才按既有 hardCut 契约在当前生效播放器 open；没有换渲染引擎，
+renderEpoch 不增长是预期。正常路径未发现回落到主播放器 open 的问题。
 
 新增两项诊断测试：一项连续二十轮干净 pod，每轮第二条均 1→2、独立影子提交，
-第一条未收到第二条的 open，所有替身引擎均恰好释放一次；另一项注入第二条
+第一条未收到第二条的 open，所有替身播放器均恰好释放一次；另一项注入第二条
 影子初始化失败，确认释放失败影子、硬切第二条、epoch 保持 1。
 两项均在既有 lib 上通过；没有可归因产品缺陷的变红回归（0 条），不改 lib，
 不改既有断言，也没有新增行为需要记入 CHANGELOG。

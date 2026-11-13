@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:mova/src/testing/hooks.dart';
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mova/src/core/engine.dart';
+import 'package:mova/src/core/mova.dart';
 import 'package:mova/src/core/events/events.dart';
 import 'package:mova/src/core/model/source.dart';
 import 'package:mova/src/core/options/options.dart';
@@ -14,25 +14,25 @@ import '../../support/fake_kernel.dart';
 
 /// 恢复层修复回归：恢复后清错误、放弃后清缓冲、确定性失败快速重试。
 ///
-/// 引擎 + FakeStatsKernel，关掉控制条自动隐藏，使挂起计时器只来自恢复层。
+/// 播放器 + FakeStatsKernel，关掉控制条自动隐藏，使挂起计时器只来自恢复层。
 class _Rig {
-  _Rig({MovaRecoveryConfig recovery = const MovaRecoveryConfig(startTimeout: Duration(seconds: 10), stallTimeout: Duration(seconds: 10), enabled: true)})
+  _Rig({MovaRecoveryOpts recovery = const MovaRecoveryOpts(startTimeout: Duration(seconds: 10), stallTimeout: Duration(seconds: 10), enabled: true)})
     : kernel = FakeStatsKernel() {
-    engine = MovaEngine(fetcher: const MovaTestHttpFetch(),
+    mova = Mova(fetcher: const MovaTestHttpFetch(),
       kernel: kernel,
-      options: MovaOpts(recovery: recovery, controls: const MovaCtrlsConfig(autoHide: false)),
+      options: MovaOpts(recovery: recovery, controls: const MovaCtrlsOpts(autoHide: false)),
     );
-    engine.events.listen(events.add);
+    mova.events.listen(events.add);
   }
 
   final FakeStatsKernel kernel;
-  late final MovaEngine engine;
+  late final Mova mova;
   final List<MovaEvent> events = [];
 
   List<MovaPlayFailure> get failures => events.whereType<MovaPlayFailure>().toList();
 
   void open(FakeAsync async, {MovaStreamType type = MovaStreamType.vod}) {
-    engine.open(MovaSource('https://h/a.m3u8', type: type));
+    mova.open(MovaSource('https://h/a.m3u8', type: type));
     async.flushMicrotasks();
   }
 
@@ -56,11 +56,11 @@ void main() {
         // 格式错误已终结，不能再用它制造可恢复状态；改用起播超时。
         async.elapse(tenSeconds);
         expect(r.failures, hasLength(1));
-        expect(r.engine.state.error, isNull, reason: '等待重试期间不是终结失败');
+        expect(r.mova.state.error, isNull, reason: '等待重试期间不是终结失败');
         async.elapse(oneSecond);
         r.land(async);
         expect(r.events.whereType<MovaRecovered>(), hasLength(1));
-        expect(r.engine.state.error, isNull);
+        expect(r.mova.state.error, isNull);
       });
     });
 
@@ -70,7 +70,7 @@ void main() {
         r.open(async);
         r.land(async);
         expect(r.events.whereType<MovaRecovered>(), isEmpty);
-        expect(r.engine.state.error, isNull);
+        expect(r.mova.state.error, isNull);
       });
     });
   });
@@ -78,14 +78,14 @@ void main() {
   group('2. 放弃后缓冲标志归零', () {
     test('giveUp 后 state.buffering 为 false，并补发一次 MovaBufferChange(false)', () {
       fakeAsync((async) {
-        final r = _Rig(recovery: const MovaRecoveryConfig(startTimeout: Duration(seconds: 10), stallTimeout: Duration(seconds: 10), enabled: true, policy: MovaFailoverOnly()));
+        final r = _Rig(recovery: const MovaRecoveryOpts(startTimeout: Duration(seconds: 10), stallTimeout: Duration(seconds: 10), enabled: true, policy: MovaFailoverOnly()));
         r.open(async);
         r.kernel.emitBuffering(true);
         async.flushMicrotasks();
-        expect(r.engine.state.buffering, isTrue);
+        expect(r.mova.state.buffering, isTrue);
         async.elapse(tenSeconds);
-        expect(r.engine.state.error, isA<MovaGiveUpError>());
-        expect(r.engine.state.buffering, isFalse);
+        expect(r.mova.state.error, isA<MovaGiveUpError>());
+        expect(r.mova.state.buffering, isFalse);
         final changes = r.events.whereType<MovaBufferChange>().toList();
         expect(changes.last.buffering, isFalse);
       });
@@ -93,17 +93,17 @@ void main() {
 
     test('放弃时本来就不在缓冲：不多发 MovaBufferChange', () {
       fakeAsync((async) {
-        final r = _Rig(recovery: const MovaRecoveryConfig(startTimeout: Duration(seconds: 10), stallTimeout: Duration(seconds: 10), enabled: true, policy: MovaFailoverOnly()));
+        final r = _Rig(recovery: const MovaRecoveryOpts(startTimeout: Duration(seconds: 10), stallTimeout: Duration(seconds: 10), enabled: true, policy: MovaFailoverOnly()));
         r.open(async);
         async.elapse(tenSeconds);
-        expect(r.engine.state.error, isA<MovaGiveUpError>());
+        expect(r.mova.state.error, isA<MovaGiveUpError>());
         expect(r.events.whereType<MovaBufferChange>(), isEmpty);
       });
     });
   });
 
   group('3. 确定性失败不必等满 startTimeout', () {
-    const patient = MovaRecoveryConfig(startTimeout: Duration(seconds: 10), stallTimeout: Duration(seconds: 10),
+    const patient = MovaRecoveryOpts(startTimeout: Duration(seconds: 10), stallTimeout: Duration(seconds: 10),
       enabled: true,
       policy: MovaRetryThenFailover(maxRetries: 5),
     );
@@ -134,7 +134,7 @@ void main() {
       fakeAsync((async) {
         final r = _Rig(recovery: patient);
         r.kernel.openGate = Completer<void>();
-        r.engine.open(const MovaSource('https://h/a.m3u8'));
+        r.mova.open(const MovaSource('https://h/a.m3u8'));
         async.flushMicrotasks();
         r.kernel.emitEndFile(MovaEndFileReason.error);
         async.flushMicrotasks();
@@ -152,13 +152,13 @@ void main() {
       fakeAsync((async) {
         final r = _Rig(recovery: patient);
         r.kernel.openGate = Completer<void>();
-        r.engine.open(const MovaSource('https://h/a.m3u8'));
+        r.mova.open(const MovaSource('https://h/a.m3u8'));
         async.flushMicrotasks();
         r.kernel.emitEndFile(MovaEndFileReason.error);
         async.flushMicrotasks();
         final gate = r.kernel.openGate!;
         r.kernel.openGate = null;
-        r.engine.open(const MovaSource('https://h/b.m3u8'));
+        r.mova.open(const MovaSource('https://h/b.m3u8'));
         async.flushMicrotasks();
         gate.complete();
         async.flushMicrotasks();

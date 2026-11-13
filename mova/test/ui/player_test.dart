@@ -4,17 +4,17 @@ import 'package:mova/src/core/state/progress.dart';
 import 'package:mova/src/core/state/state.dart';
 import 'package:mova/src/ui/player.dart';
 import 'package:mova/src/ui/scope/scope.dart';
-import 'package:mova/src/ui/skins/bilibili_skin.dart';
-import 'package:mova/src/ui/skins/default_skin.dart';
-import 'package:mova/src/ui/skins/minimal_skin.dart';
+import 'package:mova/src/ui/ui_kits/bilibili_ui_kit.dart';
+import 'package:mova/src/ui/ui_kits/default_ui_kit.dart';
+import 'package:mova/src/ui/ui_kits/minimal_ui_kit.dart';
 
 import '../support/fake_api.dart';
 
 /// Finds the render surface's inner placeholder/video widget's key, used to
-/// tell whether the surface actually rebuilt and re-read [MovaApi.renderHandle].
+/// tell whether the surface actually rebuilt and re-read [IMovaApi.renderHandle].
 ///
 /// 找到渲染面内部占位/视频组件的 key，用于判断渲染面是否真的重建并重新读取了
-/// [MovaApi.renderHandle]。
+/// [IMovaApi.renderHandle]。
 Key? _surfaceKey(WidgetTester t) {
   final matches = t.widgetList<ColoredBox>(find.byWidgetPredicate(
       (w) => w is ColoredBox && w.key.runtimeType.toString() == '_RenderHandleKey'));
@@ -22,9 +22,9 @@ Key? _surfaceKey(WidgetTester t) {
 }
 
 void main() {
-  testWidgets('MovaPlayer provides its api down the tree and renders the skin', (t) async {
+  testWidgets('MovaPlayer provides its api down the tree and renders the UI kit', (t) async {
     final api = FakeMovaApi();
-    await t.pumpWidget(MaterialApp(home: MovaPlayer(api: api, skin: const MovaDefaultSkin())));
+    await t.pumpWidget(MaterialApp(home: MovaPlayer(api: api, uiKit: const MovaDefaultUiKit())));
     await t.pump();
     expect(find.byType(MovaScope), findsOneWidget);
     await api.dispose();
@@ -42,10 +42,10 @@ void main() {
 
   testWidgets(
     'swapping to a different api remounts the component subtree, so the seek '
-    'bar reflects the new engine instead of freezing on the old one '
-    '(regression: switching engines under a live MovaPlayer left the seek bar '
+    'bar reflects the new player instead of freezing on the old one '
+    '(regression: switching players under a live MovaPlayer left the seek bar '
     'stuck, since the old stateful subtree never unmounted its subscription '
-    'to the disposed engine)',
+    'to the disposed player)',
     (t) async {
       final api1 = FakeMovaApi();
       api1.push(const MovaState(duration: Duration(seconds: 100)));
@@ -57,7 +57,7 @@ void main() {
       expect(t.widget<Slider>(find.byType(Slider)).value, 40000);
 
       // Same widget position, same type, no key — exactly what the demo app
-      // does when switching sources by rebuilding with a fresh MovaEngine.
+      // does when switching sources by rebuilding with a fresh Mova.
       final api2 = FakeMovaApi();
       api2.push(const MovaState(duration: Duration(seconds: 100)));
       await t.pumpWidget(MaterialApp(home: MovaPlayer(api: api2)));
@@ -131,10 +131,10 @@ void main() {
   });
 
   testWidgets('a custom surface replaces the render surface entirely under audio-only', (t) async {
-    // Proves the audio-only cover/waveform/lyrics panel needs no MovaAudioSkin:
+    // Proves the audio-only cover/waveform/lyrics panel needs no MovaAudioUiKit:
     // MovaPlayer.surface is already the hook for it.
     //
-    // 证明仅音频场景的封面/波形/歌词面无需 MovaAudioSkin：MovaPlayer.surface
+    // 证明仅音频场景的封面/波形/歌词面无需 MovaAudioUiKit：MovaPlayer.surface
     // 本来就是那个口子。
     final api = FakeMovaApi();
     await t.pumpWidget(MaterialApp(
@@ -156,10 +156,10 @@ void main() {
   });
 
   testWidgets('switching from an audio-only handle to a video one rebuilds the surface', (t) async {
-    // The reverse path MovaCutoverEngine makes possible: one tree, audio engine
-    // swapped out for a video engine.
+    // The reverse path MovaCutover makes possible: one tree, audio player
+    // swapped out for a video player.
     //
-    // MovaCutoverEngine 打开的反向路径：同一棵树上，音频引擎换成视频引擎。
+    // MovaCutover 打开的反向路径：同一棵树上，音频播放器换成视频播放器。
     final api = FakeMovaApi();
     await t.pumpWidget(MaterialApp(home: MovaPlayer(api: api)));
     await t.pump();
@@ -239,15 +239,15 @@ void main() {
     },
   );
 
-  group('S14: switching the skin under a live MovaPlayer', () {
+  group('S14: switching the UI kit under a live MovaPlayer', () {
     testWidgets('keeps the same api untouched: no open/play/seek/reload and no new calls at all', (t) async {
       final api = FakeMovaApi();
-      await t.pumpWidget(MaterialApp(home: MovaPlayer(api: api, skin: const MovaDefaultSkin())));
+      await t.pumpWidget(MaterialApp(home: MovaPlayer(api: api, uiKit: const MovaDefaultUiKit())));
       await t.pump();
       final callsBefore = List<String>.of(api.calls);
-      await t.pumpWidget(MaterialApp(home: MovaPlayer(api: api, skin: MovaBilibiliSkin())));
+      await t.pumpWidget(MaterialApp(home: MovaPlayer(api: api, uiKit: MovaBilibiliUiKit())));
       await t.pump();
-      await t.pumpWidget(MaterialApp(home: MovaPlayer(api: api, skin: const MovaMinimalSkin())));
+      await t.pumpWidget(MaterialApp(home: MovaPlayer(api: api, uiKit: const MovaMinimalUiKit())));
       await t.pump();
       expect(api.calls, callsBefore);
       expect(api.calls, isNot(contains('open')));
@@ -256,24 +256,24 @@ void main() {
 
     testWidgets('keeps the render surface: same handle key, no remount of the video', (t) async {
       final api = FakeMovaApi();
-      await t.pumpWidget(MaterialApp(home: MovaPlayer(api: api, skin: const MovaDefaultSkin())));
+      await t.pumpWidget(MaterialApp(home: MovaPlayer(api: api, uiKit: const MovaDefaultUiKit())));
       await t.pump();
       final before = _surfaceKey(t);
-      await t.pumpWidget(MaterialApp(home: MovaPlayer(api: api, skin: const MovaMinimalSkin())));
+      await t.pumpWidget(MaterialApp(home: MovaPlayer(api: api, uiKit: const MovaMinimalUiKit())));
       await t.pump();
       expect(_surfaceKey(t), before);
       await api.dispose();
     });
 
-    testWidgets('really swaps the chrome: the default skin has the fullscreen button, minimal does not', (t) async {
+    testWidgets('really swaps the chrome: the default UI kit has the fullscreen button, minimal does not', (t) async {
       final api = FakeMovaApi();
-      await t.pumpWidget(MaterialApp(home: MovaPlayer(api: api, skin: const MovaDefaultSkin())));
+      await t.pumpWidget(MaterialApp(home: MovaPlayer(api: api, uiKit: const MovaDefaultUiKit())));
       await t.pump();
       expect(find.byIcon(Icons.fullscreen_rounded), findsOneWidget);
-      await t.pumpWidget(MaterialApp(home: MovaPlayer(api: api, skin: const MovaMinimalSkin())));
+      await t.pumpWidget(MaterialApp(home: MovaPlayer(api: api, uiKit: const MovaMinimalUiKit())));
       await t.pump();
       expect(find.byIcon(Icons.fullscreen_rounded), findsNothing);
-      await t.pumpWidget(MaterialApp(home: MovaPlayer(api: api, skin: const MovaDefaultSkin())));
+      await t.pumpWidget(MaterialApp(home: MovaPlayer(api: api, uiKit: const MovaDefaultUiKit())));
       await t.pump();
       expect(find.byIcon(Icons.fullscreen_rounded), findsOneWidget);
       await api.dispose();
@@ -283,9 +283,9 @@ void main() {
       final api = FakeMovaApi();
       final seen = <Object>[];
       api.events.listen(seen.add); // closed by api.dispose(); awaiting a cancel would hang in fakeAsync
-      await t.pumpWidget(MaterialApp(home: MovaPlayer(api: api, skin: const MovaDefaultSkin())));
+      await t.pumpWidget(MaterialApp(home: MovaPlayer(api: api, uiKit: const MovaDefaultUiKit())));
       await t.pump();
-      await t.pumpWidget(MaterialApp(home: MovaPlayer(api: api, skin: MovaBilibiliSkin())));
+      await t.pumpWidget(MaterialApp(home: MovaPlayer(api: api, uiKit: MovaBilibiliUiKit())));
       await t.pump();
       expect(seen, isEmpty);
       await api.dispose();

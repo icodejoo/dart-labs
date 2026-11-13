@@ -5,25 +5,25 @@ import 'package:flutter/widgets.dart';
 import '../../core/api.dart';
 import '../../core/model/danmaku.dart';
 import '../../core/events/events.dart';
-import '../../core/options/danmaku_config.dart';
+import '../../core/options/danmaku_opts.dart';
 import '../../core/state/progress.dart';
 import '../scope/plugin.dart';
 import '../slots/component.dart';
 import '../slots/slot.dart';
 
 /// bilibili-style scrolling-danmaku overlay; renders nothing when
-/// [MovaDanmakuConfig.enabled] is off or [MovaDanmakuConfig.items] is empty.
+/// [MovaDanmakuOpts.enabled] is off or [MovaDanmakuOpts.items] is empty.
 ///
-/// Display-only (see [MovaDanmakuConfig]'s doc comment): comments spawn as
+/// Display-only (see [MovaDanmakuOpts]'s doc comment): comments spawn as
 /// playback position crosses their [MovaDanmakuItem.time] and scroll right to
-/// left over [MovaDanmakuConfig.crossDuration], each assigned a horizontal
+/// left over [MovaDanmakuOpts.crossDuration], each assigned a horizontal
 /// track round-robin to reduce overlap.
 ///
-/// bilibili 风格滚动弹幕叠加层；[MovaDanmakuConfig.enabled] 关闭或
-/// [MovaDanmakuConfig.items] 为空时不渲染任何内容。
+/// bilibili 风格滚动弹幕叠加层；[MovaDanmakuOpts.enabled] 关闭或
+/// [MovaDanmakuOpts.items] 为空时不渲染任何内容。
 ///
-/// 仅做展示（见 [MovaDanmakuConfig] 的文档注释）：播放位置跨过弹幕的
-/// [MovaDanmakuItem.time] 时生成一条弹幕，在 [MovaDanmakuConfig.crossDuration]
+/// 仅做展示（见 [MovaDanmakuOpts] 的文档注释）：播放位置跨过弹幕的
+/// [MovaDanmakuItem.time] 时生成一条弹幕，在 [MovaDanmakuOpts.crossDuration]
 /// 内从右向左滚动划过，按轮询方式分配横向轨道以减少重叠。
 class MovaDanmakuTrackComponent extends MovaComponent {
   /// Creates the danmaku-track component.
@@ -43,11 +43,11 @@ class MovaDanmakuTrackComponent extends MovaComponent {
   MovaSlot get slot => MovaSlot.overlay;
 
   @override
-  Widget build(BuildContext context, MovaApi api, List<Widget> children) {
-    final config = MovaPlayerStyle.danmakuOf(context)
+  Widget build(BuildContext context, IMovaApi api, List<Widget> children) {
+    final opts = MovaPlayerStyle.danmakuOf(context)
         .applyTo(movaLegacyOptionsOf(context).danmaku);
-    if (!config.enabled || config.items.isEmpty) return const SizedBox.shrink();
-    return _DanmakuTrack(api: api, config: config);
+    if (!opts.enabled || opts.items.isEmpty) return const SizedBox.shrink();
+    return _DanmakuTrack(api: api, opts: opts);
   }
 }
 
@@ -60,17 +60,17 @@ class _DanmakuTrack extends StatefulWidget {
   /// Creates the internal danmaku track widget.
   ///
   /// 创建内部弹幕轨道 widget。
-  const _DanmakuTrack({required this.api, required this.config});
+  const _DanmakuTrack({required this.api, required this.opts});
 
   /// The capability surface this track follows for playback position.
   ///
   /// 该轨道跟随播放位置所使用的能力面。
-  final MovaApi api;
+  final IMovaApi api;
 
-  /// The danmaku configuration in effect.
+  /// The danmaku options in effect.
   ///
   /// 当前生效的弹幕配置。
-  final MovaDanmakuConfig config;
+  final MovaDanmakuOpts opts;
 
   @override
   State<_DanmakuTrack> createState() => _DanmakuTrackState();
@@ -93,16 +93,16 @@ class _DanmakuTrackState extends State<_DanmakuTrack>
   /// 上一次 [MovaProg] tick 时的播放位置。
   Duration _lastPosition = Duration.zero;
 
-  /// Round-robin cursor over [MovaDanmakuConfig.trackCount] horizontal tracks.
+  /// Round-robin cursor over [MovaDanmakuOpts.trackCount] horizontal tracks.
   ///
-  /// 在 [MovaDanmakuConfig.trackCount] 条横向轨道间轮询的游标。
+  /// 在 [MovaDanmakuOpts.trackCount] 条横向轨道间轮询的游标。
   int _nextTrack = 0;
 
-  /// [MovaDanmakuConfig.items] sorted ascending by time, so [_onProgress] can
+  /// [MovaDanmakuOpts.items] sorted ascending by time, so [_onProgress] can
   /// spawn newly-crossed comments from a monotonic cursor instead of rescanning
   /// the whole (potentially thousands-strong) list on every progress tick.
   ///
-  /// 按时间升序排好的 [MovaDanmakuConfig.items]，使 [_onProgress] 能从单调游标
+  /// 按时间升序排好的 [MovaDanmakuOpts.items]，使 [_onProgress] 能从单调游标
   /// 生成新跨过的弹幕，而非每个进度 tick 都重扫整张（可能成千上万条的）表。
   late List<MovaDanmakuItem> _sorted;
 
@@ -130,15 +130,15 @@ class _DanmakuTrackState extends State<_DanmakuTrack>
     // arrive far more often than the list changes.
     //
     // 仅在宿主真的换了弹幕列表时才重排；位置更新远比列表变化频繁。
-    if (!identical(widget.config.items, oldWidget.config.items)) _resort();
+    if (!identical(widget.opts.items, oldWidget.opts.items)) _resort();
   }
 
-  /// Rebuilds [_sorted] from the current config and repositions [_cursor] to
+  /// Rebuilds [_sorted] from the current options and repositions [_cursor] to
   /// the first item past [_lastPosition].
   ///
   /// 依当前配置重建 [_sorted]，并把 [_cursor] 重定位到 [_lastPosition] 之后的第一条。
   void _resort() {
-    _sorted = [...widget.config.items]
+    _sorted = [...widget.opts.items]
       ..sort((a, b) => a.time.compareTo(b.time));
     _cursor = _firstAfter(_lastPosition);
   }
@@ -189,7 +189,7 @@ class _DanmakuTrackState extends State<_DanmakuTrack>
       return;
     }
     final end = _firstAfter(position);
-    final limit = widget.config.trackCount * 2;
+    final limit = widget.opts.trackCount * 2;
     while (_cursor < end && _active.length < limit) {
       _spawn(_sorted[_cursor++]);
     }
@@ -201,7 +201,7 @@ class _DanmakuTrackState extends State<_DanmakuTrack>
   ///
   /// 把 [item] 以轮询方式分配到某条轨道并加入 [_active]。
   void _spawn(MovaDanmakuItem item) {
-    final track = _nextTrack % widget.config.trackCount;
+    final track = _nextTrack % widget.opts.trackCount;
     _nextTrack++;
     setState(
       () => _active.add(_Spawned(key: UniqueKey(), item: item, track: track)),
@@ -221,7 +221,7 @@ class _DanmakuTrackState extends State<_DanmakuTrack>
     final theme = MovaPlayerStyle.themeOf(context);
     return IgnorePointer(
       child: Opacity(
-        opacity: widget.config.opacity,
+        opacity: widget.opts.opacity,
         child: Stack(
           children: [
             for (final spawned in _active)
@@ -230,7 +230,7 @@ class _DanmakuTrackState extends State<_DanmakuTrack>
                 text: spawned.item.text,
                 color: spawned.item.color ?? theme.textColor,
                 track: spawned.track,
-                config: widget.config,
+                opts: widget.opts,
                 playing: widget.api.state.playing,
                 rate: widget.api.state.rate,
                 onFinished: () => _retire(spawned.key),
@@ -270,10 +270,10 @@ class _Spawned {
 }
 
 /// A single scrolling comment; animates from just off the right edge to just
-/// off the left edge over [_DanmakuBulletConfig.crossDuration], then calls
+/// off the left edge over [_DanmakuBulletOpts.crossDuration], then calls
 /// [onFinished] so its owner can drop it.
 ///
-/// 单条滚动弹幕；在 [_DanmakuBulletConfig.crossDuration] 内从刚超出右边缘
+/// 单条滚动弹幕；在 [_DanmakuBulletOpts.crossDuration] 内从刚超出右边缘
 /// 滚动到刚超出左边缘，结束后调用 [onFinished] 供持有方移除。
 class _DanmakuBullet extends StatefulWidget {
   /// Creates a scrolling bullet.
@@ -284,7 +284,7 @@ class _DanmakuBullet extends StatefulWidget {
     required this.text,
     required this.color,
     required this.track,
-    required this.config,
+    required this.opts,
     required this.onFinished,
     required this.playing,
     required this.rate,
@@ -305,10 +305,10 @@ class _DanmakuBullet extends StatefulWidget {
   /// 该弹幕渲染所在的横向轨道。
   final int track;
 
-  /// The danmaku configuration in effect.
+  /// The danmaku options in effect.
   ///
   /// 当前生效的弹幕配置。
-  final MovaDanmakuConfig config;
+  final MovaDanmakuOpts opts;
 
   /// Called once the scroll animation completes.
   ///
@@ -352,7 +352,7 @@ class _DanmakuBulletState extends State<_DanmakuBullet>
     super.didUpdateWidget(oldWidget);
     if (oldWidget.playing != widget.playing ||
         oldWidget.rate != widget.rate ||
-        oldWidget.config.crossDuration != widget.config.crossDuration) {
+        oldWidget.opts.crossDuration != widget.opts.crossDuration) {
       _syncAnimation();
     }
   }
@@ -361,7 +361,7 @@ class _DanmakuBulletState extends State<_DanmakuBullet>
   void _syncAnimation() {
     _controller.stop();
     final rate = widget.rate > 0 ? widget.rate : 1.0;
-    final micros = (widget.config.crossDuration.inMicroseconds / rate).round();
+    final micros = (widget.opts.crossDuration.inMicroseconds / rate).round();
     _controller.duration = Duration(microseconds: micros < 1 ? 1 : micros);
     if (widget.playing && !_controller.isCompleted) _controller.forward();
   }
@@ -377,7 +377,7 @@ class _DanmakuBulletState extends State<_DanmakuBullet>
   @override
   Widget build(BuildContext context) {
     return Positioned(
-      top: widget.config.trackHeight * widget.track,
+      top: widget.opts.trackHeight * widget.track,
       left: 0,
       right: 0,
       child: LayoutBuilder(
@@ -395,7 +395,7 @@ class _DanmakuBulletState extends State<_DanmakuBullet>
               softWrap: false,
               style: TextStyle(
                 color: Color(widget.color),
-                fontSize: widget.config.fontSize,
+                fontSize: widget.opts.fontSize,
               ),
             ),
           );

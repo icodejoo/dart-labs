@@ -10,9 +10,9 @@ Future<void> runBblock(Cp1Harness h) async {
     await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
     await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     await h.hostSample('before.$run', 'system-before');
-    final a = createMovaEngine(
-      orientationConfig: const MovaOrientationConfig(
-        allowedOrientations: [DeviceOrientation.portraitUp],
+    final a = createMova(
+      orientOpts: const MovaOrientOpts(
+        allowedOrients: [DeviceOrientation.portraitUp],
       ),
     );
     await h.mount(a);
@@ -63,9 +63,9 @@ Future<void> runBblock(Cp1Harness h) async {
       missing: parsed ? null : 'dumpsys 亮度/rotation/InsetsSource 解析不完整',
     );
     await h.control('reset');
-    final b = createMovaEngine(
+    final b = createMova(
       options: const MovaOpts(
-        preview: MovaPreviewConfig(
+        preview: MovaPreviewOpts(
           vttUrl: 'http://127.0.0.1:18194/hang.vtt',
           debounce: Duration.zero,
           extractFallback: false,
@@ -98,6 +98,6 @@ Future<void> runBblock(Cp1Harness h) async {
       'fixture': await h.control('stats'),
     }, pass: disposed && elapsed <= 5000000 && released);
     await h.control('release');
-    await h.release(disposeEngine: !disposed);
+    await h.release(disposeMova: !disposed);
   }
 }

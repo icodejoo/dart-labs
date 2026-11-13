@@ -1,7 +1,7 @@
 import 'package:mova/src/core/kernel/mpv_event_backend.dart';
 
 /// 假实现：用于单测的 mpv 事件后端。
-class FakeMpvEventBackend implements MovaMpvEventBackend {
+class FakeMpvEventBackend implements IMovaMpvEventBackend {
   /// 是否在 [createClient] 时直接返回 false。
   bool createFail = false;
   

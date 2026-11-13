@@ -42,7 +42,7 @@
 
 - 开始收尾：经现有验证页恢复媒体音量30%=6/20，USB常亮恢复7，force-stop隔离包；保留原生设置、进程与屏幕状态，再结束仅本次启动的三个源进程。
 
-- 收尾检查点：隔离包pid为空（force-stop），USB常亮=7，媒体streamVolume=6/20；仍isKeyguardShowing=false、mScreenOnFully=true；本次三个源PID已结束，engine.dart哈希与安装时一致。证据 rerun6-final-state.json / rerun6-final-*.txt。
+- 收尾检查点：隔离包pid为空（force-stop），USB常亮=7，媒体streamVolume=6/20；仍isKeyguardShowing=false、mScreenOnFully=true；本次三个源PID已结束，player.dart哈希与安装时一致。证据 rerun6-final-state.json / rerun6-final-*.txt。
 
 
 ## 基线与 F3/A17 结果
@@ -151,7 +151,7 @@ target为切档前mpv time-pos，>=8000ms才有效；原生位置>20s或<8s时�
 - 隔离包 `com.icodejoo.mova.mova_example.coverage`；安装后 `lastUpdateTime=2026-10-27 23:07:03`；SERVER build=`rerun6-20261027`，[rerun6-start.json](../../example/tool/coverage_evidence/rerun6-start.json)。
 - Gradle APK SHA256：`b13018240bcb41ae20193d3e2ac0d63df367f0c2fc0ae4abee9ee1e54efcfc7f`。
 - 重签包与设备拉回APK SHA256一致：`059336e1ca0c46b83fbe08ebfbe3be20be7c2a9c1d612d7dc693d168324a8319`；[rerun6-build-manifest.json](../../example/tool/coverage_evidence/rerun6-build-manifest.json)。
-- engine.dart SHA256：`9d4116bde6e079f34424748373d6568db7638ad9f6dbb4c2da3f45073dfc8ffc`，构建前/安装时/收尾一致，包含_abrHold及新增_pendingSeekTarget == null && _lastPosition判据。release APK不携带Dart源文件，源码身份通过编译输入哈希、含engine.dart的编译依赖、编译AOT与Gradle合并产物一致、strip后AOT与设备包一致建立证据链；[rerun6-build-input.json](../../example/tool/coverage_evidence/rerun6-build-input.json)、[rerun6-build-provenance.json](../../example/tool/coverage_evidence/rerun6-build-provenance.json)、[rerun6-build-dependencies.txt](../../example/tool/coverage_evidence/rerun6-build-dependencies.txt)。
+- mova.dart SHA256：`9d4116bde6e079f34424748373d6568db7638ad9f6dbb4c2da3f45073dfc8ffc`，构建前/安装时/收尾一致，包含_abrHold及新增_pendingSeekTarget == null && _lastPosition判据。release APK不携带Dart源文件，源码身份通过编译输入哈希、含mova.dart的编译依赖、编译AOT与Gradle合并产物一致、strip后AOT与设备包一致建立证据链；[rerun6-build-input.json](../../example/tool/coverage_evidence/rerun6-build-input.json)、[rerun6-build-provenance.json](../../example/tool/coverage_evidence/rerun6-build-provenance.json)、[rerun6-build-dependencies.txt](../../example/tool/coverage_evidence/rerun6-build-dependencies.txt)。
 - 沿用coverage.init.gradle、原生库LFS SHA256核对、zipalign、既有debug证书重签和安装；[rerun6-build.log](../../example/tool/coverage_evidence/rerun6-build.log)、[rerun6-install.log](../../example/tool/coverage_evidence/rerun6-install.log)、[rerun6-certificate.txt](../../example/tool/coverage_evidence/rerun6-certificate.txt)。
 
 ## 收尾及范围
@@ -164,7 +164,7 @@ target为切档前mpv time-pos，>=8000ms才有效；原生位置>20s或<8s时�
 
 独立18085限速源沿用真实40s high/low HLS素材。high TS每32768字节等待650ms（约50.4KB/s），low不限速，主矩阵18084静态源不变。限速的是真实HTTP分片传输，无模拟缓冲事件；默认ABR配置enabled=true、threshold=3、policy=null。
 
-(a) 不调用手动switchQuality：直接open真实high变体，并通过现有debugSetQualities测试钩子登记由实际master解析的档位和high当前档。(b) 同样初始化后，在开启限速时手动switchQuality(high)，观察同一引擎后续降档。该初始化是为了让Mova处于可降档的固定high状态；auto档位按实现不会发MovaAbrDownShift，不能把auto的内核自适应当作此事件。没有修改库或默认ABR策略。
+(a) 不调用手动switchQuality：直接open真实high变体，并通过现有debugSetQualities测试钩子登记由实际master解析的档位和high当前档。(b) 同样初始化后，在开启限速时手动switchQuality(high)，观察同一播放器后续降档。该初始化是为了让Mova处于可降档的固定high状态；auto档位按实现不会发MovaAbrDownShift，不能把auto的内核自适应当作此事件。没有修改库或默认ABR策略。
 
 _abrHold只读源码为10s兜底、校验间隔1.5s，也可在续播验证结束后提早解除；记录手动换档至降档的实际间隔，不能仅凭外部事件认定一定走满10s兜底。每次最长等待150s仅为防挂死。
 

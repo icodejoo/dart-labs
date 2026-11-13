@@ -8,7 +8,7 @@ import 'package:mova/mova.dart';
 ///
 /// 1. 带视频轨源在 `audioOnly: true` 下是否真的只出声不出画（用
 ///    `MovaState.size`/`renderHandle` 的真实值判定，而非肉眼）。
-/// 2. 连播多轮（本文件跑 6 轮）观察内存是否随轮次累积爬升——每轮独立开引擎、
+/// 2. 连播多轮（本文件跑 6 轮）观察内存是否随轮次累积爬升——每轮独立开播放器、
 ///    稳定播放、采样、dispose、再采样，全部用 `print()`（而非
 ///    `perf_probe_audio_only.dart` 里已知在 Android release 下不出现在 logcat
 ///    的 `stdout.writeln`），这样才能被 `adb logcat` 抓到。
@@ -17,7 +17,7 @@ import 'package:mova/mova.dart';
 /// 全部打印以 `MOVA_R2|` 开头，便于 grep。跑完不自动退出，方便截图。
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  MovaEngine.ensureInitialized();
+  Mova.ensureInitialized();
   runApp(const MaterialApp(home: _Round2Page()));
 }
 
@@ -60,35 +60,35 @@ class _Round2PageState extends State<_Round2Page> {
   Future<void> _run() async {
     // ===== 第一部分：带视频轨源在 audioOnly 下的行为断言 =====
     _mark('=== PART1 带视频轨源 + audioOnly=true ===');
-    final engine1 = createMovaEngine(audioOnly: true);
-    _mark('renderHandle(open前)=${engine1.renderHandle}');
-    await engine1.open(_videoSource);
-    await _waitReady(engine1);
+    final mova1 = createMova(audioOnly: true);
+    _mark('renderHandle(open前)=${mova1.renderHandle}');
+    await mova1.open(_videoSource);
+    await _waitReady(mova1);
     await Future<void>.delayed(const Duration(seconds: 3));
-    _mark('renderHandle(播放中)=${engine1.renderHandle}');
-    _mark('size(播放中)=${engine1.state.width}x${engine1.state.height}');
-    _mark('duration=${engine1.state.duration.inMilliseconds}ms');
-    _mark('playing=${engine1.state.playing}');
+    _mark('renderHandle(播放中)=${mova1.renderHandle}');
+    _mark('size(播放中)=${mova1.state.width}x${mova1.state.height}');
+    _mark('duration=${mova1.state.duration.inMilliseconds}ms');
+    _mark('playing=${mova1.state.playing}');
     _mark('PART1 结论：renderHandle应为null、size应为0x0——若播放正常进行(duration>0且playing=true)'
         '但两者仍是null/0x0，即证明只出声不出画');
-    await engine1.dispose();
+    await mova1.dispose();
     await Future<void>.delayed(const Duration(seconds: 2));
 
     // ===== 第二部分：连播 N 轮，观察 RSS 是否随轮次累积爬升 =====
-    _mark('=== PART2 连播$_rounds轮，每轮开关一次引擎 ===');
+    _mark('=== PART2 连播$_rounds轮，每轮开关一次播放器 ===');
     final beforeRss = <double>[];
     final afterRss = <double>[];
     for (var i = 1; i <= _rounds; i++) {
-      final engine = createMovaEngine(audioOnly: true);
-      await engine.open(_videoSource);
-      await _waitReady(engine);
+      final mova = createMova(audioOnly: true);
+      await mova.open(_videoSource);
+      await _waitReady(mova);
       // 稳定后再采样，避免过渡期噪声。
       await Future<void>.delayed(const Duration(seconds: 4));
       final rssPlaying = _mib(ProcessInfo.currentRss);
       beforeRss.add(rssPlaying);
       _mark('round$i playing RSS=${rssPlaying.toStringAsFixed(2)}MiB '
-          'size=${engine.state.width}x${engine.state.height} renderHandle=${engine.renderHandle}');
-      await engine.dispose();
+          'size=${mova.state.width}x${mova.state.height} renderHandle=${mova.renderHandle}');
+      await mova.dispose();
       await Future<void>.delayed(const Duration(seconds: 2));
       final rssDisposed = _mib(ProcessInfo.currentRss);
       afterRss.add(rssDisposed);
@@ -108,22 +108,22 @@ class _Round2PageState extends State<_Round2Page> {
     // ===== 第三部分：关闭态（audioOnly:false）全流程回归——确认与不开启该特性时
     // 行为完全一致：renderHandle 非空、size 非 0x0。 =====
     _mark('=== PART3 关闭态回归 audioOnly=false ===');
-    final engine3 = createMovaEngine();
-    await engine3.open(_videoSource);
-    await _waitReady(engine3);
+    final mova3 = createMova();
+    await mova3.open(_videoSource);
+    await _waitReady(mova3);
     await Future<void>.delayed(const Duration(seconds: 3));
-    _mark('audioOnly=false renderHandle=${engine3.renderHandle} '
-        'size=${engine3.state.width}x${engine3.state.height} playing=${engine3.state.playing}');
+    _mark('audioOnly=false renderHandle=${mova3.renderHandle} '
+        'size=${mova3.state.width}x${mova3.state.height} playing=${mova3.state.playing}');
     _mark('PART3 结论：renderHandle应非null、size应非0x0——与开启audioOnly前(0.3.x)行为一致即回归通过');
-    await engine3.dispose();
+    await mova3.dispose();
 
     if (mounted) setState(() => _done = true);
   }
 
-  Future<void> _waitReady(MovaEngine engine) {
+  Future<void> _waitReady(Mova mova) {
     final completer = Completer<void>();
     late final StreamSubscription<MovaProg> sub;
-    sub = engine.progress.listen((p) {
+    sub = mova.progress.listen((p) {
       if (p.position > Duration.zero) {
         unawaited(sub.cancel());
         if (!completer.isCompleted) completer.complete();

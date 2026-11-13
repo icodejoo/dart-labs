@@ -8,7 +8,7 @@ class MovaGuardScope extends InheritedWidget {
   const MovaGuardScope({super.key, required this.api, this.parent, required super.child});
 
   /// 当前守卫接管的播放能力面。
-  final MovaApi? api; // 未绑定时仍保留作用域结构。
+  final IMovaApi? api; // 未绑定时仍保留作用域结构。
 
   /// 最近的祖先守卫，保留不同 API 之间的完整接管链。
   final MovaGuardScope? parent;
@@ -21,7 +21,7 @@ class MovaGuardScope extends InheritedWidget {
 
 /// 返回 [context] 的祖先守卫是否接管同一 [api]，不建立构建依赖。
 /// 示例：`if (movaGuardedBy(context, api)) return;`。
-bool movaGuardedBy(BuildContext context, MovaApi api) {
+bool movaGuardedBy(BuildContext context, IMovaApi api) {
   var scope = context.getInheritedWidgetOfExactType<MovaGuardScope>();
   while (scope != null) {
     if (identical(scope.api, api)) return true;

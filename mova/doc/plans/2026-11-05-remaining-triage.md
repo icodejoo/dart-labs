@@ -11,26 +11,26 @@
 ## 2. headers 池预热：夹具判据错误，未证产品缺陷
 
 - `cp3-headers-r2-20261105-085001` records[38,73,108,144,180]：pool positive/negative 都为 true；第 0 轮无 negative 回执，第 2 轮两侧回执均尚未出现。`085001` 与 `084854` 两试均 0/5。原判据在 `pool.bind` 返回即读取 ready、立刻 dispose；异步请求可迟到，甚至在真正打开前被销毁。
-- `engine_pool.dart:_openBinding` 明确将 ready 定义为 open accepted；拒绝结果撤销绑定，成功接受并不代表加载/解码成功。这与公开文档一致，不能改产品 ready 含义来迎合探针。
-- `MovaHeaderedHttpFetch` 用于 Dart 辅助请求（清晰度/VTT/预取）；池走 engine → mpv 原生媒体加载头。原回执中 authorized Referer/200、denied 无头/403 均出现，不能据 ready 双 true 认定头丢失。
-- 修正：单引擎池挂载真实 surface，开启 preciseFirstFrame，等待 rendered+非零 duration/尺寸或错误；保留 accepted、decoded、状态和原生 path/time-pos/pause。再释放池、汇总两侧 HTTP 回执。负对照超时/错误不冒充成功，缺服务端回执仍 FAIL。
+- `feed_pool.dart:_openBinding` 明确将 ready 定义为 open accepted；拒绝结果撤销绑定，成功接受并不代表加载/解码成功。这与公开文档一致，不能改产品 ready 含义来迎合探针。
+- `IMovaHeaderedHttpFetch` 用于 Dart 辅助请求（清晰度/VTT/预取）；池走播放器 → mpv 原生媒体加载头。原回执中 authorized Referer/200、denied 无头/403 均出现，不能据 ready 双 true 认定头丢失。
+- 修正：单播放器池挂载真实 surface，开启 preciseFirstFrame，等待 rendered+非零 duration/尺寸或错误；保留 accepted、decoded、状态和原生 path/time-pos/pause。再释放池、汇总两侧 HTTP 回执。负对照超时/错误不冒充成功，缺服务端回执仍 FAIL。
 - 需要新 APK、原 5 轮正负对照复验。解码预热尚未获得有效设备验收。
 - 补强解码判据：首帧 gate 允许 size/grace 兜底，故仅 rendered 仍不够；现在还要求暂停状态下真实 surface 的 screenshot 返回非空 JPEG，记录 imageBytes 与 firstFrameSignals，再认领 decoded=true。截图失败保留失败，不自动重试。此补强追加独立夹具提交；example analyze 仍 41→41（无新增），定向测试 3 PASS，matrix --check / Python 80 PASS。
 
-## 3. 回执 14 条：12 条夹具判据错误，2 条普通引擎产品缺陷
+## 3. 回执 14 条：12 条夹具判据错误，2 条普通播放器产品缺陷
 
 证据 `cp3-r2-receipt-r2-20261105-090006`，三个独立命令只统计各自最后 BEGIN 后的 CHECK（日志含前命令累计记录，不能重复计数）：
 
 |命令文件后缀|records|归属|差异|定性|
 |---|---|---|---|---|
-|cp3-r2-basic.json|39,44,49,59,64,68|普通引擎 116100005|Seeked position|独立 progress 流的最后读数 3394/5000/10000 等与事件目标 5000/10000/15000/10000/8000/0 不相等，不是 MovaState 字段差异|
+|cp3-r2-basic.json|39,44,49,59,64,68|普通播放器 116100005|Seeked position|独立 progress 流的最后读数 3394/5000/10000 等与事件目标 5000/10000/15000/10000/8000/0 不相等，不是 MovaState 字段差异|
 |cp3-r2-basic-cutover.json|207,212,217,227,232,236|cutover 代理|Seeked position|同上；不能据此认定 H77 state/events 同序列修复失效|
-|cp3-r2-abr.json|349|普通引擎 237005018|Auto 载荷 vs state 360p|产品异步投递竞态，探测已更新 Auto，但事件收到前调用方已手选 360p|
+|cp3-r2-abr.json|349|普通播放器 237005018|Auto 载荷 vs state 360p|产品异步投递竞态，探测已更新 Auto，但事件收到前调用方已手选 360p|
 |cp3-r2-abr.json|377|同上|载荷 0×360 vs state 0×0|产品异步投递竞态；mpv 宽、高分别归零，前一次事件读到了后一次尺寸|
 
-`engine.dart` 的尺寸回调、清晰度探测均先写 state 后 add 异步事件，API Future 续体/同步原生属性可先推进 getter。原逻辑离线回归两条变红（连续尺寸与探测后手选），并确认现有 `_loadKernel` 已抑制被取代的在途换档，不能重复修那个已正常的路径。
+`mova.dart` 的尺寸回调、清晰度探测均先写 state 后 add 异步事件，API Future 续体/同步原生属性可先推进 getter。原逻辑离线回归两条变红（连续尺寸与探测后手选），并确认现有 `_loadKernel` 已抑制被取代的在途换档，不能重复修那个已正常的路径。
 
-产品修复：状态事件同步广播，嵌套事件排队，避免重入控制器；MovaErrorEvent/MovaPlayFailure 保留异步边界，保持 open 接受结果和会话终结裁决原有顺序。未改 cutover、progress 节流、池 ready 语义。新增四条回归：两条红→绿，已存在的在途换档保护和嵌套通知另两条绿。实际回退 engine.dart 到修复前字节再次得到 2 FAIL/2 PASS，随后恢复固定版本。同步交付是可见时序变化，已记 CHANGELOG；不承诺宿主在一个事件监听器里主动改状态后其他监听器仍读旧值。
+产品修复：状态事件同步广播，嵌套事件排队，避免重入控制器；MovaErrorEvent/MovaPlayFailure 保留异步边界，保持 open 接受结果和会话终结裁决原有顺序。未改 cutover、progress 节流、池 ready 语义。新增四条回归：两条红→绿，已存在的在途换档保护和嵌套通知另两条绿。实际回退 mova.dart 到修复前字节再次得到 2 FAIL/2 PASS，随后恢复固定版本。同步交付是可见时序变化，已记 CHANGELOG；不承诺宿主在一个事件监听器里主动改状态后其他监听器仍读旧值。
 
 仍需新 APK 重跑 basic / basic-cutover / abr 三命令；离线回归不回写原始 208 PASS/14 FAIL，也不关闭未覆盖历史路径。
 
@@ -40,10 +40,10 @@
 
 ## 4. 动态池资源：观测夹具缺陷及验收缺证据，未证泄漏
 
-- `cp3-r2-pool-r2-20261105-085517` 的 `cp3-r2-s00d-resources.json` records[28,32,34,36,38,40,44] 共 7 BLOCKED。`/proc/self/fd/5`、`/163` 等动态链接消失导致 Directory listing ENOENT；handles=null，且同一个 try 后面的 stat CPU 读取被跳过。records[44] engineCount=0、created=3 证明逻辑释放，不能证明原生资源全回收。另一尝试 `cp3-r2-pool-r2-20261105-085435` 同类缺口，A29 原 6 条成功不改写为资源验收通过。
+- `cp3-r2-pool-r2-20261105-085517` 的 `cp3-r2-s00d-resources.json` records[28,32,34,36,38,40,44] 共 7 BLOCKED。`/proc/self/fd/5`、`/163` 等动态链接消失导致 Directory listing ENOENT；handles=null，且同一个 try 后面的 stat CPU 读取被跳过。records[44] movaCount=0、created=3 证明逻辑释放，不能证明原生资源全回收。另一尝试 `cp3-r2-pool-r2-20261105-085435` 同类缺口，A29 原 6 条成功不改写为资源验收通过。
 - 修夹具：task/fd 枚举 followLinks=false；线程、fd、CPU 各自捕获错误；保存单调 sampleUs、pid、processStartTicks、cpuUnit（Linux/Android 为时钟 tick，Windows 为 100ns）。CPU 不再被 fd 枚举异常抹掉；缺计数仍为未知。
-- 新增 `RESOURCE_SAMPLE`：audio.before/active/disposed.1000ms；pool.before、active.20/40/60/80/100、concurrent.120、disposed.0ms/1000ms/5000ms。每点带实际进程计数、created、engineCount；保留原 CHECK。180 秒命令上限可容纳新增 6 秒释放稳定窗。
-- 下一次新 APK 采样要求：同一进程/启动代际，在上述时点保留 RSS、线程、fd、CPU 与时间间隔。主机侧若用 adb，应配对采 `dumpsys meminfo <pid>` 的 TOTAL PSS/Native Heap/Graphics、`dumpsys media.codec` 与 `dumpsys SurfaceFlinger` 的该 PID 归属实例/层；必须保存设备支持的原文及命令返回码，字段不可读就标未知。也可用原生插件提供按实例的 decoder/surface create/dispose 计数，不能用 Dart created/engineCount 冒充。
+- 新增 `RESOURCE_SAMPLE`：audio.before/active/disposed.1000ms；pool.before、active.20/40/60/80/100、concurrent.120、disposed.0ms/1000ms/5000ms。每点带实际进程计数、created、movaCount；保留原 CHECK。180 秒命令上限可容纳新增 6 秒释放稳定窗。
+- 下一次新 APK 采样要求：同一进程/启动代际，在上述时点保留 RSS、线程、fd、CPU 与时间间隔。主机侧若用 adb，应配对采 `dumpsys meminfo <pid>` 的 TOTAL PSS/Native Heap/Graphics、`dumpsys media.codec` 与 `dumpsys SurfaceFlinger` 的该 PID 归属实例/层；必须保存设备支持的原文及命令返回码，字段不可读就标未知。也可用原生插件提供按实例的 decoder/surface create/dispose 计数，不能用 Dart created/movaCount 冒充。
 - 资源/性能结论还需 CP0 与当前同源、同翻页数、同冷暖状态的多轮趋势和批准硬线；现有 sample CHECK 只检查计数完整性/合理性，不宣称无泄漏或耗电改善。电量字段均不可读时不能以 RSS/CPU 替代耗电。此类可脚本采集；阈值和异常 OEM 输出归属需要人工确认。
 - 离线检查：example analyze 无新增，matrix --check 通过，Python 80 PASS。没有本轮设备资源数字，7 条原 BLOCKED 保留。
 
@@ -82,7 +82,7 @@
 |---|---|---|
 |bd05c3db|字幕夹具|补齐 SRT 资产声明|
 |20c21861|池预热夹具|等待媒体/错误及回执|
-|90dc2201|产品修复|普通引擎状态事件同步投递；2415 PASS|
+|90dc2201|产品修复|普通播放器状态事件同步投递；2415 PASS|
 |1e123f92|回执夹具|分离 Seeked 独立流诊断|
 |aeede0a5|资源夹具|独立计数及释放稳定窗|
 |0b548a71|抽帧夹具|保留首试空帧/异常耗时|

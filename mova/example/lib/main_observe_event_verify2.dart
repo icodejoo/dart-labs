@@ -49,9 +49,9 @@ void _out(String m) {
 }
 
 /// 包一层后端以统计 create/destroy。
-class _CountingBackend implements MovaMpvEventBackend {
+class _CountingBackend implements IMovaMpvEventBackend {
   _CountingBackend(this._inner);
-  final MovaMpvEventBackend _inner;
+  final IMovaMpvEventBackend _inner;
   bool _done = false;
 
   @override
@@ -136,7 +136,7 @@ Future<void> _v3() async {
   _out(ok ? 'V3 PASS' : 'V3 FAIL');
 }
 
-/// V6：三个引擎并存，单独 dispose 其一，其余仍能收到事件且无串扰。
+/// V6：三个播放器并存，单独 dispose 其一，其余仍能收到事件且无串扰。
 Future<void> _v6() async {
   final ks = [for (var i = 0; i < 3; i++) _make(qoe: true)];
   final rc = [for (final k in ks) _Counter(k.playbackRestarts)];

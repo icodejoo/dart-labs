@@ -7,11 +7,11 @@ Future<void> runProbe(Cp1Harness h) async {
     final count = (kind == 'failover' || kind == 'disabled') ? 5 : h.runs;
     for (var run = 0; run < count; run++) {
       await h.control('reset');
-      final a = createMovaEngine(
+      final a = createMova(
         preciseFirstFrame: true,
         options: MovaOpts(
-          abr: MovaAbrConfig(probeVariants: kind != 'disabled'),
-          recovery: MovaRecoveryConfig(
+          abr: MovaAbrOpts(probeVariants: kind != 'disabled'),
+          recovery: MovaRecoveryOpts(
             enabled: kind == 'failover',
             policy: const MovaFailoverOnly(),
             stallTimeout: const Duration(seconds: 3),

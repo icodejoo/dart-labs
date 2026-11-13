@@ -14,7 +14,7 @@ for path in sorted(out.glob('batch*.json')):
     start=max((i for i,r in enumerate(rows) if r.get('kind')=='BEGIN'),default=0)
     for row in rows[start:]:
         if row.get('kind')!='EVENT':continue
-        key=(row.get('engine'),row.get('ms'),json.dumps(row,sort_keys=True))
+        key=(row.get('mova'),row.get('ms'),json.dumps(row,sort_keys=True))
         if key in seen:continue
         seen.add(key);events[row['event']].append({'file':path.name,**row})
 audit={name:{'count':len(rows),'sample':next((r for r in rows if r['payload']),rows[0]),'files':dict(Counter(r['file'] for r in rows))} for name,rows in events.items()}
@@ -23,7 +23,7 @@ print(json.dumps({k:{'count':v['count'],'sample':{x:v['sample'][x] for x in ['fi
 
 if __name__=='__main__':
     changes=[];notes=['- 去掉各JSON中此前命令的累计记录；每行引用一份具体动作日志。统计的是该证据文件内次数，非去重后的全运行总数。']
-    match={'MovaDurationChange':('duration','duration'),'MovaBufferChange':('buffering','buffering'),'MovaVolumeChange':('value','volume'),'MovaBrightChange':('value','brightness'),'MovaRateChange':('value','rate'),'MovaFitChange':('fit','fit'),'MovaZoomChange':('zoom','zoom'),'MovaLockChange':('value','locked'),'MovaFullScreenChange':('value','fullscreen'),'MovaOrientationChange':('orientation','orientation'),'MovaMiniChange':('mini','mini'),'MovaPipChange':('value','pip'),'MovaKeepAliveChange':('phase','keepAlive')}
+    match={'MovaDurationChange':('duration','duration'),'MovaBufferChange':('buffering','buffering'),'MovaVolumeChange':('value','volume'),'MovaBrightChange':('value','brightness'),'MovaRateChange':('value','rate'),'MovaFitChange':('fit','fit'),'MovaZoomChange':('zoom','zoom'),'MovaLockChange':('value','locked'),'MovaFullScreenChange':('value','fullscreen'),'MovaOrientChange':('orient','orient'),'MovaMiniChange':('mini','mini'),'MovaPipChange':('value','pip'),'MovaKeepAliveChange':('phase','keepAlive')}
     for name,allrows in events.items():
         # Prefer native nonzero values; every sample still retains its state.
         sample=next((r for r in allrows if any(v not in [0,False,None,''] for v in r['payload'].values())),allrows[0])

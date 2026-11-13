@@ -5,7 +5,7 @@ import 'package:mova/src/core/api.dart';
 import 'package:mova/src/core/bus/bus.dart';
 import 'package:mova/src/core/events/events.dart';
 import 'package:mova/src/core/model/fit.dart';
-import 'package:mova/src/core/model/orientation.dart';
+import 'package:mova/src/core/model/orient_mode.dart';
 import 'package:mova/src/core/model/quality.dart';
 import 'package:mova/src/core/model/source.dart';
 import 'package:mova/src/core/options/options.dart';
@@ -19,7 +19,7 @@ import 'package:mova/src/core/state/state.dart';
 import 'package:mova/src/core/state/ui_state.dart';
 import 'package:mova/src/core/stt/api.dart';
 import 'package:mova/src/core/stt/cue.dart';
-import 'package:mova/src/core/cutover/ctl.dart';
+import 'package:mova/src/core/cutover/api.dart';
 import 'package:mova/src/core/cutover/plan.dart';
 import 'package:mova/src/core/cutover/trigger.dart';
 
@@ -27,19 +27,19 @@ import 'gated.dart';
 
 import 'fake_kernel.dart' show StatsProbeStub;
 
-/// A test double for [MovaApi] that records every capability call it receives
+/// A test double for [IMovaApi] that records every capability call it receives
 /// and lets tests push arbitrary state/events into its streams.
 ///
 /// Used across the test suite (this task and later ones) as the single
 /// shared fake API implementation — its public surface is depended on
 /// verbatim by later tasks, so it is not to be extended casually.
 ///
-/// [MovaApi] 的测试替身：记录收到的每次能力调用，并允许测试向其流中主动推送
+/// [IMovaApi] 的测试替身：记录收到的每次能力调用，并允许测试向其流中主动推送
 /// 状态/事件。
 ///
 /// 在整个测试套件中（本任务及后续任务）作为唯一共享的假 API 实现——其公开
 /// 面被后续任务逐字依赖，不应随意扩充。
-class FakeMovaApi implements MovaApi {
+class FakeMovaApi implements IMovaApi {
   /// Creates a fake API seeded with [options] and default state/UI-state
   /// snapshots.
   ///
@@ -169,11 +169,11 @@ class FakeMovaApi implements MovaApi {
   /// 该假对象是否已被 [dispose]。
   bool disposed = false;
 
-  /// The argument of the most recent [setOrientation] call, or `null` if
+  /// The argument of the most recent [setOrient] call, or `null` if
   /// never called.
   ///
-  /// 最近一次 [setOrientation] 调用的参数；若从未调用过则为 `null`。
-  MovaOrientation? lastOrientation;
+  /// 最近一次 [setOrient] 调用的参数；若从未调用过则为 `null`。
+  MovaOrientMode? lastOrient;
 
   /// The argument of the most recent [switchQuality] call, or `null` if
   /// never called.
@@ -277,10 +277,10 @@ class FakeMovaApi implements MovaApi {
 
   /// The source currently "open" on this fake, recorded for tests that want
   /// to assert on it; also drives [MovaState.sourceTitle] via [open], which
-  /// pushes it into [state] the same way the real engine does.
+  /// pushes it into [state] the same way the real player does.
   ///
   /// 该假对象当前"已打开"的源，供测试断言使用；也通过 [open] 驱动
-  /// [MovaState.sourceTitle]（与真实 engine 一样推入 [state]）。
+  /// [MovaState.sourceTitle]（与真实播放器一样推入 [state]）。
   MovaSource? source;
 
   /// When non-null, [open] throws it instead of succeeding; lets tests drive
@@ -319,9 +319,9 @@ class FakeMovaApi implements MovaApi {
   void push(MovaState next) => _state.emit(next);
 
   /// Convenience for tests: bumps [MovaState.renderEpoch] by one, simulating
-  /// what [MovaCutoverEngine] does on a committed cutover.
+  /// what [MovaCutover] does on a committed cutover.
   ///
-  /// 测试便捷方法：把 [MovaState.renderEpoch] 加一，模拟 [MovaCutoverEngine]
+  /// 测试便捷方法：把 [MovaState.renderEpoch] 加一，模拟 [MovaCutover]
   /// 提交切换后的行为。
   void bumpRenderEpoch() => push(state.copyWith(renderEpoch: state.renderEpoch + 1));
 
@@ -474,10 +474,10 @@ class FakeMovaApi implements MovaApi {
   void emitMini(bool mini) => push(state.copyWith(mini: mini));
 
   @override
-  Future<void> setOrientation(MovaOrientation o) async {
-    _record('setOrientation');
-    lastOrientation = o;
-    push(state.copyWith(orientation: o));
+  Future<void> setOrient(MovaOrientMode o) async {
+    _record('setOrient');
+    lastOrient = o;
+    push(state.copyWith(orient: o));
   }
 
   @override
@@ -564,11 +564,11 @@ class FakeMovaApi implements MovaApi {
   }
 }
 
-/// A test double for [MovaPreviewApi] that records requests and lets tests push
+/// A test double for [IMovaPreviewApi] that records requests and lets tests push
 /// thumbnails into the stream.
 ///
-/// [MovaPreviewApi] 的测试替身：记录请求，并允许测试向流中推送缩略图。
-class FakePreviewApi implements MovaPreviewApi {
+/// [IMovaPreviewApi] 的测试替身：记录请求，并允许测试向流中推送缩略图。
+class FakePreviewApi implements IMovaPreviewApi {
   /// Backing controller for [thumbs].
   ///
   /// [thumbs] 的底层控制器。
@@ -635,13 +635,13 @@ class FakePreviewApi implements MovaPreviewApi {
   Future<void> dispose() => _thumbs.close();
 }
 
-/// A test double for [MovaCutover] that records every call it receives, so
+/// A test double for [IMovaCutover] that records every call it receives, so
 /// callers like `MovaAds` can be tested against the cutover verbs alone
-/// without a real [MovaCutoverEngine].
+/// without a real [MovaCutover].
 ///
-/// [MovaCutover] 的测试替身：记录收到的每次调用，使 `MovaAds` 这类调用方
-/// 无需真实 [MovaCutoverEngine] 也能对着切换动词做测试。
-class FakeCutoverCtl implements MovaCutover {
+/// [IMovaCutover] 的测试替身：记录收到的每次调用，使 `MovaAds` 这类调用方
+/// 无需真实 [MovaCutover] 也能对着切换动词做测试。
+class FakeCutover implements IMovaCutover {
   /// Ordered method names invoked on this fake.
   ///
   /// 在该替身上被调用的方法名有序列表。
@@ -747,15 +747,15 @@ class FakeCutoverCtl implements MovaCutover {
   Future<void> dispose() => _phases.close();
 }
 
-/// A test double for [MovaStatsProbe] that lets tests push `stalling`/`logs`
+/// A test double for [IMovaStatsProbe] that lets tests push `stalling`/`logs`
 /// observations and control what [sample] returns, without a real mpv
 /// kernel. Also tracks whether [stalling]/[logs] were ever subscribed, so
-/// tests can assert a `reporter == null`/`qoe: false` engine never subscribes
+/// tests can assert a `reporter == null`/`qoe: false` player never subscribes
 /// them (zero-overhead-when-off contract).
 ///
-/// [MovaStatsProbe] 的测试替身：允许测试推送 `stalling`/`logs` 观测、控制
+/// [IMovaStatsProbe] 的测试替身：允许测试推送 `stalling`/`logs` 观测、控制
 /// [sample] 的返回值，无需真实 mpv 内核。同时记录 [stalling]/[logs] 是否曾被
-/// 订阅，供测试断言 `reporter == null`/`qoe: false` 的 engine 从不订阅它们
+/// 订阅，供测试断言 `reporter == null`/`qoe: false` 的播放器从不订阅它们
 /// （关闭时零开销契约）。
 class FakeStatsProbe with StatsProbeStub {
   FakeStatsProbe() {
@@ -799,11 +799,11 @@ class FakeStatsProbe with StatsProbeStub {
   Future<void> dispose() => disposeStatsProbeStub();
 }
 
-/// A test double for [MovaSttApi] that records start/stop calls and lets tests
+/// A test double for [IMovaSttApi] that records start/stop calls and lets tests
 /// push cues into the stream.
 ///
-/// [MovaSttApi] 的测试替身：记录启停调用，并允许测试向流中推送字幕。
-class FakeSttApi implements MovaSttApi {
+/// [IMovaSttApi] 的测试替身：记录启停调用，并允许测试向流中推送字幕。
+class FakeSttApi implements IMovaSttApi {
   /// Backing controller for [cues].
   ///
   /// [cues] 的底层控制器。
@@ -852,11 +852,11 @@ class FakeSttApi implements MovaSttApi {
   }
 
   /// Clears [current] without touching [cues] — simulates a real
-  /// [MovaSttApi]'s position tracking deciding the previously-pushed cue no
+  /// [IMovaSttApi]'s position tracking deciding the previously-pushed cue no
   /// longer covers the (fake-side untracked) playback position, since this
   /// fake does not itself implement that expiry logic.
   ///
-  /// 清空 [current]，不影响 [cues]——模拟真实 [MovaSttApi] 的位置跟踪判定此前
+  /// 清空 [current]，不影响 [cues]——模拟真实 [IMovaSttApi] 的位置跟踪判定此前
   /// 推送的字幕已不再覆盖播放位置（该假对象本身未实现这层过期逻辑，跟踪的
   /// 播放位置也不是假对象关心的）。
   void clear() => _current = null;
@@ -881,7 +881,7 @@ class FakeSttApi implements MovaSttApi {
 /// into [calls].
 ///
 /// 兼具 `setKeepAlive` 的 [FakeMovaApi]，把 `setKeepAlive:<on>` 记进 [calls]。
-class FakeKeepAliveApi extends FakeMovaApi implements MovaKeepAlive {
+class FakeKeepAliveApi extends FakeMovaApi implements IMovaKeepAlive {
   /// Creates the fake; [options] is forwarded to [FakeMovaApi].
   ///
   /// 创建假对象；[options] 转交给 [FakeMovaApi]。

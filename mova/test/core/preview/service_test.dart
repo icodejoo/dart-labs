@@ -3,18 +3,18 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mova/src/core/model/source.dart';
-import 'package:mova/src/core/options/preview_config.dart';
+import 'package:mova/src/core/options/preview_opts.dart';
 import 'package:mova/src/core/preview/cache.dart';
 import 'package:mova/src/core/preview/models.dart';
 import 'package:mova/src/core/preview/net_probe.dart';
 import 'package:mova/src/core/preview/service.dart';
 import 'package:mova/src/core/preview/source.dart';
 
-/// A [MovaThumbSource] returning canned bytes after an optional delay, recording
+/// A [IMovaThumbSource] returning canned bytes after an optional delay, recording
 /// every bucket it was asked for.
 ///
-/// 可选延迟后返回预置字节的 [MovaThumbSource]，并记录被请求过的每个桶。
-class _FakeSource implements MovaThumbSource {
+/// 可选延迟后返回预置字节的 [IMovaThumbSource]，并记录被请求过的每个桶。
+class _FakeSource implements IMovaThumbSource {
   /// Creates a fake source.
   ///
   /// 创建一个假来源。
@@ -93,10 +93,10 @@ class _FakeSource implements MovaThumbSource {
   Future<void> dispose() async => calls.add('dispose');
 }
 
-/// A [MovaNetProbe] with a flippable verdict.
+/// A [IMovaNetProbe] with a flippable verdict.
 ///
-/// 判定结果可切换的 [MovaNetProbe]。
-class _SwitchProbe implements MovaNetProbe {
+/// 判定结果可切换的 [IMovaNetProbe]。
+class _SwitchProbe implements IMovaNetProbe {
   /// Creates a probe answering [verdict].
   ///
   /// 创建一个回答 [verdict] 的探针。
@@ -117,12 +117,12 @@ class _SwitchProbe implements MovaNetProbe {
   Future<void> dispose() async {}
 }
 
-/// A [MovaNetProbe] that answers `true` only after [delay], widening the
+/// A [IMovaNetProbe] that answers `true` only after [delay], widening the
 /// window between `_resolve`'s entry and its first key computation.
 ///
-/// 延迟 [delay] 后才回答 `true` 的 [MovaNetProbe]，用来拉宽 `_resolve` 入口到
+/// 延迟 [delay] 后才回答 `true` 的 [IMovaNetProbe]，用来拉宽 `_resolve` 入口到
 /// 首次算 key 之间的窗口。
-class _SlowProbe implements MovaNetProbe {
+class _SlowProbe implements IMovaNetProbe {
   /// Creates a probe that stalls for [delay].
   ///
   /// 创建一个会停顿 [delay] 的探针。
@@ -146,10 +146,10 @@ class _SlowProbe implements MovaNetProbe {
   Future<void> dispose() async {}
 }
 
-/// A [MovaNetProbe] that throws on the first [allowHeavy] and from `dispose`.
+/// A [IMovaNetProbe] that throws on the first [allowHeavy] and from `dispose`.
 ///
-/// 第一次 [allowHeavy] 与 `dispose` 都会抛错的 [MovaNetProbe]。
-class _ThrowingProbe implements MovaNetProbe {
+/// 第一次 [allowHeavy] 与 `dispose` 都会抛错的 [IMovaNetProbe]。
+class _ThrowingProbe implements IMovaNetProbe {
   /// How many times [allowHeavy] was called.
   ///
   /// [allowHeavy] 的调用次数。
@@ -192,7 +192,7 @@ class _PendingProbe extends _SwitchProbe {
 void main() {
   const src = MovaSource('https://host/a.mp4');
   const srcB = MovaSource('https://host/b.mp4');
-  const noDebounce = MovaPreviewConfig(
+  const noDebounce = MovaPreviewOpts(
     debounce: Duration.zero,
     network: MovaPreviewNet.always,
   );
@@ -201,16 +201,16 @@ void main() {
   late _FakeSource source;
   late MovaPreviewService service;
 
-  /// Builds a service over the shared fakes with [config].
+  /// Builds a service over the shared fakes with [opts].
   ///
-  /// 用共享替身与 [config] 构造一个服务。
-  MovaPreviewService build(MovaPreviewConfig config, {MovaNetProbe? probe}) {
+  /// 用共享替身与 [opts] 构造一个服务。
+  MovaPreviewService build(MovaPreviewOpts opts, {IMovaNetProbe? probe}) {
     return MovaPreviewService(
-      config: config,
+      opts: opts,
       cache: cache,
       probe: probe ?? MovaAlwaysAllowNetProbe(),
       sources: [source],
-      onBlocked: config.onBlocked,
+      onBlocked: opts.onBlocked,
     )..attach(src);
   }
 
@@ -254,7 +254,7 @@ void main() {
     test('warm cache obeys disabled and audio-only gates: audio=$audio', () async {
       final blocked = <MovaPreviewBlockReason>[];
       service = MovaPreviewService(
-        config: noDebounce.copyWith(enabled: audio),
+        opts: noDebounce.copyWith(enabled: audio),
         cache: cache, probe: MovaAlwaysAllowNetProbe(), sources: [source],
         audioOnly: audio, onBlocked: blocked.add,
       )..attach(src);
@@ -375,7 +375,7 @@ void main() {
   });
 
   test('debounce collapses a burst of scrub ticks into one request', () async {
-    service = build(const MovaPreviewConfig(
+    service = build(const MovaPreviewOpts(
       debounce: Duration(milliseconds: 40),
       network: MovaPreviewNet.always,
     ));
@@ -416,7 +416,7 @@ void main() {
   test('a blocked network refuses without touching any source', () async {
     final reasons = <MovaPreviewBlockReason>[];
     service = build(
-      MovaPreviewConfig(
+      MovaPreviewOpts(
         debounce: Duration.zero,
         onBlocked: reasons.add,
       ),
@@ -429,9 +429,9 @@ void main() {
     expect(reasons, [MovaPreviewBlockReason.network]);
   });
 
-  test('a disabled config refuses with the disabled reason', () async {
+  test('disabled opts refuse with the disabled reason', () async {
     final reasons = <MovaPreviewBlockReason>[];
-    service = build(MovaPreviewConfig(
+    service = build(MovaPreviewOpts(
       enabled: false,
       debounce: Duration.zero,
       network: MovaPreviewNet.always,
@@ -446,7 +446,7 @@ void main() {
   test('no attached source refuses with the noSource reason', () async {
     final reasons = <MovaPreviewBlockReason>[];
     service = MovaPreviewService(
-      config: const MovaPreviewConfig(
+      opts: const MovaPreviewOpts(
         debounce: Duration.zero,
         network: MovaPreviewNet.always,
       ),
@@ -464,13 +464,13 @@ void main() {
   test('an empty source chain refuses with the platform reason', () async {
     final reasons = <MovaPreviewBlockReason>[];
     service = MovaPreviewService(
-      config: const MovaPreviewConfig(
+      opts: const MovaPreviewOpts(
         debounce: Duration.zero,
         network: MovaPreviewNet.always,
       ),
       cache: cache,
       probe: MovaAlwaysAllowNetProbe(),
-      sources: const <MovaThumbSource>[],
+      sources: const <IMovaThumbSource>[],
       onBlocked: reasons.add,
     )..attach(src);
     service.requestAt(const Duration(seconds: 10));
@@ -482,7 +482,7 @@ void main() {
     final first = _FakeSource(name: 'first', answer: false);
     final second = _FakeSource(name: 'second');
     service = MovaPreviewService(
-      config: noDebounce,
+      opts: noDebounce,
       cache: cache,
       probe: MovaAlwaysAllowNetProbe(),
       sources: [first, second],
@@ -505,7 +505,7 @@ void main() {
   });
 
   test('cancel drops the pending request and hides the current thumb', () async {
-    service = build(const MovaPreviewConfig(
+    service = build(const MovaPreviewOpts(
       debounce: Duration(milliseconds: 40),
       network: MovaPreviewNet.always,
     ));
@@ -519,7 +519,7 @@ void main() {
 
   test('a custom cacheKeyBuilder is used for every entry', () async {
     service = MovaPreviewService(
-      config: MovaPreviewConfig(
+      opts: MovaPreviewOpts(
         debounce: Duration.zero,
         network: MovaPreviewNet.always,
         cacheKeyBuilder: (s, b, w) => 'custom_${b}_$w',
@@ -567,7 +567,7 @@ void main() {
 
   test('attach during the network probe drops the old media request', () async {
     service = build(
-      const MovaPreviewConfig(debounce: Duration.zero, network: MovaPreviewNet.wifiOnly),
+      const MovaPreviewOpts(debounce: Duration.zero, network: MovaPreviewNet.wifiOnly),
       probe: _SlowProbe(const Duration(milliseconds: 40)),
     );
     service.requestAt(const Duration(seconds: 10));

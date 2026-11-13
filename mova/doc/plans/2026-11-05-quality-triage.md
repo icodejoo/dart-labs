@@ -4,7 +4,7 @@
 
 ## 结论
 
-第六轮 `CP3.headers.quality.0..4` 的 FAIL 均为**判据缺陷**：清晰度正负对照已经成功，但总判据仍把旧原生 `pool` 截图失败并入；新 `pool-ready` 与 `pool-ready-cutover` 已全部通过。没有证据支持本批存在清晰度产品缺陷或环境故障，因此不改产品 lib、不修改 `MovaHttpFetch.get(Uri)` 签名、不增加 `MovaApi` 成员。
+第六轮 `CP3.headers.quality.0..4` 的 FAIL 均为**判据缺陷**：清晰度正负对照已经成功，但总判据仍把旧原生 `pool` 截图失败并入；新 `pool-ready` 与 `pool-ready-cutover` 已全部通过。没有证据支持本批存在清晰度产品缺陷或环境故障，因此不改产品 lib、不修改 `IMovaHttpFetch.get(Uri)` 签名、不增加 `IMovaApi` 成员。
 
 旧 FAIL 原样保留。本次修改后的夹具必须用新 APK 复验；离线解释不能把历史结果改成 PASS。
 
@@ -38,9 +38,9 @@
 
 ## 代码契约及四种疑点
 
-当前仓库没有名为 `MovaQualityProbe` 的类或接口；对应路径为 `MovaEngine.loadQualities()` / `_probeQualities()`（`lib/src/core/engine.dart`），HLS 解析为 `parseHlsMasterPlaylist`（`lib/src/core/model/quality.dart`）。
+当前仓库没有名为 `MovaQualityProbe` 的类或接口；对应路径为 `Mova.loadQualities()` / `_probeQualities()`（`lib/src/core/mova.dart`），HLS 解析为 `parseHlsMasterPlaylist`（`lib/src/core/model/quality.dart`）。
 
-1. `open` 默认可自动启动探测；显式 `loadQualities` 与同会话、同源正在进行/已完成的探测复用 Future。探测通过 `movaFetchWithHeaders(_fetcher, masterUri, source.requestHeaders)` 拉取 master。默认 `MovaIoHttpFetcher` 实现 `MovaHeaderedHttpFetch`，头逐请求设置，不泄漏给下一源。旧自定义 fetcher 仍兼容 `get(Uri)`，没有带头能力时只退化并 debug 提示；本夹具使用默认引擎，不是该退化情形。
+1. `open` 默认可自动启动探测；显式 `loadQualities` 与同会话、同源正在进行/已完成的探测复用 Future。探测通过 `movaFetchWithHeaders(_fetcher, masterUri, source.requestHeaders)` 拉取 master。默认 `MovaIoHttpFetcher` 实现 `IMovaHeaderedHttpFetch`，头逐请求设置，不泄漏给下一源。旧自定义 fetcher 仍兼容 `get(Uri)`，没有带头能力时只退化并 debug 提示；本夹具使用默认播放器，不是该退化情形。
 2. 带头源：`Referer=https://cp3.example/authorized`，master 应为 200。`referer_server.py` 明确返回一个 640x360、400000 带宽的变体 `/index.m3u8?case=quality-N-yes`；解析结果应为 **auto + 360p 共两档**，初始 `currentQuality` 为 auto。STATE 中显示“自动”只表示当前档，不能推出列表只有 auto。
 3. 无头源：同一防盗链 master 应 403；fetcher 返回 null，探测列表为空、默认当前档清空。这是正确的拒绝对照，不能期待与带头源相同的档位。无鉴权要求的普通 HLS 才应在无头时仍正常发现变体。
 4. “带头仍被 403”：本次原始回执排除；“变体为空”：positive=true 排除原始列表为空。“只有 auto”：旧 CHECK 未保存完整列表，不能单凭 positive 排除，但当前解析器仅在至少一个真实变体存在时才添加 auto，夹具 master 也含真实变体，代码不支持此解释。“选档后 path 不匹配”：旧 quality 分支没有调用 `switchQuality`，没有选档后 path 证据，不能定性为选档失败或声称已验过。
@@ -61,7 +61,7 @@
 |example `flutter analyze --no-pub` 前后对照|均 41 issues；逐条诊断比较无差异，新增 0|
 |example `flutter test --no-pub test/cp3_headers_criteria_test.dart --reporter expanded`|12/12；回退聚合判据后恢复，再跑仍 12/12|
 |回退聚合判据为旧 `paths.values.every(pass)`|11 PASS / 1 FAIL；第六轮 pool=false、新截图=true 的回归变红 **1 条**，随后恢复修复|
-|根 `source_headers_test.dart` + `engine_quality_probe_test.dart`，concurrency=3|19/19；覆盖带头 fetch、无头不泄漏、探测会话去重/旧结果丢弃等|
+|根 `source_headers_test.dart` + `mova_quality_probe_test.dart`，concurrency=3|19/19；覆盖带头 fetch、无头不泄漏、探测会话去重/旧结果丢弃等|
 |`python run_matrix.py --check`|CHECK PASS：92 batches / 135 IDs / 6 manual，无设备操作|
 |`python -m unittest test_run_matrix test_cp3`|72/72（66 + 6）|
 

@@ -1,7 +1,7 @@
 """Exact per-variant CP3 CHECK contract; missing/duplicate evidence blocks."""
 VARIANTS = {'cp1gap':{'bottomPatch':5},'fullscreen': {'back':5,'locked':5}, 'theme':{'switch':10},
             'headers':{'quality':5,'thumb':5,'prefetch':5},
-            'feedplayer':{'controller':5,'autoPause':5,'failure':5},
+            'feedplayer':{'ctrl':5,'autoPause':5,'failure':5},
             'c04chrome':{'hide':5,'drag':5,'style':5,'hud':5}}
 FIELDS = {'cp1gap':{'before','after','observed'},'fullscreen':{'before','after','host'},'theme':{'before','after','sessionBefore','sessionAfter','styleObserved'},
           'headers':{'positive','negative','requests'},'feedplayer':{'before','after','observed'},

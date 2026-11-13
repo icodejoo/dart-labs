@@ -35,7 +35,7 @@
 | S5C 对照（无待机） | 同上 | 3 | 3（仅记录） | 0 | |
 | S6 无声流强制 B | 同上 | 3 | 0 | 3 | forced B 后 EOF→`MovaDone→PlayFailure` 并重载，位置回 0（已知 H44，旧判据未更新） |
 | S13 / S16 / S17 | 同上 | 3 each (S16 4 档) | 全 | 0 | S16：0.5/1s 一律 fallback(mediaUnknown)，2/3s holding |
-| 懒创建 VideoController dispose（E6，createMovaEngine 不挂界面） | main_videocontroller_verify（MOVA_EXP=E6） | 3 进程 x 5 轮 | 15 | 0 | dispose 1–6ms |
+| 懒创建 VideoController dispose（E6，createMova 不挂界面） | main_videocontroller_verify（MOVA_EXP=E6） | 3 进程 x 5 轮 | 15 | 0 | dispose 1–6ms |
 | E7 先播后挂界面 | 同上 | 3 x 3 | 9 | 0 | 挂载前 0x0、挂载后 640x360、dispose 38–218ms |
 | E8 无缝切换回归 | 同上 | 3 | 3 | 0 | renderEpoch 0→1，cutover 849–1330ms，640x360 在播 |
 | E5 预览抽帧器 extract | 同上 | 3 x 5 | 15 | 0 | 249–558ms，5 个位置的校验和互异，3 进程之间逐位置完全一致 |
@@ -66,7 +66,7 @@
 | S1 18/18 FAIL，`signal=grace`，elapsed≈5000ms | 已知待决（H42，B 唤醒无 RESTART/尺寸变化）；页面判据仍按旧预期 | ka.log VERDICT S1 x18，`decodedProp` 281–3658ms | 已证实，和 CLAUDE.md 记录一致，本轮没有改变 |
 | S6 3/3 FAIL，forcedAdvance=−6000ms | 旧预期未更新（H44 已核对：对无声流强制 B 会 EOF+recovery 重载，靠 `audio=absent` 拦截）；页面判据仍是「position 不动」 | ka.log S6 trace：6000→0 | 已证实 |
 | V10C 3/3 FAIL | 验证脚本判据语义（对照组，守卫关本来就不会暂停）；非产品问题 | he_V10C.log：pause=false，进程未崩 | 已证实 |
-| 默认（非懒创建）内核无界面 dispose 18/18 超时 8s | 已知 media_kit 行为（创建了 VideoController 却不挂界面），不是 mova 引入；产品默认路径（createMovaEngine/MovaEngine 默认内核 lazyVideo）已用 E6/E7/E8 证明正常 | dh_*.log；E6 15/15 | 已证实 |
+| 默认（非懒创建）内核无界面 dispose 18/18 超时 8s | 已知 media_kit 行为（创建了 VideoController 却不挂界面），不是 mova 引入；产品默认路径（createMova/Mova 默认内核 lazyVideo）已用 E6/E7/E8 证明正常 | dh_*.log；E6 15/15 | 已证实 |
 | 待机 60s 后位置前跳（旧记 2.4–3.0s） | 本轮终值**未复现**（S5 3/3，漂移 −86…43ms，位置 2783→69863/69983） | ka.log S5 | 终值层面已证；**但** trace 里 +61s 一个采样点 3/3 瞬时偏 +1552/+1654/+1686ms，+66s 回到 78–167ms，说明唤醒瞬间位置读数有一次约 1.6s 的瞬时前冲，随后回落。原因未查（推断：唤醒时读数与 seek 回拉的时序，未证实）；是否算已知待决由你判 |
 | E5/E12 首次跑全是空图、extract 5.2s、校验和相同 | 环境/验证脚本问题：我用的 `python -m http.server` 不支持 Range，mp4 seek 落不了地；换带 Range 的服务后全部正常（见上表） | 首轮日志已弃 | 已证实（换服务器即好）。注意这条是给后续跑 E5/E7/E8/E12 的人的坑：源必须支持 Range |
 | live 130s `leak:rss_kb` | 验证判据窗口过短（误报） | PF7 480s 平台 | 已证实 |

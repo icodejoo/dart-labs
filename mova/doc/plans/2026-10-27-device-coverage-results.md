@@ -47,38 +47,38 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
 
 | 编号 | 结论 | 测试点与缺失证据 |
 |---|---|---|
-| A1 | FAIL | batch15-basic/basic-swap STREAM_FLAGS均[true,false,true,false]：states/uiStates.isBroadcast=false，events/progress=true。两订阅计数相等且八订阅均关闭；是标志/矩阵契约差异，不是已证实的多订阅失败。 |
-| A2 | FAIL | 事件接收快照并非始终与载荷一致：E.BufferChange在batch1-basic-swap 7次中3次不同；E.SizeChange在batch15-abr 7次中1次不同。其余可对账字段正常；见event-audit.json及复现记录，可能为异步队列快照语义。 |
+| A1 | FAIL | batch15-basic/basic-cutover STREAM_FLAGS均[true,false,true,false]：states/uiStates.isBroadcast=false，events/progress=true。两订阅计数相等且八订阅均关闭；是标志/矩阵契约差异，不是已证实的多订阅失败。 |
+| A2 | FAIL | 事件接收快照并非始终与载荷一致：E.BufferChange在batch1-basic-cutover 7次中3次不同；E.SizeChange在batch15-abr 7次中1次不同。其余可对账字段正常；见event-audit.json及复现记录，可能为异步队列快照语义。 |
 | A3 | PASS | batch15-lazy.json：VideoController计数构造0/open后0/首次renderHandle后1，真实640x360；batch15-basic两实现audioOnly handle=null。 |
-| A4 | PASS | 普通及 swap 的 pipSupported=true、state.pipSupported=true；两份 batch1-basic*.json 的 A4 检查。 |
+| A4 | PASS | 普通及 cutover 的 pipSupported=true、state.pipSupported=true；两份 batch1-basic*.json 的 A4 检查。 |
 | A5 | FAIL | batch20-edges BAD_OPEN_RESULT：recovery关闭、404返回accepted=true/threw=false，错误随后进入state/error事件；batch15-basic两实现OPEN_SYNC立即读仍旧duration40000/title，异步后归零。与矩阵同步清零/坏地址抛出预期不同；按当前异步API属契约预期差异，open true仅代表接受（N8通过）。 |
-| A6 | PASS | 普通及 swap 的 play/pause/playOrPause 有事件，重复 pause 后 playing=false/intent=false；暂停态 open 后 intent=false。batch1-basic*.json。 |
+| A6 | PASS | 普通及 cutover 的 play/pause/playOrPause 有事件，重复 pause 后 playing=false/intent=false；暂停态 open 后 intent=false。batch1-basic*.json。 |
 | A7 | PASS | batch15-basic两实现5个精确seek误差0ms、负值落0，live0/2s组seek被拦；batch20-edges加载中寄存7s→6999ms，seekBy(+2s)→8998ms，超长1h→duration40000ms。最后一项仅测越界钳制，不作为EOF/性能判据。 |
 | A8 | FAIL | 越界state未钳制（batch1）；有效值真实写系统媒体音量：0/50/100/30→STREAM_MUSIC speaker=0/10/20/6，Max=20；batch3-15…18.audio.txt。 |
 | A9 | FAIL | batch15-basic两实现越界state=-1/2未钳制；batch20-edges真实ScreenBrightness.application读回0/.25/.75/1与state逐项完全一致。FAIL限越界state契约，不是正常亮度失效。 |
-| A10 | PASS | batch15-basic/basic-swap：0.5/1/1.5/2实际相同；-1/0均抛Invalid argument(rate)；换源及reload保持1.5x；batch11广告最大采样1x、恢复2x/1.5x。 |
+| A10 | PASS | batch15-basic/basic-cutover：0.5/1/1.5/2实际相同；-1/0均抛Invalid argument(rate)；换源及reload保持1.5x；batch11广告最大采样1x、恢复2x/1.5x。 |
 | A11 | PASS | 全部3个MovaFit：contain/cover/fill事件与state一致；batch3-02/03/04截图已目视核对，分别留黑边/裁切铺满/纵向拉伸，同一暂停帧时间码00:00:02.760。 |
 | A12 | FAIL | setZoom(-1/0/100)接受并使state.zoom=-1/0/100，超出maxZoom的100未钳制；有MovaZoomChange。batch3-09/10/13-zoom*.json；缩放平移手势另测。 |
-| A13 | PASS | batch16-engine/swap-lock及locked-check：locked=true，注入左右竖滑后volume=50/brightness=.5不变，LockChange与state一致；截图同前缀。 |
-| A14 | PASS | batch16-engine及swap fullscreen/orientation原始JSON+window+PNG：横屏2266x1080、竖屏1080x2376；fullscreen topPadding110→0，退出恢复110；auto/portrait/landscape事件/state一致，两实现已测。 |
-| A15 | PASS | batch16-engine/swap mini及mini-host/page各动作：位置继续、epoch始终0，非重新解码；batch18-mini→pip-enter：mini=true→false且pip=true，进入PiP返回true。 |
-| A16 | PASS | batch16-engine及swap fullscreen/orientation原始JSON+window+PNG：横屏2266x1080、竖屏1080x2376；fullscreen topPadding110→0，退出恢复110；auto/portrait/landscape事件/state一致，两实现已测。 |
-| A17 | FAIL | 原生FFI最终版：batch23-hls-native普通首切8183→8143ms(-40)，第二切target8823但RESTART=23ms并从头走；普通5切1通过4失败。batch24-hls-native-swap也1/5；paused第二切8263→23ms丢位置，之后目标已0附近的“通过”不算有效续播样本。ABR限速下调通过，不抵消重复手切缺陷。旧batch17/19/21的等待/瞬时读回判据作废，非库失败依据。 |
+| A13 | PASS | batch16-mova/cutover-lock及locked-check：locked=true，注入左右竖滑后volume=50/brightness=.5不变，LockChange与state一致；截图同前缀。 |
+| A14 | PASS | batch16-mova及cutover fullscreen/orient原始JSON+window+PNG：横屏2266x1080、竖屏1080x2376；fullscreen topPadding110→0，退出恢复110；auto/portrait/landscape事件/state一致，两实现已测。 |
+| A15 | PASS | batch16-mova/cutover mini及mini-host/page各动作：位置继续、epoch始终0，非重新解码；batch18-mini→pip-enter：mini=true→false且pip=true，进入PiP返回true。 |
+| A16 | PASS | batch16-mova及cutover fullscreen/orient原始JSON+window+PNG：横屏2266x1080、竖屏1080x2376；fullscreen topPadding110→0，退出恢复110；auto/portrait/landscape事件/state一致，两实现已测。 |
+| A17 | FAIL | 原生FFI最终版：batch23-hls-native普通首切8183→8143ms(-40)，第二切target8823但RESTART=23ms并从头走；普通5切1通过4失败。batch24-hls-native-cutover也1/5；paused第二切8263→23ms丢位置，之后目标已0附近的“通过”不算有效续播样本。ABR限速下调通过，不抵消重复手切缺陷。旧batch17/19/21的等待/瞬时读回判据作废，非库失败依据。 |
 | A18 | PASS | batch18-pip-visible.activity.txt：mode=pinned、mLastReportedPictureInPictureMode=true；enter返回true。展开pip=false且继续播放。X路径用adb tap(750,2050)后等450ms、tap(960,1965)，before-x.png有系统X，after-x.png关闭；pip-x-final state.pip=false/playing=false，native无pinned。原始JSON含true/false变更。 |
-| A19 | PASS | batch15-basic/basic-swap.json：RELOAD快照及SourceChange/Ready/DurationChange重发，暂停策略保持，position归零；重新open后rate=1.5。 |
+| A19 | PASS | batch15-basic/basic-cutover.json：RELOAD快照及SourceChange/Ready/DurationChange重发，暂停策略保持，position归零；重新open后rate=1.5。 |
 | A20 | PASS | batch19-live-dvr/behind/backedge：真实18081/live.m3u8；seek3s，TimeShiftChange behind随播放变化；backEdge到position12000ms、LiveEdgeReach，窗口12s；点播backEdge无副作用见basic，holding重载保护5/5见batch7 S13。 |
-| A21 | PASS | batch15-basic两实现：A21.hide/hud=true，dragging及previewAt=5s、HUD文本一致；batch16-swap sticky保持/800ms自动隐藏均true。 |
+| A21 | PASS | batch15-basic两实现：A21.hide/hud=true，dragging及previewAt=5s、HUD文本一致；batch16-cutover sticky保持/800ms自动隐藏均true。 |
 | A22 | PASS | 两实现 custom(coverage) 的相等及 hashCode 一致，probe=42 透传；内置 play probe=43 可见，batch1-basic*.json。 |
-| A23 | FAIL | batch15-basic/basic-swap第二次dispose均抛[Player] has been disposed；disposed open=false。首次销毁正常且8流关闭；batch15-dispose120完成120轮，round20..120 meminfo与RSS约227→247MB尾部平台，不能据此证明绝无泄漏；batch11加载/换指期间销毁通过。 |
-| A24 | PASS | batch15-swap.json：默认关闭1引擎epoch0；prepare→commit epoch1 position6048/rate1.5；短预热拒绝、abandon关闭影子、2s超时false、swapTo epoch2、退役open=false。 |
-| A25 | PASS | batch7/8 standby原生日志含off/holding/fallback/resuming；batch16-checks A25.pause=true（pause结束holding），maxDuration到期true；恢复信号不足单列F6。 |
+| A23 | FAIL | batch15-basic/basic-cutover第二次dispose均抛[Player] has been disposed；disposed open=false。首次销毁正常且8流关闭；batch15-dispose120完成120轮，round20..120 meminfo与RSS约227→247MB尾部平台，不能据此证明绝无泄漏；batch11加载/换指期间销毁通过。 |
+| A24 | PASS | batch15-cutover.json：默认关闭1播放器epoch0；prepare→commit epoch1 position6048/rate1.5；短预热拒绝、abandon关闭影子、2s超时false、cutoverTo epoch2、退役open=false。 |
+| A25 | PASS | batch7/8 keepAlive原生日志含off/holding/fallback/resuming；batch16-checks A25.pause=true（pause结束holding），maxDuration到期true；恢复信号不足单列F6。 |
 | A26 | PASS | batch16/22 show/showInPage/hide/close及A/B互斥、setRect读回30/90/180/110；batch25-mini-tap有MINI_TAPPED，close有MINI_CLOSED，位置继续/epoch0；isShowing与mount有日志。setRect是窗口回写矩形接口，未把它当强制移动UI的命令。 |
 | A27 | PASS | batch15-ads前/中/后/手动、deferred、clicked、skip、waitsFor覆盖，batch11 pod真实换指；batch20-ad-failure：RetrySkip(maxRetries1)真实404两次failed后继续下一条，AbandonPod首次failed后直接正片。 |
-| A28 | PASS | batch1-playlist.json：start index=0 hasNext=true、end index=1 hasNext=false、边界 previous/next 不越界；真实 MovaDone 后自动 index=1，controller 与 engine dispose 完成。 |
-| A29 | PASS | batch15-feed.json：100次串行+20次重叠activate，最终active=120，created=3；ensure及邻居预热、controller/pool dispose通过。 |
+| A28 | PASS | batch1-playlist.json：start index=0 hasNext=true、end index=1 hasNext=false、边界 previous/next 不越界；真实 MovaDone 后自动 index=1，MovaPlaylist 与播放器 dispose 完成。 |
+| A29 | PASS | batch15-feed.json：100次串行+20次重叠activate，最终active=120，created=3；ensure及邻居预热、MovaFeed/池 dispose通过。 |
 | A30 | PASS | batch15 preview真实VTT/原生抽帧及cache两层命中、cancel/clear；batch23-preview-probe真实connectivity插件allowHeavy=true、wifiOnly获得7次thumb通知；offline把VTT源指向拒连127.0.0.1:9，抽帧兜底3次/磁盘命中1/内存命中4无崩。此处断网是缩略图源网络不可达，视频18080仍可达；未把never策略冒充断网。 |
-| A31 | BLOCKED | batch15-stt.json已实际触发MovaSttBlock(disabled/noEngine)，注入引擎start失败回滚后重试成功；缺可用真实STT模型、识别引擎及模型下载服务，无法验证真实转写/SRT导出/分块落盘。 |
-| A32 | PASS | batch15-hooks和hooks-swap各9项true：异步open/play/seek放行/否决/失效返回/换源，jumpTo拒绝不前进；hook异常后可继续play，onError抛出隔离。 |
+| A31 | BLOCKED | batch15-stt.json已实际触发MovaSttBlock(disabled/noRecognizer)，注入识别器start失败回滚后重试成功；缺可用真实STT模型、识别器及模型下载服务，无法验证真实转写/SRT导出/分块落盘。 |
+| A32 | PASS | batch15-hooks和hooks-cutover各9项true：异步open/play/seek放行/否决/失效返回/换源，jumpTo拒绝不前进；hook异常后可继续play，onError抛出隔离。 |
 | A33 | PASS | 真机 release 安装 testing 替身后 kernels=1、pip=false、renderHandle=null；亮度/全屏操作完成，batch1-testing.json。 |
 ### C 组
 
@@ -88,14 +88,14 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
 | C2 | BLOCKED | 已在真实FLV/HLS测试durationStep、DVR窗口12s、seek退后/LiveEdgeReach/回边缘（batch15-live*、batch19-live*）；未提供可按behind URL取历史的服务，现有18081仅滑动live HLS、FLV忽略历史时间参数，不能证明urlBuilder时移语义；自定义windowResolver/autoBackToLiveOnStall完整联动仍缺此服务。 |
 | C3 | FAIL | 矩阵要求长按倍速：batch18-longpress-during在真实播放中注入1800ms长按，during/after rate均1；默认GestureLayer无longPress配置/处理。双击实际为±10s seek（batch18-doubletap-seek），左右亮度/音量、横滑、锁定均通过。此项为矩阵能力假设差异；Douyin另测。 |
 | C4 | PASS | batch15-abr.json：真实HTTP ts限速约6.8KB/s，MovaBufferAbr threshold=1、首次5s门控后360p→180p；手动紧接回高档5023→5743ms，未回零；非默认threshold=3性能结论。 |
-| C5 | PASS | batch18-normal-start/custom controls：showOnStart=true，800ms隐藏后batch18-autohide controls=false；batch16-swap sticky保持，normal自动隐藏true；可见栏淡入/淡出截图及default/minimal组件组合有证据。 |
-| C6 | FAIL | 矩阵要求“发送”，当前设计为仅展示固定host items，没有发送API/输入框（danmaku_config.dart明确Display-only）。batch16 custom配置8条定时弹幕，实际滚动截图在最终batch25补；不把设计不提供的能力称为已通过。 |
-| C7 | BLOCKED | batch15-stt.json已实际触发MovaSttBlock(disabled/noEngine)，注入引擎start失败回滚后重试成功；缺可用真实STT模型、识别引擎及模型下载服务，无法验证真实转写/SRT导出/分块落盘。 |
+| C5 | PASS | batch18-normal-start/custom controls：showOnStart=true，800ms隐藏后batch18-autohide controls=false；batch16-cutover sticky保持，normal自动隐藏true；可见栏淡入/淡出截图及default/minimal组件组合有证据。 |
+| C6 | FAIL | 矩阵要求“发送”，当前设计为仅展示固定host items，没有发送API/输入框（danmaku_opts.dart明确Display-only）。batch16 custom配置8条定时弹幕，实际滚动截图在最终batch25补；不把设计不提供的能力称为已通过。 |
+| C7 | BLOCKED | batch15-stt.json已实际触发MovaSttBlock(disabled/noRecognizer)，注入识别器start失败回滚后重试成功；缺可用真实STT模型、识别器及模型下载服务，无法验证真实转写/SRT导出/分块落盘。 |
 | C8 | FAIL | batch22-nextup.png显示COVERAGE NEXT EPISODE和取消/立即播放，A28自然完成后连播已通过；卡片实现仅lead-time显隐，无可见数字倒计时，矩阵“NextUp倒计时”未实现。 |
 | C9 | PASS | batch15-ads.json：默认关零事件、PRE/MANUAL/MID/POST实际started/clicked/skipped/completed；waitsFor pre=false/mid=true/post=false及breakOverride=false；pod见batch11。 |
 | C10 | PASS | batch22-controls.xml实际COVERAGE FIT文案；batch25-spinner-custom.png为60逻辑尺寸/8 stroke/#FFFF0000红圈，spinner-disabled.png消失；minimal无栏无手势，error-visible/error-disabled.png分别有/无原生404错误文字。默认外观见batch3及batch25 normal。 |
-| C11 | PASS | batch15-swap.json：默认off纯直通epoch0，一次工厂调用；enabled提交epoch1/2及影子释放见A24。 |
-| C12 | PASS | batch22真实拖动吸左left12/top434.20；转屏PNG钳回。修正原甩动坐标：batch27-mini-real-fling从窗口内(200,1200)→(950,1200)90ms，仍showing=true、吸右left231.5294/top435.1814；无误关。batch25-mini-disabled-info：enabled=false时Host无小窗，isShowing仍true/mini=true是controller持有状态，符合“开关仅控制Host渲染”。 |
+| C11 | PASS | batch15-cutover.json：默认off纯直通epoch0，一次工厂调用；enabled提交epoch1/2及影子释放见A24。 |
+| C12 | PASS | batch22真实拖动吸左left12/top434.20；转屏PNG钳回。修正原甩动坐标：batch27-mini-real-fling从窗口内(200,1200)→(950,1200)90ms，仍showing=true、吸右left231.5294/top435.1814；无误关。batch25-mini-disabled-info：enabled=false时Host无小窗，isShowing仍true/mini=true是MovaMini持有状态，符合“开关仅控制Host渲染”。 |
 | C13 | PASS | batch15-basic两实现qoe=false零QoE；batch15-qoe-ended/stopped/abandoned/truncated及batch17-qoe-failed/stall-release：四结束原因、restart TTFF；完整卡顿5468ms，sessionEnd stallCount=1/stallMs=5468；truncatedBelow过滤有独立日志。 |
 | C14 | PASS | batch15-basic禁用恢复零Failure/Failover/Recovered；batch6 finite retry/failover/native END_FILE，batch15直播默认持续重连；batch19-options所有原生选项CHECK=true。续播位置缺陷另列F8/N19。 |
 | C15 | PASS | batch8 allowHls=false回退/true holding各5次；batch7默认resumeTimeout实测grace约5000ms 15/15；batch16-live-expired及checks：默认maxDuration30s到期、pause结束待机。 |
@@ -106,43 +106,43 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
 
 | 编号/事件 | 结论 | 动作、载荷、重复与状态一致性 |
 |---|---|---|
-| E.MovaReady | PASS | batch1-basic-swap.json：本命令MovaReady=3次，同型相邻载荷相同=2；样例ms=20262 payload={}。接收时完整state见同条JSON；空载荷是事件定义，重复动作可重复发射。 |
-| E.MovaSourceChange | PASS | batch1-basic-swap.json：本命令MovaSourceChange=3次，同型相邻载荷相同=1；样例ms=20262 payload={"uri":"http://127.0.0.1:18080/vod.mp4?t=1793063996403193"}。接收时完整state见同条JSON；空载荷是事件定义，重复动作可重复发射。 |
-| E.MovaPlay | PASS | batch1-basic-swap.json：本命令MovaPlay=2次，同型相邻载荷相同=1；样例ms=20408 payload={}。接收时完整state见同条JSON；空载荷是事件定义，重复动作可重复发射。 |
-| E.MovaPause | PASS | batch1-basic-swap.json：本命令MovaPause=3次，同型相邻载荷相同=2；样例ms=20240 payload={}。接收时完整state见同条JSON；空载荷是事件定义，重复动作可重复发射。 |
+| E.MovaReady | PASS | batch1-basic-cutover.json：本命令MovaReady=3次，同型相邻载荷相同=2；样例ms=20262 payload={}。接收时完整state见同条JSON；空载荷是事件定义，重复动作可重复发射。 |
+| E.MovaSourceChange | PASS | batch1-basic-cutover.json：本命令MovaSourceChange=3次，同型相邻载荷相同=1；样例ms=20262 payload={"uri":"http://127.0.0.1:18080/vod.mp4?t=1793063996403193"}。接收时完整state见同条JSON；空载荷是事件定义，重复动作可重复发射。 |
+| E.MovaPlay | PASS | batch1-basic-cutover.json：本命令MovaPlay=2次，同型相邻载荷相同=1；样例ms=20408 payload={}。接收时完整state见同条JSON；空载荷是事件定义，重复动作可重复发射。 |
+| E.MovaPause | PASS | batch1-basic-cutover.json：本命令MovaPause=3次，同型相邻载荷相同=2；样例ms=20240 payload={}。接收时完整state见同条JSON；空载荷是事件定义，重复动作可重复发射。 |
 | E.MovaDone | PASS | batch1-playlist.json：本命令MovaDone=1次，同型相邻载荷相同=0；样例ms=54365 payload={}。接收时完整state见同条JSON；空载荷是事件定义，重复动作可重复发射。 |
-| E.MovaSeek | PASS | batch1-basic-swap.json：本命令MovaSeek=7次，同型相邻载荷相同=0；样例ms=24110 payload={"target":5000}。接收时完整state见同条JSON；空载荷是事件定义，重复动作可重复发射。 |
-| E.MovaSeeked | PASS | batch1-basic-swap.json：本命令MovaSeeked=7次，同型相邻载荷相同=0；样例ms=24113 payload={"position":5000}。接收时完整state见同条JSON；空载荷是事件定义，重复动作可重复发射。 |
-| E.MovaBufferChange | FAIL | batch1-basic-swap.json：本命令MovaBufferChange=7次，同型相邻载荷相同=0；样例ms=20262 payload={"buffering":true}。逐事件接收时state对账差异=3。 |
-| E.MovaDurationChange | PASS | batch1-basic-swap.json：本命令MovaDurationChange=6次，同型相邻载荷相同=0；样例ms=20347 payload={"duration":40000}。逐事件接收时state对账差异=0。 |
-| E.MovaFirstFrame | PASS | batch1-basic-swap.json：本命令MovaFirstFrame=1次，同型相邻载荷相同=0；样例ms=20409 payload={"sinceOpen":191,"signal":"restart"}。接收时完整state见同条JSON；空载荷是事件定义，重复动作可重复发射。 |
+| E.MovaSeek | PASS | batch1-basic-cutover.json：本命令MovaSeek=7次，同型相邻载荷相同=0；样例ms=24110 payload={"target":5000}。接收时完整state见同条JSON；空载荷是事件定义，重复动作可重复发射。 |
+| E.MovaSeeked | PASS | batch1-basic-cutover.json：本命令MovaSeeked=7次，同型相邻载荷相同=0；样例ms=24113 payload={"position":5000}。接收时完整state见同条JSON；空载荷是事件定义，重复动作可重复发射。 |
+| E.MovaBufferChange | FAIL | batch1-basic-cutover.json：本命令MovaBufferChange=7次，同型相邻载荷相同=0；样例ms=20262 payload={"buffering":true}。逐事件接收时state对账差异=3。 |
+| E.MovaDurationChange | PASS | batch1-basic-cutover.json：本命令MovaDurationChange=6次，同型相邻载荷相同=0；样例ms=20347 payload={"duration":40000}。逐事件接收时state对账差异=0。 |
+| E.MovaFirstFrame | PASS | batch1-basic-cutover.json：本命令MovaFirstFrame=1次，同型相邻载荷相同=0；样例ms=20409 payload={"sinceOpen":191,"signal":"restart"}。接收时完整state见同条JSON；空载荷是事件定义，重复动作可重复发射。 |
 | E.MovaSizeChange | FAIL | batch15-abr.json：本命令MovaSizeChange=7次，同型相邻载荷相同=0；样例ms=553931 payload={"width":640,"height":0}。逐事件接收时state对账差异=1。 |
-| E.MovaVolumeChange | PASS | batch1-basic-swap.json：本命令MovaVolumeChange=7次，同型相邻载荷相同=0；样例ms=24673 payload={"value":-10.0}。逐事件接收时state对账差异=0。 |
-| E.MovaBrightChange | PASS | batch1-basic-swap.json：本命令MovaBrightChange=6次，同型相邻载荷相同=0；样例ms=25736 payload={"value":-1.0}。逐事件接收时state对账差异=0。 |
-| E.MovaRateChange | PASS | batch1-basic-swap.json：本命令MovaRateChange=5次，同型相邻载荷相同=0；样例ms=25749 payload={"value":0.5}。逐事件接收时state对账差异=0。 |
+| E.MovaVolumeChange | PASS | batch1-basic-cutover.json：本命令MovaVolumeChange=7次，同型相邻载荷相同=0；样例ms=24673 payload={"value":-10.0}。逐事件接收时state对账差异=0。 |
+| E.MovaBrightChange | PASS | batch1-basic-cutover.json：本命令MovaBrightChange=6次，同型相邻载荷相同=0；样例ms=25736 payload={"value":-1.0}。逐事件接收时state对账差异=0。 |
+| E.MovaRateChange | PASS | batch1-basic-cutover.json：本命令MovaRateChange=5次，同型相邻载荷相同=0；样例ms=25749 payload={"value":0.5}。逐事件接收时state对账差异=0。 |
 | E.MovaQualityListChange | PASS | batch15-abr.json：本命令MovaQualityListChange=1次，同型相邻载荷相同=0；样例ms=553491 payload={"qualities":["自动:","360p:http://127.0.0.1:18084/high/index.m3u8","180p:http://127.0.0.1:18084/low/index.m3u8"]}。接收时完整state见同条JSON；空载荷是事件定义，重复动作可重复发射。 |
 | E.MovaQualityChange | PASS | batch15-abr.json：本命令MovaQualityChange=4次，同型相邻载荷相同=0；样例ms=553491 payload={"quality":"自动"}。接收时完整state见同条JSON；空载荷是事件定义，重复动作可重复发射。 |
 | E.MovaAbrDownShift | PASS | batch15-abr.json：本命令MovaAbrDownShift=1次，同型相邻载荷相同=0；样例ms=562586 payload={"from":"360p","to":"180p"}。接收时完整state见同条JSON；空载荷是事件定义，重复动作可重复发射。 |
 | E.MovaFitChange | PASS | batch16-audio-start.json：本命令MovaFitChange=1次，同型相邻载荷相同=0；样例ms=248659 payload={"fit":"cover"}。逐事件接收时state对账差异=0。 |
 | E.MovaZoomChange | PASS | batch3-09-zoom--1.json：本命令MovaZoomChange=1次，同型相邻载荷相同=0；样例ms=212400 payload={"zoom":-1.0}。逐事件接收时state对账差异=0。 |
-| E.MovaLockChange | PASS | batch16-engine-lock.json：本命令MovaLockChange=1次，同型相邻载荷相同=0；样例ms=35029 payload={"value":true}。逐事件接收时state对账差异=0。 |
+| E.MovaLockChange | PASS | batch16-mova-lock.json：本命令MovaLockChange=1次，同型相邻载荷相同=0；样例ms=35029 payload={"value":true}。逐事件接收时state对账差异=0。 |
 | E.MovaFullScreenChange | PASS | batch15-lifecycle.json：本命令MovaFullScreenChange=2次，同型相邻载荷相同=0；样例ms=220411 payload={"value":true}。逐事件接收时state对账差异=0。 |
-| E.MovaOrientationChange | PASS | batch16-engine-mini-landscape.json：本命令MovaOrientationChange=1次，同型相邻载荷相同=0；样例ms=99278 payload={"orientation":"landscape"}。逐事件接收时state对账差异=0。 |
-| E.MovaPipChange | PASS | batch18-pip-x-final.json累计记录：进入true、展开false、再进入true、点X false（438447–438448ms）；各载荷与state.pip一致。同一次原生转换有3个存活engine各收到1条，engine标识分别513470000/745521959/834304684，未见同一engine重复；进入/退出截图及activity对账见A18。 |
-| E.MovaMiniChange | PASS | batch16-engine-mini-host.json：本命令MovaMiniChange=1次，同型相邻载荷相同=0；样例ms=92721 payload={"mini":true}。逐事件接收时state对账差异=0。 |
+| E.MovaOrientChange | PASS | batch16-mova-mini-landscape.json：本命令MovaOrientChange=1次，同型相邻载荷相同=0；样例ms=99278 payload={"orient":"landscape"}。逐事件接收时state对账差异=0。 |
+| E.MovaPipChange | PASS | batch18-pip-x-final.json累计记录：进入true、展开false、再进入true、点X false（438447–438448ms）；各载荷与state.pip一致。同一次原生转换有3个存活播放器各收到1条，播放器标识分别513470000/745521959/834304684，未见同一播放器重复；进入/退出截图及activity对账见A18。 |
+| E.MovaMiniChange | PASS | batch16-mova-mini-host.json：本命令MovaMiniChange=1次，同型相邻载荷相同=0；样例ms=92721 payload={"mini":true}。逐事件接收时state对账差异=0。 |
 | E.MovaTimeShiftChange | PASS | batch16-live-start.json：本命令MovaTimeShiftChange=2次，同型相邻载荷相同=0；样例ms=272467 payload={"behind":12000}。接收时完整state见同条JSON；空载荷是事件定义，重复动作可重复发射。 |
 | E.MovaLiveEdgeReach | PASS | batch15-live-step0-0.json：本命令MovaLiveEdgeReach=1次，同型相邻载荷相同=0；样例ms=125432 payload={}。接收时完整state见同条JSON；空载荷是事件定义，重复动作可重复发射。 |
 | E.MovaPreviewBlock | PASS | batch15-preview-blocked.json：本命令MovaPreviewBlock=4次，同型相邻载荷相同=3；样例ms=370641 payload={"reason":"network"}。接收时完整state见同条JSON；空载荷是事件定义，重复动作可重复发射。 |
-| E.MovaSttBlock | PASS | batch1-basic-swap.json：本命令MovaSttBlock=1次，同型相邻载荷相同=0；样例ms=25765 payload={"reason":"disabled"}。接收时完整state见同条JSON；空载荷是事件定义，重复动作可重复发射。 |
-| E.MovaSwapChange | PASS | batch15-adResume.json：本命令MovaSwapChange=30次，同型相邻载荷相同=0；样例ms=281519 payload={"phase":"warming"}。接收时完整state见同条JSON；空载荷是事件定义，重复动作可重复发射。 |
+| E.MovaSttBlock | PASS | batch1-basic-cutover.json：本命令MovaSttBlock=1次，同型相邻载荷相同=0；样例ms=25765 payload={"reason":"disabled"}。接收时完整state见同条JSON；空载荷是事件定义，重复动作可重复发射。 |
+| E.MovaCutoverChange | PASS | batch15-adResume.json：本命令MovaCutoverChange=30次，同型相邻载荷相同=0；样例ms=281519 payload={"phase":"warming"}。接收时完整state见同条JSON；空载荷是事件定义，重复动作可重复发射。 |
 | E.MovaErrorEvent | PASS | batch15-hang-2s-0.json：本命令MovaErrorEvent=2次，同型相邻载荷相同=0；样例ms=68013 payload={"error":"Failed to open http://127.0.0.1:18080/hang?t=1793068221654008."}。接收时完整state见同条JSON；空载荷是事件定义，重复动作可重复发射。 |
 | E.MovaPlayFailure | PASS | batch15-hang-2s-0.json：本命令MovaPlayFailure=1次，同型相邻载荷相同=0；样例ms=68016 payload={"kind":"nativeEndError","action":"MovaRecoveryAction.giveUp","attempt":1,"isLive":false,"sourceIndex":0}。接收时完整state见同条JSON；空载荷是事件定义，重复动作可重复发射。 |
 | E.MovaRecovered | PASS | batch2-failover.json：本命令MovaRecovered=1次，同型相邻载荷相同=0；样例ms=78247 payload={"attempts":1}。接收时完整state见同条JSON；空载荷是事件定义，重复动作可重复发射。 |
 | E.MovaFailover | PASS | batch15-recovery-liveAlternatives.json：本命令MovaFailover=1次，同型相邻载荷相同=0；样例ms=54097 payload={"from":0,"to":1,"uri":"http://127.0.0.1:18080/other404.mp4?t=1793068209673598"}。接收时完整state见同条JSON；空载荷是事件定义，重复动作可重复发射。 |
-| E.MovaStandbyChange | PASS | batch16-standby-off.json：本命令MovaStandbyChange=1次，同型相邻载荷相同=0；样例ms=317110 payload={"phase":"resuming","reason":"woke","mode":"null"}。逐事件接收时state对账差异=0。 |
-| E.MovaStandbyResume | PASS | batch7-standby-core.log S1 GOP25/50/100各5次共15：elapsed约5000ms、signal=grace；随后state=off；batch8 C decodeOnly为1ms/signal=null 5/5。恢复事件时间是兜底时间，另有实际出画属性约百余ms，不能混用。 |
+| E.MovaKeepAliveChange | PASS | batch16-keep-alive-off.json：本命令MovaKeepAliveChange=1次，同型相邻载荷相同=0；样例ms=317110 payload={"phase":"resuming","reason":"woke","mode":"null"}。逐事件接收时state对账差异=0。 |
+| E.MovaKeepAliveResume | PASS | batch7-keep-alive-core.log S1 GOP25/50/100各5次共15：elapsed约5000ms、signal=grace；随后state=off；batch8 C decodeOnly为1ms/signal=null 5/5。恢复事件时间是兜底时间，另有实际出画属性约百余ms，不能混用。 |
 | E1 | FAIL | batch15-lifecycle.json真实序列：open清理Pause/Duration(0)/Size(0)→Play→SourceChange→Ready→Duration/Size→FirstFrame(restart)→…→Pause/Done。若按矩阵箭头Ready→Size→FirstFrame→Play严格判定则不符；Play表达请求意图、早于真实首帧，不等于播放器提前出画。生命周期F1仍无异常完成。 |
-| E2 | PASS | HE V12 foreignEvents=[] ×5，默认关闭swap/standby/recovery无相关事件；batch1-basic*.json也count=0（功能动作报告不计QoE）。 |
+| E2 | PASS | HE V12 foreignEvents=[] ×5，默认关闭cutover/keepAlive/recovery无相关事件；batch1-basic*.json也count=0（功能动作报告不计QoE）。 |
 
 ### U 组
 
@@ -155,7 +155,7 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
 | U5 | FAIL | batch25-speed-button实际点击1→1.25x，为循环切档按钮，无倍速菜单；CenterPlay真实点击可播放、state及Play事件有记录，HUD亮度/音量/进度见batch16/18。FAIL限矩阵要求的菜单形态。 |
 | U6 | FAIL | 矩阵要求长按倍速：batch18-longpress-during在真实播放中注入1800ms长按，during/after rate均1；默认GestureLayer无longPress配置/处理。双击实际为±10s seek（batch18-doubletap-seek），左右亮度/音量、横滑、锁定均通过。此项为矩阵能力假设差异；Douyin另测。 |
 | U7 | FAIL | 实际通过：batch25-danmaku滚动文本；batch17四格式字幕；NextUp立即播放点击后title=Coverage vod.mp4/position40ms；广告countdown/跳过PNG且VISUAL_AD_EVENT started→clicked→skipped，语义定位SKIP_BUTTON=true；batch22 Feed双击like=true/count1。FAIL限C8中NextUp不含数字倒计时。 |
-| U8 | PASS | batch22真实拖动吸左left12/top434.20；转屏PNG钳回。修正原甩动坐标：batch27-mini-real-fling从窗口内(200,1200)→(950,1200)90ms，仍showing=true、吸右left231.5294/top435.1814；无误关。batch25-mini-disabled-info：enabled=false时Host无小窗，isShowing仍true/mini=true是controller持有状态，符合“开关仅控制Host渲染”。 |
+| U8 | PASS | batch22真实拖动吸左left12/top434.20；转屏PNG钳回。修正原甩动坐标：batch27-mini-real-fling从窗口内(200,1200)→(950,1200)90ms，仍showing=true、吸右left231.5294/top435.1814；无误关。batch25-mini-disabled-info：enabled=false时Host无小窗，isShowing仍true/mini=true是MovaMini持有状态，符合“开关仅控制Host渲染”。 |
 | U9 | PASS | batch6 HE V9前后台5/5、V10 route/Ticker/关闭守卫各5次、V11 PiP豁免5/5；batch16-view-route配置root RouteObserver、ticker隐藏/恢复有ROUTE_HIDDEN及状态，feed滚动池见batch15+16；小窗连续播放见batch16，不要求外部业务go_router才能验证此库API。 |
 
 ### F 组
@@ -164,8 +164,8 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
 |---|---|---|
 | F1 | PASS | batch15-lifecycle.json：真实open/seek/rate/fullscreen/change/naturalDone/dispose无异常，done=1；原始序列包含open前Pause/归零、Play在Ready前、Size分宽高两次更新、FirstFrame(restart)后Done；不强加示意箭头顺序。 |
 | F2 | PASS | batch19-live-dvr/behind/backedge：真实18081/live.m3u8；seek3s，TimeShiftChange behind随播放变化；backEdge到position12000ms、LiveEdgeReach，窗口12s；点播backEdge无副作用见basic，holding重载保护5/5见batch7 S13。 |
-| F3 | FAIL | 原生FFI最终版：batch23-hls-native普通首切8183→8143ms(-40)，第二切target8823但RESTART=23ms并从头走；普通5切1通过4失败。batch24-hls-native-swap也1/5；paused第二切8263→23ms丢位置，之后目标已0附近的“通过”不算有效续播样本。ABR限速下调通过，不抵消重复手切缺陷。旧batch17/19/21的等待/瞬时读回判据作废，非库失败依据。 |
-| F4 | PASS | batch15-adResume.json：5次广告→正片epoch=2，首个原生time-pos对比误差全部0ms（读取延迟0–14ms）；batch11 V12/V14及batch15-swap验证pod/失败降级/关闭态。 |
+| F3 | FAIL | 原生FFI最终版：batch23-hls-native普通首切8183→8143ms(-40)，第二切target8823但RESTART=23ms并从头走；普通5切1通过4失败。batch24-hls-native-cutover也1/5；paused第二切8263→23ms丢位置，之后目标已0附近的“通过”不算有效续播样本。ABR限速下调通过，不抵消重复手切缺陷。旧batch17/19/21的等待/瞬时读回判据作废，非库失败依据。 |
+| F4 | PASS | batch15-adResume.json：5次广告→正片epoch=2，首个原生time-pos对比误差全部0ms（读取延迟0–14ms）；batch11 V12/V14及batch15-cutover验证pod/失败降级/关闭态。 |
 | F5 | PASS | batch18-pip-visible.activity.txt：mode=pinned、mLastReportedPictureInPictureMode=true；enter返回true。展开pip=false且继续播放。X路径用adb tap(750,2050)后等450ms、tap(960,1965)，before-x.png有系统X，after-x.png关闭；pip-x-final state.pip=false/playing=false，native无pinned。原始JSON含true/false变更。 |
 | F6 | PASS | batch7/8/16：off/holding/fallback/resuming迁移，pause结束、hiddenTicker/source变化重hold、后台降级；S7 mediacodec-copy恢复20/20、无codecopen失败；S13 vid=no/mute=yes保护5/5。S1主信号未落地15/15 grace≈5s，是允许的超时兜底；保留性能/信号缺口，不再把它当作功能FAIL。S14 Android holding黑屏，恢复正常。 |
 | F7 | PASS | batch15-basic两实现qoe=false零QoE；batch15-qoe-ended/stopped/abandoned/truncated及batch17-qoe-failed/stall-release：四结束原因、restart TTFF；完整卡顿5468ms，sessionEnd stallCount=1/stallMs=5468；truncatedBelow过滤有独立日志。 |
@@ -174,8 +174,8 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
 | F10 | PASS | batch15 preview真实VTT/原生抽帧及cache两层命中、cancel/clear；batch23-preview-probe真实connectivity插件allowHeavy=true、wifiOnly获得7次thumb通知；offline把VTT源指向拒连127.0.0.1:9，抽帧兜底3次/磁盘命中1/内存命中4无崩。此处断网是缩略图源网络不可达，视频18080仍可达；未把never策略冒充断网。 |
 | F11 | PASS | batch17-subtitles.json：SRT/ASS/WebVTT/mov_text各native sub-text非空、轨道decoder明确；batch17-subtitles.srt/ass/vtt/movtext.png保留实际画面。 |
 | F12 | PASS | batch9-cpu-summary.json：normal CPU样本[92.8,92.8,96.4,85.7,96.4]；B[7.1,10.7,10.7,7.1,10.7]；C[135,113,121,114,114,114]；D[7.1,10.7,3.5,7.1,7.1,7.1]。每阶段15s×3，边界±2s剔除；为单核百分比，USB供电不能据此报电池能耗。audioOnly对照见batch16。 |
-| F13 | PASS | batch15-feed：100+20次切换池3引擎回收；batch12-pump V6三引擎restart=[1,1,1]→[2,1,2]；销毁时ctrl/on最差间隔62/60ms<100；batch15-dispose120完成。 |
-| F14 | PASS | batch12-pump.log：release native restart实际2次、三个引擎隔离、qoe:false客户端0；created=14 destroyed=14；END_FILE真实触发见batch6 V8及batch15-recovery。 |
+| F13 | PASS | batch15-feed：100+20次切换池3播放器回收；batch12-pump V6三播放器restart=[1,1,1]→[2,1,2]；销毁时ctrl/on最差间隔62/60ms<100；batch15-dispose120完成。 |
+| F14 | PASS | batch12-pump.log：release native restart实际2次、三个播放器隔离、qoe:false客户端0；created=14 destroyed=14；END_FILE真实触发见batch6 V8及batch15-recovery。 |
 | F15 | BLOCKED | external-prerequisites.json：WHEP模板127.0.0.1:38889/test/whep不可达，未提供publisher/信令服务/UDP38189及relay38190；无15s真实播放证据。仅N4的WHEP选项原生读回通过。 |
 | F16 | PASS | 已逐项复测历史缺陷：PiP展开和X现均复位（batch18）；广告1x/恢复用户2x或1.5x、退役不复位方向、pod第二条真换指均batch11每项3次。旧缺陷本轮未复现；F16的PASS表示复现任务完成，不表示保留旧bug。 |
 
@@ -216,13 +216,13 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
 | N5 | PASS | batch6-he-recovery-guard.log V8拒连约79ms、404约120ms（各5次），均nativeEndError；与Windows约5s不同；batch4首帧信号restart，错误订阅不代替首帧。 |
 | N6 | PASS | batch2-failover Recovered后error=null；batch15-recovery多模式giveup CHECK=true且buffering=false，BufferChange(false)有原始event；拒连及404均真实END_FILE。 |
 | N7 | PASS | batch15-live-step0/2000-0..2.json：真实直播各11s，durationStep=0/2s有时间戳对比，首非零/open归零即时放行；VOD basic的duration不受节流。 |
-| N8 | PASS | batch15-hooks及hooks-swap：open放行true，beforeOpen拒绝/被取代/已销毁false；jumpTo拒绝不前进；batch15-recovery RECOVERY_OPEN坏地址accepted=true，之后走恢复。 |
+| N8 | PASS | batch15-hooks及hooks-cutover：open放行true，beforeOpen拒绝/被取代/已销毁false；jumpTo拒绝不前进；batch15-recovery RECOVERY_OPEN坏地址accepted=true，之后走恢复。 |
 | N9 | PASS | batch18-pip-visible.activity.txt：mode=pinned、mLastReportedPictureInPictureMode=true；enter返回true。展开pip=false且继续播放。X路径用adb tap(750,2050)后等450ms、tap(960,1965)，before-x.png有系统X，after-x.png关闭；pip-x-final state.pip=false/playing=false，native无pinned。原始JSON含true/false变更。 |
-| N10 | PASS | batch11-review.log V10/V12/V12b/V13a/V13b/V14每项3次：广告采样最高1x，内容恢复2x/1.5x；退役dispose不复位全局方向；pod第二条真epoch提交。batch15-swap rate1.5/1明确；采样不声称穷尽微任务窗口。 |
+| N10 | PASS | batch11-review.log V10/V12/V12b/V13a/V13b/V14每项3次：广告采样最高1x，内容恢复2x/1.5x；退役dispose不复位全局方向；pod第二条真epoch提交。batch15-cutover rate1.5/1明确；采样不声称穷尽微任务窗口。 |
 | N11 | PASS | Q13A/B/C各5/5：仅影子mute=yes、active=no；提交中holding时live mute=yes/vid=no；先唤醒影子仍mute=yes，提交后恢复no。40个MARK系统音量快照一致，见batch10-volume-summary.json；无写系统音量证据。 |
 | N12 | FAIL | 首帧功能通过batch4，但矩阵要求open同步归零：batch15-basic OPEN_SYNC调用open后立即读仍duration40000/rendered=true/旧title，之后异步归零；两实现均有记录。属于同步时机的矩阵期望差异，实际open是异步接口。 |
 | N13 | PASS | batch12-pump客户端开关计数及created14/destroyed14；batch15-lazy构造0/open0/首次handle1，VideoController懒创建。 |
-| N14 | PASS | batch16-engine/swap fitRebuild检查均true：declarative cover→用户contain→rebuild仍contain；三种fit初值/按钮截图已保存。 |
+| N14 | PASS | batch16-mova/cutover fitRebuild检查均true：declarative cover→用户contain→rebuild仍contain；三种fit初值/按钮截图已保存。 |
 | N15 | PASS | batch25 Feed连续帧1封面teal占92.12%，帧2首帧后0；video换源重盖占92.93%、恢复后0；audioOnly封面teal像素2079525常驻。batch28自定义posterFade=2s真实中间帧像素(500,600)：(0,150,136)→(0,99,90)→(0,37,34)→黑，证明渐隐，未用墙钟报精确时长。 |
 | N16 | PASS | batch22-controls.xml实际COVERAGE FIT文案；batch25-spinner-custom.png为60逻辑尺寸/8 stroke/#FFFF0000红圈，spinner-disabled.png消失；minimal无栏无手势，error-visible/error-disabled.png分别有/无原生404错误文字。默认外观见batch3及batch25 normal。 |
 | N17 | PASS | batch16-view-same/null/source/options/error等：同源复用、null暂停、options重建、source变化，故意beforeOpen抛出收到onOpenError；batch15-options sameAs考虑alternatives；卸载见widget-unmount-final。 |
@@ -240,67 +240,67 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
 
 ### batch1-basic
 
-- `A1.broadcast` 子项 FAIL：`all streams broadcast swap=false`
+- `A1.broadcast` 子项 FAIL：`all streams broadcast cutover=false`
 - `A3.audio` 子项 PASS：`handle=null`
-- `A5.paused` 子项 PASS：`{playing: false, intent: false, buffering: false, duration: 40000, position: 0, size: 0x0, volume: 65.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orientation: auto, pip: false, mini: false, rendered: false, epoch: 0, sourceIndex: 0, standby: off}`
+- `A5.paused` 子项 PASS：`{playing: false, intent: false, buffering: false, duration: 40000, position: 0, size: 0x0, volume: 65.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orient: auto, pip: false, mini: false, rendered: false, epoch: 0, sourceIndex: 0, keepAlive: off}`
 - `A4` 子项 PASS：`supported=true`
 - `A1.progress` 子项 PASS：`0:00:02.144778 -> 0:00:03.144866`
-- `A6.pause` 子项 PASS：`{playing: false, intent: false, buffering: false, duration: 40000, position: 3144, size: 0x0, volume: 65.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orientation: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, standby: off}`
+- `A6.pause` 子项 PASS：`{playing: false, intent: false, buffering: false, duration: 40000, position: 3144, size: 0x0, volume: 65.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orient: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off}`
 - `A7.seek` 子项 PASS：`target=5000 landed=5000`
 - `A7.seek` 子项 PASS：`target=10000 landed=10000`
 - `A7.seek` 子项 PASS：`target=15000 landed=15000`
 - `A7.seek` 子项 PASS：`target=5000 landed=5000`
 - `A7.seek` 子项 PASS：`target=10000 landed=10000`
 - `A7.negative` 子项 PASS：`0:00:00.000000`
-- `A8.clamp` 子项 FAIL：`{playing: false, intent: false, buffering: true, duration: 40000, position: 23, size: 0x0, volume: -10.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orientation: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, standby: off}`
-- `A8.clamp` 子项 PASS：`{playing: false, intent: false, buffering: true, duration: 40000, position: 23, size: 0x0, volume: 0.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orientation: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, standby: off}`
-- `A8.clamp` 子项 PASS：`{playing: false, intent: false, buffering: true, duration: 40000, position: 23, size: 0x0, volume: 1.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orientation: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, standby: off}`
-- `A8.clamp` 子项 PASS：`{playing: false, intent: false, buffering: true, duration: 40000, position: 23, size: 0x0, volume: 50.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orientation: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, standby: off}`
-- `A8.clamp` 子项 PASS：`{playing: false, intent: false, buffering: true, duration: 40000, position: 23, size: 0x0, volume: 100.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orientation: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, standby: off}`
-- `A8.clamp` 子项 FAIL：`{playing: false, intent: false, buffering: true, duration: 40000, position: 23, size: 0x0, volume: 110.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orientation: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, standby: off}`
-- `A9.clamp` 子项 FAIL：`{playing: false, intent: false, buffering: true, duration: 40000, position: 23, size: 0x0, volume: 30.0, brightness: -1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orientation: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, standby: off}`
-- `A9.clamp` 子项 PASS：`{playing: false, intent: false, buffering: true, duration: 40000, position: 23, size: 0x0, volume: 30.0, brightness: 0.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orientation: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, standby: off}`
-- `A9.clamp` 子项 PASS：`{playing: false, intent: false, buffering: true, duration: 40000, position: 23, size: 0x0, volume: 30.0, brightness: 0.5, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orientation: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, standby: off}`
-- `A9.clamp` 子项 PASS：`{playing: false, intent: false, buffering: true, duration: 40000, position: 23, size: 0x0, volume: 30.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orientation: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, standby: off}`
-- `A9.clamp` 子项 FAIL：`{playing: false, intent: false, buffering: true, duration: 40000, position: 23, size: 0x0, volume: 30.0, brightness: 2.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orientation: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, standby: off}`
+- `A8.clamp` 子项 FAIL：`{playing: false, intent: false, buffering: true, duration: 40000, position: 23, size: 0x0, volume: -10.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orient: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off}`
+- `A8.clamp` 子项 PASS：`{playing: false, intent: false, buffering: true, duration: 40000, position: 23, size: 0x0, volume: 0.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orient: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off}`
+- `A8.clamp` 子项 PASS：`{playing: false, intent: false, buffering: true, duration: 40000, position: 23, size: 0x0, volume: 1.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orient: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off}`
+- `A8.clamp` 子项 PASS：`{playing: false, intent: false, buffering: true, duration: 40000, position: 23, size: 0x0, volume: 50.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orient: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off}`
+- `A8.clamp` 子项 PASS：`{playing: false, intent: false, buffering: true, duration: 40000, position: 23, size: 0x0, volume: 100.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orient: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off}`
+- `A8.clamp` 子项 FAIL：`{playing: false, intent: false, buffering: true, duration: 40000, position: 23, size: 0x0, volume: 110.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orient: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off}`
+- `A9.clamp` 子项 FAIL：`{playing: false, intent: false, buffering: true, duration: 40000, position: 23, size: 0x0, volume: 30.0, brightness: -1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orient: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off}`
+- `A9.clamp` 子项 PASS：`{playing: false, intent: false, buffering: true, duration: 40000, position: 23, size: 0x0, volume: 30.0, brightness: 0.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orient: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off}`
+- `A9.clamp` 子项 PASS：`{playing: false, intent: false, buffering: true, duration: 40000, position: 23, size: 0x0, volume: 30.0, brightness: 0.5, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orient: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off}`
+- `A9.clamp` 子项 PASS：`{playing: false, intent: false, buffering: true, duration: 40000, position: 23, size: 0x0, volume: 30.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orient: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off}`
+- `A9.clamp` 子项 FAIL：`{playing: false, intent: false, buffering: true, duration: 40000, position: 23, size: 0x0, volume: 30.0, brightness: 2.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orient: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off}`
 - `A21.hide` 子项 PASS：`false`
 - `A21.hud` 子项 PASS：`MovaHud.seek`
 - `A22` 子项 PASS：`[pause:{}, sourceChange:{uri: http://127.0.0.1:18080/vod.mp4?t=1793063978464421}, play:{}, pause:{}, play:{}, pause:{}, seek:{targetMs: 5000}, seeked:{positionMs: 5000}, seek:{targetMs: 10000}, seeked:{positionMs: 10000}, seek:{targetMs: 15000}, seeked:{positionMs: 15000}, seek:{targetMs: 5000}, seeked:{positionMs: 5000}, seek:{targetMs: 10000}, seeked:{positionMs: 10000}, seek:{targetMs: 8000}, seeked:{positionMs: 8000}, seek:{targetMs: 0}, seeked:{positionMs: 0}, coverage:{probe: 42}, play:{probe: 43}]`
-- `A10.persist` 子项 PASS：`{playing: false, intent: false, buffering: false, duration: 20000, position: 0, size: 0x0, volume: 30.0, brightness: 0.5, rate: 1.5, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orientation: auto, pip: false, mini: false, rendered: false, epoch: 0, sourceIndex: 0, standby: off}`
+- `A10.persist` 子项 PASS：`{playing: false, intent: false, buffering: false, duration: 20000, position: 0, size: 0x0, volume: 30.0, brightness: 0.5, rate: 1.5, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orient: auto, pip: false, mini: false, rendered: false, epoch: 0, sourceIndex: 0, keepAlive: off}`
 - `E2.disabled` 子项 PASS：`count=0`
 - `C13.off` 子项 PASS：`QoE reports=24`
 - `A1.closed` 子项 PASS：`counts=[61, 61, 49, 49, 23, 23, 9, 9] closed=[true, true, true, true, true, true, true, true]`
 - 脚本终止：`Assertion failed: "[Player] has been disposed"`；调用栈见对应 JSON。
 
-### batch1-basic-swap
+### batch1-basic-cutover
 
-- `A1.broadcast` 子项 FAIL：`all streams broadcast swap=true`
+- `A1.broadcast` 子项 FAIL：`all streams broadcast cutover=true`
 - `A3.audio` 子项 PASS：`handle=null`
-- `A5.paused` 子项 PASS：`{playing: false, intent: false, buffering: false, duration: 40000, position: 0, size: 0x0, volume: 30.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orientation: auto, pip: false, mini: false, rendered: false, epoch: 0, sourceIndex: 0, standby: off}`
+- `A5.paused` 子项 PASS：`{playing: false, intent: false, buffering: false, duration: 40000, position: 0, size: 0x0, volume: 30.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orient: auto, pip: false, mini: false, rendered: false, epoch: 0, sourceIndex: 0, keepAlive: off}`
 - `A4` 子项 PASS：`supported=true`
 - `A1.progress` 子项 PASS：`0:00:02.146366 -> 0:00:03.195118`
-- `A6.pause` 子项 PASS：`{playing: false, intent: false, buffering: false, duration: 40000, position: 3195, size: 0x0, volume: 30.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orientation: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, standby: off}`
+- `A6.pause` 子项 PASS：`{playing: false, intent: false, buffering: false, duration: 40000, position: 3195, size: 0x0, volume: 30.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orient: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off}`
 - `A7.seek` 子项 PASS：`target=5000 landed=5000`
 - `A7.seek` 子项 PASS：`target=10000 landed=10000`
 - `A7.seek` 子项 PASS：`target=15000 landed=15000`
 - `A7.seek` 子项 PASS：`target=5000 landed=5000`
 - `A7.seek` 子项 PASS：`target=10000 landed=10000`
 - `A7.negative` 子项 PASS：`0:00:00.000000`
-- `A8.clamp` 子项 FAIL：`{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: -10.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orientation: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, standby: off}`
-- `A8.clamp` 子项 PASS：`{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: 0.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orientation: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, standby: off}`
-- `A8.clamp` 子项 PASS：`{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: 1.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orientation: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, standby: off}`
-- `A8.clamp` 子项 PASS：`{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: 50.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orientation: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, standby: off}`
-- `A8.clamp` 子项 PASS：`{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: 100.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orientation: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, standby: off}`
-- `A8.clamp` 子项 FAIL：`{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: 110.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orientation: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, standby: off}`
-- `A9.clamp` 子项 FAIL：`{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: 110.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orientation: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, standby: off}`
-- `A9.clamp` 子项 FAIL：`{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: 30.0, brightness: -1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orientation: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, standby: off}`
-- `A9.clamp` 子项 FAIL：`{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: 30.0, brightness: 0.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orientation: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, standby: off}`
-- `A9.clamp` 子项 FAIL：`{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: 30.0, brightness: 0.5, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orientation: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, standby: off}`
-- `A9.clamp` 子项 FAIL：`{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: 30.0, brightness: 0.5, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orientation: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, standby: off}`
+- `A8.clamp` 子项 FAIL：`{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: -10.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orient: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off}`
+- `A8.clamp` 子项 PASS：`{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: 0.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orient: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off}`
+- `A8.clamp` 子项 PASS：`{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: 1.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orient: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off}`
+- `A8.clamp` 子项 PASS：`{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: 50.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orient: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off}`
+- `A8.clamp` 子项 PASS：`{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: 100.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orient: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off}`
+- `A8.clamp` 子项 FAIL：`{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: 110.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orient: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off}`
+- `A9.clamp` 子项 FAIL：`{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: 110.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orient: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off}`
+- `A9.clamp` 子项 FAIL：`{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: 30.0, brightness: -1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orient: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off}`
+- `A9.clamp` 子项 FAIL：`{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: 30.0, brightness: 0.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orient: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off}`
+- `A9.clamp` 子项 FAIL：`{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: 30.0, brightness: 0.5, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orient: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off}`
+- `A9.clamp` 子项 FAIL：`{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: 30.0, brightness: 0.5, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orient: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off}`
 - `A21.hide` 子项 PASS：`false`
 - `A21.hud` 子项 FAIL：`MovaHud.none`
 - `A22` 子项 PASS：`[pause:{}, sourceChange:{uri: http://127.0.0.1:18080/vod.mp4?t=1793063996403193}, play:{}, pause:{}, play:{}, pause:{}, seek:{targetMs: 5000}, seeked:{positionMs: 5000}, seek:{targetMs: 10000}, seeked:{positionMs: 10000}, seek:{targetMs: 15000}, seeked:{positionMs: 15000}, seek:{targetMs: 5000}, seeked:{positionMs: 5000}, seek:{targetMs: 10000}, seeked:{positionMs: 10000}, seek:{targetMs: 7999}, seeked:{positionMs: 7999}, seek:{targetMs: 0}, seeked:{positionMs: 0}, coverage:{probe: 42}, play:{probe: 43}]`
-- `A10.persist` 子项 PASS：`{playing: false, intent: false, buffering: false, duration: 20000, position: 0, size: 0x0, volume: 30.0, brightness: 0.5, rate: 1.5, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orientation: auto, pip: false, mini: false, rendered: false, epoch: 0, sourceIndex: 0, standby: off}`
+- `A10.persist` 子项 PASS：`{playing: false, intent: false, buffering: false, duration: 20000, position: 0, size: 0x0, volume: 30.0, brightness: 0.5, rate: 1.5, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orient: auto, pip: false, mini: false, rendered: false, epoch: 0, sourceIndex: 0, keepAlive: off}`
 - `E2.disabled` 子项 PASS：`count=0`
 - `C13.off` 子项 PASS：`QoE reports=24`
 - `A1.closed` 子项 PASS：`counts=[59, 59, 47, 47, 24, 24, 9, 9] closed=[true, true, true, true, true, true, true, true]`
@@ -331,27 +331,27 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
 - PlayFailure 事件戳 ms：`[78138]`；间距：`[]`。
 - `{"ms": 78288, "kind": "CHECK", "id": "N6.clear", "pass": true, "detail": "sourceIndex=1 error=null"}`
 - `{"ms": 78288, "kind": "CHECK", "id": "N19.failover", "pass": true, "detail": "[MovaPause, MovaDurationChange, MovaBufferChange, MovaSizeChange, MovaPlay, MovaSourceChange, MovaReady, MovaBufferChange, MovaErrorEvent, MovaPlayFailure, MovaFailover, MovaPause, MovaBufferChange, MovaPlay, MovaBufferChange, MovaDurationChange, MovaBufferChange, MovaRecovered, MovaFirstFrame]"}`
-- `{"ms": 78289, "kind": "RECOVERY_END", "mode": "failover", "state": {"playing": true, "intent": true, "buffering": false, "duration": 40000, "position": 0, "size": "0x0", "volume": 30.0, "brightness": 1.0, "rate": 1.0, "fit": "contain", "zoom": 1.0, "locked": false, "fullscreen": false, "orientation": "auto", "pip": false, "mini": false, "rendered": true, "epoch": 0, "sourceIndex": 1, "standby": "off"}, "error": "null"}`
+- `{"ms": 78289, "kind": "RECOVERY_END", "mode": "failover", "state": {"playing": true, "intent": true, "buffering": false, "duration": 40000, "position": 0, "size": "0x0", "volume": 30.0, "brightness": 1.0, "rate": 1.0, "fit": "contain", "zoom": 1.0, "locked": false, "fullscreen": false, "orient": "auto", "pip": false, "mini": false, "rendered": true, "epoch": 0, "sourceIndex": 1, "keepAlive": "off"}, "error": "null"}`
 
 ### batch2-live-reconnect
 
 - PlayFailure 事件戳 ms：`[83281, 84359, 86418, 90485, 98577, 113641, 128729, 143793]`；间距：`[1078, 2059, 4067, 8092, 15064, 15088, 15064]`。
 - `{"ms": 143811, "kind": "CHECK", "id": "N6.giveup", "pass": true, "detail": "error=MovaGiveUpError(nativeEndError, http://127.0.0.1:18080/not-found.mp4?t=1793064059413157) buffering=false"}`
-- `{"ms": 143811, "kind": "RECOVERY_END", "mode": "live", "state": {"playing": false, "intent": true, "buffering": false, "duration": 0, "position": 0, "size": "0x0", "volume": 30.0, "brightness": 1.0, "rate": 1.0, "fit": "contain", "zoom": 1.0, "locked": false, "fullscreen": false, "orientation": "auto", "pip": false, "mini": false, "rendered": false, "epoch": 0, "sourceIndex": 0, "standby": "off"}, "error": "MovaGiveUpError(nativeEndError, http://127.0.0.1:18080/not-found.mp4?t=1793064059413157)"}`
+- `{"ms": 143811, "kind": "RECOVERY_END", "mode": "live", "state": {"playing": false, "intent": true, "buffering": false, "duration": 0, "position": 0, "size": "0x0", "volume": 30.0, "brightness": 1.0, "rate": 1.0, "fit": "contain", "zoom": 1.0, "locked": false, "fullscreen": false, "orient": "auto", "pip": false, "mini": false, "rendered": false, "epoch": 0, "sourceIndex": 0, "keepAlive": "off"}, "error": "MovaGiveUpError(nativeEndError, http://127.0.0.1:18080/not-found.mp4?t=1793064059413157)"}`
 
 ### batch2-network-hang
 
 - PlayFailure 事件戳 ms：`[149780]`；间距：`[]`。
 - `{"ms": 149822, "kind": "CHECK", "id": "N6.giveup", "pass": true, "detail": "error=MovaGiveUpError(nativeEndError, http://127.0.0.1:18080/hang?t=1793064123693978) buffering=false"}`
-- `{"ms": 149823, "kind": "RECOVERY_END", "mode": "hang", "state": {"playing": false, "intent": true, "buffering": false, "duration": 0, "position": 0, "size": "0x0", "volume": 30.0, "brightness": 1.0, "rate": 1.0, "fit": "contain", "zoom": 1.0, "locked": false, "fullscreen": false, "orientation": "auto", "pip": false, "mini": false, "rendered": false, "epoch": 0, "sourceIndex": 0, "standby": "off"}, "error": "MovaGiveUpError(nativeEndError, http://127.0.0.1:18080/hang?t=1793064123693978)"}`
+- `{"ms": 149823, "kind": "RECOVERY_END", "mode": "hang", "state": {"playing": false, "intent": true, "buffering": false, "duration": 0, "position": 0, "size": "0x0", "volume": 30.0, "brightness": 1.0, "rate": 1.0, "fit": "contain", "zoom": 1.0, "locked": false, "fullscreen": false, "orient": "auto", "pip": false, "mini": false, "rendered": false, "epoch": 0, "sourceIndex": 0, "keepAlive": "off"}, "error": "MovaGiveUpError(nativeEndError, http://127.0.0.1:18080/hang?t=1793064123693978)"}`
 
 ### batch2-hooks
 
 - PlayFailure 事件戳 ms：`[]`；间距：`[]`。
 - `{"ms": 153607, "kind": "CHECK", "id": "N8.reject", "pass": true, "detail": "beforeOpen=false"}`
 - `{"ms": 153669, "kind": "CHECK", "id": "N8.accept", "pass": true, "detail": "accepted=true"}`
-- `{"ms": 154099, "kind": "CHECK", "id": "N22.stalePlay", "pass": true, "detail": "{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: 30.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orientation: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, standby: off}"}`
-- `{"ms": 155315, "kind": "HOOK_SEEK_FINAL", "playing": false, "intent": false, "buffering": false, "duration": 20000, "position": 23, "size": "0x0", "volume": 30.0, "brightness": 1.0, "rate": 1.0, "fit": "contain", "zoom": 1.0, "locked": false, "fullscreen": false, "orientation": "auto", "pip": false, "mini": false, "rendered": true, "epoch": 0, "sourceIndex": 0, "standby": "off"}`
+- `{"ms": 154099, "kind": "CHECK", "id": "N22.stalePlay", "pass": true, "detail": "{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: 30.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orient: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off}"}`
+- `{"ms": 155315, "kind": "HOOK_SEEK_FINAL", "playing": false, "intent": false, "buffering": false, "duration": 20000, "position": 23, "size": "0x0", "volume": 30.0, "brightness": 1.0, "rate": 1.0, "fit": "contain", "zoom": 1.0, "locked": false, "fullscreen": false, "orient": "auto", "pip": false, "mini": false, "rendered": true, "epoch": 0, "sourceIndex": 0, "keepAlive": "off"}`
 - `{"ms": 155315, "kind": "HOOK_PLAYLIST", "index": 0}`
 - `{"ms": 155346, "kind": "CHECK", "id": "N8.disposed", "pass": true, "detail": "disposed=false"}`
 
@@ -361,9 +361,9 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
 - 脚本误枚举 fitWidth/fitHeight/none/scaleDown（MovaFit 只有 contain/cover/fill）产生4条 ArgumentError，已修验证脚本；这4条不是库 FAIL。
 - `batch3-26-fullscreen-true.png`：2376×1080；窗口标志：`    mAttrs={(0,330)(fillx750) sim={adjust=pan} layoutInDisplayCutoutMode=always ty=NAVIGATION_BAR_PANEL hwFlags=#0 hwExtFlags=#0 ohWindowId=0 isEmuiStyle=0 statusBarColor=#0 navigationBarColor=#0 fmt=TRANSLUCENT;     mHasSurface=false isReadyForDisplay()=false mWindowRemovalAllowed=false;     mAttrs={(110,1130)(162x415) gr=TOP LEFT CENTER sim={state=unchanged adjust=nothing} ty=NAVIGATION_BAR_PANEL hwFlags=#8000000 hwExtFlags=#0 ohWindowId=0 isEmuiStyle=0 statusBarColor=#0 navigationBarColor=#0 fmt=TRANSPARENT;     mHasSurface=false isReadyForDisplay()=false mWindowRemovalAllowed=false`。
 - `batch3-27-fullscreen-false.png`：1080×2376；窗口标志：`    mAttrs={(0,1626)(fillx750) sim={adjust=pan} layoutInDisplayCutoutMode=always ty=NAVIGATION_BAR_PANEL hwFlags=#0 hwExtFlags=#0 ohWindowId=0 isEmuiStyle=0 statusBarColor=#0 navigationBarColor=#0 fmt=TRANSLUCENT;     mHasSurface=false isReadyForDisplay()=false mWindowRemovalAllowed=false;     mAttrs={(0,1130)(162x415) gr=TOP LEFT CENTER sim={state=unchanged adjust=nothing} ty=NAVIGATION_BAR_PANEL hwFlags=#8010000 hwExtFlags=#0 ohWindowId=0 isEmuiStyle=0 statusBarColor=#0 navigationBarColor=#0 fmt=TRANSPARENT;     mHasSurface=false isReadyForDisplay()=false mWindowRemovalAllowed=false`。
-- `batch3-28-orientation-landscape.png`：2376×1080；窗口标志：`    mAttrs={(0,330)(fillx750) sim={adjust=pan} layoutInDisplayCutoutMode=always ty=NAVIGATION_BAR_PANEL hwFlags=#0 hwExtFlags=#0 ohWindowId=0 isEmuiStyle=0 statusBarColor=#0 navigationBarColor=#0 fmt=TRANSLUCENT;     mHasSurface=false isReadyForDisplay()=false mWindowRemovalAllowed=false;     mAttrs={(110,1130)(162x415) gr=TOP LEFT CENTER sim={state=unchanged adjust=nothing} ty=NAVIGATION_BAR_PANEL hwFlags=#8000000 hwExtFlags=#0 ohWindowId=0 isEmuiStyle=0 statusBarColor=#0 navigationBarColor=#0 fmt=TRANSPARENT;     mHasSurface=false isReadyForDisplay()=false mWindowRemovalAllowed=false`。
-- `batch3-29-orientation-portrait.png`：1080×2376；窗口标志：`    mAttrs={(0,1626)(fillx750) sim={adjust=pan} layoutInDisplayCutoutMode=always ty=NAVIGATION_BAR_PANEL hwFlags=#0 hwExtFlags=#0 ohWindowId=0 isEmuiStyle=0 statusBarColor=#0 navigationBarColor=#0 fmt=TRANSLUCENT;     mHasSurface=false isReadyForDisplay()=false mWindowRemovalAllowed=false;     mAttrs={(0,1130)(162x415) gr=TOP LEFT CENTER sim={state=unchanged adjust=nothing} ty=NAVIGATION_BAR_PANEL hwFlags=#8010000 hwExtFlags=#0 ohWindowId=0 isEmuiStyle=0 statusBarColor=#0 navigationBarColor=#0 fmt=TRANSPARENT;     mHasSurface=false isReadyForDisplay()=false mWindowRemovalAllowed=false`。
-- `batch3-30-orientation-auto.png`：1080×2376；窗口标志：`    mAttrs={(0,1626)(fillx750) sim={adjust=pan} layoutInDisplayCutoutMode=always ty=NAVIGATION_BAR_PANEL hwFlags=#0 hwExtFlags=#0 ohWindowId=0 isEmuiStyle=0 statusBarColor=#0 navigationBarColor=#0 fmt=TRANSLUCENT;     mHasSurface=false isReadyForDisplay()=false mWindowRemovalAllowed=false;     mAttrs={(0,1130)(162x415) gr=TOP LEFT CENTER sim={state=unchanged adjust=nothing} ty=NAVIGATION_BAR_PANEL hwFlags=#8010000 hwExtFlags=#0 ohWindowId=0 isEmuiStyle=0 statusBarColor=#0 navigationBarColor=#0 fmt=TRANSPARENT;     mHasSurface=false isReadyForDisplay()=false mWindowRemovalAllowed=false`。
+- `batch3-28-orient-landscape.png`：2376×1080；窗口标志：`    mAttrs={(0,330)(fillx750) sim={adjust=pan} layoutInDisplayCutoutMode=always ty=NAVIGATION_BAR_PANEL hwFlags=#0 hwExtFlags=#0 ohWindowId=0 isEmuiStyle=0 statusBarColor=#0 navigationBarColor=#0 fmt=TRANSLUCENT;     mHasSurface=false isReadyForDisplay()=false mWindowRemovalAllowed=false;     mAttrs={(110,1130)(162x415) gr=TOP LEFT CENTER sim={state=unchanged adjust=nothing} ty=NAVIGATION_BAR_PANEL hwFlags=#8000000 hwExtFlags=#0 ohWindowId=0 isEmuiStyle=0 statusBarColor=#0 navigationBarColor=#0 fmt=TRANSPARENT;     mHasSurface=false isReadyForDisplay()=false mWindowRemovalAllowed=false`。
+- `batch3-29-orient-portrait.png`：1080×2376；窗口标志：`    mAttrs={(0,1626)(fillx750) sim={adjust=pan} layoutInDisplayCutoutMode=always ty=NAVIGATION_BAR_PANEL hwFlags=#0 hwExtFlags=#0 ohWindowId=0 isEmuiStyle=0 statusBarColor=#0 navigationBarColor=#0 fmt=TRANSLUCENT;     mHasSurface=false isReadyForDisplay()=false mWindowRemovalAllowed=false;     mAttrs={(0,1130)(162x415) gr=TOP LEFT CENTER sim={state=unchanged adjust=nothing} ty=NAVIGATION_BAR_PANEL hwFlags=#8010000 hwExtFlags=#0 ohWindowId=0 isEmuiStyle=0 statusBarColor=#0 navigationBarColor=#0 fmt=TRANSPARENT;     mHasSurface=false isReadyForDisplay()=false mWindowRemovalAllowed=false`。
+- `batch3-30-orient-auto.png`：1080×2376；窗口标志：`    mAttrs={(0,1626)(fillx750) sim={adjust=pan} layoutInDisplayCutoutMode=always ty=NAVIGATION_BAR_PANEL hwFlags=#0 hwExtFlags=#0 ohWindowId=0 isEmuiStyle=0 statusBarColor=#0 navigationBarColor=#0 fmt=TRANSLUCENT;     mHasSurface=false isReadyForDisplay()=false mWindowRemovalAllowed=false;     mAttrs={(0,1130)(162x415) gr=TOP LEFT CENTER sim={state=unchanged adjust=nothing} ty=NAVIGATION_BAR_PANEL hwFlags=#8010000 hwExtFlags=#0 ohWindowId=0 isEmuiStyle=0 statusBarColor=#0 navigationBarColor=#0 fmt=TRANSPARENT;     mHasSurface=false isReadyForDisplay()=false mWindowRemovalAllowed=false`。
 - `batch3-19-brightness-0.window.txt`：`[]`。
 - `batch3-20-brightness-.25.window.txt`：`[]`。
 - `batch3-21-brightness-.75.window.txt`：`[]`。
@@ -572,152 +572,152 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
 
 - 参数：release；GOPS=25,50,100、HOLDS=3、S3_SECONDS=15、RUNS=5。日志完成标记已收到；不是交接原始10/30秒持有网格，未据此修改默认值。
 - S1 0/15满足size主信号判据；S2 5/5配置行为通过；S3 5/5 decodeOnly/null信号/1ms恢复；S6强制绕过无声保护5/5失败，位置回到0并重新加载，和Windows同类EOF路径；正常无声保护S3通过。
-- S13 5/5，S17 5/5。S6属于直接内核强制B反例，不当作正常引擎待机误判。
+- S13 5/5，S17 5/5。S6属于直接内核强制B反例，不当作正常播放器待机误判。
 ```text
-10-27 09:57:10.448 17962 17962 I flutter : [STANDBY] 09:57:10.448  641498ms --- S6 silent stream detection run 1/5
-10-27 09:57:29.691 17962 17962 I flutter : [STANDBY] 09:57:29.690  660741ms S6 forced-B trace(position/eof-reached/core-idle every 500ms)=[5520/eof=yes/idle=yes, 0/eof=/idle=yes, 0/eof=/idle=yes, 0/eof=/idle=yes, 0/eof=/idle=yes, 0/eof=/idle=yes, 0/eof=/idle=yes, 0/eof=/idle=yes] eventsDuringForcedB=[MovaBufferChange, MovaPause, MovaDone, MovaPlayFailure, MovaBufferChange, MovaDurationChange, MovaSizeChange, MovaSizeChange, MovaPlay, MovaBufferChange]
-10-27 09:57:29.691 17962 17962 I flutter : [STANDBY] 09:57:29.691  660741ms S6 audio=absent format=flv entered=true normal3sAdvance=2840ms forcedB4sAdvance=-5520ms exitRestartedVideo=true
-10-27 09:57:29.691 17962 17962 I flutter : [STANDBY] 09:57:29.691  660742ms VERDICT S6 FAIL audio=absent forcedAdvance=-5520ms
-10-27 09:57:29.692 17962 17962 I flutter : [STANDBY] 09:57:29.691  660742ms --- S6 silent stream detection run 2/5
-10-27 09:57:47.103 17962 17962 I flutter : [STANDBY] 09:57:47.102  678153ms S6 forced-B trace(position/eof-reached/core-idle every 500ms)=[5600/eof=yes/idle=yes, 0/eof=/idle=yes, 0/eof=/idle=yes, 0/eof=/idle=yes, 0/eof=/idle=yes, 0/eof=/idle=yes, 0/eof=/idle=yes, 0/eof=/idle=yes] eventsDuringForcedB=[MovaBufferChange, MovaPause, MovaDone, MovaPlayFailure, MovaBufferChange, MovaDurationChange, MovaSizeChange, MovaSizeChange, MovaPlay, MovaBufferChange]
-10-27 09:57:47.103 17962 17962 I flutter : [STANDBY] 09:57:47.103  678153ms S6 audio=absent format=flv entered=true normal3sAdvance=3040ms forcedB4sAdvance=-5600ms exitRestartedVideo=true
-10-27 09:57:47.104 17962 17962 I flutter : [STANDBY] 09:57:47.104  678154ms VERDICT S6 FAIL audio=absent forcedAdvance=-5600ms
-10-27 09:57:47.105 17962 17962 I flutter : [STANDBY] 09:57:47.104  678155ms --- S6 silent stream detection run 3/5
-10-27 09:58:03.882 17962 17962 I flutter : [STANDBY] 09:58:03.882  694933ms S6 forced-B trace(position/eof-reached/core-idle every 500ms)=[5680/eof=yes/idle=yes, 0/eof=/idle=yes, 0/eof=/idle=yes, 0/eof=/idle=yes, 0/eof=/idle=yes, 0/eof=/idle=yes, 0/eof=/idle=yes, 0/eof=/idle=yes] eventsDuringForcedB=[MovaBufferChange, MovaPause, MovaDone, MovaPlayFailure, MovaBufferChange, MovaDurationChange, MovaSizeChange, MovaSizeChange, MovaPlay, MovaBufferChange]
-10-27 09:58:03.883 17962 17962 I flutter : [STANDBY] 09:58:03.883  694933ms S6 audio=absent format=flv entered=true normal3sAdvance=3000ms forcedB4sAdvance=-5680ms exitRestartedVideo=true
-10-27 09:58:03.883 17962 17962 I flutter : [STANDBY] 09:58:03.883  694933ms VERDICT S6 FAIL audio=absent forcedAdvance=-5680ms
-10-27 09:58:03.883 17962 17962 I flutter : [STANDBY] 09:58:03.883  694933ms --- S6 silent stream detection run 4/5
-10-27 09:58:20.925 17962 17962 I flutter : [STANDBY] 09:58:20.925  711976ms S6 forced-B trace(position/eof-reached/core-idle every 500ms)=[5840/eof=yes/idle=yes, 0/eof=/idle=yes, 0/eof=/idle=yes, 0/eof=/idle=yes, 0/eof=/idle=yes, 0/eof=/idle=yes, 0/eof=/idle=yes, 0/eof=/idle=yes] eventsDuringForcedB=[MovaBufferChange, MovaPause, MovaDone, MovaPlayFailure, MovaBufferChange, MovaDurationChange, MovaSizeChange, MovaSizeChange, MovaPlay, MovaBufferChange]
-10-27 09:58:20.926 17962 17962 I flutter : [STANDBY] 09:58:20.926  711976ms S6 audio=absent format=flv entered=true normal3sAdvance=3000ms forcedB4sAdvance=-5840ms exitRestartedVideo=true
-10-27 09:58:20.926 17962 17962 I flutter : [STANDBY] 09:58:20.926  711976ms VERDICT S6 FAIL audio=absent forcedAdvance=-5840ms
-10-27 09:58:20.927 17962 17962 I flutter : [STANDBY] 09:58:20.926  711977ms --- S6 silent stream detection run 5/5
-10-27 09:58:37.715 17962 17962 I flutter : [STANDBY] 09:58:37.715  728765ms S6 forced-B trace(position/eof-reached/core-idle every 500ms)=[5480/eof=yes/idle=yes, 0/eof=/idle=yes, 0/eof=/idle=yes, 0/eof=/idle=yes, 0/eof=/idle=yes, 0/eof=/idle=yes, 0/eof=/idle=yes, 0/eof=/idle=yes] eventsDuringForcedB=[MovaBufferChange, MovaPause, MovaDone, MovaPlayFailure, MovaBufferChange, MovaDurationChange, MovaSizeChange, MovaSizeChange, MovaPlay, MovaBufferChange]
-10-27 09:58:37.715 17962 17962 I flutter : [STANDBY] 09:58:37.715  728766ms S6 audio=absent format=flv entered=true normal3sAdvance=3040ms forcedB4sAdvance=-5480ms exitRestartedVideo=true
-10-27 09:58:37.715 17962 17962 I flutter : [STANDBY] 09:58:37.715  728766ms VERDICT S6 FAIL audio=absent forcedAdvance=-5480ms
-10-27 09:58:38.518 17962 17962 I flutter : [STANDBY] 09:58:38.517  729568ms --- S13 reload during B run 1/5
-10-27 09:58:48.404 17962 17962 I flutter : [STANDBY] 09:58:48.404  739455ms S13 phase=holding vid/mute before=no/yes after backToLiveEdge=no/yes stillHolding=true wake=247ms signal=size eventsDuringReload=[MovaPause, MovaDurationChange, MovaSizeChange, MovaSizeChange, MovaPlay, MovaLiveEdgeReach, MovaBufferChange, MovaBufferChange, MovaDurationChange, MovaDurationChange]
-10-27 09:58:48.405 17962 17962 I flutter : [STANDBY] 09:58:48.404  739455ms VERDICT S13 PASS after=no/yes stillHolding=true
-10-27 09:58:48.405 17962 17962 I flutter : [STANDBY] 09:58:48.405  739455ms --- S13 reload during B run 2/5
-10-27 09:58:59.503 17962 17962 I flutter : [STANDBY] 09:58:59.503  750553ms S13 phase=holding vid/mute before=no/yes after backToLiveEdge=no/yes stillHolding=true wake=216ms signal=size eventsDuringReload=[MovaPause, MovaDurationChange, MovaSizeChange, MovaSizeChange, MovaPlay, MovaLiveEdgeReach, MovaBufferChange, MovaBufferChange, MovaDurationChange, MovaDurationChange]
-10-27 09:58:59.503 17962 17962 I flutter : [STANDBY] 09:58:59.503  750553ms VERDICT S13 PASS after=no/yes stillHolding=true
-10-27 09:58:59.503 17962 17962 I flutter : [STANDBY] 09:58:59.503  750553ms --- S13 reload during B run 3/5
-10-27 09:59:10.235 17962 17962 I flutter : [STANDBY] 09:59:10.235  761285ms S13 phase=holding vid/mute before=no/yes after backToLiveEdge=no/yes stillHolding=true wake=216ms signal=size eventsDuringReload=[MovaPause, MovaDurationChange, MovaSizeChange, MovaSizeChange, MovaPlay, MovaLiveEdgeReach, MovaBufferChange, MovaBufferChange, MovaDurationChange]
-10-27 09:59:10.235 17962 17962 I flutter : [STANDBY] 09:59:10.235  761286ms VERDICT S13 PASS after=no/yes stillHolding=true
-10-27 09:59:10.235 17962 17962 I flutter : [STANDBY] 09:59:10.235  761286ms --- S13 reload during B run 4/5
-10-27 09:59:20.785 17962 17962 I flutter : [STANDBY] 09:59:20.785  771835ms S13 phase=holding vid/mute before=no/yes after backToLiveEdge=no/yes stillHolding=true wake=215ms signal=size eventsDuringReload=[MovaPause, MovaDurationChange, MovaSizeChange, MovaSizeChange, MovaPlay, MovaLiveEdgeReach, MovaBufferChange, MovaBufferChange, MovaDurationChange, MovaDurationChange]
-10-27 09:59:20.785 17962 17962 I flutter : [STANDBY] 09:59:20.785  771835ms VERDICT S13 PASS after=no/yes stillHolding=true
-10-27 09:59:20.785 17962 17962 I flutter : [STANDBY] 09:59:20.785  771836ms --- S13 reload during B run 5/5
-10-27 09:59:31.294 17962 17962 I flutter : [STANDBY] 09:59:31.294  782344ms S13 phase=holding vid/mute before=no/yes after backToLiveEdge=no/yes stillHolding=true wake=204ms signal=size eventsDuringReload=[MovaPause, MovaDurationChange, MovaSizeChange, MovaSizeChange, MovaPlay, MovaLiveEdgeReach, MovaBufferChange, MovaBufferChange, MovaDurationChange, MovaDurationChange]
-10-27 09:59:31.294 17962 17962 I flutter : [STANDBY] 09:59:31.294  782345ms VERDICT S13 PASS after=no/yes stillHolding=true
-10-27 09:59:32.097 17962 17962 I flutter : [STANDBY] 09:59:32.096  783147ms --- S17 guard end-to-end (TickerMode) run 1/5
-10-27 09:59:37.734 17962 17962 I flutter : [STANDBY] 09:59:37.734  788785ms S17 hide -> holding=true reason=requested mode=muted state=holding
-10-27 09:59:44.757 17962 17962 I flutter : [STANDBY] 09:59:44.757  795807ms S17 show -> resume=5002ms signal=grace state=off
-10-27 09:59:49.838 17962 17962 I flutter : [STANDBY] 09:59:49.838  800889ms S17 hidden source change: state=holding playing=true events=[Standby(fallback,reloaded), MovaPause, MovaFirstFrame, Standby(holding,requested), MovaPlay]
-10-27 09:59:54.840 17962 17962 I flutter : [STANDBY] 09:59:54.840  805891ms S17 show after source change: state=resuming playing=true rendered=true events=[Standby(resuming,woke)]
-10-27 09:59:54.941 17962 17962 I flutter : [STANDBY] 09:59:54.941  805992ms S17 hide again -> holding=true state=holding
-10-27 09:59:57.942 17962 17962 I flutter : [STANDBY] 09:59:57.942  808993ms VERDICT S17 PASS holding=true resume=true holdAgain=true
-10-27 09:59:57.943 17962 17962 I flutter : [STANDBY] 09:59:57.943  808993ms --- S17 guard end-to-end (TickerMode) run 2/5
-10-27 10:00:04.487 17962 17962 I flutter : [STANDBY] 10:00:04.487  815538ms S17 hide -> holding=true reason=requested mode=muted state=holding
-10-27 10:00:11.502 17962 17962 I flutter : [STANDBY] 10:00:11.502  822552ms S17 show -> resume=5001ms signal=grace state=off
-10-27 10:00:16.605 17962 17962 I flutter : [STANDBY] 10:00:16.605  827655ms S17 hidden source change: state=holding playing=true events=[Standby(fallback,reloaded), MovaPause, MovaFirstFrame, Standby(holding,requested), MovaPlay]
-10-27 10:00:21.607 17962 17962 I flutter : [STANDBY] 10:00:21.607  832658ms S17 show after source change: state=resuming playing=true rendered=true events=[Standby(resuming,woke)]
-10-27 10:00:21.692 17962 17962 I flutter : [STANDBY] 10:00:21.691  832742ms S17 hide again -> holding=true state=holding
-10-27 10:00:24.695 17962 17962 I flutter : [STANDBY] 10:00:24.695  835745ms VERDICT S17 PASS holding=true resume=true holdAgain=true
-10-27 10:00:24.695 17962 17962 I flutter : [STANDBY] 10:00:24.695  835745ms --- S17 guard end-to-end (TickerMode) run 3/5
-10-27 10:00:31.215 17962 17962 I flutter : [STANDBY] 10:00:31.215  842266ms S17 hide -> holding=true reason=requested mode=muted state=holding
-10-27 10:00:38.235 17962 17962 I flutter : [STANDBY] 10:00:38.234  849285ms S17 show -> resume=5001ms signal=grace state=off
-10-27 10:00:43.315 17962 17962 I flutter : [STANDBY] 10:00:43.314  854365ms S17 hidden source change: state=holding playing=true events=[Standby(fallback,reloaded), MovaPause, MovaFirstFrame, Standby(holding,requested), MovaPlay]
-10-27 10:00:48.316 17962 17962 I flutter : [STANDBY] 10:00:48.316  859367ms S17 show after source change: state=resuming playing=true rendered=true events=[Standby(resuming,woke)]
-10-27 10:00:48.420 17962 17962 I flutter : [STANDBY] 10:00:48.420  859470ms S17 hide again -> holding=true state=holding
-10-27 10:00:51.422 17962 17962 I flutter : [STANDBY] 10:00:51.422  862472ms VERDICT S17 PASS holding=true resume=true holdAgain=true
-10-27 10:00:51.422 17962 17962 I flutter : [STANDBY] 10:00:51.422  862472ms --- S17 guard end-to-end (TickerMode) run 4/5
-10-27 10:00:57.766 17962 17962 I flutter : [STANDBY] 10:00:57.766  868817ms S17 hide -> holding=true reason=requested mode=muted state=holding
-10-27 10:01:04.782 17962 17962 I flutter : [STANDBY] 10:01:04.781  875832ms S17 show -> resume=5001ms signal=grace state=off
-10-27 10:01:09.875 17962 17962 I flutter : [STANDBY] 10:01:09.874  880925ms S17 hidden source change: state=holding playing=true events=[Standby(fallback,reloaded), MovaPause, MovaFirstFrame, Standby(holding,requested), MovaPlay]
-10-27 10:01:14.878 17962 17962 I flutter : [STANDBY] 10:01:14.878  885928ms S17 show after source change: state=resuming playing=true rendered=true events=[Standby(resuming,woke)]
-10-27 10:01:14.967 17962 17962 I flutter : [STANDBY] 10:01:14.967  886017ms S17 hide again -> holding=true state=holding
-10-27 10:01:17.970 17962 17962 I flutter : [STANDBY] 10:01:17.969  889020ms VERDICT S17 PASS holding=true resume=true holdAgain=true
-10-27 10:01:17.970 17962 17962 I flutter : [STANDBY] 10:01:17.970  889021ms --- S17 guard end-to-end (TickerMode) run 5/5
-10-27 10:01:24.499 17962 17962 I flutter : [STANDBY] 10:01:24.498  895549ms S17 hide -> holding=true reason=requested mode=muted state=holding
-10-27 10:01:31.529 17962 17962 I flutter : [STANDBY] 10:01:31.529  902579ms S17 show -> resume=5001ms signal=grace state=off
-10-27 10:01:36.616 17962 17962 I flutter : [STANDBY] 10:01:36.616  907667ms S17 hidden source change: state=holding playing=true events=[Standby(fallback,reloaded), MovaPause, MovaFirstFrame, Standby(holding,requested), MovaPlay]
-10-27 10:01:41.620 17962 17962 I flutter : [STANDBY] 10:01:41.620  912671ms S17 show after source change: state=resuming playing=true rendered=true events=[Standby(resuming,woke)]
-10-27 10:01:41.701 17962 17962 I flutter : [STANDBY] 10:01:41.701  912751ms S17 hide again -> holding=true state=holding
-10-27 10:01:44.703 17962 17962 I flutter : [STANDBY] 10:01:44.703  915753ms VERDICT S17 PASS holding=true resume=true holdAgain=true
-10-27 10:01:45.507 17962 17962 I flutter : [STANDBY] 10:01:45.506  916557ms === SUMMARY (samples in ms) ===
-10-27 10:01:45.510 17962 17962 I flutter : [STANDBY] 10:01:45.509  916560ms SUMMARY S16.delay=500ms.holding values=[0,0,0,0,0] n=5 min=0 max=0 avg=0.0 median=0.0
-10-27 10:01:45.510 17962 17962 I flutter : [STANDBY] 10:01:45.510  916560ms SUMMARY S16.delay=1000ms.holding values=[0,0,0,0,0] n=5 min=0 max=0 avg=0.0 median=0.0
-10-27 10:01:45.510 17962 17962 I flutter : [STANDBY] 10:01:45.510  916560ms SUMMARY S16.delay=2000ms.holding values=[0,1,1,0,1] n=5 min=0 max=1 avg=0.6 median=1.0
-10-27 10:01:45.510 17962 17962 I flutter : [STANDBY] 10:01:45.510  916561ms SUMMARY S16.delay=3000ms.holding values=[1,1,1,1,1] n=5 min=1 max=1 avg=1.0 median=1.0
-10-27 10:01:45.511 17962 17962 I flutter : [STANDBY] 10:01:45.511  916561ms SUMMARY S16.audioPresentAfterOpenMs(100ms poll) values=[2417,2419,2406,2456,2056] n=5 min=2056 max=2456 avg=2350.8 median=2417.0
-10-27 10:01:45.511 17962 17962 I flutter : [STANDBY] 10:01:45.511  916561ms SUMMARY S1.gop=25.hold=3s.elapsedMs values=[5000,5001,5002,5002,5000] n=5 min=5000 max=5002 avg=5001.0 median=5001.0
-10-27 10:01:45.511 17962 17962 I flutter : [STANDBY] 10:01:45.511  916562ms SUMMARY S1.gop=25.hold=3s.decodedPropMs values=[131,199,120,159,124] n=5 min=120 max=199 avg=146.6 median=131.0
-10-27 10:01:45.512 17962 17962 I flutter : [STANDBY] 10:01:45.511  916562ms SUMMARY S15.signal.grace values=[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1] n=15 min=1 max=1 avg=1.0 median=1.0
-10-27 10:01:45.512 17962 17962 I flutter : [STANDBY] 10:01:45.512  916562ms SUMMARY S1.gop=50.hold=3s.elapsedMs values=[5001,5001,5006,5001,5002] n=5 min=5001 max=5006 avg=5002.2 median=5001.0
-10-27 10:01:45.512 17962 17962 I flutter : [STANDBY] 10:01:45.512  916563ms SUMMARY S1.gop=50.hold=3s.decodedPropMs values=[145,126,115,156,122] n=5 min=115 max=156 avg=132.8 median=126.0
-10-27 10:01:45.513 17962 17962 I flutter : [STANDBY] 10:01:45.512  916563ms SUMMARY S1.gop=100.hold=3s.elapsedMs values=[5001,5001,5000,5001,5000] n=5 min=5000 max=5001 avg=5000.6 median=5001.0
-10-27 10:01:45.513 17962 17962 I flutter : [STANDBY] 10:01:45.513  916563ms SUMMARY S1.gop=100.hold=3s.decodedPropMs values=[146,147,99,155,128] n=5 min=99 max=155 avg=135.0 median=146.0
-10-27 10:01:45.513 17962 17962 I flutter : [STANDBY] 10:01:45.513  916563ms SUMMARY S2.allowHls.resumeMs values=[5001,5000,5000,5001,5000] n=5 min=5000 max=5001 avg=5000.4 median=5000.0
-10-27 10:01:45.513 17962 17962 I flutter : [STANDBY] 10:01:45.513  916564ms SUMMARY S2.allowHls.decodedPropMs values=[142,110,122,108,128] n=5 min=108 max=142 avg=122.0 median=122.0
-10-27 10:01:45.514 17962 17962 I flutter : [STANDBY] 10:01:45.514  916564ms SUMMARY S3.resumeMs values=[0,1,1,1,0] n=5 min=0 max=1 avg=0.6 median=1.0
-10-27 10:01:45.514 17962 17962 I flutter : [STANDBY] 10:01:45.514  916565ms SUMMARY S1 pass=0 fail=15
-10-27 10:01:45.515 17962 17962 I flutter : [STANDBY] 10:01:45.514  916565ms SUMMARY S13 pass=5 fail=0
-10-27 10:01:45.515 17962 17962 I flutter : [STANDBY] 10:01:45.515  916565ms SUMMARY S16 pass=20 fail=0
-10-27 10:01:45.515 17962 17962 I flutter : [STANDBY] 10:01:45.515  916565ms SUMMARY S17 pass=5 fail=0
-10-27 10:01:45.515 17962 17962 I flutter : [STANDBY] 10:01:45.515  916566ms SUMMARY S2 pass=10 fail=0
-10-27 10:01:45.516 17962 17962 I flutter : [STANDBY] 10:01:45.516  916566ms SUMMARY S3 pass=5 fail=0
-10-27 10:01:45.516 17962 17962 I flutter : [STANDBY] 10:01:45.516  916566ms SUMMARY S6 pass=0 fail=5
+10-27 09:57:10.448 17962 17962 I flutter : [KEEP_ALIVE] 09:57:10.448  641498ms --- S6 silent stream detection run 1/5
+10-27 09:57:29.691 17962 17962 I flutter : [KEEP_ALIVE] 09:57:29.690  660741ms S6 forced-B trace(position/eof-reached/core-idle every 500ms)=[5520/eof=yes/idle=yes, 0/eof=/idle=yes, 0/eof=/idle=yes, 0/eof=/idle=yes, 0/eof=/idle=yes, 0/eof=/idle=yes, 0/eof=/idle=yes, 0/eof=/idle=yes] eventsDuringForcedB=[MovaBufferChange, MovaPause, MovaDone, MovaPlayFailure, MovaBufferChange, MovaDurationChange, MovaSizeChange, MovaSizeChange, MovaPlay, MovaBufferChange]
+10-27 09:57:29.691 17962 17962 I flutter : [KEEP_ALIVE] 09:57:29.691  660741ms S6 audio=absent format=flv entered=true normal3sAdvance=2840ms forcedB4sAdvance=-5520ms exitRestartedVideo=true
+10-27 09:57:29.691 17962 17962 I flutter : [KEEP_ALIVE] 09:57:29.691  660742ms VERDICT S6 FAIL audio=absent forcedAdvance=-5520ms
+10-27 09:57:29.692 17962 17962 I flutter : [KEEP_ALIVE] 09:57:29.691  660742ms --- S6 silent stream detection run 2/5
+10-27 09:57:47.103 17962 17962 I flutter : [KEEP_ALIVE] 09:57:47.102  678153ms S6 forced-B trace(position/eof-reached/core-idle every 500ms)=[5600/eof=yes/idle=yes, 0/eof=/idle=yes, 0/eof=/idle=yes, 0/eof=/idle=yes, 0/eof=/idle=yes, 0/eof=/idle=yes, 0/eof=/idle=yes, 0/eof=/idle=yes] eventsDuringForcedB=[MovaBufferChange, MovaPause, MovaDone, MovaPlayFailure, MovaBufferChange, MovaDurationChange, MovaSizeChange, MovaSizeChange, MovaPlay, MovaBufferChange]
+10-27 09:57:47.103 17962 17962 I flutter : [KEEP_ALIVE] 09:57:47.103  678153ms S6 audio=absent format=flv entered=true normal3sAdvance=3040ms forcedB4sAdvance=-5600ms exitRestartedVideo=true
+10-27 09:57:47.104 17962 17962 I flutter : [KEEP_ALIVE] 09:57:47.104  678154ms VERDICT S6 FAIL audio=absent forcedAdvance=-5600ms
+10-27 09:57:47.105 17962 17962 I flutter : [KEEP_ALIVE] 09:57:47.104  678155ms --- S6 silent stream detection run 3/5
+10-27 09:58:03.882 17962 17962 I flutter : [KEEP_ALIVE] 09:58:03.882  694933ms S6 forced-B trace(position/eof-reached/core-idle every 500ms)=[5680/eof=yes/idle=yes, 0/eof=/idle=yes, 0/eof=/idle=yes, 0/eof=/idle=yes, 0/eof=/idle=yes, 0/eof=/idle=yes, 0/eof=/idle=yes, 0/eof=/idle=yes] eventsDuringForcedB=[MovaBufferChange, MovaPause, MovaDone, MovaPlayFailure, MovaBufferChange, MovaDurationChange, MovaSizeChange, MovaSizeChange, MovaPlay, MovaBufferChange]
+10-27 09:58:03.883 17962 17962 I flutter : [KEEP_ALIVE] 09:58:03.883  694933ms S6 audio=absent format=flv entered=true normal3sAdvance=3000ms forcedB4sAdvance=-5680ms exitRestartedVideo=true
+10-27 09:58:03.883 17962 17962 I flutter : [KEEP_ALIVE] 09:58:03.883  694933ms VERDICT S6 FAIL audio=absent forcedAdvance=-5680ms
+10-27 09:58:03.883 17962 17962 I flutter : [KEEP_ALIVE] 09:58:03.883  694933ms --- S6 silent stream detection run 4/5
+10-27 09:58:20.925 17962 17962 I flutter : [KEEP_ALIVE] 09:58:20.925  711976ms S6 forced-B trace(position/eof-reached/core-idle every 500ms)=[5840/eof=yes/idle=yes, 0/eof=/idle=yes, 0/eof=/idle=yes, 0/eof=/idle=yes, 0/eof=/idle=yes, 0/eof=/idle=yes, 0/eof=/idle=yes, 0/eof=/idle=yes] eventsDuringForcedB=[MovaBufferChange, MovaPause, MovaDone, MovaPlayFailure, MovaBufferChange, MovaDurationChange, MovaSizeChange, MovaSizeChange, MovaPlay, MovaBufferChange]
+10-27 09:58:20.926 17962 17962 I flutter : [KEEP_ALIVE] 09:58:20.926  711976ms S6 audio=absent format=flv entered=true normal3sAdvance=3000ms forcedB4sAdvance=-5840ms exitRestartedVideo=true
+10-27 09:58:20.926 17962 17962 I flutter : [KEEP_ALIVE] 09:58:20.926  711976ms VERDICT S6 FAIL audio=absent forcedAdvance=-5840ms
+10-27 09:58:20.927 17962 17962 I flutter : [KEEP_ALIVE] 09:58:20.926  711977ms --- S6 silent stream detection run 5/5
+10-27 09:58:37.715 17962 17962 I flutter : [KEEP_ALIVE] 09:58:37.715  728765ms S6 forced-B trace(position/eof-reached/core-idle every 500ms)=[5480/eof=yes/idle=yes, 0/eof=/idle=yes, 0/eof=/idle=yes, 0/eof=/idle=yes, 0/eof=/idle=yes, 0/eof=/idle=yes, 0/eof=/idle=yes, 0/eof=/idle=yes] eventsDuringForcedB=[MovaBufferChange, MovaPause, MovaDone, MovaPlayFailure, MovaBufferChange, MovaDurationChange, MovaSizeChange, MovaSizeChange, MovaPlay, MovaBufferChange]
+10-27 09:58:37.715 17962 17962 I flutter : [KEEP_ALIVE] 09:58:37.715  728766ms S6 audio=absent format=flv entered=true normal3sAdvance=3040ms forcedB4sAdvance=-5480ms exitRestartedVideo=true
+10-27 09:58:37.715 17962 17962 I flutter : [KEEP_ALIVE] 09:58:37.715  728766ms VERDICT S6 FAIL audio=absent forcedAdvance=-5480ms
+10-27 09:58:38.518 17962 17962 I flutter : [KEEP_ALIVE] 09:58:38.517  729568ms --- S13 reload during B run 1/5
+10-27 09:58:48.404 17962 17962 I flutter : [KEEP_ALIVE] 09:58:48.404  739455ms S13 phase=holding vid/mute before=no/yes after backToLiveEdge=no/yes stillHolding=true wake=247ms signal=size eventsDuringReload=[MovaPause, MovaDurationChange, MovaSizeChange, MovaSizeChange, MovaPlay, MovaLiveEdgeReach, MovaBufferChange, MovaBufferChange, MovaDurationChange, MovaDurationChange]
+10-27 09:58:48.405 17962 17962 I flutter : [KEEP_ALIVE] 09:58:48.404  739455ms VERDICT S13 PASS after=no/yes stillHolding=true
+10-27 09:58:48.405 17962 17962 I flutter : [KEEP_ALIVE] 09:58:48.405  739455ms --- S13 reload during B run 2/5
+10-27 09:58:59.503 17962 17962 I flutter : [KEEP_ALIVE] 09:58:59.503  750553ms S13 phase=holding vid/mute before=no/yes after backToLiveEdge=no/yes stillHolding=true wake=216ms signal=size eventsDuringReload=[MovaPause, MovaDurationChange, MovaSizeChange, MovaSizeChange, MovaPlay, MovaLiveEdgeReach, MovaBufferChange, MovaBufferChange, MovaDurationChange, MovaDurationChange]
+10-27 09:58:59.503 17962 17962 I flutter : [KEEP_ALIVE] 09:58:59.503  750553ms VERDICT S13 PASS after=no/yes stillHolding=true
+10-27 09:58:59.503 17962 17962 I flutter : [KEEP_ALIVE] 09:58:59.503  750553ms --- S13 reload during B run 3/5
+10-27 09:59:10.235 17962 17962 I flutter : [KEEP_ALIVE] 09:59:10.235  761285ms S13 phase=holding vid/mute before=no/yes after backToLiveEdge=no/yes stillHolding=true wake=216ms signal=size eventsDuringReload=[MovaPause, MovaDurationChange, MovaSizeChange, MovaSizeChange, MovaPlay, MovaLiveEdgeReach, MovaBufferChange, MovaBufferChange, MovaDurationChange]
+10-27 09:59:10.235 17962 17962 I flutter : [KEEP_ALIVE] 09:59:10.235  761286ms VERDICT S13 PASS after=no/yes stillHolding=true
+10-27 09:59:10.235 17962 17962 I flutter : [KEEP_ALIVE] 09:59:10.235  761286ms --- S13 reload during B run 4/5
+10-27 09:59:20.785 17962 17962 I flutter : [KEEP_ALIVE] 09:59:20.785  771835ms S13 phase=holding vid/mute before=no/yes after backToLiveEdge=no/yes stillHolding=true wake=215ms signal=size eventsDuringReload=[MovaPause, MovaDurationChange, MovaSizeChange, MovaSizeChange, MovaPlay, MovaLiveEdgeReach, MovaBufferChange, MovaBufferChange, MovaDurationChange, MovaDurationChange]
+10-27 09:59:20.785 17962 17962 I flutter : [KEEP_ALIVE] 09:59:20.785  771835ms VERDICT S13 PASS after=no/yes stillHolding=true
+10-27 09:59:20.785 17962 17962 I flutter : [KEEP_ALIVE] 09:59:20.785  771836ms --- S13 reload during B run 5/5
+10-27 09:59:31.294 17962 17962 I flutter : [KEEP_ALIVE] 09:59:31.294  782344ms S13 phase=holding vid/mute before=no/yes after backToLiveEdge=no/yes stillHolding=true wake=204ms signal=size eventsDuringReload=[MovaPause, MovaDurationChange, MovaSizeChange, MovaSizeChange, MovaPlay, MovaLiveEdgeReach, MovaBufferChange, MovaBufferChange, MovaDurationChange, MovaDurationChange]
+10-27 09:59:31.294 17962 17962 I flutter : [KEEP_ALIVE] 09:59:31.294  782345ms VERDICT S13 PASS after=no/yes stillHolding=true
+10-27 09:59:32.097 17962 17962 I flutter : [KEEP_ALIVE] 09:59:32.096  783147ms --- S17 guard end-to-end (TickerMode) run 1/5
+10-27 09:59:37.734 17962 17962 I flutter : [KEEP_ALIVE] 09:59:37.734  788785ms S17 hide -> holding=true reason=requested mode=muted state=holding
+10-27 09:59:44.757 17962 17962 I flutter : [KEEP_ALIVE] 09:59:44.757  795807ms S17 show -> resume=5002ms signal=grace state=off
+10-27 09:59:49.838 17962 17962 I flutter : [KEEP_ALIVE] 09:59:49.838  800889ms S17 hidden source change: state=holding playing=true events=[KeepAlive(fallback,reloaded), MovaPause, MovaFirstFrame, KeepAlive(holding,requested), MovaPlay]
+10-27 09:59:54.840 17962 17962 I flutter : [KEEP_ALIVE] 09:59:54.840  805891ms S17 show after source change: state=resuming playing=true rendered=true events=[KeepAlive(resuming,woke)]
+10-27 09:59:54.941 17962 17962 I flutter : [KEEP_ALIVE] 09:59:54.941  805992ms S17 hide again -> holding=true state=holding
+10-27 09:59:57.942 17962 17962 I flutter : [KEEP_ALIVE] 09:59:57.942  808993ms VERDICT S17 PASS holding=true resume=true holdAgain=true
+10-27 09:59:57.943 17962 17962 I flutter : [KEEP_ALIVE] 09:59:57.943  808993ms --- S17 guard end-to-end (TickerMode) run 2/5
+10-27 10:00:04.487 17962 17962 I flutter : [KEEP_ALIVE] 10:00:04.487  815538ms S17 hide -> holding=true reason=requested mode=muted state=holding
+10-27 10:00:11.502 17962 17962 I flutter : [KEEP_ALIVE] 10:00:11.502  822552ms S17 show -> resume=5001ms signal=grace state=off
+10-27 10:00:16.605 17962 17962 I flutter : [KEEP_ALIVE] 10:00:16.605  827655ms S17 hidden source change: state=holding playing=true events=[KeepAlive(fallback,reloaded), MovaPause, MovaFirstFrame, KeepAlive(holding,requested), MovaPlay]
+10-27 10:00:21.607 17962 17962 I flutter : [KEEP_ALIVE] 10:00:21.607  832658ms S17 show after source change: state=resuming playing=true rendered=true events=[KeepAlive(resuming,woke)]
+10-27 10:00:21.692 17962 17962 I flutter : [KEEP_ALIVE] 10:00:21.691  832742ms S17 hide again -> holding=true state=holding
+10-27 10:00:24.695 17962 17962 I flutter : [KEEP_ALIVE] 10:00:24.695  835745ms VERDICT S17 PASS holding=true resume=true holdAgain=true
+10-27 10:00:24.695 17962 17962 I flutter : [KEEP_ALIVE] 10:00:24.695  835745ms --- S17 guard end-to-end (TickerMode) run 3/5
+10-27 10:00:31.215 17962 17962 I flutter : [KEEP_ALIVE] 10:00:31.215  842266ms S17 hide -> holding=true reason=requested mode=muted state=holding
+10-27 10:00:38.235 17962 17962 I flutter : [KEEP_ALIVE] 10:00:38.234  849285ms S17 show -> resume=5001ms signal=grace state=off
+10-27 10:00:43.315 17962 17962 I flutter : [KEEP_ALIVE] 10:00:43.314  854365ms S17 hidden source change: state=holding playing=true events=[KeepAlive(fallback,reloaded), MovaPause, MovaFirstFrame, KeepAlive(holding,requested), MovaPlay]
+10-27 10:00:48.316 17962 17962 I flutter : [KEEP_ALIVE] 10:00:48.316  859367ms S17 show after source change: state=resuming playing=true rendered=true events=[KeepAlive(resuming,woke)]
+10-27 10:00:48.420 17962 17962 I flutter : [KEEP_ALIVE] 10:00:48.420  859470ms S17 hide again -> holding=true state=holding
+10-27 10:00:51.422 17962 17962 I flutter : [KEEP_ALIVE] 10:00:51.422  862472ms VERDICT S17 PASS holding=true resume=true holdAgain=true
+10-27 10:00:51.422 17962 17962 I flutter : [KEEP_ALIVE] 10:00:51.422  862472ms --- S17 guard end-to-end (TickerMode) run 4/5
+10-27 10:00:57.766 17962 17962 I flutter : [KEEP_ALIVE] 10:00:57.766  868817ms S17 hide -> holding=true reason=requested mode=muted state=holding
+10-27 10:01:04.782 17962 17962 I flutter : [KEEP_ALIVE] 10:01:04.781  875832ms S17 show -> resume=5001ms signal=grace state=off
+10-27 10:01:09.875 17962 17962 I flutter : [KEEP_ALIVE] 10:01:09.874  880925ms S17 hidden source change: state=holding playing=true events=[KeepAlive(fallback,reloaded), MovaPause, MovaFirstFrame, KeepAlive(holding,requested), MovaPlay]
+10-27 10:01:14.878 17962 17962 I flutter : [KEEP_ALIVE] 10:01:14.878  885928ms S17 show after source change: state=resuming playing=true rendered=true events=[KeepAlive(resuming,woke)]
+10-27 10:01:14.967 17962 17962 I flutter : [KEEP_ALIVE] 10:01:14.967  886017ms S17 hide again -> holding=true state=holding
+10-27 10:01:17.970 17962 17962 I flutter : [KEEP_ALIVE] 10:01:17.969  889020ms VERDICT S17 PASS holding=true resume=true holdAgain=true
+10-27 10:01:17.970 17962 17962 I flutter : [KEEP_ALIVE] 10:01:17.970  889021ms --- S17 guard end-to-end (TickerMode) run 5/5
+10-27 10:01:24.499 17962 17962 I flutter : [KEEP_ALIVE] 10:01:24.498  895549ms S17 hide -> holding=true reason=requested mode=muted state=holding
+10-27 10:01:31.529 17962 17962 I flutter : [KEEP_ALIVE] 10:01:31.529  902579ms S17 show -> resume=5001ms signal=grace state=off
+10-27 10:01:36.616 17962 17962 I flutter : [KEEP_ALIVE] 10:01:36.616  907667ms S17 hidden source change: state=holding playing=true events=[KeepAlive(fallback,reloaded), MovaPause, MovaFirstFrame, KeepAlive(holding,requested), MovaPlay]
+10-27 10:01:41.620 17962 17962 I flutter : [KEEP_ALIVE] 10:01:41.620  912671ms S17 show after source change: state=resuming playing=true rendered=true events=[KeepAlive(resuming,woke)]
+10-27 10:01:41.701 17962 17962 I flutter : [KEEP_ALIVE] 10:01:41.701  912751ms S17 hide again -> holding=true state=holding
+10-27 10:01:44.703 17962 17962 I flutter : [KEEP_ALIVE] 10:01:44.703  915753ms VERDICT S17 PASS holding=true resume=true holdAgain=true
+10-27 10:01:45.507 17962 17962 I flutter : [KEEP_ALIVE] 10:01:45.506  916557ms === SUMMARY (samples in ms) ===
+10-27 10:01:45.510 17962 17962 I flutter : [KEEP_ALIVE] 10:01:45.509  916560ms SUMMARY S16.delay=500ms.holding values=[0,0,0,0,0] n=5 min=0 max=0 avg=0.0 median=0.0
+10-27 10:01:45.510 17962 17962 I flutter : [KEEP_ALIVE] 10:01:45.510  916560ms SUMMARY S16.delay=1000ms.holding values=[0,0,0,0,0] n=5 min=0 max=0 avg=0.0 median=0.0
+10-27 10:01:45.510 17962 17962 I flutter : [KEEP_ALIVE] 10:01:45.510  916560ms SUMMARY S16.delay=2000ms.holding values=[0,1,1,0,1] n=5 min=0 max=1 avg=0.6 median=1.0
+10-27 10:01:45.510 17962 17962 I flutter : [KEEP_ALIVE] 10:01:45.510  916561ms SUMMARY S16.delay=3000ms.holding values=[1,1,1,1,1] n=5 min=1 max=1 avg=1.0 median=1.0
+10-27 10:01:45.511 17962 17962 I flutter : [KEEP_ALIVE] 10:01:45.511  916561ms SUMMARY S16.audioPresentAfterOpenMs(100ms poll) values=[2417,2419,2406,2456,2056] n=5 min=2056 max=2456 avg=2350.8 median=2417.0
+10-27 10:01:45.511 17962 17962 I flutter : [KEEP_ALIVE] 10:01:45.511  916561ms SUMMARY S1.gop=25.hold=3s.elapsedMs values=[5000,5001,5002,5002,5000] n=5 min=5000 max=5002 avg=5001.0 median=5001.0
+10-27 10:01:45.511 17962 17962 I flutter : [KEEP_ALIVE] 10:01:45.511  916562ms SUMMARY S1.gop=25.hold=3s.decodedPropMs values=[131,199,120,159,124] n=5 min=120 max=199 avg=146.6 median=131.0
+10-27 10:01:45.512 17962 17962 I flutter : [KEEP_ALIVE] 10:01:45.511  916562ms SUMMARY S15.signal.grace values=[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1] n=15 min=1 max=1 avg=1.0 median=1.0
+10-27 10:01:45.512 17962 17962 I flutter : [KEEP_ALIVE] 10:01:45.512  916562ms SUMMARY S1.gop=50.hold=3s.elapsedMs values=[5001,5001,5006,5001,5002] n=5 min=5001 max=5006 avg=5002.2 median=5001.0
+10-27 10:01:45.512 17962 17962 I flutter : [KEEP_ALIVE] 10:01:45.512  916563ms SUMMARY S1.gop=50.hold=3s.decodedPropMs values=[145,126,115,156,122] n=5 min=115 max=156 avg=132.8 median=126.0
+10-27 10:01:45.513 17962 17962 I flutter : [KEEP_ALIVE] 10:01:45.512  916563ms SUMMARY S1.gop=100.hold=3s.elapsedMs values=[5001,5001,5000,5001,5000] n=5 min=5000 max=5001 avg=5000.6 median=5001.0
+10-27 10:01:45.513 17962 17962 I flutter : [KEEP_ALIVE] 10:01:45.513  916563ms SUMMARY S1.gop=100.hold=3s.decodedPropMs values=[146,147,99,155,128] n=5 min=99 max=155 avg=135.0 median=146.0
+10-27 10:01:45.513 17962 17962 I flutter : [KEEP_ALIVE] 10:01:45.513  916563ms SUMMARY S2.allowHls.resumeMs values=[5001,5000,5000,5001,5000] n=5 min=5000 max=5001 avg=5000.4 median=5000.0
+10-27 10:01:45.513 17962 17962 I flutter : [KEEP_ALIVE] 10:01:45.513  916564ms SUMMARY S2.allowHls.decodedPropMs values=[142,110,122,108,128] n=5 min=108 max=142 avg=122.0 median=122.0
+10-27 10:01:45.514 17962 17962 I flutter : [KEEP_ALIVE] 10:01:45.514  916564ms SUMMARY S3.resumeMs values=[0,1,1,1,0] n=5 min=0 max=1 avg=0.6 median=1.0
+10-27 10:01:45.514 17962 17962 I flutter : [KEEP_ALIVE] 10:01:45.514  916565ms SUMMARY S1 pass=0 fail=15
+10-27 10:01:45.515 17962 17962 I flutter : [KEEP_ALIVE] 10:01:45.514  916565ms SUMMARY S13 pass=5 fail=0
+10-27 10:01:45.515 17962 17962 I flutter : [KEEP_ALIVE] 10:01:45.515  916565ms SUMMARY S16 pass=20 fail=0
+10-27 10:01:45.515 17962 17962 I flutter : [KEEP_ALIVE] 10:01:45.515  916565ms SUMMARY S17 pass=5 fail=0
+10-27 10:01:45.515 17962 17962 I flutter : [KEEP_ALIVE] 10:01:45.515  916566ms SUMMARY S2 pass=10 fail=0
+10-27 10:01:45.516 17962 17962 I flutter : [KEEP_ALIVE] 10:01:45.516  916566ms SUMMARY S3 pass=5 fail=0
+10-27 10:01:45.516 17962 17962 I flutter : [KEEP_ALIVE] 10:01:45.516  916566ms SUMMARY S6 pass=0 fail=5
 ```
 
-## batch8-standby-native 自动检查点
+## batch8-keep-alive-native 自动检查点
 
 - 复用页运行；逐编号最终结论需结合下面原始断言复核。
-- driver exit=0；`{"selector": "standby|S7,S8,S8B,S14|1", "completed": true, "lines": 1812, "pid": "17963"}`。
-- 日志：`example/tool/coverage_evidence/batch8-standby-native.log`；截图/系统读回/采样同前缀。
+- driver exit=0；`{"selector": "keepAlive|S7,S8,S8B,S14|1", "completed": true, "lines": 1812, "pid": "17963"}`。
+- 日志：`example/tool/coverage_evidence/batch8-keep-alive-native.log`；截图/系统读回/采样同前缀。
 ```text
-10-27 10:02:08.263 17963 17963 I flutter : [STANDBY] 10:02:08.263   17732ms VERDICT S14 PASS screenshots taken by the external script (normal / holding1 / holding2 / restored)
-10-27 10:05:21.999 17963 17963 I flutter : [STANDBY] 10:05:21.999  211467ms VERDICT S7 PASS videoCameBack=20/20 signalLanded=0/20
-10-27 10:05:43.263 17963 17963 I flutter : [STANDBY] 10:05:43.263  232732ms VERDICT S8 PASS fact: playing=true advance=3040ms
-10-27 10:05:58.925 17963 17963 I flutter : [STANDBY] 10:05:58.925  248394ms VERDICT S8B PASS fact recorded
-10-27 10:05:59.726 17963 17963 I flutter : [STANDBY] 10:05:59.726  249195ms === SUMMARY (samples in ms) ===
-10-27 10:05:59.726 17963 17963 I flutter : [STANDBY] 10:05:59.726  249195ms SUMMARY S14 pass=1 fail=0
-10-27 10:05:59.726 17963 17963 I flutter : [STANDBY] 10:05:59.726  249195ms SUMMARY S7 pass=1 fail=0
-10-27 10:05:59.726 17963 17963 I flutter : [STANDBY] 10:05:59.726  249195ms SUMMARY S8 pass=1 fail=0
-10-27 10:05:59.726 17963 17963 I flutter : [STANDBY] 10:05:59.726  249195ms SUMMARY S8B pass=1 fail=0
-10-27 10:05:59.727 17963 17963 I flutter : [STANDBY] 10:05:59.727  249195ms AUTORUN DONE
+10-27 10:02:08.263 17963 17963 I flutter : [KEEP_ALIVE] 10:02:08.263   17732ms VERDICT S14 PASS screenshots taken by the external script (normal / holding1 / holding2 / restored)
+10-27 10:05:21.999 17963 17963 I flutter : [KEEP_ALIVE] 10:05:21.999  211467ms VERDICT S7 PASS videoCameBack=20/20 signalLanded=0/20
+10-27 10:05:43.263 17963 17963 I flutter : [KEEP_ALIVE] 10:05:43.263  232732ms VERDICT S8 PASS fact: playing=true advance=3040ms
+10-27 10:05:58.925 17963 17963 I flutter : [KEEP_ALIVE] 10:05:58.925  248394ms VERDICT S8B PASS fact recorded
+10-27 10:05:59.726 17963 17963 I flutter : [KEEP_ALIVE] 10:05:59.726  249195ms === SUMMARY (samples in ms) ===
+10-27 10:05:59.726 17963 17963 I flutter : [KEEP_ALIVE] 10:05:59.726  249195ms SUMMARY S14 pass=1 fail=0
+10-27 10:05:59.726 17963 17963 I flutter : [KEEP_ALIVE] 10:05:59.726  249195ms SUMMARY S7 pass=1 fail=0
+10-27 10:05:59.726 17963 17963 I flutter : [KEEP_ALIVE] 10:05:59.726  249195ms SUMMARY S8 pass=1 fail=0
+10-27 10:05:59.726 17963 17963 I flutter : [KEEP_ALIVE] 10:05:59.726  249195ms SUMMARY S8B pass=1 fail=0
+10-27 10:05:59.727 17963 17963 I flutter : [KEEP_ALIVE] 10:05:59.727  249195ms AUTORUN DONE
 ```
 
-## batch9-standby-cpu-drift 自动检查点
+## batch9-keep-alive-cpu-drift 自动检查点
 
 - 复用页运行；逐编号最终结论需结合下面原始断言复核。
-- driver exit=0；`{"selector": "standby|S4,S5,S5C|3", "completed": true, "lines": 3282, "pid": "22474"}`。
-- 日志：`example/tool/coverage_evidence/batch9-standby-cpu-drift.log`；截图/系统读回/采样同前缀。
+- driver exit=0；`{"selector": "keepAlive|S4,S5,S5C|3", "completed": true, "lines": 3282, "pid": "22474"}`。
+- 日志：`example/tool/coverage_evidence/batch9-keep-alive-cpu-drift.log`；截图/系统读回/采样同前缀。
 ```text
-10-27 10:06:35.570 22474 22474 I flutter : [STANDBY] 10:06:35.570   32199ms VERDICT S5 PASS drift=137ms
-10-27 10:07:09.142 22474 22474 I flutter : [STANDBY] 10:07:09.142   65770ms VERDICT S5 PASS drift=681ms
-10-27 10:07:42.607 22474 22474 I flutter : [STANDBY] 10:07:42.607   99235ms VERDICT S5 PASS drift=410ms
-10-27 10:08:16.100 22474 22474 I flutter : [STANDBY] 10:08:16.100  132728ms VERDICT S5C PASS control drift=-10ms
-10-27 10:08:49.258 22474 22474 I flutter : [STANDBY] 10:08:49.258  165886ms VERDICT S5C PASS control drift=10ms
-10-27 10:09:22.754 22474 22474 I flutter : [STANDBY] 10:09:22.754  199382ms VERDICT S5C PASS control drift=16ms
-10-27 10:09:44.135 22474 22474 I flutter : [STANDBY] 10:09:44.135  220763ms VERDICT S4 PASS normal recorded (see PHASE lines + external CPU/traffic)
-10-27 10:10:05.391 22474 22474 I flutter : [STANDBY] 10:10:05.390  242019ms VERDICT S4 PASS B recorded (see PHASE lines + external CPU/traffic)
-10-27 10:10:29.479 22474 22474 I flutter : [STANDBY] 10:10:29.479  266107ms VERDICT S4 PASS C recorded (see PHASE lines + external CPU/traffic)
-10-27 10:10:51.513 22474 22474 I flutter : [STANDBY] 10:10:51.513  288142ms VERDICT S4 PASS D recorded (see PHASE lines + external CPU/traffic)
-10-27 10:11:13.024 22474 22474 I flutter : [STANDBY] 10:11:13.024  309652ms VERDICT S4 PASS normal recorded (see PHASE lines + external CPU/traffic)
-10-27 10:11:34.721 22474 22474 I flutter : [STANDBY] 10:11:34.721  331349ms VERDICT S4 PASS B recorded (see PHASE lines + external CPU/traffic)
-10-27 10:12:01.455 22474 22474 I flutter : [STANDBY] 10:12:01.455  358084ms VERDICT S4 PASS C recorded (see PHASE lines + external CPU/traffic)
-10-27 10:12:22.788 22474 22474 I flutter : [STANDBY] 10:12:22.788  379417ms VERDICT S4 PASS D recorded (see PHASE lines + external CPU/traffic)
-10-27 10:12:44.451 22474 22474 I flutter : [STANDBY] 10:12:44.451  401080ms VERDICT S4 PASS normal recorded (see PHASE lines + external CPU/traffic)
-10-27 10:13:08.720 22474 22474 I flutter : [STANDBY] 10:13:08.720  425348ms VERDICT S4 PASS B recorded (see PHASE lines + external CPU/traffic)
-10-27 10:13:33.587 22474 22474 I flutter : [STANDBY] 10:13:33.587  450215ms VERDICT S4 PASS C recorded (see PHASE lines + external CPU/traffic)
-10-27 10:13:54.937 22474 22474 I flutter : [STANDBY] 10:13:54.937  471565ms VERDICT S4 PASS D recorded (see PHASE lines + external CPU/traffic)
-10-27 10:13:55.740 22474 22474 I flutter : [STANDBY] 10:13:55.740  472368ms === SUMMARY (samples in ms) ===
-10-27 10:13:55.741 22474 22474 I flutter : [STANDBY] 10:13:55.741  472370ms SUMMARY S5.driftMs values=[137,681,410] n=3 min=137 max=681 avg=409.3 median=410.0
-10-27 10:13:55.742 22474 22474 I flutter : [STANDBY] 10:13:55.742  472370ms SUMMARY S5C.driftMs values=[10,10,16] n=3 min=10 max=16 avg=12.0 median=10.0
-10-27 10:13:55.742 22474 22474 I flutter : [STANDBY] 10:13:55.742  472370ms SUMMARY S4 pass=12 fail=0
-10-27 10:13:55.742 22474 22474 I flutter : [STANDBY] 10:13:55.742  472371ms SUMMARY S5 pass=3 fail=0
-10-27 10:13:55.743 22474 22474 I flutter : [STANDBY] 10:13:55.742  472371ms SUMMARY S5C pass=3 fail=0
-10-27 10:13:55.743 22474 22474 I flutter : [STANDBY] 10:13:55.743  472371ms AUTORUN DONE
+10-27 10:06:35.570 22474 22474 I flutter : [KEEP_ALIVE] 10:06:35.570   32199ms VERDICT S5 PASS drift=137ms
+10-27 10:07:09.142 22474 22474 I flutter : [KEEP_ALIVE] 10:07:09.142   65770ms VERDICT S5 PASS drift=681ms
+10-27 10:07:42.607 22474 22474 I flutter : [KEEP_ALIVE] 10:07:42.607   99235ms VERDICT S5 PASS drift=410ms
+10-27 10:08:16.100 22474 22474 I flutter : [KEEP_ALIVE] 10:08:16.100  132728ms VERDICT S5C PASS control drift=-10ms
+10-27 10:08:49.258 22474 22474 I flutter : [KEEP_ALIVE] 10:08:49.258  165886ms VERDICT S5C PASS control drift=10ms
+10-27 10:09:22.754 22474 22474 I flutter : [KEEP_ALIVE] 10:09:22.754  199382ms VERDICT S5C PASS control drift=16ms
+10-27 10:09:44.135 22474 22474 I flutter : [KEEP_ALIVE] 10:09:44.135  220763ms VERDICT S4 PASS normal recorded (see PHASE lines + external CPU/traffic)
+10-27 10:10:05.391 22474 22474 I flutter : [KEEP_ALIVE] 10:10:05.390  242019ms VERDICT S4 PASS B recorded (see PHASE lines + external CPU/traffic)
+10-27 10:10:29.479 22474 22474 I flutter : [KEEP_ALIVE] 10:10:29.479  266107ms VERDICT S4 PASS C recorded (see PHASE lines + external CPU/traffic)
+10-27 10:10:51.513 22474 22474 I flutter : [KEEP_ALIVE] 10:10:51.513  288142ms VERDICT S4 PASS D recorded (see PHASE lines + external CPU/traffic)
+10-27 10:11:13.024 22474 22474 I flutter : [KEEP_ALIVE] 10:11:13.024  309652ms VERDICT S4 PASS normal recorded (see PHASE lines + external CPU/traffic)
+10-27 10:11:34.721 22474 22474 I flutter : [KEEP_ALIVE] 10:11:34.721  331349ms VERDICT S4 PASS B recorded (see PHASE lines + external CPU/traffic)
+10-27 10:12:01.455 22474 22474 I flutter : [KEEP_ALIVE] 10:12:01.455  358084ms VERDICT S4 PASS C recorded (see PHASE lines + external CPU/traffic)
+10-27 10:12:22.788 22474 22474 I flutter : [KEEP_ALIVE] 10:12:22.788  379417ms VERDICT S4 PASS D recorded (see PHASE lines + external CPU/traffic)
+10-27 10:12:44.451 22474 22474 I flutter : [KEEP_ALIVE] 10:12:44.451  401080ms VERDICT S4 PASS normal recorded (see PHASE lines + external CPU/traffic)
+10-27 10:13:08.720 22474 22474 I flutter : [KEEP_ALIVE] 10:13:08.720  425348ms VERDICT S4 PASS B recorded (see PHASE lines + external CPU/traffic)
+10-27 10:13:33.587 22474 22474 I flutter : [KEEP_ALIVE] 10:13:33.587  450215ms VERDICT S4 PASS C recorded (see PHASE lines + external CPU/traffic)
+10-27 10:13:54.937 22474 22474 I flutter : [KEEP_ALIVE] 10:13:54.937  471565ms VERDICT S4 PASS D recorded (see PHASE lines + external CPU/traffic)
+10-27 10:13:55.740 22474 22474 I flutter : [KEEP_ALIVE] 10:13:55.740  472368ms === SUMMARY (samples in ms) ===
+10-27 10:13:55.741 22474 22474 I flutter : [KEEP_ALIVE] 10:13:55.741  472370ms SUMMARY S5.driftMs values=[137,681,410] n=3 min=137 max=681 avg=409.3 median=410.0
+10-27 10:13:55.742 22474 22474 I flutter : [KEEP_ALIVE] 10:13:55.742  472370ms SUMMARY S5C.driftMs values=[10,10,16] n=3 min=10 max=16 avg=12.0 median=10.0
+10-27 10:13:55.742 22474 22474 I flutter : [KEEP_ALIVE] 10:13:55.742  472370ms SUMMARY S4 pass=12 fail=0
+10-27 10:13:55.742 22474 22474 I flutter : [KEEP_ALIVE] 10:13:55.742  472371ms SUMMARY S5 pass=3 fail=0
+10-27 10:13:55.743 22474 22474 I flutter : [KEEP_ALIVE] 10:13:55.742  472371ms SUMMARY S5C pass=3 fail=0
+10-27 10:13:55.743 22474 22474 I flutter : [KEEP_ALIVE] 10:13:55.743  472371ms AUTORUN DONE
 ```
 
 ## 批次 8/9 证据复核：黑屏/硬解与CPU/位置漂移
@@ -728,7 +728,7 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
 - B CPU samples=[7.1, 10.7, 10.7, 7.1, 10.7]%；min=7.1 max=10.7 avg=9.3%
 - C CPU samples=[135.0, 113.0, 121.0, 114.0, 114.0, 114.0]%；min=113.0 max=135.0 avg=118.5%
 - D CPU samples=[7.1, 10.7, 3.5, 7.1, 7.1, 7.1]%；min=3.5 max=10.7 avg=7.1%
-- S14真机截图已目视：normal为彩条时间码00:00:03.280；holding1/holding2的视频区域均纯黑；restored恢复彩条时间码00:00:14.520。证据为batch8-standby-native-1793066516146766700/1793066519499103800/1793066522002058700/1793066526106932300.png。Android表现为黑屏，Windows历史为冻结最后帧。
+- S14真机截图已目视：normal为彩条时间码00:00:03.280；holding1/holding2的视频区域均纯黑；restored恢复彩条时间码00:00:14.520。证据为batch8-keep-alive-native-1793066516146766700/1793066519499103800/1793066522002058700/1793066526106932300.png。Android表现为黑屏，Windows历史为冻结最后帧。
 - S7实际hwdec=mediacodec-copy，20/20属性/截图恢复画面、signalLanded=0/20；当前进程日志未见Could not open codec。S8守卫5s回前台自动续播，S8B命令式后台实际状态见原始日志。
 
 ## batch10-mute 自动检查点
@@ -737,21 +737,21 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
 - driver exit=0；`{"selector": "mute|Q13A,Q13B,Q13C|5", "completed": true, "lines": 7792, "pid": "22475"}`。
 - 日志：`example/tool/coverage_evidence/batch10-mute.log`；截图/系统读回/采样同前缀。
 ```text
-10-27 10:14:15.720 22475 22475 I flutter : [Q13] 10:14:15.720   15399ms VERDICT Q13A PASS warming: active(k1).mute=no shadow(k2).mute=yes swapped=true committed(live k2).mute=no
-10-27 10:14:32.017 22475 22475 I flutter : [Q13] 10:14:32.017   31697ms VERDICT Q13A PASS warming: active(k1).mute=no shadow(k2).mute=yes swapped=true committed(live k2).mute=no
-10-27 10:14:48.380 22475 22475 I flutter : [Q13] 10:14:48.380   48060ms VERDICT Q13A PASS warming: active(k1).mute=no shadow(k2).mute=yes swapped=true committed(live k2).mute=no
-10-27 10:15:04.729 22475 22475 I flutter : [Q13] 10:15:04.729   64408ms VERDICT Q13A PASS warming: active(k1).mute=no shadow(k2).mute=yes swapped=true committed(live k2).mute=no
-10-27 10:15:21.418 22475 22475 I flutter : [Q13] 10:15:21.418   81098ms VERDICT Q13A PASS warming: active(k1).mute=no shadow(k2).mute=yes swapped=true committed(live k2).mute=no
-10-27 10:15:45.465 22475 22475 I flutter : [Q13] 10:15:45.465  105145ms VERDICT Q13B PASS shadow.mute while warming=yes swapped=true committed(live k2).mute=yes live.vid=no standby=holding afterWake.mute=no
-10-27 10:16:08.772 22475 22475 I flutter : [Q13] 10:16:08.772  128451ms VERDICT Q13B PASS shadow.mute while warming=yes swapped=true committed(live k2).mute=yes live.vid=no standby=holding afterWake.mute=no
-10-27 10:16:32.499 22475 22475 I flutter : [Q13] 10:16:32.499  152178ms VERDICT Q13B PASS shadow.mute while warming=yes swapped=true committed(live k3).mute=yes live.vid=no standby=holding afterWake.mute=no
-10-27 10:16:55.987 22475 22475 I flutter : [Q13] 10:16:55.987  175666ms VERDICT Q13B PASS shadow.mute while warming=yes swapped=true committed(live k2).mute=yes live.vid=no standby=holding afterWake.mute=no
-10-27 10:17:17.419 22475 22475 I flutter : [Q13] 10:17:17.419  197098ms VERDICT Q13B PASS shadow.mute while warming=yes swapped=true committed(live k2).mute=yes live.vid=no standby=holding afterWake.mute=no
-10-27 10:17:34.181 22475 22475 I flutter : [Q13] 10:17:34.181  213860ms VERDICT Q13C PASS shadow.mute while warming=yes swapped=true committed(live k2).mute=no shadow.mute after wake=yes
-10-27 10:17:50.799 22475 22475 I flutter : [Q13] 10:17:50.799  230479ms VERDICT Q13C PASS shadow.mute while warming=yes swapped=true committed(live k3).mute=no shadow.mute after wake=yes
-10-27 10:18:07.040 22475 22475 I flutter : [Q13] 10:18:07.040  246720ms VERDICT Q13C PASS shadow.mute while warming=yes swapped=true committed(live k2).mute=no shadow.mute after wake=yes
-10-27 10:18:23.396 22475 22475 I flutter : [Q13] 10:18:23.396  263076ms VERDICT Q13C PASS shadow.mute while warming=yes swapped=true committed(live k2).mute=no shadow.mute after wake=yes
-10-27 10:18:39.123 22475 22475 I flutter : [Q13] 10:18:39.123  278803ms VERDICT Q13C PASS shadow.mute while warming=yes swapped=true committed(live k2).mute=no shadow.mute after wake=yes
+10-27 10:14:15.720 22475 22475 I flutter : [Q13] 10:14:15.720   15399ms VERDICT Q13A PASS warming: active(k1).mute=no shadow(k2).mute=yes cutover=true committed(live k2).mute=no
+10-27 10:14:32.017 22475 22475 I flutter : [Q13] 10:14:32.017   31697ms VERDICT Q13A PASS warming: active(k1).mute=no shadow(k2).mute=yes cutover=true committed(live k2).mute=no
+10-27 10:14:48.380 22475 22475 I flutter : [Q13] 10:14:48.380   48060ms VERDICT Q13A PASS warming: active(k1).mute=no shadow(k2).mute=yes cutover=true committed(live k2).mute=no
+10-27 10:15:04.729 22475 22475 I flutter : [Q13] 10:15:04.729   64408ms VERDICT Q13A PASS warming: active(k1).mute=no shadow(k2).mute=yes cutover=true committed(live k2).mute=no
+10-27 10:15:21.418 22475 22475 I flutter : [Q13] 10:15:21.418   81098ms VERDICT Q13A PASS warming: active(k1).mute=no shadow(k2).mute=yes cutover=true committed(live k2).mute=no
+10-27 10:15:45.465 22475 22475 I flutter : [Q13] 10:15:45.465  105145ms VERDICT Q13B PASS shadow.mute while warming=yes cutover=true committed(live k2).mute=yes live.vid=no keepAlive=holding afterWake.mute=no
+10-27 10:16:08.772 22475 22475 I flutter : [Q13] 10:16:08.772  128451ms VERDICT Q13B PASS shadow.mute while warming=yes cutover=true committed(live k2).mute=yes live.vid=no keepAlive=holding afterWake.mute=no
+10-27 10:16:32.499 22475 22475 I flutter : [Q13] 10:16:32.499  152178ms VERDICT Q13B PASS shadow.mute while warming=yes cutover=true committed(live k3).mute=yes live.vid=no keepAlive=holding afterWake.mute=no
+10-27 10:16:55.987 22475 22475 I flutter : [Q13] 10:16:55.987  175666ms VERDICT Q13B PASS shadow.mute while warming=yes cutover=true committed(live k2).mute=yes live.vid=no keepAlive=holding afterWake.mute=no
+10-27 10:17:17.419 22475 22475 I flutter : [Q13] 10:17:17.419  197098ms VERDICT Q13B PASS shadow.mute while warming=yes cutover=true committed(live k2).mute=yes live.vid=no keepAlive=holding afterWake.mute=no
+10-27 10:17:34.181 22475 22475 I flutter : [Q13] 10:17:34.181  213860ms VERDICT Q13C PASS shadow.mute while warming=yes cutover=true committed(live k2).mute=no shadow.mute after wake=yes
+10-27 10:17:50.799 22475 22475 I flutter : [Q13] 10:17:50.799  230479ms VERDICT Q13C PASS shadow.mute while warming=yes cutover=true committed(live k3).mute=no shadow.mute after wake=yes
+10-27 10:18:07.040 22475 22475 I flutter : [Q13] 10:18:07.040  246720ms VERDICT Q13C PASS shadow.mute while warming=yes cutover=true committed(live k2).mute=no shadow.mute after wake=yes
+10-27 10:18:23.396 22475 22475 I flutter : [Q13] 10:18:23.396  263076ms VERDICT Q13C PASS shadow.mute while warming=yes cutover=true committed(live k2).mute=no shadow.mute after wake=yes
+10-27 10:18:39.123 22475 22475 I flutter : [Q13] 10:18:39.123  278803ms VERDICT Q13C PASS shadow.mute while warming=yes cutover=true committed(live k2).mute=no shadow.mute after wake=yes
 10-27 10:18:40.203 22475 22475 I flutter : [Q13] 10:18:40.203  279883ms SUMMARY Q13A pass=5 fail=0
 10-27 10:18:40.204 22475 22475 I flutter : [Q13] 10:18:40.204  279883ms SUMMARY Q13B pass=5 fail=0
 10-27 10:18:40.204 22475 22475 I flutter : [Q13] 10:18:40.204  279883ms SUMMARY Q13C pass=5 fail=0
@@ -764,21 +764,21 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
 - 系统STREAM_MUSIC各MARK读回：`[('batch10-mute-1793067250831362000.audio.txt', 6), ('batch10-mute-1793067256062372100.audio.txt', 6), ('batch10-mute-1793067266980730900.audio.txt', 6), ('batch10-mute-1793067272361263800.audio.txt', 6), ('batch10-mute-1793067283118146400.audio.txt', 6), ('batch10-mute-1793067288703427500.audio.txt', 6), ('batch10-mute-1793067299680383800.audio.txt', 6), ('batch10-mute-1793067305077198800.audio.txt', 6), ('batch10-mute-1793067316169865500.audio.txt', 6), ('batch10-mute-1793067321767062600.audio.txt', 6), ('batch10-mute-1793067333603125400.audio.txt', 6), ('batch10-mute-1793067338699071100.audio.txt', 6), ('batch10-mute-1793067345811265400.audio.txt', 6), ('batch10-mute-1793067357355991600.audio.txt', 6), ('batch10-mute-1793067362000747100.audio.txt', 6), ('batch10-mute-1793067369120646400.audio.txt', 6), ('batch10-mute-1793067380794624000.audio.txt', 6), ('batch10-mute-1793067385729869200.audio.txt', 6), ('batch10-mute-1793067392839831000.audio.txt', 6), ('batch10-mute-1793067404414155200.audio.txt', 6), ('batch10-mute-1793067409260156700.audio.txt', 6), ('batch10-mute-1793067416332415400.audio.txt', 6), ('batch10-mute-1793067427092050200.audio.txt', 6), ('batch10-mute-1793067430700869400.audio.txt', 6), ('batch10-mute-1793067437765993900.audio.txt', 6), ('batch10-mute-1793067450138312700.audio.txt', 6), ('batch10-mute-1793067451796168000.audio.txt', 6), ('batch10-mute-1793067454529617900.audio.txt', 6), ('batch10-mute-1793067466186344500.audio.txt', 6), ('batch10-mute-1793067467257163800.audio.txt', 6), ('batch10-mute-1793067471149112800.audio.txt', 6), ('batch10-mute-1793067482851511900.audio.txt', 6), ('batch10-mute-1793067483898028600.audio.txt', 6), ('batch10-mute-1793067487394952200.audio.txt', 6), ('batch10-mute-1793067499062038100.audio.txt', 6), ('batch10-mute-1793067500134557800.audio.txt', 6), ('batch10-mute-1793067503742815300.audio.txt', 6), ('batch10-mute-1793067515220296800.audio.txt', 6), ('batch10-mute-1793067516297771100.audio.txt', 6), ('batch10-mute-1793067519471772900.audio.txt', 6)]`。
 - 人耳听感/微小漏音没有可用音频采集，不将属性及系统音量等同于人耳波形验证。
 ```text
-10-27 10:14:15.720 22475 22475 I flutter : [Q13] 10:14:15.720   15399ms VERDICT Q13A PASS warming: active(k1).mute=no shadow(k2).mute=yes swapped=true committed(live k2).mute=no
-10-27 10:14:32.017 22475 22475 I flutter : [Q13] 10:14:32.017   31697ms VERDICT Q13A PASS warming: active(k1).mute=no shadow(k2).mute=yes swapped=true committed(live k2).mute=no
-10-27 10:14:48.380 22475 22475 I flutter : [Q13] 10:14:48.380   48060ms VERDICT Q13A PASS warming: active(k1).mute=no shadow(k2).mute=yes swapped=true committed(live k2).mute=no
-10-27 10:15:04.729 22475 22475 I flutter : [Q13] 10:15:04.729   64408ms VERDICT Q13A PASS warming: active(k1).mute=no shadow(k2).mute=yes swapped=true committed(live k2).mute=no
-10-27 10:15:21.418 22475 22475 I flutter : [Q13] 10:15:21.418   81098ms VERDICT Q13A PASS warming: active(k1).mute=no shadow(k2).mute=yes swapped=true committed(live k2).mute=no
-10-27 10:15:45.465 22475 22475 I flutter : [Q13] 10:15:45.465  105145ms VERDICT Q13B PASS shadow.mute while warming=yes swapped=true committed(live k2).mute=yes live.vid=no standby=holding afterWake.mute=no
-10-27 10:16:08.772 22475 22475 I flutter : [Q13] 10:16:08.772  128451ms VERDICT Q13B PASS shadow.mute while warming=yes swapped=true committed(live k2).mute=yes live.vid=no standby=holding afterWake.mute=no
-10-27 10:16:32.499 22475 22475 I flutter : [Q13] 10:16:32.499  152178ms VERDICT Q13B PASS shadow.mute while warming=yes swapped=true committed(live k3).mute=yes live.vid=no standby=holding afterWake.mute=no
-10-27 10:16:55.987 22475 22475 I flutter : [Q13] 10:16:55.987  175666ms VERDICT Q13B PASS shadow.mute while warming=yes swapped=true committed(live k2).mute=yes live.vid=no standby=holding afterWake.mute=no
-10-27 10:17:17.419 22475 22475 I flutter : [Q13] 10:17:17.419  197098ms VERDICT Q13B PASS shadow.mute while warming=yes swapped=true committed(live k2).mute=yes live.vid=no standby=holding afterWake.mute=no
-10-27 10:17:34.181 22475 22475 I flutter : [Q13] 10:17:34.181  213860ms VERDICT Q13C PASS shadow.mute while warming=yes swapped=true committed(live k2).mute=no shadow.mute after wake=yes
-10-27 10:17:50.799 22475 22475 I flutter : [Q13] 10:17:50.799  230479ms VERDICT Q13C PASS shadow.mute while warming=yes swapped=true committed(live k3).mute=no shadow.mute after wake=yes
-10-27 10:18:07.040 22475 22475 I flutter : [Q13] 10:18:07.040  246720ms VERDICT Q13C PASS shadow.mute while warming=yes swapped=true committed(live k2).mute=no shadow.mute after wake=yes
-10-27 10:18:23.396 22475 22475 I flutter : [Q13] 10:18:23.396  263076ms VERDICT Q13C PASS shadow.mute while warming=yes swapped=true committed(live k2).mute=no shadow.mute after wake=yes
-10-27 10:18:39.123 22475 22475 I flutter : [Q13] 10:18:39.123  278803ms VERDICT Q13C PASS shadow.mute while warming=yes swapped=true committed(live k2).mute=no shadow.mute after wake=yes
+10-27 10:14:15.720 22475 22475 I flutter : [Q13] 10:14:15.720   15399ms VERDICT Q13A PASS warming: active(k1).mute=no shadow(k2).mute=yes cutover=true committed(live k2).mute=no
+10-27 10:14:32.017 22475 22475 I flutter : [Q13] 10:14:32.017   31697ms VERDICT Q13A PASS warming: active(k1).mute=no shadow(k2).mute=yes cutover=true committed(live k2).mute=no
+10-27 10:14:48.380 22475 22475 I flutter : [Q13] 10:14:48.380   48060ms VERDICT Q13A PASS warming: active(k1).mute=no shadow(k2).mute=yes cutover=true committed(live k2).mute=no
+10-27 10:15:04.729 22475 22475 I flutter : [Q13] 10:15:04.729   64408ms VERDICT Q13A PASS warming: active(k1).mute=no shadow(k2).mute=yes cutover=true committed(live k2).mute=no
+10-27 10:15:21.418 22475 22475 I flutter : [Q13] 10:15:21.418   81098ms VERDICT Q13A PASS warming: active(k1).mute=no shadow(k2).mute=yes cutover=true committed(live k2).mute=no
+10-27 10:15:45.465 22475 22475 I flutter : [Q13] 10:15:45.465  105145ms VERDICT Q13B PASS shadow.mute while warming=yes cutover=true committed(live k2).mute=yes live.vid=no keepAlive=holding afterWake.mute=no
+10-27 10:16:08.772 22475 22475 I flutter : [Q13] 10:16:08.772  128451ms VERDICT Q13B PASS shadow.mute while warming=yes cutover=true committed(live k2).mute=yes live.vid=no keepAlive=holding afterWake.mute=no
+10-27 10:16:32.499 22475 22475 I flutter : [Q13] 10:16:32.499  152178ms VERDICT Q13B PASS shadow.mute while warming=yes cutover=true committed(live k3).mute=yes live.vid=no keepAlive=holding afterWake.mute=no
+10-27 10:16:55.987 22475 22475 I flutter : [Q13] 10:16:55.987  175666ms VERDICT Q13B PASS shadow.mute while warming=yes cutover=true committed(live k2).mute=yes live.vid=no keepAlive=holding afterWake.mute=no
+10-27 10:17:17.419 22475 22475 I flutter : [Q13] 10:17:17.419  197098ms VERDICT Q13B PASS shadow.mute while warming=yes cutover=true committed(live k2).mute=yes live.vid=no keepAlive=holding afterWake.mute=no
+10-27 10:17:34.181 22475 22475 I flutter : [Q13] 10:17:34.181  213860ms VERDICT Q13C PASS shadow.mute while warming=yes cutover=true committed(live k2).mute=no shadow.mute after wake=yes
+10-27 10:17:50.799 22475 22475 I flutter : [Q13] 10:17:50.799  230479ms VERDICT Q13C PASS shadow.mute while warming=yes cutover=true committed(live k3).mute=no shadow.mute after wake=yes
+10-27 10:18:07.040 22475 22475 I flutter : [Q13] 10:18:07.040  246720ms VERDICT Q13C PASS shadow.mute while warming=yes cutover=true committed(live k2).mute=no shadow.mute after wake=yes
+10-27 10:18:23.396 22475 22475 I flutter : [Q13] 10:18:23.396  263076ms VERDICT Q13C PASS shadow.mute while warming=yes cutover=true committed(live k2).mute=no shadow.mute after wake=yes
+10-27 10:18:39.123 22475 22475 I flutter : [Q13] 10:18:39.123  278803ms VERDICT Q13C PASS shadow.mute while warming=yes cutover=true committed(live k2).mute=no shadow.mute after wake=yes
 10-27 10:18:40.203 22475 22475 I flutter : [Q13] 10:18:40.203  279883ms SUMMARY Q13A pass=5 fail=0
 10-27 10:18:40.204 22475 22475 I flutter : [Q13] 10:18:40.204  279883ms SUMMARY Q13B pass=5 fail=0
 10-27 10:18:40.204 22475 22475 I flutter : [Q13] 10:18:40.204  279883ms SUMMARY Q13C pass=5 fail=0
@@ -793,57 +793,57 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
 10-27 10:18:46.304 22476 22476 I flutter : RFV2|1793067526304|START|group=all win=1080x2376 padTop=110 viewPadTop=110 viewPadBot=0
 10-27 10:18:46.304 22476 22476 I flutter : RFV2|1793067526304|GROUP|begin v10
 10-27 10:18:49.205 22476 22476 I flutter : RFV2|1793067529205|V10|run1 before: fs=true ori=auto video=640x360 epoch=0 win=2266x1080 padTop=0 viewPadTop=0 viewPadBot=0
-10-27 10:18:49.205 22476 22476 I flutter : RFV2|1793067529205|SAMPLE|V10_run1_before_swap
-10-27 10:18:51.407 22476 22476 I flutter : RFV2|1793067531407|WIN|V10_run1_before_swap 2266x1080 padTop=0 viewPadTop=0 viewPadBot=0
-10-27 10:18:53.557 22476 22476 I flutter : RFV2|1793067533557|V10|run1 swapTo=true in 949ms; successor fs=true ori=auto title=B epoch=1 landscape=true immersive=true
-10-27 10:18:53.557 22476 22476 I flutter : RFV2|1793067533557|SAMPLE|V10_run1_after_swap
-10-27 10:18:55.760 22476 22476 I flutter : RFV2|1793067535760|WIN|V10_run1_after_swap 2266x1080 padTop=0 viewPadTop=0 viewPadBot=0
+10-27 10:18:49.205 22476 22476 I flutter : RFV2|1793067529205|SAMPLE|V10_run1_before_cutover
+10-27 10:18:51.407 22476 22476 I flutter : RFV2|1793067531407|WIN|V10_run1_before_cutover 2266x1080 padTop=0 viewPadTop=0 viewPadBot=0
+10-27 10:18:53.557 22476 22476 I flutter : RFV2|1793067533557|V10|run1 cutoverTo=true in 949ms; successor fs=true ori=auto title=B epoch=1 landscape=true immersive=true
+10-27 10:18:53.557 22476 22476 I flutter : RFV2|1793067533557|SAMPLE|V10_run1_after_cutover
+10-27 10:18:55.760 22476 22476 I flutter : RFV2|1793067535760|WIN|V10_run1_after_cutover 2266x1080 padTop=0 viewPadTop=0 viewPadBot=0
 10-27 10:18:57.272 22476 22476 I flutter : RFV2|1793067537272|V10|run1 after dispose: landscape=false immersive=false
 10-27 10:18:57.272 22476 22476 I flutter : RFV2|1793067537272|SAMPLE|V10_run1_after_dispose
 10-27 10:18:59.475 22476 22476 I flutter : RFV2|1793067539475|WIN|V10_run1_after_dispose 1080x2376 padTop=110 viewPadTop=110 viewPadBot=0
-10-27 10:18:59.477 22476 22476 I flutter : RFV2|1793067539476|RESULT|V10|run1|PASS|preFsLandscapeImmersive=true swapTo=true successorFs=true landscapeAfterSwap=true immersiveAfterSwap=true restoredPortrait=true barsRestored=true
+10-27 10:18:59.477 22476 22476 I flutter : RFV2|1793067539476|RESULT|V10|run1|PASS|preFsLandscapeImmersive=true cutoverTo=true successorFs=true landscapeAfterCutover=true immersiveAfterCutover=true restoredPortrait=true barsRestored=true
 10-27 10:19:02.923 22476 22476 I flutter : RFV2|1793067542923|V10|run2 before: fs=true ori=auto video=640x360 epoch=0 win=2266x1080 padTop=0 viewPadTop=0 viewPadBot=0
-10-27 10:19:02.924 22476 22476 I flutter : RFV2|1793067542924|SAMPLE|V10_run2_before_swap
-10-27 10:19:05.126 22476 22476 I flutter : RFV2|1793067545126|WIN|V10_run2_before_swap 2266x1080 padTop=0 viewPadTop=0 viewPadBot=0
-10-27 10:19:07.294 22476 22476 I flutter : RFV2|1793067547294|V10|run2 swapTo=true in 966ms; successor fs=true ori=auto title=B epoch=1 landscape=true immersive=true
-10-27 10:19:07.295 22476 22476 I flutter : RFV2|1793067547295|SAMPLE|V10_run2_after_swap
-10-27 10:19:09.497 22476 22476 I flutter : RFV2|1793067549496|WIN|V10_run2_after_swap 2266x1080 padTop=0 viewPadTop=0 viewPadBot=0
+10-27 10:19:02.924 22476 22476 I flutter : RFV2|1793067542924|SAMPLE|V10_run2_before_cutover
+10-27 10:19:05.126 22476 22476 I flutter : RFV2|1793067545126|WIN|V10_run2_before_cutover 2266x1080 padTop=0 viewPadTop=0 viewPadBot=0
+10-27 10:19:07.294 22476 22476 I flutter : RFV2|1793067547294|V10|run2 cutoverTo=true in 966ms; successor fs=true ori=auto title=B epoch=1 landscape=true immersive=true
+10-27 10:19:07.295 22476 22476 I flutter : RFV2|1793067547295|SAMPLE|V10_run2_after_cutover
+10-27 10:19:09.497 22476 22476 I flutter : RFV2|1793067549496|WIN|V10_run2_after_cutover 2266x1080 padTop=0 viewPadTop=0 viewPadBot=0
 10-27 10:19:11.002 22476 22476 I flutter : RFV2|1793067551001|V10|run2 after dispose: landscape=false immersive=false
 10-27 10:19:11.002 22476 22476 I flutter : RFV2|1793067551002|SAMPLE|V10_run2_after_dispose
 10-27 10:19:13.204 22476 22476 I flutter : RFV2|1793067553204|WIN|V10_run2_after_dispose 1080x2376 padTop=110 viewPadTop=110 viewPadBot=0
-10-27 10:19:13.205 22476 22476 I flutter : RFV2|1793067553205|RESULT|V10|run2|PASS|preFsLandscapeImmersive=true swapTo=true successorFs=true landscapeAfterSwap=true immersiveAfterSwap=true restoredPortrait=true barsRestored=true
+10-27 10:19:13.205 22476 22476 I flutter : RFV2|1793067553205|RESULT|V10|run2|PASS|preFsLandscapeImmersive=true cutoverTo=true successorFs=true landscapeAfterCutover=true immersiveAfterCutover=true restoredPortrait=true barsRestored=true
 10-27 10:19:16.578 22476 22476 I flutter : RFV2|1793067556578|V10|run3 before: fs=true ori=auto video=640x360 epoch=0 win=2266x1080 padTop=0 viewPadTop=0 viewPadBot=0
-10-27 10:19:16.578 22476 22476 I flutter : RFV2|1793067556578|SAMPLE|V10_run3_before_swap
-10-27 10:19:18.780 22476 22476 I flutter : RFV2|1793067558780|WIN|V10_run3_before_swap 2266x1080 padTop=0 viewPadTop=0 viewPadBot=0
-10-27 10:19:20.923 22476 22476 I flutter : RFV2|1793067560922|V10|run3 swapTo=true in 942ms; successor fs=true ori=auto title=B epoch=1 landscape=true immersive=true
-10-27 10:19:20.923 22476 22476 I flutter : RFV2|1793067560923|SAMPLE|V10_run3_after_swap
-10-27 10:19:23.125 22476 22476 I flutter : RFV2|1793067563125|WIN|V10_run3_after_swap 2266x1080 padTop=0 viewPadTop=0 viewPadBot=0
+10-27 10:19:16.578 22476 22476 I flutter : RFV2|1793067556578|SAMPLE|V10_run3_before_cutover
+10-27 10:19:18.780 22476 22476 I flutter : RFV2|1793067558780|WIN|V10_run3_before_cutover 2266x1080 padTop=0 viewPadTop=0 viewPadBot=0
+10-27 10:19:20.923 22476 22476 I flutter : RFV2|1793067560922|V10|run3 cutoverTo=true in 942ms; successor fs=true ori=auto title=B epoch=1 landscape=true immersive=true
+10-27 10:19:20.923 22476 22476 I flutter : RFV2|1793067560923|SAMPLE|V10_run3_after_cutover
+10-27 10:19:23.125 22476 22476 I flutter : RFV2|1793067563125|WIN|V10_run3_after_cutover 2266x1080 padTop=0 viewPadTop=0 viewPadBot=0
 10-27 10:19:24.633 22476 22476 I flutter : RFV2|1793067564633|V10|run3 after dispose: landscape=false immersive=false
 10-27 10:19:24.634 22476 22476 I flutter : RFV2|1793067564634|SAMPLE|V10_run3_after_dispose
 10-27 10:19:26.837 22476 22476 I flutter : RFV2|1793067566836|WIN|V10_run3_after_dispose 1080x2376 padTop=110 viewPadTop=110 viewPadBot=0
-10-27 10:19:26.837 22476 22476 I flutter : RFV2|1793067566837|RESULT|V10|run3|PASS|preFsLandscapeImmersive=true swapTo=true successorFs=true landscapeAfterSwap=true immersiveAfterSwap=true restoredPortrait=true barsRestored=true
+10-27 10:19:26.837 22476 22476 I flutter : RFV2|1793067566837|RESULT|V10|run3|PASS|preFsLandscapeImmersive=true cutoverTo=true successorFs=true landscapeAfterCutover=true immersiveAfterCutover=true restoredPortrait=true barsRestored=true
 10-27 10:19:26.838 22476 22476 I flutter : RFV2|1793067566838|GROUP|end v10 uncaught=0
 10-27 10:19:26.838 22476 22476 I flutter : RFV2|1793067566838|GROUP|begin v10x
 10-27 10:19:30.405 22476 22476 I flutter : RFV2|1793067570405|V10x|run1 before: fs=true ori=auto video=640x360 epoch=0 win=2266x1080 padTop=0 viewPadTop=0 viewPadBot=0
-10-27 10:19:30.405 22476 22476 I flutter : RFV2|1793067570405|SAMPLE|V10x_run1_before_swap
-10-27 10:19:32.606 22476 22476 I flutter : RFV2|1793067572606|WIN|V10x_run1_before_swap 2266x1080 padTop=0 viewPadTop=0 viewPadBot=0
-10-27 10:19:34.827 22476 22476 I flutter : RFV2|1793067574827|V10x|run1 swapTo=true in 1019ms; successor fs=true ori=auto title=B epoch=1 landscape=true immersive=true
-10-27 10:19:34.827 22476 22476 I flutter : RFV2|1793067574827|SAMPLE|V10x_run1_after_swap
-10-27 10:19:37.029 22476 22476 I flutter : RFV2|1793067577029|WIN|V10x_run1_after_swap 2266x1080 padTop=0 viewPadTop=0 viewPadBot=0
+10-27 10:19:30.405 22476 22476 I flutter : RFV2|1793067570405|SAMPLE|V10x_run1_before_cutover
+10-27 10:19:32.606 22476 22476 I flutter : RFV2|1793067572606|WIN|V10x_run1_before_cutover 2266x1080 padTop=0 viewPadTop=0 viewPadBot=0
+10-27 10:19:34.827 22476 22476 I flutter : RFV2|1793067574827|V10x|run1 cutoverTo=true in 1019ms; successor fs=true ori=auto title=B epoch=1 landscape=true immersive=true
+10-27 10:19:34.827 22476 22476 I flutter : RFV2|1793067574827|SAMPLE|V10x_run1_after_cutover
+10-27 10:19:37.029 22476 22476 I flutter : RFV2|1793067577029|WIN|V10x_run1_after_cutover 2266x1080 padTop=0 viewPadTop=0 viewPadBot=0
 10-27 10:19:38.340 22476 22476 I flutter : RFV2|1793067578340|V10x|run1 after setFullscreen(false): fs=false landscape=false immersive=false
 10-27 10:19:38.341 22476 22476 I flutter : RFV2|1793067578340|SAMPLE|V10x_run1_after_exit
 10-27 10:19:40.542 22476 22476 I flutter : RFV2|1793067580542|WIN|V10x_run1_after_exit 1080x2376 padTop=110 viewPadTop=110 viewPadBot=0
-10-27 10:19:40.805 22476 22476 I flutter : RFV2|1793067580805|RESULT|V10x|run1|PASS|preFsLandscapeImmersive=true swapTo=true successorFs=true landscapeAfterSwap=true immersiveAfterSwap=true restoredPortrait=true barsRestored=true
+10-27 10:19:40.805 22476 22476 I flutter : RFV2|1793067580805|RESULT|V10x|run1|PASS|preFsLandscapeImmersive=true cutoverTo=true successorFs=true landscapeAfterCutover=true immersiveAfterCutover=true restoredPortrait=true barsRestored=true
 10-27 10:19:44.295 22476 22476 I flutter : RFV2|1793067584295|V10x|run2 before: fs=true ori=auto video=640x360 epoch=0 win=2266x1080 padTop=0 viewPadTop=0 viewPadBot=0
-10-27 10:19:44.295 22476 22476 I flutter : RFV2|1793067584295|SAMPLE|V10x_run2_before_swap
-10-27 10:19:46.497 22476 22476 I flutter : RFV2|1793067586497|WIN|V10x_run2_before_swap 2266x1080 padTop=0 viewPadTop=0 viewPadBot=0
-10-27 10:19:48.690 22476 22476 I flutter : RFV2|1793067588690|V10x|run2 swapTo=true in 992ms; successor fs=true ori=auto title=B epoch=1 landscape=true immersive=true
-10-27 10:19:48.690 22476 22476 I flutter : RFV2|1793067588690|SAMPLE|V10x_run2_after_swap
-10-27 10:19:50.891 22476 22476 I flutter : RFV2|1793067590891|WIN|V10x_run2_after_swap 2266x1080 padTop=0 viewPadTop=0 viewPadBot=0
+10-27 10:19:44.295 22476 22476 I flutter : RFV2|1793067584295|SAMPLE|V10x_run2_before_cutover
+10-27 10:19:46.497 22476 22476 I flutter : RFV2|1793067586497|WIN|V10x_run2_before_cutover 2266x1080 padTop=0 viewPadTop=0 viewPadBot=0
+10-27 10:19:48.690 22476 22476 I flutter : RFV2|1793067588690|V10x|run2 cutoverTo=true in 992ms; successor fs=true ori=auto title=B epoch=1 landscape=true immersive=true
+10-27 10:19:48.690 22476 22476 I flutter : RFV2|1793067588690|SAMPLE|V10x_run2_after_cutover
+10-27 10:19:50.891 22476 22476 I flutter : RFV2|1793067590891|WIN|V10x_run2_after_cutover 2266x1080 padTop=0 viewPadTop=0 viewPadBot=0
 10-27 10:19:52.225 22476 22476 I flutter : RFV2|1793067592225|V10x|run2 after setFullscreen(false): fs=false landscape=false immersive=false
 10-27 10:19:52.225 22476 22476 I flutter : RFV2|1793067592225|SAMPLE|V10x_run2_after_exit
 10-27 10:19:54.428 22476 22476 I flutter : RFV2|1793067594428|WIN|V10x_run2_after_exit 1080x2376 padTop=110 viewPadTop=110 viewPadBot=0
-10-27 10:19:54.601 22476 22476 I flutter : RFV2|1793067594601|RESULT|V10x|run2|PASS|preFsLandscapeImmersive=true swapTo=true successorFs=true landscapeAfterSwap=true immersiveAfterSwap=true restoredPortrait=true barsRestored=true
+10-27 10:19:54.601 22476 22476 I flutter : RFV2|1793067594601|RESULT|V10x|run2|PASS|preFsLandscapeImmersive=true cutoverTo=true successorFs=true landscapeAfterCutover=true immersiveAfterCutover=true restoredPortrait=true barsRestored=true
 10-27 10:19:54.602 22476 22476 I flutter : RFV2|1793067594602|GROUP|end v10x uncaught=0
 10-27 10:19:54.602 22476 22476 I flutter : RFV2|1793067594602|GROUP|begin v10c
 10-27 10:19:58.098 22476 22476 I flutter : RFV2|1793067598098|V10c|run1 before plain dispose of E1: landscape=true immersive=true e2.fs=true
@@ -852,136 +852,136 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
 10-27 10:20:01.637 22476 22476 I flutter : RFV2|1793067601637|V10c|run1 after plain dispose of E1: landscape=false immersive=false e2.fs=true
 10-27 10:20:01.637 22476 22476 I flutter : RFV2|1793067601637|SAMPLE|V10c_run1_after_plain_dispose
 10-27 10:20:03.839 22476 22476 I flutter : RFV2|1793067603839|WIN|V10c_run1_after_plain_dispose 1080x2376 padTop=110 viewPadTop=110 viewPadBot=0
-10-27 10:20:03.839 22476 22476 I flutter : RFV2|1793067603839|RESULT|V10c|run1|PASS|baselineFsOk=true platformResetByPlainDispose=true (PASS 表示"确认旧引擎普通 dispose 会复位", 即退役标记确有必要)
+10-27 10:20:03.839 22476 22476 I flutter : RFV2|1793067603839|RESULT|V10c|run1|PASS|baselineFsOk=true platformResetByPlainDispose=true (PASS 表示"确认旧播放器普通 dispose 会复位", 即退役标记确有必要)
 10-27 10:20:08.093 22476 22476 I flutter : RFV2|1793067608093|V10c|run2 before plain dispose of E1: landscape=true immersive=true e2.fs=true
 10-27 10:20:08.093 22476 22476 I flutter : RFV2|1793067608093|SAMPLE|V10c_run2_before
 10-27 10:20:10.294 22476 22476 I flutter : RFV2|1793067610294|WIN|V10c_run2_before 2266x1080 padTop=0 viewPadTop=0 viewPadBot=0
 10-27 10:20:11.683 22476 22476 I flutter : RFV2|1793067611683|V10c|run2 after plain dispose of E1: landscape=false immersive=false e2.fs=true
 10-27 10:20:11.684 22476 22476 I flutter : RFV2|1793067611683|SAMPLE|V10c_run2_after_plain_dispose
 10-27 10:20:13.884 22476 22476 I flutter : RFV2|1793067613884|WIN|V10c_run2_after_plain_dispose 1080x2376 padTop=110 viewPadTop=110 viewPadBot=0
-10-27 10:20:13.885 22476 22476 I flutter : RFV2|1793067613884|RESULT|V10c|run2|PASS|baselineFsOk=true platformResetByPlainDispose=true (PASS 表示"确认旧引擎普通 dispose 会复位", 即退役标记确有必要)
+10-27 10:20:13.885 22476 22476 I flutter : RFV2|1793067613884|RESULT|V10c|run2|PASS|baselineFsOk=true platformResetByPlainDispose=true (PASS 表示"确认旧播放器普通 dispose 会复位", 即退役标记确有必要)
 10-27 10:20:14.989 22476 22476 I flutter : RFV2|1793067614989|GROUP|end v10c uncaught=0
 10-27 10:20:14.990 22476 22476 I flutter : RFV2|1793067614990|GROUP|begin v11
 10-27 10:20:18.463 22476 22476 I flutter : RFV2|1793067618463|V11|run1 before: fs=false ori=landscape landscape=true win=2266x1080 padTop=110 viewPadTop=110 viewPadBot=0
-10-27 10:20:18.463 22476 22476 I flutter : RFV2|1793067618463|SAMPLE|V11_run1_before_swap
-10-27 10:20:20.669 22476 22476 I flutter : RFV2|1793067620669|WIN|V11_run1_before_swap 2266x1080 padTop=110 viewPadTop=110 viewPadBot=0
-10-27 10:20:22.819 22476 22476 I flutter : RFV2|1793067622819|V11|run1 swapTo=true successor ori=landscape fs=false title=B landscape=true
-10-27 10:20:22.819 22476 22476 I flutter : RFV2|1793067622819|SAMPLE|V11_run1_after_swap
-10-27 10:20:25.020 22476 22476 I flutter : RFV2|1793067625020|WIN|V11_run1_after_swap 2266x1080 padTop=110 viewPadTop=110 viewPadBot=0
+10-27 10:20:18.463 22476 22476 I flutter : RFV2|1793067618463|SAMPLE|V11_run1_before_cutover
+10-27 10:20:20.669 22476 22476 I flutter : RFV2|1793067620669|WIN|V11_run1_before_cutover 2266x1080 padTop=110 viewPadTop=110 viewPadBot=0
+10-27 10:20:22.819 22476 22476 I flutter : RFV2|1793067622819|V11|run1 cutoverTo=true successor ori=landscape fs=false title=B landscape=true
+10-27 10:20:22.819 22476 22476 I flutter : RFV2|1793067622819|SAMPLE|V11_run1_after_cutover
+10-27 10:20:25.020 22476 22476 I flutter : RFV2|1793067625020|WIN|V11_run1_after_cutover 2266x1080 padTop=110 viewPadTop=110 viewPadBot=0
 10-27 10:20:26.530 22476 22476 I flutter : RFV2|1793067626530|V11|run1 after dispose: landscape=false
 10-27 10:20:26.531 22476 22476 I flutter : RFV2|1793067626531|SAMPLE|V11_run1_after_dispose
 10-27 10:20:28.733 22476 22476 I flutter : RFV2|1793067628733|WIN|V11_run1_after_dispose 1080x2376 padTop=110 viewPadTop=110 viewPadBot=0
-10-27 10:20:28.735 22476 22476 I flutter : RFV2|1793067628735|RESULT|V11|run1|PASS|preLandscape=true swapTo=true successorOrientation=landscape landscapeAfterSwap=true restoredPortrait=true
+10-27 10:20:28.735 22476 22476 I flutter : RFV2|1793067628735|RESULT|V11|run1|PASS|preLandscape=true cutoverTo=true successorOrient=landscape landscapeAfterCutover=true restoredPortrait=true
 10-27 10:20:31.955 22476 22476 I flutter : RFV2|1793067631955|V11|run2 before: fs=false ori=landscape landscape=true win=2266x1080 padTop=110 viewPadTop=110 viewPadBot=0
-10-27 10:20:31.955 22476 22476 I flutter : RFV2|1793067631955|SAMPLE|V11_run2_before_swap
-10-27 10:20:34.157 22476 22476 I flutter : RFV2|1793067634157|WIN|V11_run2_before_swap 2266x1080 padTop=110 viewPadTop=110 viewPadBot=0
-10-27 10:20:36.328 22476 22476 I flutter : RFV2|1793067636327|V11|run2 swapTo=true successor ori=landscape fs=false title=B landscape=true
-10-27 10:20:36.328 22476 22476 I flutter : RFV2|1793067636328|SAMPLE|V11_run2_after_swap
-10-27 10:20:38.529 22476 22476 I flutter : RFV2|1793067638529|WIN|V11_run2_after_swap 2266x1080 padTop=110 viewPadTop=110 viewPadBot=0
+10-27 10:20:31.955 22476 22476 I flutter : RFV2|1793067631955|SAMPLE|V11_run2_before_cutover
+10-27 10:20:34.157 22476 22476 I flutter : RFV2|1793067634157|WIN|V11_run2_before_cutover 2266x1080 padTop=110 viewPadTop=110 viewPadBot=0
+10-27 10:20:36.328 22476 22476 I flutter : RFV2|1793067636327|V11|run2 cutoverTo=true successor ori=landscape fs=false title=B landscape=true
+10-27 10:20:36.328 22476 22476 I flutter : RFV2|1793067636328|SAMPLE|V11_run2_after_cutover
+10-27 10:20:38.529 22476 22476 I flutter : RFV2|1793067638529|WIN|V11_run2_after_cutover 2266x1080 padTop=110 viewPadTop=110 viewPadBot=0
 10-27 10:20:40.049 22476 22476 I flutter : RFV2|1793067640049|V11|run2 after dispose: landscape=false
 10-27 10:20:40.050 22476 22476 I flutter : RFV2|1793067640050|SAMPLE|V11_run2_after_dispose
 10-27 10:20:42.252 22476 22476 I flutter : RFV2|1793067642252|WIN|V11_run2_after_dispose 1080x2376 padTop=110 viewPadTop=110 viewPadBot=0
-10-27 10:20:42.253 22476 22476 I flutter : RFV2|1793067642253|RESULT|V11|run2|PASS|preLandscape=true swapTo=true successorOrientation=landscape landscapeAfterSwap=true restoredPortrait=true
+10-27 10:20:42.253 22476 22476 I flutter : RFV2|1793067642253|RESULT|V11|run2|PASS|preLandscape=true cutoverTo=true successorOrient=landscape landscapeAfterCutover=true restoredPortrait=true
 10-27 10:20:45.746 22476 22476 I flutter : RFV2|1793067645746|V11|run3 before: fs=false ori=landscape landscape=true win=2266x1080 padTop=110 viewPadTop=110 viewPadBot=0
-10-27 10:20:45.747 22476 22476 I flutter : RFV2|1793067645747|SAMPLE|V11_run3_before_swap
-10-27 10:20:47.948 22476 22476 I flutter : RFV2|1793067647948|WIN|V11_run3_before_swap 2266x1080 padTop=110 viewPadTop=110 viewPadBot=0
-10-27 10:20:50.006 22476 22476 I flutter : RFV2|1793067650006|V11|run3 swapTo=true successor ori=landscape fs=false title=B landscape=true
-10-27 10:20:50.007 22476 22476 I flutter : RFV2|1793067650007|SAMPLE|V11_run3_after_swap
-10-27 10:20:52.209 22476 22476 I flutter : RFV2|1793067652209|WIN|V11_run3_after_swap 2266x1080 padTop=110 viewPadTop=110 viewPadBot=0
+10-27 10:20:45.747 22476 22476 I flutter : RFV2|1793067645747|SAMPLE|V11_run3_before_cutover
+10-27 10:20:47.948 22476 22476 I flutter : RFV2|1793067647948|WIN|V11_run3_before_cutover 2266x1080 padTop=110 viewPadTop=110 viewPadBot=0
+10-27 10:20:50.006 22476 22476 I flutter : RFV2|1793067650006|V11|run3 cutoverTo=true successor ori=landscape fs=false title=B landscape=true
+10-27 10:20:50.007 22476 22476 I flutter : RFV2|1793067650007|SAMPLE|V11_run3_after_cutover
+10-27 10:20:52.209 22476 22476 I flutter : RFV2|1793067652209|WIN|V11_run3_after_cutover 2266x1080 padTop=110 viewPadTop=110 viewPadBot=0
 10-27 10:20:53.686 22476 22476 I flutter : RFV2|1793067653686|V11|run3 after dispose: landscape=false
 10-27 10:20:53.687 22476 22476 I flutter : RFV2|1793067653687|SAMPLE|V11_run3_after_dispose
 10-27 10:20:55.891 22476 22476 I flutter : RFV2|1793067655890|WIN|V11_run3_after_dispose 1080x2376 padTop=110 viewPadTop=110 viewPadBot=0
-10-27 10:20:55.892 22476 22476 I flutter : RFV2|1793067655892|RESULT|V11|run3|PASS|preLandscape=true swapTo=true successorOrientation=landscape landscapeAfterSwap=true restoredPortrait=true
+10-27 10:20:55.892 22476 22476 I flutter : RFV2|1793067655892|RESULT|V11|run3|PASS|preLandscape=true cutoverTo=true successorOrient=landscape landscapeAfterCutover=true restoredPortrait=true
 10-27 10:20:55.892 22476 22476 I flutter : RFV2|1793067655892|GROUP|end v11 uncaught=0
 10-27 10:20:55.892 22476 22476 I flutter : RFV2|1793067655892|GROUP|begin v12
 10-27 10:20:56.037 22476 22476 I flutter : RFV2|1793067656036|V12|run1 st title=C epoch=0 rendered=false playing=true buffering=true phase=idle
 10-27 10:20:56.570 22476 22476 I flutter : RFV2|1793067656570|V12|run1 st title=C epoch=0 rendered=true playing=true buffering=false phase=idle
 10-27 10:20:59.819 22476 22476 I flutter : RFV2|1793067659819|V12|run1 adEvent pending:AD1
-10-27 10:20:59.900 22476 22476 I flutter : RFV2|1793067659900|V12|run1 swapPhase=warming
+10-27 10:20:59.900 22476 22476 I flutter : RFV2|1793067659900|V12|run1 cutoverPhase=warming
 10-27 10:20:59.937 22476 22476 I flutter : RFV2|1793067659937|V12|run1 st title=C epoch=0 rendered=true playing=true buffering=false phase=warming
-10-27 10:21:00.712 22476 22476 I flutter : RFV2|1793067660712|V12|run1 swapPhase=ready
+10-27 10:21:00.712 22476 22476 I flutter : RFV2|1793067660712|V12|run1 cutoverPhase=ready
 10-27 10:21:00.730 22476 22476 I flutter : RFV2|1793067660730|V12|run1 adEvent started:AD1
-10-27 10:21:00.730 22476 22476 I flutter : RFV2|1793067660730|V12|run1 swapPhase=idle
+10-27 10:21:00.730 22476 22476 I flutter : RFV2|1793067660730|V12|run1 cutoverPhase=idle
 10-27 10:21:00.750 22476 22476 I flutter : RFV2|1793067660750|V12|run1 st title=AD1 epoch=1 rendered=true playing=true buffering=false phase=idle
-10-27 10:21:00.875 22476 22476 I flutter : RFV2|1793067660875|V12|run1 swapPhase=warming
+10-27 10:21:00.875 22476 22476 I flutter : RFV2|1793067660875|V12|run1 cutoverPhase=warming
 10-27 10:21:00.937 22476 22476 I flutter : RFV2|1793067660937|V12|run1 st title=AD1 epoch=1 rendered=true playing=true buffering=false phase=warming
-10-27 10:21:04.603 22476 22476 I flutter : RFV2|1793067664603|V12|run1 swapPhase=ready
+10-27 10:21:04.603 22476 22476 I flutter : RFV2|1793067664603|V12|run1 cutoverPhase=ready
 10-27 10:21:04.636 22476 22476 I flutter : RFV2|1793067664636|V12|run1 st title=AD1 epoch=1 rendered=true playing=true buffering=false phase=ready
 10-27 10:21:04.731 22476 22476 I flutter : RFV2|1793067664731|V12|run1 adEvent completed:AD1
 10-27 10:21:04.731 22476 22476 I flutter : RFV2|1793067664731|V12|run1 adEvent started:AD2
-10-27 10:21:04.755 22476 22476 I flutter : RFV2|1793067664755|V12|run1 swapPhase=idle
+10-27 10:21:04.755 22476 22476 I flutter : RFV2|1793067664755|V12|run1 cutoverPhase=idle
 10-27 10:21:04.759 22476 22476 I flutter : RFV2|1793067664759|V12|run1 st title=AD1 epoch=1 rendered=true playing=true buffering=false phase=idle
-10-27 10:21:04.890 22476 22476 I flutter : RFV2|1793067664890|V12|run1 swapPhase=warming
+10-27 10:21:04.890 22476 22476 I flutter : RFV2|1793067664890|V12|run1 cutoverPhase=warming
 10-27 10:21:04.937 22476 22476 I flutter : RFV2|1793067664937|V12|run1 st title=AD1 epoch=1 rendered=true playing=true buffering=false phase=warming
-10-27 10:21:05.665 22476 22476 I flutter : RFV2|1793067665665|V12|run1 swapPhase=ready
-10-27 10:21:05.674 22476 22476 I flutter : RFV2|1793067665674|V12|run1 swapPhase=idle
+10-27 10:21:05.665 22476 22476 I flutter : RFV2|1793067665665|V12|run1 cutoverPhase=ready
+10-27 10:21:05.674 22476 22476 I flutter : RFV2|1793067665674|V12|run1 cutoverPhase=idle
 10-27 10:21:05.737 22476 22476 I flutter : RFV2|1793067665737|V12|run1 st title=AD2 epoch=2 rendered=true playing=true buffering=false phase=idle
-10-27 10:21:05.841 22476 22476 I flutter : RFV2|1793067665841|V12|run1 swapPhase=warming
+10-27 10:21:05.841 22476 22476 I flutter : RFV2|1793067665841|V12|run1 cutoverPhase=warming
 10-27 10:21:06.038 22476 22476 I flutter : RFV2|1793067666038|V12|run1 st title=AD2 epoch=2 rendered=true playing=true buffering=false phase=warming
-10-27 10:21:06.579 22476 22476 I flutter : RFV2|1793067666579|V12|run1 swapPhase=ready
+10-27 10:21:06.579 22476 22476 I flutter : RFV2|1793067666579|V12|run1 cutoverPhase=ready
 10-27 10:21:06.637 22476 22476 I flutter : RFV2|1793067666637|V12|run1 st title=AD2 epoch=2 rendered=true playing=true buffering=false phase=ready
 10-27 10:21:11.676 22476 22476 I flutter : RFV2|1793067671676|V12|run1 adEvent completed:AD2
-10-27 10:21:11.724 22476 22476 I flutter : RFV2|1793067671724|V12|run1 swapPhase=idle
+10-27 10:21:11.724 22476 22476 I flutter : RFV2|1793067671724|V12|run1 cutoverPhase=idle
 10-27 10:21:11.736 22476 22476 I flutter : RFV2|1793067671736|V12|run1 st title=C epoch=3 rendered=true playing=true buffering=false phase=idle
 10-27 10:21:14.215 22476 22476 I flutter : RFV2|1793067674215|V12|run1 epochs=3 epochRelToAD2Started=[-3981, 946, 7006] AD2 started->epochChange=946ms started->completed=6945ms adFirstFrame->completed=5999ms oldTicksInWindow=3 failed=0([])
 10-27 10:21:14.216 22476 22476 I flutter : RFV2|1793067674216|RESULT|V12|run1|PASS|failed=0 AD2completed=true adFirstFrame->completed=5999ms (cfg 6000) started->completed=6945ms started->epochChange=946ms oldTicksBeforeEpoch=3
 10-27 10:21:14.617 22476 22476 I flutter : RFV2|1793067674617|V12|run2 st title=C epoch=0 rendered=false playing=true buffering=true phase=idle
 10-27 10:21:15.164 22476 22476 I flutter : RFV2|1793067675164|V12|run2 st title=C epoch=0 rendered=true playing=true buffering=false phase=idle
 10-27 10:21:18.396 22476 22476 I flutter : RFV2|1793067678396|V12|run2 adEvent pending:AD1
-10-27 10:21:18.493 22476 22476 I flutter : RFV2|1793067678493|V12|run2 swapPhase=warming
+10-27 10:21:18.493 22476 22476 I flutter : RFV2|1793067678493|V12|run2 cutoverPhase=warming
 10-27 10:21:18.498 22476 22476 I flutter : RFV2|1793067678498|V12|run2 st title=C epoch=0 rendered=true playing=true buffering=false phase=warming
-10-27 10:21:19.369 22476 22476 I flutter : RFV2|1793067679369|V12|run2 swapPhase=ready
+10-27 10:21:19.369 22476 22476 I flutter : RFV2|1793067679369|V12|run2 cutoverPhase=ready
 10-27 10:21:19.397 22476 22476 I flutter : RFV2|1793067679397|V12|run2 adEvent started:AD1
-10-27 10:21:19.397 22476 22476 I flutter : RFV2|1793067679397|V12|run2 swapPhase=idle
+10-27 10:21:19.397 22476 22476 I flutter : RFV2|1793067679397|V12|run2 cutoverPhase=idle
 10-27 10:21:19.399 22476 22476 I flutter : RFV2|1793067679399|V12|run2 st title=AD1 epoch=1 rendered=true playing=true buffering=false phase=idle
-10-27 10:21:19.552 22476 22476 I flutter : RFV2|1793067679552|V12|run2 swapPhase=warming
+10-27 10:21:19.552 22476 22476 I flutter : RFV2|1793067679552|V12|run2 cutoverPhase=warming
 10-27 10:21:19.598 22476 22476 I flutter : RFV2|1793067679598|V12|run2 st title=AD1 epoch=1 rendered=true playing=true buffering=false phase=warming
 10-27 10:21:23.398 22476 22476 I flutter : RFV2|1793067683398|V12|run2 adEvent completed:AD1
 10-27 10:21:23.399 22476 22476 I flutter : RFV2|1793067683399|V12|run2 adEvent started:AD2
 10-27 10:21:23.428 22476 22476 I flutter : RFV2|1793067683428|V12|run2 st title=AD1 epoch=1 rendered=true playing=true buffering=false phase=idle
-10-27 10:21:23.429 22476 22476 I flutter : RFV2|1793067683429|V12|run2 swapPhase=idle
-10-27 10:21:23.578 22476 22476 I flutter : RFV2|1793067683578|V12|run2 swapPhase=warming
+10-27 10:21:23.429 22476 22476 I flutter : RFV2|1793067683429|V12|run2 cutoverPhase=idle
+10-27 10:21:23.578 22476 22476 I flutter : RFV2|1793067683578|V12|run2 cutoverPhase=warming
 10-27 10:21:23.598 22476 22476 I flutter : RFV2|1793067683598|V12|run2 st title=AD1 epoch=1 rendered=true playing=true buffering=false phase=warming
-10-27 10:21:24.451 22476 22476 I flutter : RFV2|1793067684451|V12|run2 swapPhase=ready
-10-27 10:21:24.479 22476 22476 I flutter : RFV2|1793067684479|V12|run2 swapPhase=idle
+10-27 10:21:24.451 22476 22476 I flutter : RFV2|1793067684451|V12|run2 cutoverPhase=ready
+10-27 10:21:24.479 22476 22476 I flutter : RFV2|1793067684479|V12|run2 cutoverPhase=idle
 10-27 10:21:24.505 22476 22476 I flutter : RFV2|1793067684505|V12|run2 st title=AD2 epoch=2 rendered=true playing=true buffering=false phase=idle
-10-27 10:21:24.709 22476 22476 I flutter : RFV2|1793067684709|V12|run2 swapPhase=warming
+10-27 10:21:24.709 22476 22476 I flutter : RFV2|1793067684709|V12|run2 cutoverPhase=warming
 10-27 10:21:24.904 22476 22476 I flutter : RFV2|1793067684904|V12|run2 st title=AD2 epoch=2 rendered=true playing=true buffering=false phase=warming
-10-27 10:21:28.992 22476 22476 I flutter : RFV2|1793067688992|V12|run2 swapPhase=ready
+10-27 10:21:28.992 22476 22476 I flutter : RFV2|1793067688992|V12|run2 cutoverPhase=ready
 10-27 10:21:28.999 22476 22476 I flutter : RFV2|1793067688998|V12|run2 st title=AD2 epoch=2 rendered=true playing=true buffering=false phase=ready
 10-27 10:21:30.480 22476 22476 I flutter : RFV2|1793067690480|V12|run2 adEvent completed:AD2
 10-27 10:21:30.517 22476 22476 I flutter : RFV2|1793067690517|V12|run2 st title=AD2 epoch=2 rendered=true playing=false buffering=false phase=ready
-10-27 10:21:30.535 22476 22476 I flutter : RFV2|1793067690535|V12|run2 swapPhase=idle
+10-27 10:21:30.535 22476 22476 I flutter : RFV2|1793067690535|V12|run2 cutoverPhase=idle
 10-27 10:21:30.599 22476 22476 I flutter : RFV2|1793067690599|V12|run2 st title=C epoch=3 rendered=true playing=true buffering=false phase=idle
 10-27 10:21:32.990 22476 22476 I flutter : RFV2|1793067692989|V12|run2 epochs=3 epochRelToAD2Started=[-4002, 1106, 7151] AD2 started->epochChange=1106ms started->completed=7081ms adFirstFrame->completed=5975ms oldTicksInWindow=3 failed=0([])
 10-27 10:21:32.990 22476 22476 I flutter : RFV2|1793067692990|RESULT|V12|run2|PASS|failed=0 AD2completed=true adFirstFrame->completed=5975ms (cfg 6000) started->completed=7081ms started->epochChange=1106ms oldTicksBeforeEpoch=3
 10-27 10:21:33.358 22476 22476 I flutter : RFV2|1793067693358|V12|run3 st title=C epoch=0 rendered=false playing=true buffering=true phase=idle
 10-27 10:21:33.914 22476 22476 I flutter : RFV2|1793067693914|V12|run3 st title=C epoch=0 rendered=true playing=true buffering=false phase=idle
 10-27 10:21:37.154 22476 22476 I flutter : RFV2|1793067697153|V12|run3 adEvent pending:AD1
-10-27 10:21:37.254 22476 22476 I flutter : RFV2|1793067697254|V12|run3 swapPhase=warming
+10-27 10:21:37.254 22476 22476 I flutter : RFV2|1793067697254|V12|run3 cutoverPhase=warming
 10-27 10:21:37.263 22476 22476 I flutter : RFV2|1793067697263|V12|run3 st title=C epoch=0 rendered=true playing=true buffering=false phase=warming
-10-27 10:21:38.115 22476 22476 I flutter : RFV2|1793067698115|V12|run3 swapPhase=ready
+10-27 10:21:38.115 22476 22476 I flutter : RFV2|1793067698115|V12|run3 cutoverPhase=ready
 10-27 10:21:38.125 22476 22476 I flutter : RFV2|1793067698125|V12|run3 adEvent started:AD1
-10-27 10:21:38.125 22476 22476 I flutter : RFV2|1793067698125|V12|run3 swapPhase=idle
+10-27 10:21:38.125 22476 22476 I flutter : RFV2|1793067698125|V12|run3 cutoverPhase=idle
 10-27 10:21:38.160 22476 22476 I flutter : RFV2|1793067698160|V12|run3 st title=AD1 epoch=1 rendered=true playing=true buffering=false phase=idle
-10-27 10:21:38.240 22476 22476 I flutter : RFV2|1793067698240|V12|run3 swapPhase=warming
+10-27 10:21:38.240 22476 22476 I flutter : RFV2|1793067698240|V12|run3 cutoverPhase=warming
 10-27 10:21:38.263 22476 22476 I flutter : RFV2|1793067698263|V12|run3 st title=AD1 epoch=1 rendered=true playing=true buffering=false phase=warming
 10-27 10:21:42.127 22476 22476 I flutter : RFV2|1793067702127|V12|run3 adEvent completed:AD1
 10-27 10:21:42.127 22476 22476 I flutter : RFV2|1793067702127|V12|run3 adEvent started:AD2
-10-27 10:21:42.159 22476 22476 I flutter : RFV2|1793067702159|V12|run3 swapPhase=idle
+10-27 10:21:42.159 22476 22476 I flutter : RFV2|1793067702159|V12|run3 cutoverPhase=idle
 10-27 10:21:42.163 22476 22476 I flutter : RFV2|1793067702163|V12|run3 st title=AD1 epoch=1 rendered=true playing=true buffering=false phase=idle
-10-27 10:21:42.281 22476 22476 I flutter : RFV2|1793067702281|V12|run3 swapPhase=warming
+10-27 10:21:42.281 22476 22476 I flutter : RFV2|1793067702281|V12|run3 cutoverPhase=warming
 10-27 10:21:42.534 22476 22476 I flutter : RFV2|1793067702534|V12|run3 st title=AD1 epoch=1 rendered=true playing=true buffering=false phase=warming
-10-27 10:21:43.043 22476 22476 I flutter : RFV2|1793067703043|V12|run3 swapPhase=ready
-10-27 10:21:43.047 22476 22476 I flutter : RFV2|1793067703047|V12|run3 swapPhase=idle
+10-27 10:21:43.043 22476 22476 I flutter : RFV2|1793067703043|V12|run3 cutoverPhase=ready
+10-27 10:21:43.047 22476 22476 I flutter : RFV2|1793067703047|V12|run3 cutoverPhase=idle
 10-27 10:21:43.069 22476 22476 I flutter : RFV2|1793067703069|V12|run3 st title=AD2 epoch=2 rendered=true playing=true buffering=false phase=idle
-10-27 10:21:43.231 22476 22476 I flutter : RFV2|1793067703231|V12|run3 swapPhase=warming
+10-27 10:21:43.231 22476 22476 I flutter : RFV2|1793067703231|V12|run3 cutoverPhase=warming
 10-27 10:21:43.259 22476 22476 I flutter : RFV2|1793067703259|V12|run3 st title=AD2 epoch=2 rendered=true playing=true buffering=false phase=warming
-10-27 10:21:47.459 22476 22476 I flutter : RFV2|1793067707459|V12|run3 swapPhase=ready
+10-27 10:21:47.459 22476 22476 I flutter : RFV2|1793067707459|V12|run3 cutoverPhase=ready
 10-27 10:21:47.558 22476 22476 I flutter : RFV2|1793067707558|V12|run3 st title=AD2 epoch=2 rendered=true playing=true buffering=false phase=ready
 10-27 10:21:49.049 22476 22476 I flutter : RFV2|1793067709049|V12|run3 adEvent completed:AD2
 10-27 10:21:49.067 22476 22476 I flutter : RFV2|1793067709067|V12|run3 st title=AD2 epoch=2 rendered=true playing=false buffering=false phase=ready
-10-27 10:21:49.099 22476 22476 I flutter : RFV2|1793067709099|V12|run3 swapPhase=idle
+10-27 10:21:49.099 22476 22476 I flutter : RFV2|1793067709099|V12|run3 cutoverPhase=idle
 10-27 10:21:49.158 22476 22476 I flutter : RFV2|1793067709158|V12|run3 st title=C epoch=3 rendered=true playing=true buffering=false phase=idle
 10-27 10:21:51.569 22476 22476 I flutter : RFV2|1793067711569|V12|run3 epochs=3 epochRelToAD2Started=[-3967, 942, 6987] AD2 started->epochChange=942ms started->completed=6922ms adFirstFrame->completed=5980ms oldTicksInWindow=4 failed=0([])
 10-27 10:21:51.569 22476 22476 I flutter : RFV2|1793067711569|RESULT|V12|run3|PASS|failed=0 AD2completed=true adFirstFrame->completed=5980ms (cfg 6000) started->completed=6922ms started->epochChange=942ms oldTicksBeforeEpoch=4
@@ -991,111 +991,111 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
 10-27 10:21:52.619 22476 22476 I flutter : RFV2|1793067712619|V12b|run1 st title=C epoch=0 rendered=true playing=true buffering=true phase=idle
 10-27 10:21:52.828 22476 22476 I flutter : RFV2|1793067712828|V12b|run1 st title=C epoch=0 rendered=true playing=true buffering=false phase=idle
 10-27 10:21:55.844 22476 22476 I flutter : RFV2|1793067715844|V12b|run1 adEvent pending:AD1
-10-27 10:21:55.946 22476 22476 I flutter : RFV2|1793067715946|V12b|run1 swapPhase=warming
+10-27 10:21:55.946 22476 22476 I flutter : RFV2|1793067715946|V12b|run1 cutoverPhase=warming
 10-27 10:21:56.237 22476 22476 I flutter : RFV2|1793067716237|V12b|run1 st title=C epoch=0 rendered=true playing=true buffering=false phase=warming
-10-27 10:21:57.213 22476 22476 I flutter : RFV2|1793067717213|V12b|run1 swapPhase=ready
+10-27 10:21:57.213 22476 22476 I flutter : RFV2|1793067717213|V12b|run1 cutoverPhase=ready
 10-27 10:21:57.228 22476 22476 I flutter : RFV2|1793067717228|V12b|run1 st title=C epoch=0 rendered=true playing=true buffering=false phase=ready
-10-27 10:21:57.305 22476 22476 I flutter : RFV2|1793067717305|V12b|run1 swapPhase=warming
+10-27 10:21:57.305 22476 22476 I flutter : RFV2|1793067717305|V12b|run1 cutoverPhase=warming
 10-27 10:21:57.328 22476 22476 I flutter : RFV2|1793067717328|V12b|run1 st title=C epoch=0 rendered=true playing=true buffering=false phase=warming
-10-27 10:21:58.477 22476 22476 I flutter : RFV2|1793067718477|V12b|run1 swapPhase=ready
+10-27 10:21:58.477 22476 22476 I flutter : RFV2|1793067718477|V12b|run1 cutoverPhase=ready
 10-27 10:21:58.528 22476 22476 I flutter : RFV2|1793067718528|V12b|run1 st title=C epoch=0 rendered=true playing=true buffering=false phase=ready
 10-27 10:21:58.828 22476 22476 I flutter : RFV2|1793067718828|V12b|run1 st title=C epoch=0 rendered=true playing=false buffering=false phase=ready
 10-27 10:22:00.010 22476 22476 I flutter : RFV2|1793067720010|V12b|run1 adEvent started:AD1
-10-27 10:22:00.010 22476 22476 I flutter : RFV2|1793067720010|V12b|run1 swapPhase=idle
+10-27 10:22:00.010 22476 22476 I flutter : RFV2|1793067720010|V12b|run1 cutoverPhase=idle
 10-27 10:22:00.035 22476 22476 I flutter : RFV2|1793067720035|V12b|run1 st title=AD1 epoch=1 rendered=true playing=true buffering=false phase=idle
-10-27 10:22:00.148 22476 22476 I flutter : RFV2|1793067720148|V12b|run1 swapPhase=warming
+10-27 10:22:00.148 22476 22476 I flutter : RFV2|1793067720148|V12b|run1 cutoverPhase=warming
 10-27 10:22:00.228 22476 22476 I flutter : RFV2|1793067720228|V12b|run1 st title=AD1 epoch=1 rendered=true playing=true buffering=false phase=warming
 10-27 10:22:04.012 22476 22476 I flutter : RFV2|1793067724012|V12b|run1 adEvent completed:AD1
 10-27 10:22:04.012 22476 22476 I flutter : RFV2|1793067724012|V12b|run1 adEvent started:AD2
-10-27 10:22:04.040 22476 22476 I flutter : RFV2|1793067724040|V12b|run1 swapPhase=idle
+10-27 10:22:04.040 22476 22476 I flutter : RFV2|1793067724040|V12b|run1 cutoverPhase=idle
 10-27 10:22:04.042 22476 22476 I flutter : RFV2|1793067724042|V12b|run1 st title=AD1 epoch=1 rendered=true playing=true buffering=false phase=idle
-10-27 10:22:04.120 22476 22476 I flutter : RFV2|1793067724120|V12b|run1 swapPhase=warming
+10-27 10:22:04.120 22476 22476 I flutter : RFV2|1793067724120|V12b|run1 cutoverPhase=warming
 10-27 10:22:04.139 22476 22476 I flutter : RFV2|1793067724139|V12b|run1 st title=AD1 epoch=1 rendered=true playing=true buffering=false phase=warming
-10-27 10:22:04.869 22476 22476 I flutter : RFV2|1793067724869|V12b|run1 swapPhase=ready
+10-27 10:22:04.869 22476 22476 I flutter : RFV2|1793067724869|V12b|run1 cutoverPhase=ready
 10-27 10:22:04.930 22476 22476 I flutter : RFV2|1793067724930|V12b|run1 st title=AD1 epoch=1 rendered=true playing=true buffering=false phase=ready
-10-27 10:22:06.381 22476 22476 I flutter : RFV2|1793067726381|V12b|run1 swapPhase=idle
+10-27 10:22:06.381 22476 22476 I flutter : RFV2|1793067726381|V12b|run1 cutoverPhase=idle
 10-27 10:22:06.443 22476 22476 I flutter : RFV2|1793067726443|V12b|run1 st title=AD2 epoch=2 rendered=true playing=true buffering=false phase=idle
-10-27 10:22:06.488 22476 22476 I flutter : RFV2|1793067726488|V12b|run1 swapPhase=warming
+10-27 10:22:06.488 22476 22476 I flutter : RFV2|1793067726488|V12b|run1 cutoverPhase=warming
 10-27 10:22:06.528 22476 22476 I flutter : RFV2|1793067726528|V12b|run1 st title=AD2 epoch=2 rendered=true playing=true buffering=false phase=warming
-10-27 10:22:07.848 22476 22476 I flutter : RFV2|1793067727848|V12b|run1 swapPhase=ready
+10-27 10:22:07.848 22476 22476 I flutter : RFV2|1793067727848|V12b|run1 cutoverPhase=ready
 10-27 10:22:07.935 22476 22476 I flutter : RFV2|1793067727935|V12b|run1 st title=AD2 epoch=2 rendered=true playing=true buffering=false phase=ready
 10-27 10:22:12.383 22476 22476 I flutter : RFV2|1793067732383|V12b|run1 adEvent completed:AD2
-10-27 10:22:13.907 22476 22476 I flutter : RFV2|1793067733907|V12b|run1 swapPhase=idle
+10-27 10:22:13.907 22476 22476 I flutter : RFV2|1793067733907|V12b|run1 cutoverPhase=idle
 10-27 10:22:13.930 22476 22476 I flutter : RFV2|1793067733930|V12b|run1 st title=C epoch=3 rendered=true playing=true buffering=false phase=idle
 10-27 10:22:14.918 22476 22476 I flutter : RFV2|1793067734918|V12b|run1 epochs=3 epochRelToAD2Started=[-3977, 2406, 9897] AD2 started->epochChange=2406ms started->completed=8371ms adFirstFrame->completed=5965ms oldTicksInWindow=10 failed=0([])
 10-27 10:22:14.918 22476 22476 I flutter : RFV2|1793067734918|RESULT|V12b|run1|PASS|failed=0 AD2completed=true adFirstFrame->completed=5965ms (cfg 6000) started->completed=8371ms started->epochChange=2406ms oldTicksBeforeEpoch=10
 10-27 10:22:15.297 22476 22476 I flutter : RFV2|1793067735297|V12b|run2 st title=C epoch=0 rendered=false playing=true buffering=true phase=idle
 10-27 10:22:15.950 22476 22476 I flutter : RFV2|1793067735950|V12b|run2 st title=C epoch=0 rendered=true playing=true buffering=false phase=idle
 10-27 10:22:19.176 22476 22476 I flutter : RFV2|1793067739176|V12b|run2 adEvent pending:AD1
-10-27 10:22:19.269 22476 22476 I flutter : RFV2|1793067739269|V12b|run2 swapPhase=warming
+10-27 10:22:19.269 22476 22476 I flutter : RFV2|1793067739269|V12b|run2 cutoverPhase=warming
 10-27 10:22:19.284 22476 22476 I flutter : RFV2|1793067739284|V12b|run2 st title=C epoch=0 rendered=true playing=true buffering=false phase=warming
-10-27 10:22:19.839 22476 22476 I flutter : RFV2|1793067739839|V12b|run2 swapPhase=ready
+10-27 10:22:19.839 22476 22476 I flutter : RFV2|1793067739839|V12b|run2 cutoverPhase=ready
 10-27 10:22:19.884 22476 22476 I flutter : RFV2|1793067739884|V12b|run2 st title=C epoch=0 rendered=true playing=true buffering=false phase=ready
-10-27 10:22:20.129 22476 22476 I flutter : RFV2|1793067740129|V12b|run2 swapPhase=warming
+10-27 10:22:20.129 22476 22476 I flutter : RFV2|1793067740129|V12b|run2 cutoverPhase=warming
 10-27 10:22:20.185 22476 22476 I flutter : RFV2|1793067740185|V12b|run2 st title=C epoch=0 rendered=true playing=true buffering=false phase=warming
-10-27 10:22:20.774 22476 22476 I flutter : RFV2|1793067740774|V12b|run2 swapPhase=ready
+10-27 10:22:20.774 22476 22476 I flutter : RFV2|1793067740774|V12b|run2 cutoverPhase=ready
 10-27 10:22:20.786 22476 22476 I flutter : RFV2|1793067740786|V12b|run2 st title=C epoch=0 rendered=true playing=true buffering=false phase=ready
 10-27 10:22:21.385 22476 22476 I flutter : RFV2|1793067741385|V12b|run2 st title=C epoch=0 rendered=true playing=false buffering=false phase=ready
 10-27 10:22:22.314 22476 22476 I flutter : RFV2|1793067742314|V12b|run2 adEvent started:AD1
-10-27 10:22:22.314 22476 22476 I flutter : RFV2|1793067742314|V12b|run2 swapPhase=idle
+10-27 10:22:22.314 22476 22476 I flutter : RFV2|1793067742314|V12b|run2 cutoverPhase=idle
 10-27 10:22:22.384 22476 22476 I flutter : RFV2|1793067742384|V12b|run2 st title=AD1 epoch=1 rendered=true playing=true buffering=false phase=idle
-10-27 10:22:22.494 22476 22476 I flutter : RFV2|1793067742494|V12b|run2 swapPhase=warming
+10-27 10:22:22.494 22476 22476 I flutter : RFV2|1793067742494|V12b|run2 cutoverPhase=warming
 10-27 10:22:22.584 22476 22476 I flutter : RFV2|1793067742584|V12b|run2 st title=AD1 epoch=1 rendered=true playing=true buffering=false phase=warming
-10-27 10:22:23.268 22476 22476 I flutter : RFV2|1793067743268|V12b|run2 swapPhase=ready
+10-27 10:22:23.268 22476 22476 I flutter : RFV2|1793067743268|V12b|run2 cutoverPhase=ready
 10-27 10:22:23.289 22476 22476 I flutter : RFV2|1793067743289|V12b|run2 st title=AD1 epoch=1 rendered=true playing=true buffering=false phase=ready
 10-27 10:22:26.316 22476 22476 I flutter : RFV2|1793067746316|V12b|run2 adEvent completed:AD1
 10-27 10:22:26.317 22476 22476 I flutter : RFV2|1793067746317|V12b|run2 adEvent started:AD2
-10-27 10:22:26.351 22476 22476 I flutter : RFV2|1793067746351|V12b|run2 swapPhase=idle
+10-27 10:22:26.351 22476 22476 I flutter : RFV2|1793067746351|V12b|run2 cutoverPhase=idle
 10-27 10:22:26.391 22476 22476 I flutter : RFV2|1793067746391|V12b|run2 st title=AD1 epoch=1 rendered=true playing=true buffering=false phase=idle
-10-27 10:22:26.428 22476 22476 I flutter : RFV2|1793067746428|V12b|run2 swapPhase=warming
+10-27 10:22:26.428 22476 22476 I flutter : RFV2|1793067746428|V12b|run2 cutoverPhase=warming
 10-27 10:22:26.484 22476 22476 I flutter : RFV2|1793067746484|V12b|run2 st title=AD1 epoch=1 rendered=true playing=true buffering=false phase=warming
-10-27 10:22:27.018 22476 22476 I flutter : RFV2|1793067747018|V12b|run2 swapPhase=ready
+10-27 10:22:27.018 22476 22476 I flutter : RFV2|1793067747018|V12b|run2 cutoverPhase=ready
 10-27 10:22:27.084 22476 22476 I flutter : RFV2|1793067747084|V12b|run2 st title=AD1 epoch=1 rendered=true playing=true buffering=false phase=ready
-10-27 10:22:28.530 22476 22476 I flutter : RFV2|1793067748530|V12b|run2 swapPhase=idle
+10-27 10:22:28.530 22476 22476 I flutter : RFV2|1793067748530|V12b|run2 cutoverPhase=idle
 10-27 10:22:28.585 22476 22476 I flutter : RFV2|1793067748585|V12b|run2 st title=AD2 epoch=2 rendered=true playing=true buffering=false phase=idle
-10-27 10:22:28.717 22476 22476 I flutter : RFV2|1793067748717|V12b|run2 swapPhase=warming
+10-27 10:22:28.717 22476 22476 I flutter : RFV2|1793067748717|V12b|run2 cutoverPhase=warming
 10-27 10:22:28.787 22476 22476 I flutter : RFV2|1793067748787|V12b|run2 st title=AD2 epoch=2 rendered=true playing=true buffering=false phase=warming
-10-27 10:22:34.156 22476 22476 I flutter : RFV2|1793067754155|V12b|run2 swapPhase=ready
+10-27 10:22:34.156 22476 22476 I flutter : RFV2|1793067754155|V12b|run2 cutoverPhase=ready
 10-27 10:22:34.184 22476 22476 I flutter : RFV2|1793067754184|V12b|run2 st title=AD2 epoch=2 rendered=true playing=true buffering=false phase=ready
 10-27 10:22:34.531 22476 22476 I flutter : RFV2|1793067754531|V12b|run2 adEvent completed:AD2
-10-27 10:22:36.075 22476 22476 I flutter : RFV2|1793067756075|V12b|run2 swapPhase=idle
+10-27 10:22:36.075 22476 22476 I flutter : RFV2|1793067756075|V12b|run2 cutoverPhase=idle
 10-27 10:22:36.090 22476 22476 I flutter : RFV2|1793067756090|V12b|run2 st title=C epoch=3 rendered=true playing=true buffering=false phase=idle
 10-27 10:22:37.056 22476 22476 I flutter : RFV2|1793067757056|V12b|run2 epochs=3 epochRelToAD2Started=[-3989, 2214, 9773] AD2 started->epochChange=2214ms started->completed=8214ms adFirstFrame->completed=6000ms oldTicksInWindow=9 failed=0([])
 10-27 10:22:37.056 22476 22476 I flutter : RFV2|1793067757056|RESULT|V12b|run2|PASS|failed=0 AD2completed=true adFirstFrame->completed=6000ms (cfg 6000) started->completed=8214ms started->epochChange=2214ms oldTicksBeforeEpoch=9
 10-27 10:22:37.427 22476 22476 I flutter : RFV2|1793067757426|V12b|run3 st title=C epoch=0 rendered=false playing=true buffering=true phase=idle
 10-27 10:22:38.094 22476 22476 I flutter : RFV2|1793067758094|V12b|run3 st title=C epoch=0 rendered=true playing=true buffering=false phase=idle
 10-27 10:22:41.325 22476 22476 I flutter : RFV2|1793067761325|V12b|run3 adEvent pending:AD1
-10-27 10:22:41.421 22476 22476 I flutter : RFV2|1793067761421|V12b|run3 swapPhase=warming
+10-27 10:22:41.421 22476 22476 I flutter : RFV2|1793067761421|V12b|run3 cutoverPhase=warming
 10-27 10:22:41.423 22476 22476 I flutter : RFV2|1793067761423|V12b|run3 st title=C epoch=0 rendered=true playing=true buffering=false phase=warming
-10-27 10:22:42.088 22476 22476 I flutter : RFV2|1793067762088|V12b|run3 swapPhase=ready
+10-27 10:22:42.088 22476 22476 I flutter : RFV2|1793067762088|V12b|run3 cutoverPhase=ready
 10-27 10:22:42.123 22476 22476 I flutter : RFV2|1793067762123|V12b|run3 st title=C epoch=0 rendered=true playing=true buffering=false phase=ready
-10-27 10:22:42.345 22476 22476 I flutter : RFV2|1793067762345|V12b|run3 swapPhase=warming
+10-27 10:22:42.345 22476 22476 I flutter : RFV2|1793067762345|V12b|run3 cutoverPhase=warming
 10-27 10:22:42.558 22476 22476 I flutter : RFV2|1793067762558|V12b|run3 st title=C epoch=0 rendered=true playing=true buffering=false phase=warming
-10-27 10:22:43.033 22476 22476 I flutter : RFV2|1793067763033|V12b|run3 swapPhase=ready
+10-27 10:22:43.033 22476 22476 I flutter : RFV2|1793067763033|V12b|run3 cutoverPhase=ready
 10-27 10:22:43.131 22476 22476 I flutter : RFV2|1793067763131|V12b|run3 st title=C epoch=0 rendered=true playing=true buffering=false phase=ready
 10-27 10:22:43.625 22476 22476 I flutter : RFV2|1793067763625|V12b|run3 st title=C epoch=0 rendered=true playing=false buffering=false phase=ready
 10-27 10:22:44.579 22476 22476 I flutter : RFV2|1793067764579|V12b|run3 adEvent started:AD1
-10-27 10:22:44.580 22476 22476 I flutter : RFV2|1793067764580|V12b|run3 swapPhase=idle
+10-27 10:22:44.580 22476 22476 I flutter : RFV2|1793067764580|V12b|run3 cutoverPhase=idle
 10-27 10:22:44.625 22476 22476 I flutter : RFV2|1793067764625|V12b|run3 st title=AD1 epoch=1 rendered=true playing=true buffering=false phase=idle
-10-27 10:22:44.680 22476 22476 I flutter : RFV2|1793067764680|V12b|run3 swapPhase=warming
+10-27 10:22:44.680 22476 22476 I flutter : RFV2|1793067764680|V12b|run3 cutoverPhase=warming
 10-27 10:22:44.723 22476 22476 I flutter : RFV2|1793067764722|V12b|run3 st title=AD1 epoch=1 rendered=true playing=true buffering=false phase=warming
 10-27 10:22:48.582 22476 22476 I flutter : RFV2|1793067768582|V12b|run3 adEvent completed:AD1
 10-27 10:22:48.582 22476 22476 I flutter : RFV2|1793067768582|V12b|run3 adEvent started:AD2
-10-27 10:22:48.614 22476 22476 I flutter : RFV2|1793067768614|V12b|run3 swapPhase=idle
+10-27 10:22:48.614 22476 22476 I flutter : RFV2|1793067768614|V12b|run3 cutoverPhase=idle
 10-27 10:22:48.624 22476 22476 I flutter : RFV2|1793067768624|V12b|run3 st title=AD1 epoch=1 rendered=true playing=true buffering=false phase=idle
-10-27 10:22:48.729 22476 22476 I flutter : RFV2|1793067768729|V12b|run3 swapPhase=warming
+10-27 10:22:48.729 22476 22476 I flutter : RFV2|1793067768729|V12b|run3 cutoverPhase=warming
 10-27 10:22:48.917 22476 22476 I flutter : RFV2|1793067768917|V12b|run3 st title=AD1 epoch=1 rendered=true playing=true buffering=false phase=warming
-10-27 10:22:49.389 22476 22476 I flutter : RFV2|1793067769389|V12b|run3 swapPhase=ready
+10-27 10:22:49.389 22476 22476 I flutter : RFV2|1793067769389|V12b|run3 cutoverPhase=ready
 10-27 10:22:49.427 22476 22476 I flutter : RFV2|1793067769427|V12b|run3 st title=AD1 epoch=1 rendered=true playing=true buffering=false phase=ready
-10-27 10:22:50.896 22476 22476 I flutter : RFV2|1793067770896|V12b|run3 swapPhase=idle
+10-27 10:22:50.896 22476 22476 I flutter : RFV2|1793067770896|V12b|run3 cutoverPhase=idle
 10-27 10:22:50.929 22476 22476 I flutter : RFV2|1793067770928|V12b|run3 st title=AD2 epoch=2 rendered=true playing=true buffering=false phase=idle
-10-27 10:22:51.070 22476 22476 I flutter : RFV2|1793067771070|V12b|run3 swapPhase=warming
+10-27 10:22:51.070 22476 22476 I flutter : RFV2|1793067771070|V12b|run3 cutoverPhase=warming
 10-27 10:22:51.122 22476 22476 I flutter : RFV2|1793067771122|V12b|run3 st title=AD2 epoch=2 rendered=true playing=true buffering=false phase=warming
-10-27 10:22:51.937 22476 22476 I flutter : RFV2|1793067771937|V12b|run3 swapPhase=ready
+10-27 10:22:51.937 22476 22476 I flutter : RFV2|1793067771937|V12b|run3 cutoverPhase=ready
 10-27 10:22:52.022 22476 22476 I flutter : RFV2|1793067772022|V12b|run3 st title=AD2 epoch=2 rendered=true playing=true buffering=false phase=ready
 10-27 10:22:56.897 22476 22476 I flutter : RFV2|1793067776897|V12b|run3 adEvent completed:AD2
 10-27 10:22:58.442 22476 22476 I flutter : RFV2|1793067778442|V12b|run3 st title=AD2 epoch=2 rendered=true playing=false buffering=false phase=ready
-10-27 10:22:58.443 22476 22476 I flutter : RFV2|1793067778443|V12b|run3 swapPhase=idle
+10-27 10:22:58.443 22476 22476 I flutter : RFV2|1793067778443|V12b|run3 cutoverPhase=idle
 10-27 10:22:58.522 22476 22476 I flutter : RFV2|1793067778522|V12b|run3 st title=C epoch=3 rendered=true playing=true buffering=false phase=idle
 10-27 10:22:59.421 22476 22476 I flutter : RFV2|1793067779421|V12b|run3 epochs=3 epochRelToAD2Started=[-4000, 2346, 9863] AD2 started->epochChange=2346ms started->completed=8315ms adFirstFrame->completed=5969ms oldTicksInWindow=11 failed=0([])
 10-27 10:22:59.422 22476 22476 I flutter : RFV2|1793067779422|RESULT|V12b|run3|PASS|failed=0 AD2completed=true adFirstFrame->completed=5969ms (cfg 6000) started->completed=8315ms started->epochChange=2346ms oldTicksBeforeEpoch=11
@@ -1266,14 +1266,14 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
       "_BroadcastStream<MovaProg>",
       "_MultiStream<MovaUiState>"
     ],
-    "swap": false
+    "cutover": false
   },
   {
     "ms": 2803,
     "kind": "CHECK",
     "id": "A1.broadcast",
     "pass": false,
-    "detail": "all streams broadcast swap=false"
+    "detail": "all streams broadcast cutover=false"
   },
   {
     "ms": 2803,
@@ -1287,7 +1287,7 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
     "kind": "CHECK",
     "id": "A5.paused",
     "pass": true,
-    "detail": "{playing: false, intent: false, buffering: false, duration: 40000, position: 0, size: 0x0, volume: 30.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orientation: auto, pip: false, mini: false, rendered: false, epoch: 0, sourceIndex: 0, standby: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: true, hud: none, hudText: null, dragging: false, previewAt: null}"
+    "detail": "{playing: false, intent: false, buffering: false, duration: 40000, position: 0, size: 0x0, volume: 30.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orient: auto, pip: false, mini: false, rendered: false, epoch: 0, sourceIndex: 0, keepAlive: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: true, hud: none, hudText: null, dragging: false, previewAt: null}"
   },
   {
     "ms": 5111,
@@ -1308,7 +1308,7 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
     "kind": "CHECK",
     "id": "A6.pause",
     "pass": true,
-    "detail": "{playing: false, intent: false, buffering: false, duration: 40000, position: 3195, size: 0x0, volume: 30.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orientation: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, standby: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, hudText: null, dragging: false, previewAt: null}"
+    "detail": "{playing: false, intent: false, buffering: false, duration: 40000, position: 3195, size: 0x0, volume: 30.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orient: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, hudText: null, dragging: false, previewAt: null}"
   },
   {
     "ms": 6509,
@@ -1370,13 +1370,13 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
       "epoch": 0,
       "sourceIndex": 0,
-      "standby": "off",
+      "keepAlive": "off",
       "type": "vod",
       "title": "Coverage vod.mp4",
       "pipSupported": true,
@@ -1392,7 +1392,7 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
     "kind": "CHECK",
     "id": "A8.clamp",
     "pass": false,
-    "detail": "{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: -10.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orientation: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, standby: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, hudText: null, dragging: false, previewAt: null}"
+    "detail": "{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: -10.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orient: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, hudText: null, dragging: false, previewAt: null}"
   },
   {
     "ms": 7380,
@@ -1412,13 +1412,13 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
       "epoch": 0,
       "sourceIndex": 0,
-      "standby": "off",
+      "keepAlive": "off",
       "type": "vod",
       "title": "Coverage vod.mp4",
       "pipSupported": true,
@@ -1434,7 +1434,7 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
     "kind": "CHECK",
     "id": "A8.clamp",
     "pass": true,
-    "detail": "{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: 0.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orientation: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, standby: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, hudText: null, dragging: false, previewAt: null}"
+    "detail": "{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: 0.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orient: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, hudText: null, dragging: false, previewAt: null}"
   },
   {
     "ms": 7561,
@@ -1454,13 +1454,13 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
       "epoch": 0,
       "sourceIndex": 0,
-      "standby": "off",
+      "keepAlive": "off",
       "type": "vod",
       "title": "Coverage vod.mp4",
       "pipSupported": true,
@@ -1476,7 +1476,7 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
     "kind": "CHECK",
     "id": "A8.clamp",
     "pass": true,
-    "detail": "{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: 1.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orientation: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, standby: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, hudText: null, dragging: false, previewAt: null}"
+    "detail": "{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: 1.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orient: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, hudText: null, dragging: false, previewAt: null}"
   },
   {
     "ms": 7765,
@@ -1496,13 +1496,13 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
       "epoch": 0,
       "sourceIndex": 0,
-      "standby": "off",
+      "keepAlive": "off",
       "type": "vod",
       "title": "Coverage vod.mp4",
       "pipSupported": true,
@@ -1518,7 +1518,7 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
     "kind": "CHECK",
     "id": "A8.clamp",
     "pass": true,
-    "detail": "{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: 50.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orientation: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, standby: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, hudText: null, dragging: false, previewAt: null}"
+    "detail": "{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: 50.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orient: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, hudText: null, dragging: false, previewAt: null}"
   },
   {
     "ms": 7957,
@@ -1538,13 +1538,13 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
       "epoch": 0,
       "sourceIndex": 0,
-      "standby": "off",
+      "keepAlive": "off",
       "type": "vod",
       "title": "Coverage vod.mp4",
       "pipSupported": true,
@@ -1560,7 +1560,7 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
     "kind": "CHECK",
     "id": "A8.clamp",
     "pass": true,
-    "detail": "{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: 100.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orientation: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, standby: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, hudText: null, dragging: false, previewAt: null}"
+    "detail": "{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: 100.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orient: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, hudText: null, dragging: false, previewAt: null}"
   },
   {
     "ms": 8129,
@@ -1580,13 +1580,13 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
       "epoch": 0,
       "sourceIndex": 0,
-      "standby": "off",
+      "keepAlive": "off",
       "type": "vod",
       "title": "Coverage vod.mp4",
       "pipSupported": true,
@@ -1602,42 +1602,42 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
     "kind": "CHECK",
     "id": "A8.clamp",
     "pass": false,
-    "detail": "{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: 110.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orientation: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, standby: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, hudText: null, dragging: false, previewAt: null}"
+    "detail": "{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: 110.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orient: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, hudText: null, dragging: false, previewAt: null}"
   },
   {
     "ms": 8325,
     "kind": "CHECK",
     "id": "A9.clamp",
     "pass": false,
-    "detail": "{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: 30.0, brightness: -1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orientation: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, standby: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, hudText: null, dragging: false, previewAt: null}"
+    "detail": "{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: 30.0, brightness: -1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orient: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, hudText: null, dragging: false, previewAt: null}"
   },
   {
     "ms": 8486,
     "kind": "CHECK",
     "id": "A9.clamp",
     "pass": true,
-    "detail": "{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: 30.0, brightness: 0.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orientation: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, standby: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, hudText: null, dragging: false, previewAt: null}"
+    "detail": "{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: 30.0, brightness: 0.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orient: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, hudText: null, dragging: false, previewAt: null}"
   },
   {
     "ms": 8640,
     "kind": "CHECK",
     "id": "A9.clamp",
     "pass": true,
-    "detail": "{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: 30.0, brightness: 0.5, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orientation: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, standby: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, hudText: null, dragging: false, previewAt: null}"
+    "detail": "{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: 30.0, brightness: 0.5, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orient: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, hudText: null, dragging: false, previewAt: null}"
   },
   {
     "ms": 8795,
     "kind": "CHECK",
     "id": "A9.clamp",
     "pass": true,
-    "detail": "{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: 30.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orientation: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, standby: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, hudText: null, dragging: false, previewAt: null}"
+    "detail": "{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: 30.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orient: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, hudText: null, dragging: false, previewAt: null}"
   },
   {
     "ms": 8948,
     "kind": "CHECK",
     "id": "A9.clamp",
     "pass": false,
-    "detail": "{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: 30.0, brightness: 2.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orientation: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, standby: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, hudText: null, dragging: false, previewAt: null}"
+    "detail": "{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: 30.0, brightness: 2.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orient: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, hudText: null, dragging: false, previewAt: null}"
   },
   {
     "ms": 8956,
@@ -1712,13 +1712,13 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
     "zoom": 1.0,
     "locked": false,
     "fullscreen": false,
-    "orientation": "auto",
+    "orient": "auto",
     "pip": false,
     "mini": false,
     "rendered": true,
     "epoch": 0,
     "sourceIndex": 0,
-    "standby": "off",
+    "keepAlive": "off",
     "type": "vod",
     "title": "Coverage vod.mp4",
     "pipSupported": true,
@@ -1733,7 +1733,7 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
     "kind": "CHECK",
     "id": "A10.persist",
     "pass": true,
-    "detail": "{playing: false, intent: false, buffering: false, duration: 20000, position: 0, size: 0x0, volume: 30.0, brightness: 0.5, rate: 1.5, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orientation: auto, pip: false, mini: false, rendered: false, epoch: 0, sourceIndex: 0, standby: off, type: vod, title: Coverage ad.mp4, pipSupported: true, controls: true, hud: none, hudText: null, dragging: false, previewAt: null}"
+    "detail": "{playing: false, intent: false, buffering: false, duration: 20000, position: 0, size: 0x0, volume: 30.0, brightness: 0.5, rate: 1.5, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orient: auto, pip: false, mini: false, rendered: false, epoch: 0, sourceIndex: 0, keepAlive: off, type: vod, title: Coverage ad.mp4, pipSupported: true, controls: true, hud: none, hudText: null, dragging: false, previewAt: null}"
   },
   {
     "ms": 10177,
@@ -1751,13 +1751,13 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
     "zoom": 1.0,
     "locked": false,
     "fullscreen": false,
-    "orientation": "auto",
+    "orient": "auto",
     "pip": false,
     "mini": false,
     "rendered": false,
     "epoch": 0,
     "sourceIndex": 0,
-    "standby": "off",
+    "keepAlive": "off",
     "type": "vod",
     "title": "Coverage ad.mp4",
     "pipSupported": true,
@@ -1805,7 +1805,7 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
   {
     "ms": 10351,
     "kind": "BASIC_DONE",
-    "swap": false,
+    "cutover": false,
     "events": 59
   },
   {
@@ -1817,10 +1817,10 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
 ]
 ```
 
-## batch15-basic-swap 自动检查点
+## batch15-basic-cutover 自动检查点
 
-- 命令 `basic {'swap': 'true'}`；driver exit=0。
-- 原始事件/状态/系统证据：`example/tool/coverage_evidence/batch15-basic-swap.json` 及同前缀文件。
+- 命令 `basic {'cutover': 'true'}`；driver exit=0。
+- 原始事件/状态/系统证据：`example/tool/coverage_evidence/batch15-basic-cutover.json` 及同前缀文件。
 ```json
 [
   {
@@ -1829,7 +1829,7 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
     "group": "basic",
     "args": {
       "group": "basic",
-      "swap": "true"
+      "cutover": "true"
     }
   },
   {
@@ -1847,14 +1847,14 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
       "_BroadcastStream<MovaProg>",
       "_MultiStream<MovaUiState>"
     ],
-    "swap": true
+    "cutover": true
   },
   {
     "ms": 13644,
     "kind": "CHECK",
     "id": "A1.broadcast",
     "pass": false,
-    "detail": "all streams broadcast swap=true"
+    "detail": "all streams broadcast cutover=true"
   },
   {
     "ms": 13644,
@@ -1868,7 +1868,7 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
     "kind": "CHECK",
     "id": "A5.paused",
     "pass": true,
-    "detail": "{playing: false, intent: false, buffering: false, duration: 40000, position: 0, size: 0x0, volume: 30.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orientation: auto, pip: false, mini: false, rendered: false, epoch: 0, sourceIndex: 0, standby: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: true, hud: none, hudText: null, dragging: false, previewAt: null}"
+    "detail": "{playing: false, intent: false, buffering: false, duration: 40000, position: 0, size: 0x0, volume: 30.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orient: auto, pip: false, mini: false, rendered: false, epoch: 0, sourceIndex: 0, keepAlive: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: true, hud: none, hudText: null, dragging: false, previewAt: null}"
   },
   {
     "ms": 16181,
@@ -1889,7 +1889,7 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
     "kind": "CHECK",
     "id": "A6.pause",
     "pass": true,
-    "detail": "{playing: false, intent: false, buffering: false, duration: 40000, position: 3145, size: 0x0, volume: 30.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orientation: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, standby: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, hudText: null, dragging: false, previewAt: null}"
+    "detail": "{playing: false, intent: false, buffering: false, duration: 40000, position: 3145, size: 0x0, volume: 30.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orient: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, hudText: null, dragging: false, previewAt: null}"
   },
   {
     "ms": 17349,
@@ -1951,13 +1951,13 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
       "epoch": 0,
       "sourceIndex": 0,
-      "standby": "off",
+      "keepAlive": "off",
       "type": "vod",
       "title": "Coverage vod.mp4",
       "pipSupported": true,
@@ -1973,7 +1973,7 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
     "kind": "CHECK",
     "id": "A8.clamp",
     "pass": false,
-    "detail": "{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: -10.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orientation: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, standby: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, hudText: null, dragging: false, previewAt: null}"
+    "detail": "{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: -10.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orient: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, hudText: null, dragging: false, previewAt: null}"
   },
   {
     "ms": 18276,
@@ -1993,13 +1993,13 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
       "epoch": 0,
       "sourceIndex": 0,
-      "standby": "off",
+      "keepAlive": "off",
       "type": "vod",
       "title": "Coverage vod.mp4",
       "pipSupported": true,
@@ -2015,7 +2015,7 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
     "kind": "CHECK",
     "id": "A8.clamp",
     "pass": true,
-    "detail": "{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: 0.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orientation: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, standby: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, hudText: null, dragging: false, previewAt: null}"
+    "detail": "{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: 0.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orient: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, hudText: null, dragging: false, previewAt: null}"
   },
   {
     "ms": 18489,
@@ -2035,13 +2035,13 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
       "epoch": 0,
       "sourceIndex": 0,
-      "standby": "off",
+      "keepAlive": "off",
       "type": "vod",
       "title": "Coverage vod.mp4",
       "pipSupported": true,
@@ -2057,7 +2057,7 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
     "kind": "CHECK",
     "id": "A8.clamp",
     "pass": true,
-    "detail": "{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: 1.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orientation: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, standby: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, hudText: null, dragging: false, previewAt: null}"
+    "detail": "{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: 1.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orient: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, hudText: null, dragging: false, previewAt: null}"
   },
   {
     "ms": 18676,
@@ -2077,13 +2077,13 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
       "epoch": 0,
       "sourceIndex": 0,
-      "standby": "off",
+      "keepAlive": "off",
       "type": "vod",
       "title": "Coverage vod.mp4",
       "pipSupported": true,
@@ -2099,7 +2099,7 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
     "kind": "CHECK",
     "id": "A8.clamp",
     "pass": true,
-    "detail": "{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: 50.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orientation: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, standby: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, hudText: null, dragging: false, previewAt: null}"
+    "detail": "{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: 50.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orient: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, hudText: null, dragging: false, previewAt: null}"
   },
   {
     "ms": 18868,
@@ -2119,13 +2119,13 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
       "epoch": 0,
       "sourceIndex": 0,
-      "standby": "off",
+      "keepAlive": "off",
       "type": "vod",
       "title": "Coverage vod.mp4",
       "pipSupported": true,
@@ -2141,7 +2141,7 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
     "kind": "CHECK",
     "id": "A8.clamp",
     "pass": true,
-    "detail": "{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: 100.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orientation: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, standby: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, hudText: null, dragging: false, previewAt: null}"
+    "detail": "{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: 100.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orient: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, hudText: null, dragging: false, previewAt: null}"
   },
   {
     "ms": 19058,
@@ -2161,13 +2161,13 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
       "epoch": 0,
       "sourceIndex": 0,
-      "standby": "off",
+      "keepAlive": "off",
       "type": "vod",
       "title": "Coverage vod.mp4",
       "pipSupported": true,
@@ -2183,42 +2183,42 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
     "kind": "CHECK",
     "id": "A8.clamp",
     "pass": false,
-    "detail": "{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: 110.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orientation: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, standby: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, hudText: null, dragging: false, previewAt: null}"
+    "detail": "{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: 110.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orient: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, hudText: null, dragging: false, previewAt: null}"
   },
   {
     "ms": 19271,
     "kind": "CHECK",
     "id": "A9.clamp",
     "pass": false,
-    "detail": "{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: 30.0, brightness: -1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orientation: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, standby: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, hudText: null, dragging: false, previewAt: null}"
+    "detail": "{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: 30.0, brightness: -1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orient: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, hudText: null, dragging: false, previewAt: null}"
   },
   {
     "ms": 19424,
     "kind": "CHECK",
     "id": "A9.clamp",
     "pass": true,
-    "detail": "{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: 30.0, brightness: 0.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orientation: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, standby: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, hudText: null, dragging: false, previewAt: null}"
+    "detail": "{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: 30.0, brightness: 0.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orient: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, hudText: null, dragging: false, previewAt: null}"
   },
   {
     "ms": 19580,
     "kind": "CHECK",
     "id": "A9.clamp",
     "pass": true,
-    "detail": "{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: 30.0, brightness: 0.5, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orientation: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, standby: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, hudText: null, dragging: false, previewAt: null}"
+    "detail": "{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: 30.0, brightness: 0.5, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orient: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, hudText: null, dragging: false, previewAt: null}"
   },
   {
     "ms": 19735,
     "kind": "CHECK",
     "id": "A9.clamp",
     "pass": true,
-    "detail": "{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: 30.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orientation: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, standby: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, hudText: null, dragging: false, previewAt: null}"
+    "detail": "{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: 30.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orient: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, hudText: null, dragging: false, previewAt: null}"
   },
   {
     "ms": 19887,
     "kind": "CHECK",
     "id": "A9.clamp",
     "pass": false,
-    "detail": "{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: 30.0, brightness: 2.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orientation: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, standby: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, hudText: null, dragging: false, previewAt: null}"
+    "detail": "{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: 30.0, brightness: 2.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orient: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, hudText: null, dragging: false, previewAt: null}"
   },
   {
     "ms": 19919,
@@ -2293,13 +2293,13 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
     "zoom": 1.0,
     "locked": false,
     "fullscreen": false,
-    "orientation": "auto",
+    "orient": "auto",
     "pip": false,
     "mini": false,
     "rendered": true,
     "epoch": 0,
     "sourceIndex": 0,
-    "standby": "off",
+    "keepAlive": "off",
     "type": "vod",
     "title": "Coverage vod.mp4",
     "pipSupported": true,
@@ -2314,7 +2314,7 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
     "kind": "CHECK",
     "id": "A10.persist",
     "pass": true,
-    "detail": "{playing: false, intent: false, buffering: false, duration: 20000, position: 0, size: 0x0, volume: 30.0, brightness: 0.5, rate: 1.5, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orientation: auto, pip: false, mini: false, rendered: false, epoch: 0, sourceIndex: 0, standby: off, type: vod, title: Coverage ad.mp4, pipSupported: true, controls: true, hud: none, hudText: null, dragging: false, previewAt: null}"
+    "detail": "{playing: false, intent: false, buffering: false, duration: 20000, position: 0, size: 0x0, volume: 30.0, brightness: 0.5, rate: 1.5, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orient: auto, pip: false, mini: false, rendered: false, epoch: 0, sourceIndex: 0, keepAlive: off, type: vod, title: Coverage ad.mp4, pipSupported: true, controls: true, hud: none, hudText: null, dragging: false, previewAt: null}"
   },
   {
     "ms": 21127,
@@ -2332,13 +2332,13 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
     "zoom": 1.0,
     "locked": false,
     "fullscreen": false,
-    "orientation": "auto",
+    "orient": "auto",
     "pip": false,
     "mini": false,
     "rendered": false,
     "epoch": 0,
     "sourceIndex": 0,
-    "standby": "off",
+    "keepAlive": "off",
     "type": "vod",
     "title": "Coverage ad.mp4",
     "pipSupported": true,
@@ -2386,7 +2386,7 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
   {
     "ms": 21296,
     "kind": "BASIC_DONE",
-    "swap": true,
+    "cutover": true,
     "events": 59
   },
   {
@@ -2507,7 +2507,7 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
   },
   {
     "ms": 28207,
-    "kind": "NEW_CONFIG",
+    "kind": "NEW_OPTS",
     "whep": {
       "demuxer-lavf-o": "media_timeout=8000000,handshake_timeout=2000000,first_frame_timeout=3000000"
     },
@@ -2571,7 +2571,7 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
     "kind": "CHECK",
     "id": "N22.stalePlay",
     "pass": true,
-    "detail": "{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: 30.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orientation: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, standby: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: true, hud: none, hudText: null, dragging: false, previewAt: null}"
+    "detail": "{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: 30.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orient: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: true, hud: none, hudText: null, dragging: false, previewAt: null}"
   },
   {
     "ms": 33156,
@@ -2589,13 +2589,13 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
     "zoom": 1.0,
     "locked": false,
     "fullscreen": false,
-    "orientation": "auto",
+    "orient": "auto",
     "pip": false,
     "mini": false,
     "rendered": true,
     "epoch": 0,
     "sourceIndex": 0,
-    "standby": "off",
+    "keepAlive": "off",
     "type": "vod",
     "title": "Coverage ad.mp4",
     "pipSupported": true,
@@ -2666,10 +2666,10 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
 ]
 ```
 
-## batch15-hooks-swap 自动检查点
+## batch15-hooks-cutover 自动检查点
 
-- 命令 `new {'case': 'hooks', 'swap': 'true'}`；driver exit=0。
-- 原始事件/状态/系统证据：`example/tool/coverage_evidence/batch15-hooks-swap.json` 及同前缀文件。
+- 命令 `new {'case': 'hooks', 'cutover': 'true'}`；driver exit=0。
+- 原始事件/状态/系统证据：`example/tool/coverage_evidence/batch15-hooks-cutover.json` 及同前缀文件。
 ```json
 [
   {
@@ -2679,7 +2679,7 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
     "args": {
       "group": "new",
       "case": "hooks",
-      "swap": "true"
+      "cutover": "true"
     }
   },
   {
@@ -2701,7 +2701,7 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
     "kind": "CHECK",
     "id": "N22.stalePlay",
     "pass": true,
-    "detail": "{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: 30.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orientation: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, standby: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: true, hud: none, hudText: null, dragging: false, previewAt: null}"
+    "detail": "{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: 30.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orient: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: true, hud: none, hudText: null, dragging: false, previewAt: null}"
   },
   {
     "ms": 38895,
@@ -2719,13 +2719,13 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
     "zoom": 1.0,
     "locked": false,
     "fullscreen": false,
-    "orientation": "auto",
+    "orient": "auto",
     "pip": false,
     "mini": false,
     "rendered": true,
     "epoch": 0,
     "sourceIndex": 0,
-    "standby": "off",
+    "keepAlive": "off",
     "type": "vod",
     "title": "Coverage ad.mp4",
     "pipSupported": true,
@@ -2870,13 +2870,13 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": false,
       "epoch": 0,
       "sourceIndex": 0,
-      "standby": "off",
+      "keepAlive": "off",
       "type": "live",
       "title": null,
       "pipSupported": true,
@@ -2962,13 +2962,13 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": false,
       "epoch": 0,
       "sourceIndex": 0,
-      "standby": "off",
+      "keepAlive": "off",
       "type": "live",
       "title": null,
       "pipSupported": true,
@@ -3090,13 +3090,13 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": false,
       "epoch": 0,
       "sourceIndex": 1,
-      "standby": "off",
+      "keepAlive": "off",
       "type": "live",
       "title": null,
       "pipSupported": true,
@@ -3173,13 +3173,13 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": false,
       "epoch": 0,
       "sourceIndex": 0,
-      "standby": "off",
+      "keepAlive": "off",
       "type": "vod",
       "title": null,
       "pipSupported": true,
@@ -3256,13 +3256,13 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": false,
       "epoch": 0,
       "sourceIndex": 0,
-      "standby": "off",
+      "keepAlive": "off",
       "type": "vod",
       "title": null,
       "pipSupported": true,
@@ -3339,13 +3339,13 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": false,
       "epoch": 0,
       "sourceIndex": 0,
-      "standby": "off",
+      "keepAlive": "off",
       "type": "vod",
       "title": null,
       "pipSupported": true,
@@ -3422,13 +3422,13 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": false,
       "epoch": 0,
       "sourceIndex": 0,
-      "standby": "off",
+      "keepAlive": "off",
       "type": "vod",
       "title": null,
       "pipSupported": true,
@@ -3505,13 +3505,13 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": false,
       "epoch": 0,
       "sourceIndex": 0,
-      "standby": "off",
+      "keepAlive": "off",
       "type": "vod",
       "title": null,
       "pipSupported": true,
@@ -3588,13 +3588,13 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": false,
       "epoch": 0,
       "sourceIndex": 0,
-      "standby": "off",
+      "keepAlive": "off",
       "type": "vod",
       "title": null,
       "pipSupported": true,
@@ -3663,7 +3663,7 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
   },
   {
     "ms": 109038,
-    "kind": "STT_NO_ENGINE",
+    "kind": "STT_NO_RECOGNIZER",
     "running": false,
     "languages": []
   },
@@ -5302,35 +5302,35 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
     "ms": 236451,
     "kind": "FEED_SAMPLE",
     "index": 20,
-    "engines": 3,
+    "movas": 3,
     "rss": 184700928
   },
   {
     "ms": 237639,
     "kind": "FEED_SAMPLE",
     "index": 40,
-    "engines": 3,
+    "movas": 3,
     "rss": 177876992
   },
   {
     "ms": 238110,
     "kind": "FEED_SAMPLE",
     "index": 60,
-    "engines": 3,
+    "movas": 3,
     "rss": 177082368
   },
   {
     "ms": 238620,
     "kind": "FEED_SAMPLE",
     "index": 80,
-    "engines": 3,
+    "movas": 3,
     "rss": 175738880
   },
   {
     "ms": 239035,
     "kind": "FEED_SAMPLE",
     "index": 100,
-    "engines": 3,
+    "movas": 3,
     "rss": 175575040
   },
   {
@@ -5338,11 +5338,11 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
     "kind": "CHECK",
     "id": "A29.final",
     "pass": true,
-    "detail": "active=120 engines=3"
+    "detail": "active=120 movas=3"
   },
   {
     "ms": 239057,
-    "kind": "FEED_ENGINES",
+    "kind": "FEED_MOVAS",
     "states": [
       {
         "playing": false,
@@ -5358,13 +5358,13 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
         "zoom": 1.0,
         "locked": false,
         "fullscreen": false,
-        "orientation": "auto",
+        "orient": "auto",
         "pip": false,
         "mini": false,
         "rendered": false,
         "epoch": 0,
         "sourceIndex": 0,
-        "standby": "off",
+        "keepAlive": "off",
         "type": "vod",
         "title": "Coverage vod.mp4?feed=99",
         "pipSupported": true,
@@ -5388,13 +5388,13 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
         "zoom": 1.0,
         "locked": false,
         "fullscreen": false,
-        "orientation": "auto",
+        "orient": "auto",
         "pip": false,
         "mini": false,
         "rendered": false,
         "epoch": 0,
         "sourceIndex": 0,
-        "standby": "off",
+        "keepAlive": "off",
         "type": "vod",
         "title": "Coverage vod.mp4?feed=120",
         "pipSupported": true,
@@ -5418,13 +5418,13 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
         "zoom": 1.0,
         "locked": false,
         "fullscreen": false,
-        "orientation": "auto",
+        "orient": "auto",
         "pip": false,
         "mini": false,
         "rendered": false,
         "epoch": 0,
         "sourceIndex": 0,
-        "standby": "off",
+        "keepAlive": "off",
         "type": "vod",
         "title": "Coverage vod.mp4?feed=98",
         "pipSupported": true,
@@ -5441,7 +5441,7 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
     "kind": "CHECK",
     "id": "A29.dispose",
     "pass": true,
-    "detail": "controller and 3 native engines disposed"
+    "detail": "feed and 3 native players disposed"
   },
   {
     "ms": 239069,
@@ -5452,10 +5452,10 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
 ]
 ```
 
-## batch15-swap 自动检查点
+## batch15-cutover 自动检查点
 
-- 命令 `new {'case': 'swap'}`；driver exit=0。
-- 原始事件/状态/系统证据：`example/tool/coverage_evidence/batch15-swap.json` 及同前缀文件。
+- 命令 `new {'case': 'cutover'}`；driver exit=0。
+- 原始事件/状态/系统证据：`example/tool/coverage_evidence/batch15-cutover.json` 及同前缀文件。
 ```json
 [
   {
@@ -5464,7 +5464,7 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
     "group": "new",
     "args": {
       "group": "new",
-      "case": "swap"
+      "case": "cutover"
     }
   },
   {
@@ -5472,7 +5472,7 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
     "kind": "CHECK",
     "id": "C11.off",
     "pass": true,
-    "detail": "engines=1 epoch=0"
+    "detail": "movas=1 epoch=0"
   },
   {
     "ms": 243860,
@@ -5486,14 +5486,14 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
     "kind": "CHECK",
     "id": "A24.retired",
     "pass": true,
-    "detail": "retired engine rejects open"
+    "detail": "retired player rejects open"
   },
   {
     "ms": 243861,
     "kind": "CHECK",
     "id": "A24.short",
     "pass": true,
-    "detail": "short warm declined engines=2"
+    "detail": "short warm declined movas=2"
   },
   {
     "ms": 243943,
@@ -5512,7 +5512,7 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
   {
     "ms": 246970,
     "kind": "CHECK",
-    "id": "A24.swapTo",
+    "id": "A24.cutoverTo",
     "pass": true,
     "detail": "epoch=2 rate=1.0"
   },
@@ -6057,7 +6057,7 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
       "uri": "http://127.0.0.1:18080/ad.mp4?t=1793068538251025",
       "streamType": "vod",
       "audioOnly": true,
-      "swapEnabled": false,
+      "cutoverEnabled": false,
       "title": "Coverage ad.mp4"
     }
   },
@@ -6156,7 +6156,7 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
       "uri": "http://127.0.0.1:18080/ad.mp4?t=1793068564514305",
       "streamType": "vod",
       "audioOnly": true,
-      "swapEnabled": false,
+      "cutoverEnabled": false,
       "title": "Coverage ad.mp4"
     }
   },
@@ -6243,7 +6243,7 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
       "uri": "http://127.0.0.1:18080/404.mp4?t=1793068574791895",
       "streamType": "vod",
       "audioOnly": true,
-      "swapEnabled": false,
+      "cutoverEnabled": false,
       "title": "Coverage 404.mp4"
     }
   },
@@ -6338,7 +6338,7 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
       "uri": "http://127.0.0.1:18080/hang?t=1793068599027473",
       "streamType": "vod",
       "audioOnly": true,
-      "swapEnabled": false,
+      "cutoverEnabled": false,
       "title": "Coverage hang"
     }
   },
@@ -6381,7 +6381,7 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
       "uri": "http://127.0.0.1:18080/stall.mp4?t=1793068605250498",
       "streamType": "vod",
       "audioOnly": true,
-      "swapEnabled": false,
+      "cutoverEnabled": false,
       "title": "Coverage stall.mp4"
     }
   },
@@ -6468,7 +6468,7 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
       "uri": "http://127.0.0.1:18084/truncated.mp4?t=1793068636650541",
       "streamType": "vod",
       "audioOnly": true,
-      "swapEnabled": false
+      "cutoverEnabled": false
     }
   },
   {
@@ -6637,13 +6637,13 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
       "epoch": 0,
       "sourceIndex": 0,
-      "standby": "off",
+      "keepAlive": "off",
       "type": "vod",
       "title": null,
       "pipSupported": true,
@@ -6974,13 +6974,13 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
 ]
 ```
 
-## batch16-engine 可视/API阶段检查点
+## batch16-mova 可视/API阶段检查点
 
 - 逐动作原始状态/事件及截图见同前缀；控件/手势断言：
 ```json
 [
   {
-    "id": "batch16-engine.fit.contain",
+    "id": "batch16-mova.fit.contain",
     "pass": true,
     "detail": {
       "playing": false,
@@ -6996,13 +6996,13 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
       "epoch": 0,
       "sourceIndex": 0,
-      "standby": "off",
+      "keepAlive": "off",
       "type": "vod",
       "title": null,
       "pipSupported": true,
@@ -7014,7 +7014,7 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
     }
   },
   {
-    "id": "batch16-engine.fit.cover",
+    "id": "batch16-mova.fit.cover",
     "pass": true,
     "detail": {
       "playing": false,
@@ -7030,13 +7030,13 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
       "epoch": 0,
       "sourceIndex": 0,
-      "standby": "off",
+      "keepAlive": "off",
       "type": "vod",
       "title": null,
       "pipSupported": true,
@@ -7048,7 +7048,7 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
     }
   },
   {
-    "id": "batch16-engine.fit.fill",
+    "id": "batch16-mova.fit.fill",
     "pass": true,
     "detail": {
       "playing": false,
@@ -7064,13 +7064,13 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
       "epoch": 0,
       "sourceIndex": 0,
-      "standby": "off",
+      "keepAlive": "off",
       "type": "vod",
       "title": null,
       "pipSupported": true,
@@ -7082,7 +7082,7 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
     }
   },
   {
-    "id": "batch16-engine.sticky",
+    "id": "batch16-mova.sticky",
     "pass": true,
     "detail": {
       "playing": false,
@@ -7098,13 +7098,13 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
       "epoch": 0,
       "sourceIndex": 0,
-      "standby": "off",
+      "keepAlive": "off",
       "type": "vod",
       "title": null,
       "pipSupported": true,
@@ -7116,7 +7116,7 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
     }
   },
   {
-    "id": "batch16-engine.autohide",
+    "id": "batch16-mova.autohide",
     "pass": false,
     "detail": {
       "playing": false,
@@ -7132,13 +7132,13 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
       "epoch": 0,
       "sourceIndex": 0,
-      "standby": "off",
+      "keepAlive": "off",
       "type": "vod",
       "title": null,
       "pipSupported": true,
@@ -7150,7 +7150,7 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
     }
   },
   {
-    "id": "batch16-engine.lock",
+    "id": "batch16-mova.lock",
     "pass": true,
     "detail": {
       "before": {
@@ -7167,13 +7167,13 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
         "zoom": 1.0,
         "locked": true,
         "fullscreen": false,
-        "orientation": "auto",
+        "orient": "auto",
         "pip": false,
         "mini": false,
         "rendered": true,
         "epoch": 0,
         "sourceIndex": 0,
-        "standby": "off",
+        "keepAlive": "off",
         "type": "vod",
         "title": null,
         "pipSupported": true,
@@ -7197,13 +7197,13 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
         "zoom": 1.0,
         "locked": true,
         "fullscreen": false,
-        "orientation": "auto",
+        "orient": "auto",
         "pip": false,
         "mini": false,
         "rendered": true,
         "epoch": 0,
         "sourceIndex": 0,
-        "standby": "off",
+        "keepAlive": "off",
         "type": "vod",
         "title": null,
         "pipSupported": true,
@@ -7216,7 +7216,7 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
     }
   },
   {
-    "id": "batch16-engine.doubletap",
+    "id": "batch16-mova.doubletap",
     "pass": false,
     "detail": {
       "playing": false,
@@ -7232,13 +7232,13 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
       "epoch": 0,
       "sourceIndex": 0,
-      "standby": "off",
+      "keepAlive": "off",
       "type": "vod",
       "title": null,
       "pipSupported": true,
@@ -7250,7 +7250,7 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
     }
   },
   {
-    "id": "batch16-engine.leftBrightness",
+    "id": "batch16-mova.leftBrightness",
     "pass": true,
     "detail": {
       "playing": false,
@@ -7266,13 +7266,13 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
       "epoch": 0,
       "sourceIndex": 0,
-      "standby": "off",
+      "keepAlive": "off",
       "type": "vod",
       "title": null,
       "pipSupported": true,
@@ -7284,7 +7284,7 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
     }
   },
   {
-    "id": "batch16-engine.rightVolume",
+    "id": "batch16-mova.rightVolume",
     "pass": true,
     "detail": {
       "playing": false,
@@ -7300,13 +7300,13 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
       "epoch": 0,
       "sourceIndex": 0,
-      "standby": "off",
+      "keepAlive": "off",
       "type": "vod",
       "title": null,
       "pipSupported": true,
@@ -7318,7 +7318,7 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
     }
   },
   {
-    "id": "batch16-engine.horizontalSeek",
+    "id": "batch16-mova.horizontalSeek",
     "pass": true,
     "detail": {
       "playing": false,
@@ -7334,13 +7334,13 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
       "epoch": 0,
       "sourceIndex": 0,
-      "standby": "off",
+      "keepAlive": "off",
       "type": "vod",
       "title": null,
       "pipSupported": true,
@@ -7352,7 +7352,7 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
     }
   },
   {
-    "id": "batch16-engine.longpress",
+    "id": "batch16-mova.longpress",
     "pass": false,
     "detail": {
       "during": {
@@ -7369,13 +7369,13 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
         "zoom": 1.0,
         "locked": false,
         "fullscreen": false,
-        "orientation": "auto",
+        "orient": "auto",
         "pip": false,
         "mini": false,
         "rendered": true,
         "epoch": 0,
         "sourceIndex": 0,
-        "standby": "off",
+        "keepAlive": "off",
         "type": "vod",
         "title": null,
         "pipSupported": true,
@@ -7399,13 +7399,13 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
         "zoom": 1.0,
         "locked": false,
         "fullscreen": false,
-        "orientation": "auto",
+        "orient": "auto",
         "pip": false,
         "mini": false,
         "rendered": true,
         "epoch": 0,
         "sourceIndex": 0,
-        "standby": "off",
+        "keepAlive": "off",
         "type": "vod",
         "title": null,
         "pipSupported": true,
@@ -7418,7 +7418,7 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
     }
   },
   {
-    "id": "batch16-engine.fullscreen.true",
+    "id": "batch16-mova.fullscreen.true",
     "pass": true,
     "detail": {
       "playing": false,
@@ -7434,13 +7434,13 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
       "zoom": 1.0,
       "locked": false,
       "fullscreen": true,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
       "epoch": 0,
       "sourceIndex": 0,
-      "standby": "off",
+      "keepAlive": "off",
       "type": "vod",
       "title": null,
       "pipSupported": true,
@@ -7452,7 +7452,7 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
     }
   },
   {
-    "id": "batch16-engine.fullscreen.false",
+    "id": "batch16-mova.fullscreen.false",
     "pass": true,
     "detail": {
       "playing": false,
@@ -7468,13 +7468,13 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
       "epoch": 0,
       "sourceIndex": 0,
-      "standby": "off",
+      "keepAlive": "off",
       "type": "vod",
       "title": null,
       "pipSupported": true,
@@ -7486,7 +7486,7 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
     }
   },
   {
-    "id": "batch16-engine.fitRebuild",
+    "id": "batch16-mova.fitRebuild",
     "pass": true,
     "detail": {
       "playing": false,
@@ -7502,13 +7502,13 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
       "epoch": 0,
       "sourceIndex": 0,
-      "standby": "off",
+      "keepAlive": "off",
       "type": "vod",
       "title": null,
       "pipSupported": true,
@@ -7522,13 +7522,13 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
 ]
 ```
 
-## batch16-swap 可视/API阶段检查点
+## batch16-cutover 可视/API阶段检查点
 
 - 逐动作原始状态/事件及截图见同前缀；控件/手势断言：
 ```json
 [
   {
-    "id": "batch16-swap.fit.contain",
+    "id": "batch16-cutover.fit.contain",
     "pass": true,
     "detail": {
       "playing": false,
@@ -7544,13 +7544,13 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
       "epoch": 0,
       "sourceIndex": 0,
-      "standby": "off",
+      "keepAlive": "off",
       "type": "vod",
       "title": "Coverage vod.mp4",
       "pipSupported": true,
@@ -7562,7 +7562,7 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
     }
   },
   {
-    "id": "batch16-swap.fit.cover",
+    "id": "batch16-cutover.fit.cover",
     "pass": true,
     "detail": {
       "playing": false,
@@ -7578,13 +7578,13 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
       "epoch": 0,
       "sourceIndex": 0,
-      "standby": "off",
+      "keepAlive": "off",
       "type": "vod",
       "title": "Coverage vod.mp4",
       "pipSupported": true,
@@ -7596,7 +7596,7 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
     }
   },
   {
-    "id": "batch16-swap.fit.fill",
+    "id": "batch16-cutover.fit.fill",
     "pass": true,
     "detail": {
       "playing": false,
@@ -7612,13 +7612,13 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
       "epoch": 0,
       "sourceIndex": 0,
-      "standby": "off",
+      "keepAlive": "off",
       "type": "vod",
       "title": "Coverage vod.mp4",
       "pipSupported": true,
@@ -7630,7 +7630,7 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
     }
   },
   {
-    "id": "batch16-swap.sticky",
+    "id": "batch16-cutover.sticky",
     "pass": true,
     "detail": {
       "playing": false,
@@ -7646,13 +7646,13 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
       "epoch": 0,
       "sourceIndex": 0,
-      "standby": "off",
+      "keepAlive": "off",
       "type": "vod",
       "title": "Coverage vod.mp4",
       "pipSupported": true,
@@ -7664,7 +7664,7 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
     }
   },
   {
-    "id": "batch16-swap.autohide",
+    "id": "batch16-cutover.autohide",
     "pass": true,
     "detail": {
       "playing": false,
@@ -7680,13 +7680,13 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
       "epoch": 0,
       "sourceIndex": 0,
-      "standby": "off",
+      "keepAlive": "off",
       "type": "vod",
       "title": "Coverage vod.mp4",
       "pipSupported": true,
@@ -7698,7 +7698,7 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
     }
   },
   {
-    "id": "batch16-swap.lock",
+    "id": "batch16-cutover.lock",
     "pass": true,
     "detail": {
       "before": {
@@ -7715,13 +7715,13 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
         "zoom": 1.0,
         "locked": true,
         "fullscreen": false,
-        "orientation": "auto",
+        "orient": "auto",
         "pip": false,
         "mini": false,
         "rendered": true,
         "epoch": 0,
         "sourceIndex": 0,
-        "standby": "off",
+        "keepAlive": "off",
         "type": "vod",
         "title": "Coverage vod.mp4",
         "pipSupported": true,
@@ -7745,13 +7745,13 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
         "zoom": 1.0,
         "locked": true,
         "fullscreen": false,
-        "orientation": "auto",
+        "orient": "auto",
         "pip": false,
         "mini": false,
         "rendered": true,
         "epoch": 0,
         "sourceIndex": 0,
-        "standby": "off",
+        "keepAlive": "off",
         "type": "vod",
         "title": "Coverage vod.mp4",
         "pipSupported": true,
@@ -7764,7 +7764,7 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
     }
   },
   {
-    "id": "batch16-swap.doubletap",
+    "id": "batch16-cutover.doubletap",
     "pass": false,
     "detail": {
       "playing": false,
@@ -7780,13 +7780,13 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
       "epoch": 0,
       "sourceIndex": 0,
-      "standby": "off",
+      "keepAlive": "off",
       "type": "vod",
       "title": "Coverage vod.mp4",
       "pipSupported": true,
@@ -7798,7 +7798,7 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
     }
   },
   {
-    "id": "batch16-swap.leftBrightness",
+    "id": "batch16-cutover.leftBrightness",
     "pass": true,
     "detail": {
       "playing": false,
@@ -7814,13 +7814,13 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
       "epoch": 0,
       "sourceIndex": 0,
-      "standby": "off",
+      "keepAlive": "off",
       "type": "vod",
       "title": "Coverage vod.mp4",
       "pipSupported": true,
@@ -7832,7 +7832,7 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
     }
   },
   {
-    "id": "batch16-swap.rightVolume",
+    "id": "batch16-cutover.rightVolume",
     "pass": true,
     "detail": {
       "playing": false,
@@ -7848,13 +7848,13 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
       "epoch": 0,
       "sourceIndex": 0,
-      "standby": "off",
+      "keepAlive": "off",
       "type": "vod",
       "title": "Coverage vod.mp4",
       "pipSupported": true,
@@ -7866,7 +7866,7 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
     }
   },
   {
-    "id": "batch16-swap.horizontalSeek",
+    "id": "batch16-cutover.horizontalSeek",
     "pass": true,
     "detail": {
       "playing": false,
@@ -7882,13 +7882,13 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
       "epoch": 0,
       "sourceIndex": 0,
-      "standby": "off",
+      "keepAlive": "off",
       "type": "vod",
       "title": "Coverage vod.mp4",
       "pipSupported": true,
@@ -7900,7 +7900,7 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
     }
   },
   {
-    "id": "batch16-swap.longpress",
+    "id": "batch16-cutover.longpress",
     "pass": false,
     "detail": {
       "during": {
@@ -7917,13 +7917,13 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
         "zoom": 1.0,
         "locked": false,
         "fullscreen": false,
-        "orientation": "auto",
+        "orient": "auto",
         "pip": false,
         "mini": false,
         "rendered": true,
         "epoch": 0,
         "sourceIndex": 0,
-        "standby": "off",
+        "keepAlive": "off",
         "type": "vod",
         "title": "Coverage vod.mp4",
         "pipSupported": true,
@@ -7947,13 +7947,13 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
         "zoom": 1.0,
         "locked": false,
         "fullscreen": false,
-        "orientation": "auto",
+        "orient": "auto",
         "pip": false,
         "mini": false,
         "rendered": true,
         "epoch": 0,
         "sourceIndex": 0,
-        "standby": "off",
+        "keepAlive": "off",
         "type": "vod",
         "title": "Coverage vod.mp4",
         "pipSupported": true,
@@ -7966,7 +7966,7 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
     }
   },
   {
-    "id": "batch16-swap.fullscreen.true",
+    "id": "batch16-cutover.fullscreen.true",
     "pass": true,
     "detail": {
       "playing": false,
@@ -7982,13 +7982,13 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
       "zoom": 1.0,
       "locked": false,
       "fullscreen": true,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
       "epoch": 0,
       "sourceIndex": 0,
-      "standby": "off",
+      "keepAlive": "off",
       "type": "vod",
       "title": "Coverage vod.mp4",
       "pipSupported": true,
@@ -8000,7 +8000,7 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
     }
   },
   {
-    "id": "batch16-swap.fullscreen.false",
+    "id": "batch16-cutover.fullscreen.false",
     "pass": true,
     "detail": {
       "playing": false,
@@ -8016,13 +8016,13 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
       "epoch": 0,
       "sourceIndex": 0,
-      "standby": "off",
+      "keepAlive": "off",
       "type": "vod",
       "title": "Coverage vod.mp4",
       "pipSupported": true,
@@ -8034,7 +8034,7 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
     }
   },
   {
-    "id": "batch16-swap.fitRebuild",
+    "id": "batch16-cutover.fitRebuild",
     "pass": true,
     "detail": {
       "playing": false,
@@ -8050,13 +8050,13 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
       "epoch": 0,
       "sourceIndex": 0,
-      "standby": "off",
+      "keepAlive": "off",
       "type": "vod",
       "title": "Coverage vod.mp4",
       "pipSupported": true,
@@ -8093,7 +8093,7 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
       "uri": "http://127.0.0.1:18080/404.mp4?t=1793069848001639",
       "streamType": "vod",
       "audioOnly": true,
-      "swapEnabled": false,
+      "cutoverEnabled": false,
       "title": "Coverage 404.mp4"
     }
   },
@@ -8185,7 +8185,7 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
       "uri": "http://127.0.0.1:18080/stall.mp4?t=1793069854151389",
       "streamType": "vod",
       "audioOnly": true,
-      "swapEnabled": false,
+      "cutoverEnabled": false,
       "title": "Coverage stall.mp4"
     }
   },
@@ -8306,9 +8306,9 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
 ]
 ```
 
-## batch17-hls-playing-swap 复核
+## batch17-hls-playing-cutover 复核
 
-- driver exit=0；证据 `example/tool/coverage_evidence/batch17-hls-playing-swap.json`。
+- driver exit=0；证据 `example/tool/coverage_evidence/batch17-hls-playing-cutover.json`。
 ```json
 [
   {
@@ -8318,7 +8318,7 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
     "args": {
       "group": "new",
       "case": "hls",
-      "swap": "true"
+      "cutover": "true"
     }
   },
   {
@@ -8758,25 +8758,25 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
 ## 事件逐型载荷、重复与state核对
 
 - 去掉各JSON中此前命令的累计记录；每行引用一份具体动作日志。统计的是该证据文件内次数，非去重后的全运行总数。
-- MovaPause：batch1-basic-swap.json：本命令MovaPause=3次，同型相邻载荷相同=2；样例ms=20240 payload={}。接收时完整state见同条JSON；空载荷是事件定义，重复动作可重复发射。
-- MovaDurationChange：batch1-basic-swap.json：本命令MovaDurationChange=6次，同型相邻载荷相同=0；样例ms=20347 payload={"duration":40000}。逐事件接收时state对账差异=0。
-- MovaBufferChange：batch1-basic-swap.json：本命令MovaBufferChange=7次，同型相邻载荷相同=0；样例ms=20262 payload={"buffering":true}。逐事件接收时state对账差异=3。
+- MovaPause：batch1-basic-cutover.json：本命令MovaPause=3次，同型相邻载荷相同=2；样例ms=20240 payload={}。接收时完整state见同条JSON；空载荷是事件定义，重复动作可重复发射。
+- MovaDurationChange：batch1-basic-cutover.json：本命令MovaDurationChange=6次，同型相邻载荷相同=0；样例ms=20347 payload={"duration":40000}。逐事件接收时state对账差异=0。
+- MovaBufferChange：batch1-basic-cutover.json：本命令MovaBufferChange=7次，同型相邻载荷相同=0；样例ms=20262 payload={"buffering":true}。逐事件接收时state对账差异=3。
 - MovaSizeChange：batch15-abr.json：本命令MovaSizeChange=7次，同型相邻载荷相同=0；样例ms=553931 payload={"width":640,"height":0}。逐事件接收时state对账差异=1。
-- MovaSourceChange：batch1-basic-swap.json：本命令MovaSourceChange=3次，同型相邻载荷相同=1；样例ms=20262 payload={"uri":"http://127.0.0.1:18080/vod.mp4?t=1793063996403193"}。接收时完整state见同条JSON；空载荷是事件定义，重复动作可重复发射。
-- MovaReady：batch1-basic-swap.json：本命令MovaReady=3次，同型相邻载荷相同=2；样例ms=20262 payload={}。接收时完整state见同条JSON；空载荷是事件定义，重复动作可重复发射。
-- MovaPlay：batch1-basic-swap.json：本命令MovaPlay=2次，同型相邻载荷相同=1；样例ms=20408 payload={}。接收时完整state见同条JSON；空载荷是事件定义，重复动作可重复发射。
-- MovaFirstFrame：batch1-basic-swap.json：本命令MovaFirstFrame=1次，同型相邻载荷相同=0；样例ms=20409 payload={"sinceOpen":191,"signal":"restart"}。接收时完整state见同条JSON；空载荷是事件定义，重复动作可重复发射。
-- MovaSeek：batch1-basic-swap.json：本命令MovaSeek=7次，同型相邻载荷相同=0；样例ms=24110 payload={"target":5000}。接收时完整state见同条JSON；空载荷是事件定义，重复动作可重复发射。
-- MovaSeeked：batch1-basic-swap.json：本命令MovaSeeked=7次，同型相邻载荷相同=0；样例ms=24113 payload={"position":5000}。接收时完整state见同条JSON；空载荷是事件定义，重复动作可重复发射。
-- MovaVolumeChange：batch1-basic-swap.json：本命令MovaVolumeChange=7次，同型相邻载荷相同=0；样例ms=24673 payload={"value":-10.0}。逐事件接收时state对账差异=0。
-- MovaBrightChange：batch1-basic-swap.json：本命令MovaBrightChange=6次，同型相邻载荷相同=0；样例ms=25736 payload={"value":-1.0}。逐事件接收时state对账差异=0。
-- MovaRateChange：batch1-basic-swap.json：本命令MovaRateChange=5次，同型相邻载荷相同=0；样例ms=25749 payload={"value":0.5}。逐事件接收时state对账差异=0。
-- MovaSttBlock：batch1-basic-swap.json：本命令MovaSttBlock=1次，同型相邻载荷相同=0；样例ms=25765 payload={"reason":"disabled"}。接收时完整state见同条JSON；空载荷是事件定义，重复动作可重复发射。
+- MovaSourceChange：batch1-basic-cutover.json：本命令MovaSourceChange=3次，同型相邻载荷相同=1；样例ms=20262 payload={"uri":"http://127.0.0.1:18080/vod.mp4?t=1793063996403193"}。接收时完整state见同条JSON；空载荷是事件定义，重复动作可重复发射。
+- MovaReady：batch1-basic-cutover.json：本命令MovaReady=3次，同型相邻载荷相同=2；样例ms=20262 payload={}。接收时完整state见同条JSON；空载荷是事件定义，重复动作可重复发射。
+- MovaPlay：batch1-basic-cutover.json：本命令MovaPlay=2次，同型相邻载荷相同=1；样例ms=20408 payload={}。接收时完整state见同条JSON；空载荷是事件定义，重复动作可重复发射。
+- MovaFirstFrame：batch1-basic-cutover.json：本命令MovaFirstFrame=1次，同型相邻载荷相同=0；样例ms=20409 payload={"sinceOpen":191,"signal":"restart"}。接收时完整state见同条JSON；空载荷是事件定义，重复动作可重复发射。
+- MovaSeek：batch1-basic-cutover.json：本命令MovaSeek=7次，同型相邻载荷相同=0；样例ms=24110 payload={"target":5000}。接收时完整state见同条JSON；空载荷是事件定义，重复动作可重复发射。
+- MovaSeeked：batch1-basic-cutover.json：本命令MovaSeeked=7次，同型相邻载荷相同=0；样例ms=24113 payload={"position":5000}。接收时完整state见同条JSON；空载荷是事件定义，重复动作可重复发射。
+- MovaVolumeChange：batch1-basic-cutover.json：本命令MovaVolumeChange=7次，同型相邻载荷相同=0；样例ms=24673 payload={"value":-10.0}。逐事件接收时state对账差异=0。
+- MovaBrightChange：batch1-basic-cutover.json：本命令MovaBrightChange=6次，同型相邻载荷相同=0；样例ms=25736 payload={"value":-1.0}。逐事件接收时state对账差异=0。
+- MovaRateChange：batch1-basic-cutover.json：本命令MovaRateChange=5次，同型相邻载荷相同=0；样例ms=25749 payload={"value":0.5}。逐事件接收时state对账差异=0。
+- MovaSttBlock：batch1-basic-cutover.json：本命令MovaSttBlock=1次，同型相邻载荷相同=0；样例ms=25765 payload={"reason":"disabled"}。接收时完整state见同条JSON；空载荷是事件定义，重复动作可重复发射。
 - MovaDone：batch1-playlist.json：本命令MovaDone=1次，同型相邻载荷相同=0；样例ms=54365 payload={}。接收时完整state见同条JSON；空载荷是事件定义，重复动作可重复发射。
 - MovaQualityListChange：batch15-abr.json：本命令MovaQualityListChange=1次，同型相邻载荷相同=0；样例ms=553491 payload={"qualities":["自动:","360p:http://127.0.0.1:18084/high/index.m3u8","180p:http://127.0.0.1:18084/low/index.m3u8"]}。接收时完整state见同条JSON；空载荷是事件定义，重复动作可重复发射。
 - MovaQualityChange：batch15-abr.json：本命令MovaQualityChange=4次，同型相邻载荷相同=0；样例ms=553491 payload={"quality":"自动"}。接收时完整state见同条JSON；空载荷是事件定义，重复动作可重复发射。
 - MovaAbrDownShift：batch15-abr.json：本命令MovaAbrDownShift=1次，同型相邻载荷相同=0；样例ms=562586 payload={"from":"360p","to":"180p"}。接收时完整state见同条JSON；空载荷是事件定义，重复动作可重复发射。
-- MovaSwapChange：batch15-adResume.json：本命令MovaSwapChange=30次，同型相邻载荷相同=0；样例ms=281519 payload={"phase":"warming"}。接收时完整state见同条JSON；空载荷是事件定义，重复动作可重复发射。
+- MovaCutoverChange：batch15-adResume.json：本命令MovaCutoverChange=30次，同型相邻载荷相同=0；样例ms=281519 payload={"phase":"warming"}。接收时完整state见同条JSON；空载荷是事件定义，重复动作可重复发射。
 - MovaErrorEvent：batch15-hang-2s-0.json：本命令MovaErrorEvent=2次，同型相邻载荷相同=0；样例ms=68013 payload={"error":"Failed to open http://127.0.0.1:18080/hang?t=1793068221654008."}。接收时完整state见同条JSON；空载荷是事件定义，重复动作可重复发射。
 - MovaPlayFailure：batch15-hang-2s-0.json：本命令MovaPlayFailure=1次，同型相邻载荷相同=0；样例ms=68016 payload={"kind":"nativeEndError","action":"MovaRecoveryAction.giveUp","attempt":1,"isLive":false,"sourceIndex":0}。接收时完整state见同条JSON；空载荷是事件定义，重复动作可重复发射。
 - MovaFullScreenChange：batch15-lifecycle.json：本命令MovaFullScreenChange=2次，同型相邻载荷相同=0；样例ms=220411 payload={"value":true}。逐事件接收时state对账差异=0。
@@ -8784,11 +8784,11 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
 - MovaPreviewBlock：batch15-preview-blocked.json：本命令MovaPreviewBlock=4次，同型相邻载荷相同=3；样例ms=370641 payload={"reason":"network"}。接收时完整state见同条JSON；空载荷是事件定义，重复动作可重复发射。
 - MovaFailover：batch15-recovery-liveAlternatives.json：本命令MovaFailover=1次，同型相邻载荷相同=0；样例ms=54097 payload={"from":0,"to":1,"uri":"http://127.0.0.1:18080/other404.mp4?t=1793068209673598"}。接收时完整state见同条JSON；空载荷是事件定义，重复动作可重复发射。
 - MovaFitChange：batch16-audio-start.json：本命令MovaFitChange=1次，同型相邻载荷相同=0；样例ms=248659 payload={"fit":"cover"}。逐事件接收时state对账差异=0。
-- MovaLockChange：batch16-engine-lock.json：本命令MovaLockChange=1次，同型相邻载荷相同=0；样例ms=35029 payload={"value":true}。逐事件接收时state对账差异=0。
-- MovaMiniChange：batch16-engine-mini-host.json：本命令MovaMiniChange=1次，同型相邻载荷相同=0；样例ms=92721 payload={"mini":true}。逐事件接收时state对账差异=0。
-- MovaOrientationChange：batch16-engine-mini-landscape.json：本命令MovaOrientationChange=1次，同型相邻载荷相同=0；样例ms=99278 payload={"orientation":"landscape"}。逐事件接收时state对账差异=0。
+- MovaLockChange：batch16-mova-lock.json：本命令MovaLockChange=1次，同型相邻载荷相同=0；样例ms=35029 payload={"value":true}。逐事件接收时state对账差异=0。
+- MovaMiniChange：batch16-mova-mini-host.json：本命令MovaMiniChange=1次，同型相邻载荷相同=0；样例ms=92721 payload={"mini":true}。逐事件接收时state对账差异=0。
+- MovaOrientChange：batch16-mova-mini-landscape.json：本命令MovaOrientChange=1次，同型相邻载荷相同=0；样例ms=99278 payload={"orient":"landscape"}。逐事件接收时state对账差异=0。
 - MovaTimeShiftChange：batch16-live-start.json：本命令MovaTimeShiftChange=2次，同型相邻载荷相同=0；样例ms=272467 payload={"behind":12000}。接收时完整state见同条JSON；空载荷是事件定义，重复动作可重复发射。
-- MovaStandbyChange：batch16-standby-off.json：本命令MovaStandbyChange=1次，同型相邻载荷相同=0；样例ms=317110 payload={"phase":"resuming","reason":"woke","mode":"null"}。逐事件接收时state对账差异=0。
+- MovaKeepAliveChange：batch16-keep-alive-off.json：本命令MovaKeepAliveChange=1次，同型相邻载荷相同=0；样例ms=317110 payload={"phase":"resuming","reason":"woke","mode":"null"}。逐事件接收时state对账差异=0。
 - MovaRecovered：batch2-failover.json：本命令MovaRecovered=1次，同型相邻载荷相同=0；样例ms=78247 payload={"attempts":1}。接收时完整state见同条JSON；空载荷是事件定义，重复动作可重复发射。
 - MovaZoomChange：batch3-09-zoom--1.json：本命令MovaZoomChange=1次，同型相邻载荷相同=0；样例ms=212400 payload={"zoom":-1.0}。逐事件接收时state对账差异=0。
 
@@ -8801,7 +8801,7 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
 
 - X关闭前/后截图及native活动状态已取得，先前点错坐标的batch18-pip-closed-x不得作为关闭成功证据。
 - 修正此前将grace兜底归为F6/N20失败的过严判定：矩阵允许状态机恢复，保留信号未落地的测量事实。
-- HLS旧脚本错误等待被契约抑制的Seeked；第二版又用跨引擎latest和duration流变化作门控，均作为验证器问题保留，不计库FAIL；最终版本使用每引擎progress和原生位置直接读回，待最后一次复跑。
+- HLS旧脚本错误等待被契约抑制的Seeked；第二版又用跨播放器latest和duration流变化作门控，均作为验证器问题保留，不计库FAIL；最终版本使用每播放器progress和原生位置直接读回，待最后一次复跑。
 
 ## batch21-hls-normal 原生位置复核
 
@@ -8867,13 +8867,13 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
       "epoch": 0,
       "sourceIndex": 0,
-      "standby": "off",
+      "keepAlive": "off",
       "type": "vod",
       "title": null,
       "pipSupported": true,
@@ -8925,13 +8925,13 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
       "epoch": 0,
       "sourceIndex": 0,
-      "standby": "off",
+      "keepAlive": "off",
       "type": "vod",
       "title": null,
       "pipSupported": true,
@@ -8984,13 +8984,13 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
       "epoch": 0,
       "sourceIndex": 0,
-      "standby": "off",
+      "keepAlive": "off",
       "type": "vod",
       "title": null,
       "pipSupported": true,
@@ -9043,13 +9043,13 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
       "epoch": 0,
       "sourceIndex": 0,
-      "standby": "off",
+      "keepAlive": "off",
       "type": "vod",
       "title": null,
       "pipSupported": true,
@@ -9102,13 +9102,13 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
       "epoch": 0,
       "sourceIndex": 0,
-      "standby": "off",
+      "keepAlive": "off",
       "type": "vod",
       "title": null,
       "pipSupported": true,
@@ -9147,13 +9147,13 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
       "epoch": 0,
       "sourceIndex": 0,
-      "standby": "off",
+      "keepAlive": "off",
       "type": "vod",
       "title": null,
       "pipSupported": true,
@@ -9177,7 +9177,7 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
 ]
 ```
 
-## batch21-hls-swap 原生位置复核
+## batch21-hls-cutover 原生位置复核
 
 - 每模式重启独立进程；HTTP源无流量节流。
 ```json
@@ -9189,7 +9189,7 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
     "args": {
       "group": "new",
       "case": "hls",
-      "swap": "true"
+      "cutover": "true"
     }
   },
   {
@@ -9242,13 +9242,13 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
       "epoch": 0,
       "sourceIndex": 0,
-      "standby": "off",
+      "keepAlive": "off",
       "type": "vod",
       "title": null,
       "pipSupported": true,
@@ -9301,13 +9301,13 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
       "epoch": 0,
       "sourceIndex": 0,
-      "standby": "off",
+      "keepAlive": "off",
       "type": "vod",
       "title": null,
       "pipSupported": true,
@@ -9359,13 +9359,13 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
       "epoch": 0,
       "sourceIndex": 0,
-      "standby": "off",
+      "keepAlive": "off",
       "type": "vod",
       "title": null,
       "pipSupported": true,
@@ -9418,13 +9418,13 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
       "epoch": 0,
       "sourceIndex": 0,
-      "standby": "off",
+      "keepAlive": "off",
       "type": "vod",
       "title": null,
       "pipSupported": true,
@@ -9476,13 +9476,13 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
       "epoch": 0,
       "sourceIndex": 0,
-      "standby": "off",
+      "keepAlive": "off",
       "type": "vod",
       "title": null,
       "pipSupported": true,
@@ -9521,13 +9521,13 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
       "epoch": 0,
       "sourceIndex": 0,
-      "standby": "off",
+      "keepAlive": "off",
       "type": "vod",
       "title": null,
       "pipSupported": true,
@@ -9616,13 +9616,13 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
       "epoch": 0,
       "sourceIndex": 0,
-      "standby": "off",
+      "keepAlive": "off",
       "type": "vod",
       "title": null,
       "pipSupported": true,
@@ -9675,13 +9675,13 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
       "epoch": 0,
       "sourceIndex": 0,
-      "standby": "off",
+      "keepAlive": "off",
       "type": "vod",
       "title": null,
       "pipSupported": true,
@@ -9733,13 +9733,13 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
       "epoch": 0,
       "sourceIndex": 0,
-      "standby": "off",
+      "keepAlive": "off",
       "type": "vod",
       "title": null,
       "pipSupported": true,
@@ -9790,13 +9790,13 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
       "epoch": 0,
       "sourceIndex": 0,
-      "standby": "off",
+      "keepAlive": "off",
       "type": "vod",
       "title": null,
       "pipSupported": true,
@@ -9849,13 +9849,13 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
       "epoch": 0,
       "sourceIndex": 0,
-      "standby": "off",
+      "keepAlive": "off",
       "type": "vod",
       "title": null,
       "pipSupported": true,
@@ -9894,13 +9894,13 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
       "epoch": 0,
       "sourceIndex": 0,
-      "standby": "off",
+      "keepAlive": "off",
       "type": "vod",
       "title": null,
       "pipSupported": true,
@@ -9932,7 +9932,7 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
 ## 批次20–23：边界、广告失败策略、真实网络探针、HLS原生结论
 
 - 每条引用的JSON含真实事件及state；HLS失败的原生path也记录，排除仅UI标签切换。
-- 后续只补最终视觉与HLS swap/暂停态，当前已测数据先落盘。
+- 后续只补最终视觉与HLS cutover/暂停态，当前已测数据先落盘。
 
 ## 批次25 可视第一阶段
 
@@ -9956,26 +9956,26 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
 
 | 涉及编号 | 分类与最小复现 | 本轮证据 |
 |---|---|---|
-| A23 | 生命周期问题：`a=createMovaEngine(audioOnly:true)`，open后`await a.dispose(); await a.dispose();`；第二次抛`[Player] has been disposed`，普通/swap均复现。120轮首次创建/销毁完成，不能替代幂等要求。 | batch15-basic/basic-swap.json 的A23.doubleDispose=false；batch15-dispose120.json及round20..120.meminfo.txt |
+| A23 | 生命周期问题：`a=createMova(audioOnly:true)`，open后`await a.dispose(); await a.dispose();`；第二次抛`[Player] has been disposed`，普通/cutover均复现。120轮首次创建/销毁完成，不能替代幂等要求。 | batch15-basic/basic-cutover.json 的A23.doubleDispose=false；batch15-dispose120.json及round20..120.meminfo.txt |
 | F8/N19 | 续播问题：本地stall.mp4播放到约2.52–2.68s，有限重试`MovaRetryThenFailover`；卡顿恢复后首采样40ms并从头增长，1.5s内未回原位置，5次0通过。 | batch6-he-recovery-guard.log，HE V6；不要用旧默认无限直播重连脚本的超时冒充本缺陷 |
-| A17/F3 | 续播问题：打开18084/master.m3u8，原生位置>=8s，loadQualities，先360p再180p。首切恢复，第二次原生RESTART落23ms，从头播；普通和默认关闭的swap代理均复现，暂停态也丢位置。 | batch23-hls-native.json、batch24-hls-native-swap/paused.json，HLS_RESTART含原生path；三模式首个切档误差[-40,0,-40]ms，第二切均失败 |
+| A17/F3 | 续播问题：打开18084/master.m3u8，原生位置>=8s，loadQualities，先360p再180p。首切恢复，第二次原生RESTART落23ms，从头播；普通和默认关闭的cutover代理均复现，暂停态也丢位置。 | batch23-hls-native.json、batch24-hls-native-cutover/paused.json，HLS_RESTART含原生path；三模式首个切档误差[-40,0,-40]ms，第二切均失败 |
 | C16 | 原生TLS兼容问题：`tlsVerify:true,tlsCaFile:<ca.pem>`，打开https://127.0.0.1:18443/vod.mp4或low/index.m3u8；合法IP SAN证书被拒。改localhost:18447合法DNS证书能播放。未定位Dart/mpv/mbedtls具体责任层。 | batch15-tls40格35符合预期；batch17-tls-probe合法DNS 6/6通过、IP 6/6失败；CA/tls属性读回；openssl verify IP证书成功 |
-| A1 | 矩阵流契约差异：直接读events/states/progress/uiStates.isBroadcast为[true,false,true,false]；两个订阅仍都收到，dispose后八订阅全关闭。 | batch15-basic/basic-swap.json STREAM_FLAGS，不是已证实的订阅互相干扰 |
-| A2/E.MovaBufferChange/E.MovaSizeChange | 异步交付快照差异：订阅event时同时读`a.state`，连续更新时载荷与“接收这一刻”的最新state可不同。不能由此推断解码状态错误。 | event-audit.json；batch1-basic-swap BufferChange 7次中3次，batch15-abr SizeChange 7次中1次不符；原始ms/engine/state齐全 |
+| A1 | 矩阵流契约差异：直接读events/states/progress/uiStates.isBroadcast为[true,false,true,false]；两个订阅仍都收到，dispose后八订阅全关闭。 | batch15-basic/basic-cutover.json STREAM_FLAGS，不是已证实的订阅互相干扰 |
+| A2/E.MovaBufferChange/E.MovaSizeChange | 异步交付快照差异：订阅event时同时读`a.state`，连续更新时载荷与“接收这一刻”的最新state可不同。不能由此推断解码状态错误。 | event-audit.json；batch1-basic-cutover BufferChange 7次中3次，batch15-abr SizeChange 7次中1次不符；原始ms/mova/state齐全 |
 | A5/N12 | 矩阵同步/错误契约差异：已播放40s源时`f=a.open(other);`立刻读state仍为旧duration/rendered/title，随后异步清零；恢复关闭的404 `await open`为true且不抛，错误通过event/state报告。 | batch15-basic两实现OPEN_SYNC；batch20-edges BAD_OPEN_RESULT accepted=true/threw=false。与N8的true=接受语义一致 |
 | A8/A9/A12 | 越界输入契约差异：setVolume(-10/110)、setBrightness(-1/2)、setZoom(-1/0/100)的state保留输入。合法范围音量/亮度原生写回正常；maxZoom是手势上限，直接setZoom不使用该上限。 | batch15-basic及batch3-zoom JSON；音量0/50/100/30→系统0/10/20/6(max20)；batch20亮度原生0/.25/.75/1逐项一致 |
 | C3/U6 | 能力假设差异：真实播放时在视频上长按1800ms，rate仍1；当前GestureLayer没有长按倍速处理。双击实际是左右±10s seek，不是播放切换。 | batch18-longpress-during/after、doubletap-seek；batch22轴向改配通过 |
-| C6 | 能力假设差异：弹幕只展示宿主固定items，故意不含发送API/输入框。滚动已实际截图。 | batch25-danmaku.png；MovaDanmakuConfig设计为Display-only |
+| C6 | 能力假设差异：弹幕只展示宿主固定items，故意不含发送API/输入框。滚动已实际截图。 | batch25-danmaku.png；MovaDanmakuOpts设计为Display-only |
 | C8/U7 | 能力假设差异：NextUp在提前窗口显示卡片及取消/立即播放，未显示数字倒计时。立即播放点击有效，自动连播另已测。 | batch22-nextup.png、batch25-nextup-click.json（新title/position40ms）；广告自身倒计时/跳过正常 |
-| U3 | 能力假设差异：TopBar未提供返回按钮；路由可用Android BACK退出。 | batch25-route-player/route-back.png，TopBar组件树只有title/PiP/quality/subtitle/fit/orientation/fullscreen |
+| U3 | 能力假设差异：TopBar未提供返回按钮；路由可用Android BACK退出。 | batch25-route-player/route-back.png，TopBar组件树只有title/PiP/quality/subtitle/fit/orient/fullscreen |
 | U5 | 能力假设差异：SpeedButton点击循环倍速，未弹菜单；实际1x→1.25x。 | batch25-speed-button.json/png；CenterPlay/HUD子项通过 |
 | E1 | 顺序契约差异：实际Play意图事件早于Ready/FirstFrame，不符合矩阵示意箭头的严格顺序；不能将Play当首帧证据。 | batch15-lifecycle.json LIFECYCLE数组、逐条EVENT；naturalDone=1/errors=0，F1通过 |
 
-复跑入口（先启动本地源与adb reverse，设备亮屏解锁）：`python example/tool/coverage_suite_device.py api --name repro-launch`，再`python example/tool/coverage_device.py new --arg case=hls --name repro-hls --timeout 180`；双dispose用`basic`及`basic --arg swap=true`；V6用`coverage_suite_device.py he --only V6 --runs 5`。库代码不改。
+复跑入口（先启动本地源与adb reverse，设备亮屏解锁）：`python example/tool/coverage_suite_device.py api --name repro-launch`，再`python example/tool/coverage_device.py new --arg case=hls --name repro-hls --timeout 180`；双dispose用`basic`及`basic --arg cutover=true`；V6用`coverage_suite_device.py he --only V6 --runs 5`。库代码不改。
 
 ### BLOCKED所缺条件
 
-- A31/C7：缺真实STT识别引擎、模型与可用下载服务。disabled/noEngine及失败回滚重试已测，未把注入的Noop派生引擎当作真实转写；SRT导出/分块存储没有真机通过证据。
+- A31/C7：缺真实STT识别器、模型与可用下载服务。disabled/noRecognizer及失败回滚重试已测，未把注入的Noop派生识别器当作真实转写；SRT导出/分块存储没有真机通过证据。
 - C2：现有FLV/HLS源支持播放/本地DVR窗口，未提供按behind URL返回历史时刻、且可控卡顿的服务。urlBuilder历史语义、自定义windowResolver及autoBackToLiveOnStall完整联动未完成；需要该服务才能继续，不能用忽略参数的live源冒充历史回看。
 - F15：WHEP 38889/test/whep不可达，缺publisher、信令及UDP38189/relay38190映射。WHEP选项读回不等于15s真实播放。
 - N22：assert启用的AOT构建在当前Flutter 3.47 SDK编译失败；release及profile日志已保存。除assert子项外，异步钩子、轴向改配、STT回滚、crop、换源旧结果丢弃均有实际证据。不能用单测结果补真机PASS。
@@ -9987,7 +9987,7 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
 - PiP退出state不复位的历史段落已过期：本轮展开及X均收到false/state复位；X会暂停，展开继续播。
 - 历史WarmPlan方向/广告短暂用户倍速窗口/pod第二条回落：本轮广告采样1x、内容恢复2x/1.5x、pod真换指，退役dispose不复位全局方向。每项3轮，未声称穷尽所有微任务时间窗口。
 - Android 404约120ms、拒连约79ms即nativeEndError，非Windows约5s；默认黑洞约5.28s先由mpv network-timeout结束，65s是Dart兜底派生值。
-- standby功能迁移/mediacodec-copy唤醒20/20通过，但S1跨GOP15/15仍靠grace约5s，不能将StandbyResume.elapsed当实际出画耗时；实际属性恢复约百余ms。该兜底受配置允许，最终F6/N20记PASS并保留信号/延迟观察。
+- keepAlive功能迁移/mediacodec-copy唤醒20/20通过，但S1跨GOP15/15仍靠grace约5s，不能将KeepAliveResume.elapsed当实际出画耗时；实际属性恢复约百余ms。该兜底受配置允许，最终F6/N20记PASS并保留信号/延迟观察。
 - S14 Android holding为黑屏、恢复正常，区别于Windows保留帧；S5只测20s，漂移137/681/410ms，均值409.3ms，不能据此宣称Windows 60s约2.5s漂移已修复。
 - 首帧证据使用native restart与实际事件。qoe:false零QoE、弱客户端0；完整卡顿释放后stallCount1/stallMs5468；120次首次销毁完成。上述均不以截止时间、UI标签、临近EOF seek推断性能。
 
@@ -9997,7 +9997,7 @@ FAIL含真实播放/生命周期问题及矩阵契约/能力差异，文末分�
 - 原packages Android libmpv是132bytes LFS指针。仅在example/tool/coverage_native中取匹配二进制；SHA256=798cde9e27e3761dd5f8f065693e4669b5499d5807618f81a74e0d3a88dc230b，6357872bytes。JNI重定向、appId、ABI与integration_test依赖均通过tool/coverage.init.gradle，不改Android工程/库源码。
 - CPU为top采样、单核百分比；USB充电下没有给出电池能耗结论。120轮RSS从227037184到247193600bytes，后60/80/100/120轮为241020928/245993472/246718464/247193600；PSS原始文件在同目录。不声称绝对无泄漏。
 - 系统没有screenrecord（inaccessible or not found），已用adb PNG连拍取代；posterFade=2s有中间颜色而非只拍前后两态。主观手感、真实人耳听感未作测量结论。
-- 每个主台账编号只有一个结论；批次历史中旧锁屏/构建阻塞、验证器误判及中间计数均保留，**当前台账和本节优先**。旧HE V5默认无限重试、字幕asset缺失/挂载时dispose、HLS等待Seeked/跨引擎latest/瞬时读回均是验证器问题，未作为库bug。
+- 每个主台账编号只有一个结论；批次历史中旧锁屏/构建阻塞、验证器误判及中间计数均保留，**当前台账和本节优先**。旧HE V5默认无限重试、字幕asset缺失/挂载时dispose、HLS等待Seeked/跨播放器latest/瞬时读回均是验证器问题，未作为库bug。
 
 ## 收尾核验
 
@@ -10017,17 +10017,17 @@ Codex 的 23 个 FAIL 经两个 opus (high) 只读子代理逐条核对源码与
 
 | 条目 | 终审判定 | 处理 |
 |---|---|---|
-| F3/A17 | **成立（P1）**：切档后续播 seek 在时长到达时就发，此时 mpv 播放尚未初始化，seek 被静默丢弃；潜伏竞态，非回归 | **已修**：`engine.dart` 换档续播 seek 等新档位落地（首帧/RESTART）再发，4s 兜底；+3 单测、改 1 条旧测。真机复测（`f3fix-hls-normal/swap/paused`，各 5 次）**15/15 落点误差 0ms**（修复前每组 1/5） |
+| F3/A17 | **成立（P1）**：切档后续播 seek 在时长到达时就发，此时 mpv 播放尚未初始化，seek 被静默丢弃；潜伏竞态，非回归 | **已修**：`mova.dart` 换档续播 seek 等新档位落地（首帧/RESTART）再发，4s 兜底；+3 单测、改 1 条旧测。真机复测（`f3fix-hls-normal/cutover/paused`，各 5 次）**15/15 落点误差 0ms**（修复前每组 1/5） |
 | F8/N19 | **误报（验证脚本缺陷）**：`he_auto.dart` V6 用 `log.indexOf(pf)` 找事件，`Stamped` 无 `==`、`wait()` 返回新副本，恒为 -1，匹配到会话最初首帧；且重试不会再发 `MovaFirstFrame` | **已修脚本**（以 `MovaRecovered` 为锚点）。真机复测 V6 **5/5 PASS**，续播误差 0–40ms，CLAUDE.md 的 V6 修复结论在 Android 成立。10-24 Windows 上"V6 从头播"很可能是同一脚本假象 |
 | A8 | 成立（P3）：`setVolume` 越界值写进 state，系统音量被端口钳到 0–100 | **已修**：入口钳 0–100，+1 单测 |
 | A9 | 成立（P3）：越界亮度被插件拒绝并吞掉，真实亮度没变而 state 已变 | **已修**：入口钳 0–1，+1 单测 |
 | A1 | 降级（P3）：`states`/`uiStates` 用 `Stream.multi`，`isBroadcast=false`，多订阅实测正常 | 未改，可选标 `isBroadcast: true` |
-| A2 / E.BufferChange / E.SizeChange | 降级（P3）：普通引擎载荷与 state 一致；仅 swap 代理 state 与事件分两条订阅转发，state 短暂落后（`swap_engine.dart:207/209`）；另有半更新尺寸事件（`mpv_kernel.dart:169-178`） | 未改 |
+| A2 / E.BufferChange / E.SizeChange | 降级（P3）：普通播放器载荷与 state 一致；仅 cutover 代理 state 与事件分两条订阅转发，state 短暂落后（`cutover.dart:207/209`）；另有半更新尺寸事件（`mpv_kernel.dart:169-178`） | 未改 |
 | A12 | 降级（P3）：`maxZoom` 只限手势；但 `setZoom(≤0)` 会让画面塌缩 | 未改，建议加下限 |
 | C16 | 降级（P3）：Android mbedtls 3.4 对 IP 类 SAN 的主机名校验不支持（子代理凭记忆，未核对源码） | 未改，建议 README「已知限制」写明：开启 `tlsVerify` 时用域名并签发含 DNS SAN 的证书 |
 | E1 / A5 / A23 / N12 | 误报：Play 必早于 FirstFrame；`open()` true 仅表示"源被接受"；`dispose` 契约是只能调一次；N12 只承诺宽高归零且 audioOnly 无尺寸（清零在 `beforeOpen` 之后，非严格同步） | 未改；A23 可选加 `_disposed` 早退加固 |
 | C3/U6 C6 C8 U3 U5 U7 | 误报：库没有长按倍速、弹幕发送、NextUp 数字倒计时、顶栏返回按钮；倍速按钮是循环切档；U7 应判 PASS | 未改 |
-| BLOCKED ×5 | 理由合理。A31/C7 可用注入引擎补测 SRT/分片存储；C2 可扩 `live_server.py`；F15 缺 WHEP 服务；N22 是 Flutter SDK 不支持 AOT 加断言，应改用 debug 构建 | 待补测 |
+| BLOCKED ×5 | 理由合理。A31/C7 可用注入识别器补测 SRT/分片存储；C2 可扩 `live_server.py`；F15 缺 WHEP 服务；N22 是 Flutter SDK 不支持 AOT 加断言，应改用 debug 构建 | 待补测 |
 
 **修复后基线**：`flutter analyze lib test` 0 issues，`flutter test` **1508 全绿**（1503 + A8/A9 共 2 + F3 共 3）。
 

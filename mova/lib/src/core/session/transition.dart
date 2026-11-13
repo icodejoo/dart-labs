@@ -1,12 +1,12 @@
 import '../cutover/plan.dart';
 import '../cutover/trigger.dart';
 import '../model/rate.dart';
-import '../options/ad_config.dart';
+import '../options/ad_opts.dart';
 
 /// 广告方向沿用宿主计划，未指定倍速时补 1x。
 /// Preserves the host plan, defaulting to the shared normal playback rate.
-MovaWarmPlan movaAdWarmPlan(MovaAdConfig cfg) {
-  final plan = cfg.effectiveWarmPlan;
+MovaWarmPlan movaAdWarmPlan(MovaAdOpts opts) {
+  final plan = opts.effectiveWarmPlan;
   return MovaWarmPlan(
     trigger: plan.trigger,
     policy: plan.policy,

@@ -1,7 +1,7 @@
 import 'arbiter.dart';
 import 'timeline.dart';
 
-/// 独立于引擎事件的会话事件；示例：`session.events.listen((e) => print(e.epoch));`。
+/// 独立于播放器事件的会话事件；示例：`session.events.listen((e) => print(e.epoch));`。
 sealed class MovaSessionEvent {
   /// 以加载纪元 [epoch] 创建事件。示例：`MovaItemChange(1, 0)`。
   const MovaSessionEvent(this.epoch);

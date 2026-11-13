@@ -20,20 +20,20 @@ void main() {
     }
   });
   testWidgets('new contract default UI respects probe optout and terminal error copy', (t) async {
-    final available = contract.read(const MovaAbrConfig(), 'probeVariants') != null;
+    final available = contract.read(const MovaAbrOpts(), 'probeVariants') != null;
     if (!available) {
       for (final id in ['CONTRACT.probe.uiOff','CONTRACT.error.overlay.nonterminal','CONTRACT.error.overlay.terminal']) {
         print('MATRIX_RECORD ${jsonEncode({'kind':'CHECK','id':id,'numbers':{'apiUnavailable':true},'pass':null})}');
       }
       return;
     }
-    final abr = Function.apply(MovaAbrConfig.new, [], {#probeVariants:false}) as MovaAbrConfig;
+    final abr = Function.apply(MovaAbrOpts.new, [], {#probeVariants:false}) as MovaAbrOpts;
     final strings = Function.apply(MovaStrs.new, [], {#playbackError:'S00E friendly error'}) as MovaStrs;
     final fetch = contract.Fetch(), k = contract.Kernel();
-    final a = (await t.runAsync(() async => MovaEngine(kernel:k,fetcher:fetch,options:MovaOpts(abr:abr,strings:strings))))!;
+    final a = (await t.runAsync(() async => Mova(kernel:k,fetcher:fetch,options:MovaOpts(abr:abr,strings:strings))))!;
     try {
       await t.pumpWidget(MaterialApp(home:MovaView(source:const MovaSource('https://s00e.invalid/master.m3u8'),
-        engineFactory:(_) => a)));
+        movaFactory:(_) => a)));
       await d.drain(t); k.land(); await d.drain(t);
       final requests = fetch.requests.length, qualities = a.state.qualities.length;
       await a.loadQualities(); await d.drain(t);

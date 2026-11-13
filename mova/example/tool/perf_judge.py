@@ -56,7 +56,7 @@ def summarize(samples, warmup=60):
                                       'p50': percentile(values, .5), 'p95': percentile(values, .95)}
             result['trends'][key] = trend(points)
     # Counters reset on reopen/reuse. Device supplies monotonic accumulated
-    # positive deltas across engine lifetimes, rather than subtracting endpoints.
+    # positive deltas across player lifetimes, rather than subtracting endpoints.
     for key, numerator, denominator in [('drop_rate', 'drops', 'frames'),
                                          ('decoder_drop_rate', 'decoder_drops', 'frames'),
                                          ('jank_rate', 'janky', 'gfx_frames')]:

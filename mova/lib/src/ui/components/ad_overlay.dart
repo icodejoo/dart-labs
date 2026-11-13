@@ -26,35 +26,30 @@ const double _countdownRight = 16;
 /// nothing when ads are disabled or no ad is currently playing.
 ///
 /// Host-wired: the host constructs a [MovaAds] and passes it in (e.g. via
-/// a skin patch). Visibility follows the ad controller's phase; the skip countdown
+/// a UI kit patch). Visibility follows the phase of [MovaAds]; the skip countdown
 /// follows the throttled progress stream against [MovaAdBreak.skippableAfter].
 ///
 /// 广告播放时显示的叠层："广告"角标、广告超过可跳过阈值后出现的跳过控件，以及
 /// 覆盖整个画面、上报点击跳转的点按（打开 URL 由宿主而非库负责）。广告关闭或当前
 /// 没有广告在播时不渲染任何内容。
 ///
-/// 由宿主接线：宿主构造一个 [MovaAds] 并传入（例如经皮肤补丁）。显隐跟随
-/// 控制器阶段；跳过倒计时依节流进度流对比 [MovaAdBreak.skippableAfter]。
+/// 由宿主接线：宿主构造一个 [MovaAds] 并传入（例如经 UI 套件补丁）。显隐跟随
+/// [MovaAds] 的阶段；跳过倒计时依节流进度流对比 [MovaAdBreak.skippableAfter]。
 class MovaAdOverlayComponent extends MovaComponent {
   /// Creates the ad overlay bound to [ads].
   ///
   /// 创建绑定到 [ads] 的广告叠层。
   ///
-  /// - [ads]: the ad controller driving playback / 驱动播放的广告控制器
+  /// - [ads]: the ads orchestrator driving playback / 驱动播放的广告编排对象
   /// [ads] 为借用的广告编排对象，返回广告覆盖层组件。
   /// 示例：`MovaAdOverlayComponent(ads)`。
   MovaAdOverlayComponent(this.ads);
 
-  /// The ad controller this overlay reads and drives.
+  /// The ads orchestrator this overlay reads and drives.
   ///
-  /// 该叠层读取并驱动的广告控制器。
+  /// 该叠层读取并驱动的广告编排对象。
   /// 返回组件借用的广告编排对象；示例：`overlay.ads.skip()`。
   final MovaAds ads;
-
-  /// [ads] 的旧名，返回同一个广告编排对象；保留一个版本。
-  /// 迁移示例：`overlay.ads`。
-  @Deprecated('Use ads')
-  MovaAds get controller => ads;
 
   /// This component's path segment for `MovaPatch` addressing.
   ///
@@ -67,15 +62,15 @@ class MovaAdOverlayComponent extends MovaComponent {
   @override
   MovaSlot get slot => MovaSlot.overlay;
 
-  /// Builds enabled ads with subscriptions owned by the controller identity.
+  /// Builds enabled ads with subscriptions owned by the [MovaAds] identity.
   ///
-  /// 为已启用的广告构建叠层，订阅归控制器身份持有。
+  /// 为已启用的广告构建叠层，订阅归 [MovaAds] 实例身份持有。
   @override
-  Widget build(BuildContext context, MovaApi api, List<Widget> children) {
+  Widget build(BuildContext context, IMovaApi api, List<Widget> children) {
     if (!api.options.ads.enabled) return const SizedBox.shrink();
-    // Controller identity owns the subscriptions and their lifecycle.
+    // The MovaAds identity owns the subscriptions and their lifecycle.
     //
-    // 订阅及其生命周期归属于控制器身份。
+    // 订阅及其生命周期归属于 MovaAds 实例身份。
     return _AdOverlayView(key: ObjectKey(ads), ads: ads);
   }
 }
@@ -94,9 +89,9 @@ class _AdOverlayView extends StatefulWidget {
   /// 跟随作用域内能力面提供的广告位置。
   const _AdOverlayView({super.key, required this.ads});
 
-  /// The ad controller providing phase, current break, and skip/click actions.
+  /// The ads orchestrator providing phase, current break, and skip/click actions.
   ///
-  /// 提供阶段、当前广告位与跳过/点击动作的广告控制器。
+  /// 提供阶段、当前广告位与跳过/点击动作的广告编排对象。
   final MovaAds ads;
 
   @override
@@ -105,7 +100,7 @@ class _AdOverlayView extends StatefulWidget {
 
 /// Rebuilds on phase, node and progress changes; the session owns skip rules.
 ///
-/// 阶段、节点与进度变化触发重建；跳过判据由会话控制器统一维护。
+/// 阶段、节点与进度变化触发重建；跳过判据由会话统一维护。
 class _AdOverlayViewState extends State<_AdOverlayView>
     with MovaPlugin<_AdOverlayView> {
   @override

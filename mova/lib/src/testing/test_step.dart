@@ -50,7 +50,7 @@ class MovaTestStep {
   const MovaTestStep.position(Duration value, {Duration after = Duration.zero})
     : this._(_Signal.position, after: after, position: value);
 
-  /// 在 [after] 后推送内核 [error]，返回失败步骤；分类沿用真实引擎规则。
+  /// 在 [after] 后推送内核 [error]，返回失败步骤；分类沿用真实播放器规则。
   /// 示例：`MovaTestStep.error('Failed to open file')`。
   const MovaTestStep.error(Object error, {Duration after = Duration.zero})
     : this._(_Signal.error, after: after, error: error);

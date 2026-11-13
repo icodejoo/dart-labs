@@ -12,7 +12,7 @@ const _mpvOff = 'no';
 const _mpvAuto = 'auto';
 const _mpvNullOutput = 'null';
 
-/// The default [MovaFramePuller]: a second, hidden media_kit `Player` used
+/// The default [IMovaFramePuller]: a second, hidden media_kit `Player` used
 /// only to decode single frames.
 ///
 /// Reuses the libmpv/ffmpeg already bundled for playback, so preview
@@ -29,7 +29,7 @@ const _mpvNullOutput = 'null';
 /// Calls are serialised internally: libmpv cannot service two seek+screenshot
 /// round trips on one player concurrently.
 ///
-/// 默认的 [MovaFramePuller]：第二个隐藏的 media_kit `Player`，只用于解单帧。
+/// 默认的 [IMovaFramePuller]：第二个隐藏的 media_kit `Player`，只用于解单帧。
 ///
 /// 复用播放时已经打包进来的 libmpv/ffmpeg，因此预览抽帧不引入任何依赖，也不
 /// 影响后续 ffmpeg 瘦身里程碑。播放相关设置刻意压到最低——关音频、不做缓存、
@@ -41,7 +41,7 @@ const _mpvNullOutput = 'null';
 ///
 /// 内部对调用做了串行化：libmpv 无法在同一个 player 上并发处理两次
 /// seek + screenshot 往返。
-class MovaFrameExtractor implements MovaHeaderedFramePuller {
+class MovaFrameExtractor implements IMovaHeaderedFramePuller {
   /// Creates an extractor; the hidden player is created lazily on first use.
   ///
   /// 创建抽帧器；隐藏播放器在首次使用时才惰性创建。

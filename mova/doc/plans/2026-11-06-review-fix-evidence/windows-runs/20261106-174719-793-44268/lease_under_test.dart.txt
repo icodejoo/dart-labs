@@ -165,7 +165,7 @@ class MovaTempThumbDirProvider
     ).open(mode: FileMode.append);
     try {
       // Serialize cooperating processes too. OS releases this short scan lock
-      // on process exit; engine leases themselves never block.
+      // on process exit; player leases themselves never block.
       //
       // 同时串行化协作进程；进程退出时 OS 释放短期扫描锁，目录租约仍非阻塞。
       await scan.lock(FileLock.blockingExclusive);
@@ -189,7 +189,7 @@ class MovaTempThumbDirProvider
             !entry.uri.pathSegments
                 .where((s) => s.isNotEmpty)
                 .last
-                .startsWith('engine_') ||
+                .startsWith('mova_') ||
             _activePaths.contains(_key(entry.path))) {
           continue;
         }
@@ -214,7 +214,7 @@ class MovaTempThumbDirProvider
         }
       }
       if (newest == null) {
-        final directory = await root.createTemp('engine_');
+        final directory = await root.createTemp('mova_');
         newest = await _tryLease(directory);
         if (newest == null) {
           throw FileSystemException(

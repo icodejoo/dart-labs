@@ -23,13 +23,13 @@ enum MovaAdBreakKind {
 /// One ad break: the ad media plus when and how it plays.
 ///
 /// The library never navigates on click — [clickThroughUrl] is surfaced to the
-/// host through [MovaAdConfig.onAdEvent] (a [MovaAdEventType.clicked] event) and the
+/// host through [MovaAdOpts.onAdEvent] (a [MovaAdEventType.clicked] event) and the
 /// host decides what to do with it. This keeps mova free of a URL-launcher
 /// dependency.
 ///
 /// 一个广告位：广告媒体，加上何时、如何播放。
 ///
-/// 库本身从不在点击时跳转——[clickThroughUrl] 通过 [MovaAdConfig.onAdEvent]
+/// 库本身从不在点击时跳转——[clickThroughUrl] 通过 [MovaAdOpts.onAdEvent]
 /// （一个 [MovaAdEventType.clicked] 事件）暴露给宿主，由宿主决定如何处理。这样
 /// mova 不必依赖任何打开 URL 的第三方库。
 class MovaAdBreak {
@@ -55,7 +55,7 @@ class MovaAdBreak {
   ///
   /// Deliberately *not* a blank-screen wait: the content plays on for the whole
   /// countdown, which is both a better experience and (when
-  /// [MovaAdConfig.waitForAdReady] is on) exactly the window the ad is warmed
+  /// [MovaAdOpts.waitForAdReady] is on) exactly the window the ad is warmed
   /// up in. Only meaningful for [MovaAdBreakKind.mid] — a pre-roll has no
   /// content to play during the countdown and a post-roll has none left.
   /// Within an ad pod only the *first* break's delay is honoured; see
@@ -65,7 +65,7 @@ class MovaAdBreak {
   /// "N 秒后播放广告"角标显示的那段窗口。
   ///
   /// 刻意*不是*黑屏等待：整个倒计时期间正片照常播放，这既是更好的体验，也
-  /// （在 [MovaAdConfig.waitForAdReady] 开启时）正好就是预热广告的那个窗口。
+  /// （在 [MovaAdOpts.waitForAdReady] 开启时）正好就是预热广告的那个窗口。
   /// 仅对 [MovaAdBreakKind.mid] 有意义——前贴片倒计时期间没有正片可播，后贴片
   /// 则已经播完了。一个广告 pod 里只有*第一条*的 delay 生效，见 `MovaAds`。
   final Duration delay;
@@ -76,7 +76,7 @@ class MovaAdBreak {
   /// Decoupled from the media on purpose. The slot that was bought is 15
   /// seconds; the creative handed over may be longer, shorter, or a generic
   /// loop. Enforcement is a plain [Timer] started at the ad's first rendered
-  /// frame and never touches the media timeline — the engine is not asked for
+  /// frame and never touches the media timeline — the player is not asked for
   /// a duration (which can take a long time to resolve over a real mobile
   /// network on a large file) and is never seeked near its real EOF (which
   /// reliably wedges the player on device). Expiry takes the exact same
@@ -88,14 +88,14 @@ class MovaAdBreak {
   ///
   /// 刻意与素材解耦。买的广告位是 15 秒，交付的素材可能更长、更短、或是一段
   /// 通用循环片。到期判定是一个从广告首帧起算的普通 [Timer]，完全不碰媒体
-  /// 时间轴——不向引擎要时长（大文件在真机移动网络下可能很久解析不出来），
+  /// 时间轴——不向播放器要时长（大文件在真机移动网络下可能很久解析不出来），
   /// 也绝不 seek 到素材真实 EOF 附近（真机上会可靠地把播放器卡死）。到期后
   /// 走的是与 `skip()` 完全相同的同步续播路径，那是唯一已在真机上验证过的路径。
   final Duration? duration;
 
   /// Whether the player waits for this ad to actually be ready before cutting
-  /// to it, overriding [MovaAdConfig.waitForAdReady] for this one break; null
-  /// defers to the config.
+  /// to it, overriding [MovaAdOpts.waitForAdReady] for this one break; null
+  /// defers to the options.
   ///
   /// The per-break escape hatch on top of the per-kind default. Set it when
   /// one particular creative deserves different treatment from the rest of its
@@ -103,19 +103,19 @@ class MovaAdBreak {
   /// to immediately than delay, or a post-roll carrying a high-value
   /// next-episode teaser that is worth waiting for.
   ///
-  /// Only has any effect when the host wired a `MovaCutover` and
-  /// [MovaCutoverConfig.enabled] is true; with no cutover engine there is nothing to
+  /// Only has any effect when the host wired a `IMovaCutover` and
+  /// [MovaCutoverOpts.enabled] is true; with no cutover player there is nothing to
   /// warm up in and the field is ignored.
   ///
   /// 播放器是否等这条广告真的就绪后才切过去；为该条广告位覆盖
-  /// [MovaAdConfig.waitForAdReady]，null 表示沿用配置。
+  /// [MovaAdOpts.waitForAdReady]，null 表示沿用配置。
   ///
   /// 这是架在"按 kind 取默认值"之上的单条逃生口。当某一条素材值得与同类其他
   /// 广告位区别对待时使用——比如一条来自已知较慢 CDN 的中插，你宁可立刻硬切
   /// 也不愿推迟；又比如一条承载高价值"下集预告"的后贴片，值得为它等一等。
   ///
-  /// 仅在宿主接了 `MovaCutover` 且 [MovaCutoverConfig.enabled] 为 true 时才有
-  /// 效果；没有切换引擎就没有可预热之处，该字段被忽略。
+  /// 仅在宿主接了 `IMovaCutover` 且 [MovaCutoverOpts.enabled] 为 true 时才有
+  /// 效果；没有切换播放器就没有可预热之处，该字段被忽略。
   final bool? waitForReady;
 
   /// How long into the ad the viewer may skip; null means not skippable.
@@ -124,9 +124,9 @@ class MovaAdBreak {
   final Duration? skippableAfter;
 
   /// Optional click-through URL; the library only reports it via
-  /// [MovaAdConfig.onAdEvent] and never opens it.
+  /// [MovaAdOpts.onAdEvent] and never opens it.
   ///
-  /// 可选的点击跳转地址；库仅经 [MovaAdConfig.onAdEvent] 上报，绝不主动打开。
+  /// 可选的点击跳转地址；库仅经 [MovaAdOpts.onAdEvent] 上报，绝不主动打开。
   final String? clickThroughUrl;
 
   /// Creates an ad break.
@@ -217,9 +217,9 @@ class MovaAdBreak {
   }
 }
 
-/// Lifecycle events reported to [MovaAdConfig.onAdEvent] as an ad plays.
+/// Lifecycle events reported to [MovaAdOpts.onAdEvent] as an ad plays.
 ///
-/// 广告播放过程中上报给 [MovaAdConfig.onAdEvent] 的生命周期事件。
+/// 广告播放过程中上报给 [MovaAdOpts.onAdEvent] 的生命周期事件。
 enum MovaAdEventType {
   /// The break became due but has not taken over yet: its [MovaAdBreak.delay]
   /// countdown is running, or it is being warmed up in the background, while

@@ -4,7 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:mova/mova.dart';
 
-/// 0.4.0 无缝引擎切换的补充真机验证：CLAUDE.md 记录仍未测的四项里，本文件覆盖
+/// 0.4.0 无缝切换（cutover）的补充真机验证：CLAUDE.md 记录仍未测的四项里，本文件覆盖
 /// 客观可测的四项（续播点误差 / 三阶段内存 / 短广告降级 / 断网预热兜底）。视觉
 /// 主观项（黑屏是否消除、音画是否跳变）本文件不处理，见每组结论里的说明。
 ///
@@ -13,7 +13,7 @@ import 'package:mova/mova.dart';
 /// 方便截图/复制日志）。
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  MovaEngine.ensureInitialized();
+  Mova.ensureInitialized();
   runApp(const MaterialApp(home: _VerifyPage()));
 }
 
@@ -79,64 +79,64 @@ class _VerifyPageState extends State<_VerifyPage> {
   // ---------------- 组2：续播点误差 ----------------
 
   /// 播正片 3 秒真实播放后插播广告，持有 2 秒后 skip，比较 skip 前记录的
-  /// _contentResumeAt 语义等价值（用 skip 前一刻引擎自身的 position）与
-  /// renderEpoch 落地后引擎报告的实际 position，差值即续播点误差。
+  /// _contentResumeAt 语义等价值（用 skip 前一刻播放器自身的 position）与
+  /// renderEpoch 落地后播放器报告的实际 position，差值即续播点误差。
   Future<String> _runResumeAccuracyGroup() async {
     final opts = MovaOpts(
-      ads: const MovaAdConfig(enabled: true),
-      cutover: const MovaCutoverConfig(enabled: true, trigger: MovaEagerWarm()),
+      ads: const MovaAdOpts(enabled: true),
+      cutover: const MovaCutoverOpts(enabled: true, trigger: MovaEagerWarm()),
     );
-    final engine = MovaCutoverEngine(engineFactory: () => createMovaEngine(options: opts));
-    final ctrl = MovaAds(engine, cutover: engine);
-    int lastEpoch = engine.state.renderEpoch;
+    final mova = MovaCutover(movaFactory: () => createMova(options: opts));
+    final ads = MovaAds(mova, cutover: mova);
+    int lastEpoch = mova.state.renderEpoch;
     Duration? latestPos;
     Duration? contentPosAtAdStart;
     Duration? posAfterCutover;
     final epochCompleter = Completer<void>();
-    final progSub = engine.progress.listen((p) => latestPos = p.position);
-    final sub = engine.states.listen((s) {
+    final progSub = mova.progress.listen((p) => latestPos = p.position);
+    final sub = mova.states.listen((s) {
       if (s.renderEpoch != lastEpoch) {
         lastEpoch = s.renderEpoch;
         if (!epochCompleter.isCompleted) epochCompleter.complete();
       }
     });
 
-    await ctrl.load(_content());
-    await _waitPlaying(engine);
+    await ads.load(_content());
+    await _waitPlaying(mova);
     _mark('正片真实播放中，等待 3s');
     await Future<void>.delayed(const Duration(seconds: 3));
 
     // 关键：必须在插播广告*之前*记下正片自己的 position——这才是
     // _contentResumeAt 语义上应当记录、广告结束后应当续播回去的目标点。
-    // 插播广告后，engine.progress 反映的是当前生效引擎（广告）的进度，不能
+    // 插播广告后，mova.progress 反映的是当前生效播放器（广告）的进度，不能
     // 再用来代表正片的续播目标，这是本文件第一版的测量错误，此处已修正。
     contentPosAtAdStart = latestPos;
     _mark('插播广告前正片 position（续播目标）=$contentPosAtAdStart');
 
-    await ctrl.playAdNow(MovaAdBreak(
+    await ads.playAdNow(MovaAdBreak(
       kind: MovaAdBreakKind.mid,
       source: _adSource(),
       skippableAfter: Duration.zero,
     ));
-    await _waitPlaying(engine);
+    await _waitPlaying(mova);
     _mark('广告播放中，持有 2s 后 skip');
     await Future<void>.delayed(const Duration(seconds: 2));
 
-    _mark('skip（canSkip 由控制器内部判定，此处不再重复读取广告自身 position）');
-    ctrl.skip();
+    _mark('skip（canSkip 由 MovaAds 内部判定，此处不再重复读取广告自身 position）');
+    ads.skip();
 
     await epochCompleter.future.timeout(const Duration(seconds: 10), onTimeout: () {
       _mark('renderEpoch 10s 内未落地');
     });
-    // 切换落地后等一小段时间让 progress 流刷新，再读一次引擎自身 position。
+    // 切换落地后等一小段时间让 progress 流刷新，再读一次播放器自身 position。
     await Future<void>.delayed(const Duration(milliseconds: 300));
     posAfterCutover = latestPos;
     _mark('切换落地后正片实际 position=$posAfterCutover');
 
     await progSub.cancel();
     await sub.cancel();
-    await ctrl.dispose();
-    await engine.dispose();
+    await ads.dispose();
+    await mova.dispose();
 
     if (contentPosAtAdStart == null || posAfterCutover == null) {
       return '组2结论：拿不到有效的 position 读数（目标=$contentPosAtAdStart, 实际=$posAfterCutover），无法给出误差数字。';
@@ -144,7 +144,7 @@ class _VerifyPageState extends State<_VerifyPage> {
     // ⚠️ 本组的测量方式已被证伪、结论不可用，改看
     // `main_resume_accuracy_verify.dart`：一次插播里有**两次** renderEpoch 跳变
     // （正片→广告、广告→正片），这里的 Completer 在第一次就完成了，skip 之后
-    // 立刻返回，读到的其实是**广告引擎**的 position；另外续播目标也不是
+    // 立刻返回，读到的其实是**广告播放器**的 position；另外续播目标也不是
     // playAdNow 那一刻的位置（mid 默认等待就绪，预热期间正片仍在播）。
     final delta = (posAfterCutover.inMilliseconds - contentPosAtAdStart.inMilliseconds).abs();
     return '组2结论（测量方式有误，勿用）：续播点误差 = ${delta}ms'
@@ -158,39 +158,39 @@ class _VerifyPageState extends State<_VerifyPage> {
     _mark('baseline RSS=${_mib(baseline)}MiB');
 
     final opts = MovaOpts(
-      ads: const MovaAdConfig(enabled: true),
-      cutover: const MovaCutoverConfig(enabled: true, trigger: MovaEagerWarm()),
+      ads: const MovaAdOpts(enabled: true),
+      cutover: const MovaCutoverOpts(enabled: true, trigger: MovaEagerWarm()),
     );
-    final engine = MovaCutoverEngine(engineFactory: () => createMovaEngine(options: opts));
-    final ctrl = MovaAds(engine, cutover: engine);
+    final mova = MovaCutover(movaFactory: () => createMova(options: opts));
+    final ads = MovaAds(mova, cutover: mova);
 
-    await ctrl.load(_content());
-    await _waitPlaying(engine);
+    await ads.load(_content());
+    await _waitPlaying(mova);
     await Future<void>.delayed(const Duration(seconds: 2));
     final playingContentRss = ProcessInfo.currentRss;
     _mark('正片播放中 RSS=${_mib(playingContentRss)}MiB（增量=${_mib(playingContentRss - baseline)}MiB）');
 
-    await ctrl.playAdNow(MovaAdBreak(
+    await ads.playAdNow(MovaAdBreak(
       kind: MovaAdBreakKind.mid,
       source: _adSource(),
       skippableAfter: Duration.zero,
     ));
-    await _waitPlaying(engine);
-    // 给影子引擎预热窗口，让双引擎真正并存一段时间再采样。
+    await _waitPlaying(mova);
+    // 给影子播放器预热窗口，让双播放器真正并存一段时间再采样。
     await Future<void>.delayed(const Duration(seconds: 3));
-    final dualEngineRss = ProcessInfo.currentRss;
-    _mark('广告播放+正片预热中（双引擎并存）RSS=${_mib(dualEngineRss)}MiB（较baseline增量=${_mib(dualEngineRss - baseline)}MiB）');
+    final dualMovaRss = ProcessInfo.currentRss;
+    _mark('广告播放+正片预热中（双播放器并存）RSS=${_mib(dualMovaRss)}MiB（较baseline增量=${_mib(dualMovaRss - baseline)}MiB）');
 
-    ctrl.skip();
+    ads.skip();
     await Future<void>.delayed(const Duration(seconds: 2));
     final afterCutoverRss = ProcessInfo.currentRss;
     _mark('切回正片后 RSS=${_mib(afterCutoverRss)}MiB（较baseline增量=${_mib(afterCutoverRss - baseline)}MiB）');
 
-    await ctrl.dispose();
-    await engine.dispose();
+    await ads.dispose();
+    await mova.dispose();
 
     return '组4结论：baseline=${_mib(baseline)}MiB → 正片播放=${_mib(playingContentRss)}MiB(+${_mib(playingContentRss - baseline)}) '
-        '→ 双引擎并存=${_mib(dualEngineRss)}MiB(+${_mib(dualEngineRss - baseline)}) '
+        '→ 双播放器并存=${_mib(dualMovaRss)}MiB(+${_mib(dualMovaRss - baseline)}) '
         '→ 切回正片=${_mib(afterCutoverRss)}MiB(+${_mib(afterCutoverRss - baseline)})';
   }
 
@@ -202,45 +202,45 @@ class _VerifyPageState extends State<_VerifyPage> {
   /// （renderEpoch 可能不bump，即走到 giveUp 的非无缝路径）。
   Future<String> _runShortAdGroup() async {
     final opts = MovaOpts(
-      ads: const MovaAdConfig(enabled: true),
+      ads: const MovaAdOpts(enabled: true),
       // 预热窗口压得很短，模拟短广告场景下预热来不及完成。
-      cutover: MovaCutoverConfig(
+      cutover: MovaCutoverOpts(
         enabled: true,
         trigger: const MovaEagerWarm(),
         readyTimeout: const Duration(milliseconds: 300),
       ),
     );
-    final engine = MovaCutoverEngine(engineFactory: () => createMovaEngine(options: opts));
-    final ctrl = MovaAds(engine, cutover: engine);
+    final mova = MovaCutover(movaFactory: () => createMova(options: opts));
+    final ads = MovaAds(mova, cutover: mova);
     bool sawError = false;
-    int lastEpoch = engine.state.renderEpoch;
+    int lastEpoch = mova.state.renderEpoch;
     bool epochBumped = false;
     Duration? latestPos;
-    final sub = engine.states.listen((s) {
+    final sub = mova.states.listen((s) {
       if (s.renderEpoch != lastEpoch) {
         lastEpoch = s.renderEpoch;
         epochBumped = true;
       }
     });
-    final progSub = engine.progress.listen((p) => latestPos = p.position);
+    final progSub = mova.progress.listen((p) => latestPos = p.position);
 
     try {
-      await ctrl.load(_content());
-      await _waitPlaying(engine);
+      await ads.load(_content());
+      await _waitPlaying(mova);
       await Future<void>.delayed(const Duration(seconds: 1));
 
-      await ctrl.playAdNow(MovaAdBreak(
+      await ads.playAdNow(MovaAdBreak(
         kind: MovaAdBreakKind.mid,
         source: _adSource(),
         skippableAfter: Duration.zero,
       ));
       _mark('短广告场景：不等待自然播放确认，250ms 后直接 skip（预热窗口 300ms 大概率还没就绪）');
       await Future<void>.delayed(const Duration(milliseconds: 250));
-      ctrl.skip();
-      // 观察 skip 后引擎是否能恢复到可播放状态（不卡死）。
+      ads.skip();
+      // 观察 skip 后播放器是否能恢复到可播放状态（不卡死）。
       await Future<void>.delayed(const Duration(seconds: 3));
-      final playing = !engine.state.buffering && latestPos != null;
-      _mark('skip 后 3s：buffering=${engine.state.buffering}, position=$latestPos, epochBumped=$epochBumped');
+      final playing = !mova.state.buffering && latestPos != null;
+      _mark('skip 后 3s：buffering=${mova.state.buffering}, position=$latestPos, epochBumped=$epochBumped');
       if (!playing) sawError = true;
     } catch (e) {
       sawError = true;
@@ -249,8 +249,8 @@ class _VerifyPageState extends State<_VerifyPage> {
 
     await progSub.cancel();
     await sub.cancel();
-    await ctrl.dispose();
-    await engine.dispose();
+    await ads.dispose();
+    await mova.dispose();
 
     return sawError
         ? '组5结论：短广告/预热来不及完成的场景下出现异常或卡顿迹象（sawError=true），需要进一步排查。'
@@ -262,37 +262,37 @@ class _VerifyPageState extends State<_VerifyPage> {
 
   Future<String> _runOfflineTimeoutGroup() async {
     final opts = MovaOpts(
-      ads: const MovaAdConfig(enabled: true),
-      cutover: const MovaCutoverConfig(
+      ads: const MovaAdOpts(enabled: true),
+      cutover: const MovaCutoverOpts(
         enabled: true,
         trigger: MovaEagerWarm(),
         readyTimeout: Duration(seconds: 5),
       ),
     );
-    final engine = MovaCutoverEngine(engineFactory: () => createMovaEngine(options: opts));
-    final ctrl = MovaAds(engine, cutover: engine);
-    int lastEpoch = engine.state.renderEpoch;
+    final mova = MovaCutover(movaFactory: () => createMova(options: opts));
+    final ads = MovaAds(mova, cutover: mova);
+    int lastEpoch = mova.state.renderEpoch;
     bool epochBumped = false;
     Duration? latestPos;
-    final sub = engine.states.listen((s) {
+    final sub = mova.states.listen((s) {
       if (s.renderEpoch != lastEpoch) {
         lastEpoch = s.renderEpoch;
         epochBumped = true;
       }
     });
-    final progSub = engine.progress.listen((p) => latestPos = p.position);
+    final progSub = mova.progress.listen((p) => latestPos = p.position);
 
     try {
-      await ctrl.load(_content());
-      await _waitPlaying(engine);
+      await ads.load(_content());
+      await _waitPlaying(mova);
       await Future<void>.delayed(const Duration(seconds: 1));
 
-      await ctrl.playAdNow(MovaAdBreak(
+      await ads.playAdNow(MovaAdBreak(
         kind: MovaAdBreakKind.mid,
         source: _adSource(),
         skippableAfter: Duration.zero,
       ));
-      await _waitPlaying(engine);
+      await _waitPlaying(mova);
       // 断网/恢复网络的实际执行不能从设备端 App 内部调用 adb（设备上根本没有
       // adb 二进制，那是宿主机工具）。这里打印一个宿主机脚本轮询日志用的
       // marker，由宿主机在看到它之后立即执行 `adb shell svc wifi/data
@@ -305,10 +305,10 @@ class _VerifyPageState extends State<_VerifyPage> {
       _mark('断网后等待窗口结束（超过 readyTimeout=5s）：改用 epochBumped 与 skip 是否仍可正常调用来判定兜底');
 
       final stopwatch = Stopwatch()..start();
-      ctrl.skip();
+      ads.skip();
       await Future<void>.delayed(const Duration(seconds: 2));
       _mark('断网状态下 skip() 调用耗时=${stopwatch.elapsedMilliseconds}ms（同步方法，仅供参考），'
-          'skip 后 2s：buffering=${engine.state.buffering}, epochBumped=$epochBumped, '
+          'skip 后 2s：buffering=${mova.state.buffering}, epochBumped=$epochBumped, '
           'position=$latestPos');
     } finally {
       _mark('NEED_NETWORK_ENABLE — 请宿主机恢复网络');
@@ -317,8 +317,8 @@ class _VerifyPageState extends State<_VerifyPage> {
 
     await progSub.cancel();
     await sub.cancel();
-    await ctrl.dispose();
-    await engine.dispose();
+    await ads.dispose();
+    await mova.dispose();
 
     return '组6结论：断网触发预热后，readyTimeout=5s 到期未导致进程卡死，skip() 调用正常返回（非无缝路径，epochBumped=$epochBumped，'
         '符合"预热放弃后仍能正常按非无缝方式完成 skip"的兜底预期）；已恢复网络。';
@@ -326,11 +326,11 @@ class _VerifyPageState extends State<_VerifyPage> {
 
   // ---------------- helpers ----------------
 
-  Future<void> _waitPlaying(MovaCutoverEngine engine) {
+  Future<void> _waitPlaying(MovaCutover mova) {
     final completer = Completer<void>();
     late final StreamSubscription<MovaProg> sub;
-    sub = engine.progress.listen((p) {
-      if (p.position > Duration.zero && !engine.state.buffering) {
+    sub = mova.progress.listen((p) {
+      if (p.position > Duration.zero && !mova.state.buffering) {
         unawaited(sub.cancel());
         if (!completer.isCompleted) completer.complete();
       }

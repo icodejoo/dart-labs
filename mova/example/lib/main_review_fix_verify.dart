@@ -78,14 +78,14 @@ class _ReviewState extends State<_ReviewPage> {
     _log('${pass ? 'PASS' : 'FAIL'} $name $values');
   }
 
-  /// Lists every engine directory, sorted for direct comparison.
+  /// Lists every `mova_*` directory, sorted for direct comparison.
   ///
-  /// 列出全部 engine 目录并排序，便于直接对比。
-  Future<List<String>> _engines(Directory root) async {
+  /// 列出全部 `mova_*` 目录并排序，便于直接对比。
+  Future<List<String>> _movas(Directory root) async {
     final names = <String>[];
     await for (final entry in root.list(followLinks: false)) {
       final name = entry.uri.pathSegments.where((s) => s.isNotEmpty).last;
-      if (entry is Directory && name.startsWith('engine_')) names.add(name);
+      if (entry is Directory && name.startsWith('mova_')) names.add(name);
     }
     return names..sort();
   }
@@ -125,7 +125,7 @@ class _ReviewState extends State<_ReviewPage> {
     var path = await _resolve();
     // Discard reserved fixture names left by an interrupted earlier harness.
     // 清理之前脚本中断时留下的专用夹具目录名。
-    while (path.endsWith('/engine_old') || path.endsWith('/engine_fresh')) {
+    while (path.endsWith('/mova_old') || path.endsWith('/mova_fresh')) {
       await _held.removeLast().dispose();
       await Directory(path).delete(recursive: true);
       path = await _resolve();
@@ -136,7 +136,7 @@ class _ReviewState extends State<_ReviewPage> {
       (_) => Random.secure().nextInt(256).toRadixString(16).padLeft(2, '0'),
     ).join();
     await File('$path/marker.txt').writeAsString(token, flush: true);
-    final names = await _engines(root);
+    final names = await _movas(root);
     await File('${root.path}/rfv_state.json').writeAsString(
       jsonEncode({
         'cycle': _cycle,
@@ -149,7 +149,7 @@ class _ReviewState extends State<_ReviewPage> {
     _check(
       'V1_PREPARE',
       await File('$path/.lease').exists(),
-      'A=$path token=$token count=${names.length} engines=${jsonEncode(names)} disposed=false',
+      'A=$path token=$token count=${names.length} movas=${jsonEncode(names)} disposed=false',
     );
     _log('READY_FORCE_STOP');
   }
@@ -167,7 +167,7 @@ class _ReviewState extends State<_ReviewPage> {
     final token = await marker.exists()
         ? await marker.readAsString()
         : '<missing>';
-    final names = await _engines(root);
+    final names = await _movas(root);
     final before = (state['names'] as List).length;
     _check(
       'V1_ADOPT',
@@ -177,20 +177,20 @@ class _ReviewState extends State<_ReviewPage> {
     _check(
       'V1_COUNT',
       names.length == before,
-      'before=$before after=${names.length} engines=${jsonEncode(names)}',
+      'before=$before after=${names.length} movas=${jsonEncode(names)}',
     );
     final b = await _resolve();
     final aExists = await marker.exists();
     final tokenIntact =
         aExists && await marker.readAsString() == state['token'];
-    final secondNames = await _engines(root);
+    final secondNames = await _movas(root);
     _check(
       'V1_SECOND',
       a != b && tokenIntact && secondNames.length == names.length + 1,
-      'A=$a B=$b AExists=$aExists tokenIntact=$tokenIntact count=${secondNames.length} engines=${jsonEncode(secondNames)}',
+      'A=$a B=$b AExists=$aExists tokenIntact=$tokenIntact count=${secondNames.length} movas=${jsonEncode(secondNames)}',
     );
-    final old = await Directory('${root.path}/engine_old').create();
-    final fresh = await Directory('${root.path}/engine_fresh').create();
+    final old = await Directory('${root.path}/mova_old').create();
+    final fresh = await Directory('${root.path}/mova_fresh').create();
     final now = DateTime.now();
     // File.setLastModified invokes the real filesystem timestamp operation.
     // File.setLastModified 调用真实文件系统修改时间操作。
@@ -209,7 +209,7 @@ class _ReviewState extends State<_ReviewPage> {
       c = await _resolve();
       final oldExists = await old.exists();
       final freshExists = await fresh.exists();
-      final finalNames = await _engines(root);
+      final finalNames = await _movas(root);
       _check(
         'V1_PRUNE',
         !oldExists &&
@@ -217,7 +217,7 @@ class _ReviewState extends State<_ReviewPage> {
             c == fresh.path &&
             await marker.exists() &&
             await Directory(b).exists(),
-        'C=$c oldExists=$oldExists freshExists=$freshExists count=${finalNames.length} engines=${jsonEncode(finalNames)}',
+        'C=$c oldExists=$oldExists freshExists=$freshExists count=${finalNames.length} movas=${jsonEncode(finalNames)}',
       );
     } finally {
       for (final provider in _held) {
@@ -231,7 +231,7 @@ class _ReviewState extends State<_ReviewPage> {
         if (await dir.exists()) await dir.delete(recursive: true);
       }
       if (await stateFile.exists()) await stateFile.delete();
-      _log('V1_CLEANUP remaining=${jsonEncode(await _engines(root))}');
+      _log('V1_CLEANUP remaining=${jsonEncode(await _movas(root))}');
     }
     if (_cycle == 1) await _audio();
     _log('DONE failures=$_failures');

@@ -9,14 +9,14 @@ import '../chrome/chrome.dart';
 
 /// A compact themed icon button used across the control bars.
 ///
-/// Reusable with or without a player scope: it never reads MovaApi itself.
+/// Reusable with or without a player scope: it never reads IMovaApi itself.
 /// Activation renews a nearby [MovaChrome]; appearance uses the given
 /// [MovaTheme] — the calling component is responsible for reading
 /// `MovaPlayerStyle.themeOf(context)` and passing it down.
 ///
 /// 控制条中通用的带主题小图标按钮。
 ///
-/// 可复用且不读取 MovaApi；播放器内激活时会续期交互态。主题使用传入的 [MovaTheme]，由
+/// 可复用且不读取 IMovaApi；播放器内激活时会续期交互态。主题使用传入的 [MovaTheme]，由
 /// 调用方组件负责读取 `MovaPlayerStyle.themeOf(context)` 并向下传递。
 class MovaIconButton extends StatefulWidget {
   /// The glyph to show.
@@ -178,12 +178,12 @@ String _iconLabel(IconData icon, String? caption, MovaStrs strings) {
 /// A translucent top/bottom gradient bar host that does not absorb pointer
 /// events on its empty regions (so center gestures fall through).
 ///
-/// Presentation-only and reusable: it never reads MovaApi itself, only the
+/// Presentation-only and reusable: it never reads IMovaApi itself, only the
 /// [MovaTheme] it is given.
 ///
 /// 半透明的顶/底渐变条容器；空白区域不吞点击事件（让中间手势穿透）。
 ///
-/// 仅负责展示、可复用：它自身从不读取 MovaApi，只使用传入的 [MovaTheme]。
+/// 仅负责展示、可复用：它自身从不读取 IMovaApi，只使用传入的 [MovaTheme]。
 class MovaGradBar extends StatelessWidget {
   /// Whether this is the top bar (gradient points downward) or bottom.
   ///

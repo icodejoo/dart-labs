@@ -2,7 +2,7 @@ import 'dart:async';
 
 import '../events/events.dart';
 import '../model/source.dart';
-import '../options/report_config.dart';
+import '../options/report_opts.dart';
 import 'error_policy.dart';
 import 'report.dart';
 import 'session.dart';
@@ -39,20 +39,20 @@ const _bufferingSignal = 'buffering';
 const _cacheSignal = 'cache';
 
 /// Owns one playback session's QoE state and turns raw signals into report
-/// events. Constructed by `MovaEngine` only when a reporter is present;
-/// `MovaReportConfig.qoe == false` makes it a pure passthrough that behaves
+/// events. Constructed by `Mova` only when a reporter is present;
+/// `MovaReportOpts.qoe == false` makes it a pure passthrough that behaves
 /// byte-for-byte like the old `MovaReportTranslator` (whitelist translation
 /// only, no `sessionId`, legacy error shape).
 ///
 /// 持有一次播放会话的 QoE 状态，把原始信号转成上报事件。仅当存在 reporter 时
-/// 由 `MovaEngine` 构造；`MovaReportConfig.qoe` 为 `false` 时它退化为纯直通
+/// 由 `Mova` 构造；`MovaReportOpts.qoe` 为 `false` 时它退化为纯直通
 /// （只做白名单转换，没有 `sessionId`，错误维持旧形状），行为与旧的
 /// `MovaReportTranslator` 逐字节一致。
 class MovaQoeCollector {
-  /// Subscribes to [events] (and, when [config].qoe is on, to [probe]'s
+  /// Subscribes to [events] (and, when [opts].qoe is on, to [probe]'s
   /// streams) and forwards standardized report events to [reporter].
   ///
-  /// 订阅 [events]（[config].qoe 开启时还订阅 [probe] 的流），把标准化后的
+  /// 订阅 [events]（[opts].qoe 开启时还订阅 [probe] 的流），把标准化后的
   /// 上报事件转发给 [reporter]。
   ///
   /// [onReporterError] receives whatever [reporter] throws; the collector
@@ -62,21 +62,21 @@ class MovaQoeCollector {
   /// 缺陷不会打断事件管线。
   MovaQoeCollector({
     required Stream<MovaEvent> events,
-    required MovaReporter reporter,
-    required MovaReportConfig config,
-    MovaStatsProbe? probe,
+    required IMovaReporter reporter,
+    required MovaReportOpts opts,
+    IMovaStatsProbe? probe,
     DateTime Function() now = DateTime.now,
     void Function(Object error, StackTrace stack)? onReporterError,
   }) : _reporter = reporter, // ignore: prefer_initializing_formals
        // ignore: prefer_initializing_formals
        _onReporterError = onReporterError,
-       _config = config, // ignore: prefer_initializing_formals
+       _opts = opts, // ignore: prefer_initializing_formals
        _probe = probe,
        // ignore: prefer_initializing_formals
        _now = now {
     _sub = events.listen(_onEvent);
     final p = probe;
-    if (_config.qoe && p != null) {
+    if (_opts.qoe && p != null) {
       _stallSub = p.stalling.listen(_onStalling);
       _logSub = p.logs.listen(_onLog);
       // 2026-09-29 架构更新：优先用原生事件做 TTFF 终点/会话结束原因，见
@@ -88,10 +88,10 @@ class MovaQoeCollector {
     }
   }
 
-  final MovaReporter _reporter;
+  final IMovaReporter _reporter;
   final void Function(Object error, StackTrace stack)? _onReporterError;
-  final MovaReportConfig _config;
-  final MovaStatsProbe? _probe;
+  final MovaReportOpts _opts;
+  final IMovaStatsProbe? _probe;
   final DateTime Function() _now;
 
   late final StreamSubscription<MovaEvent> _sub;
@@ -110,7 +110,7 @@ class MovaQoeCollector {
   bool _seekBuffering = false;
 
   String? _sessionId;
-  MovaStallPolicy? _stallPolicy;
+  IMovaStallPolicy? _stallPolicy;
   final MovaTtffTracker _ttff = MovaTtffTracker();
 
   /// Per-session tally; replaced with a fresh instance on every `onOpen` so
@@ -118,7 +118,7 @@ class MovaQoeCollector {
   ///
   /// 单会话聚合器；每次 `onOpen` 换成全新实例，会话间不继承观看/卡顿/位置数据。
   MovaSessionTally _tally = MovaSessionTally();
-  MovaErrorPolicy get _errorPolicy => _config.effectiveErrorPolicy;
+  IMovaErrorPolicy get _errorPolicy => _opts.effectiveErrorPolicy;
 
   MovaStreamType _streamType = MovaStreamType.vod;
   bool _audioOnly = false;
@@ -177,16 +177,16 @@ class MovaQoeCollector {
   bool _ffmpegErrorBeforeDone = false;
 
   /// Marks the start of a new session; called from the first line of
-  /// `MovaEngine.open`.
+  /// `Mova.open`.
   ///
-  /// 标记一次新会话的开始；由 `MovaEngine.open` 的第一行调用。
+  /// 标记一次新会话的开始；由 `Mova.open` 的第一行调用。
   ///
   /// - [source]: the source being opened / 正在打开的源
   /// - [autoPlay]: whether playback starts immediately / 是否立即开始播放
-  /// - [audioOnly]: whether this engine has no video pipeline / 该引擎是否无
+  /// - [audioOnly]: whether this player has no video pipeline / 该播放器是否无
   ///   视频管线
-  /// - [cutoverEnabled]: whether seamless engine-swapping is on / 是否启用了
-  ///   无缝引擎切换
+  /// - [cutoverEnabled]: whether seamless player cutover is on / 是否启用了
+  ///   无缝播放器切换
   /// - [deferSample]: 延后到 onLoaded 再采样媒体信息；默认 false。
   ///
   /// 无返回值。示例：`collector.onOpen(source, autoPlay: true)`。
@@ -219,24 +219,24 @@ class MovaQoeCollector {
     _lastFfmpegErrorAt = null;
     _ffmpegErrorBeforeDone = false;
     // The previous session's `sessionEnd` was already emitted by onTeardown
-    // (the engine calls it before onOpen), so a fresh tally loses nothing.
+    // (the player calls it before onOpen), so a fresh tally loses nothing.
     //
-    // 上一会话的 `sessionEnd` 已由 onTeardown 发出（引擎先调它再调 onOpen），
+    // 上一会话的 `sessionEnd` 已由 onTeardown 发出（播放器先调它再调 onOpen），
     // 换新实例不会丢数据；同时清掉 `_lastTick`，避免会话间隔被算成观看时间。
     _tally = MovaSessionTally();
-    _stallPolicy = _config.newStallPolicy()..reset();
+    _stallPolicy = _opts.newStallPolicy()..reset();
     _ttff.arm(at, autoPlay: autoPlay);
     _heartbeatTimer?.cancel();
     _heartbeatTimer = null;
-    if (!_config.qoe) return;
-    final sessionId = _config.effectiveSessionIdFactory();
+    if (!_opts.qoe) return;
+    final sessionId = _opts.effectiveSessionIdFactory();
     _sessionId = sessionId;
     if (deferSample) {
       _pendingStart = () => unawaited(_emitSessionStart(source, at, sessionId));
     } else {
       unawaited(_emitSessionStart(source, at, sessionId));
     }
-    final interval = _config.heartbeat;
+    final interval = _opts.heartbeat;
     if (interval != null) {
       _heartbeatTimer = Timer.periodic(interval, (_) => _emitHeartbeat());
     }
@@ -307,7 +307,7 @@ class MovaQoeCollector {
       'uri': source.uri,
       _streamTypeKey: _streamType.name,
       _audioOnlyKey: _audioOnly,
-      'swapEnabled': _cutoverEnabled,
+      'cutoverEnabled': _cutoverEnabled,
       if (source.title != null) 'title': source.title,
     };
     final snapshot = await _probe?.sample();
@@ -325,9 +325,9 @@ class MovaQoeCollector {
 
   /// Terminates the current session (new `open()` or `dispose()`); emits
   /// `sessionEnd` (or `startupFail` when the first frame never landed) when
-  /// [MovaReportConfig.qoe] is on.
+  /// [MovaReportOpts.qoe] is on.
   ///
-  /// 终结当前会话（新的 `open()` 或 `dispose()`）；[MovaReportConfig.qoe]
+  /// 终结当前会话（新的 `open()` 或 `dispose()`）；[MovaReportOpts.qoe]
   /// 开启时发出 `sessionEnd`（若首帧从未落地则发 `startupFail`）。
   void onTeardown() {
     if (!_sessionOpen) return;
@@ -338,7 +338,7 @@ class MovaQoeCollector {
     _heartbeatTimer = null;
     final at = _now();
     _tally.tick(at);
-    if (!_config.qoe) return;
+    if (!_opts.qoe) return;
     if (_ttff.wasArmed && !_landed) {
       final armedAt = _ttff.armedAt;
       _emit(
@@ -376,7 +376,7 @@ class MovaQoeCollector {
     var reason = baseReason;
     if (baseReason == MovaSessionEnd.ended &&
         resolveTruncated(
-          threshold: _config.truncatedBelow,
+          threshold: _opts.truncatedBelow,
           durationMs: _tally.durationMs,
           validPositionMs: _validMaxPositionMs,
           isLiveSource: _streamType == MovaStreamType.live,
@@ -424,15 +424,15 @@ class MovaQoeCollector {
   }
 
   /// Feeds a continuous position update; used for [MovaSessionTally]'s
-  /// completion percentage. Not a `MovaEvent` — `MovaEngine` calls this
+  /// completion percentage. Not a `MovaEvent` — `Mova` calls this
   /// directly from its position subscription, since position updates are not
   /// otherwise observable on the event bus.
   ///
   /// 输入一次连续的位置更新，供 [MovaSessionTally] 计算完成度。它不是
-  /// `MovaEvent`——`MovaEngine` 直接从其 position 订阅调用本方法，因为位置更新
+  /// `MovaEvent`——`Mova` 直接从其 position 订阅调用本方法，因为位置更新
   /// 本就不会出现在事件总线上。
   void onPosition(Duration position) {
-    if (!_sessionOpen || !_config.qoe) return;
+    if (!_sessionOpen || !_opts.qoe) return;
     if (_seekBuffering && !_lastStalled) _seekBuffering = false;
     if (!_nativeRestartLive) {
       final at = _now();
@@ -454,7 +454,7 @@ class MovaQoeCollector {
       _onError(event);
       return;
     }
-    if (_config.qoe) {
+    if (_opts.qoe) {
       _trackForQoe(event);
     }
     if (event is MovaQualityChange) {
@@ -480,7 +480,7 @@ class MovaQoeCollector {
 
   void _onQualityChange(MovaQualityChange event) {
     final at = _now();
-    if (!_config.qoe) {
+    if (!_opts.qoe) {
       // qoe:off 分支复用 translateMovaEvent 已有的 MovaQualityChange case，
       // 不重新手写一份形状相同的 MovaReportEvent——避免两处各自维护同一条
       // 转换规则、日后改字段容易漏改一边。
@@ -499,7 +499,7 @@ class MovaQoeCollector {
 
   void _onAbrDownShift(MovaAbrDownShift event) {
     final at = _now();
-    if (!_config.qoe) {
+    if (!_opts.qoe) {
       // 同 _onQualityChange：复用 translateMovaEvent 的 MovaAbrDownShift case。
       final base = translateMovaEvent(event, now: () => at);
       if (base != null) _emit(_withSessionId(base));
@@ -545,7 +545,7 @@ class MovaQoeCollector {
     MovaReportName name,
     Map<String, dynamic> params,
     DateTime at,
-    MovaStatsProbe probe,
+    IMovaStatsProbe probe,
     String? sessionId,
     int generation,
   ) async {
@@ -615,8 +615,8 @@ class MovaQoeCollector {
         }
       case MovaFirstFrame():
         _landManualPlayback(at);
-        // The engine may land via grace even when native RESTART never arrives.
-        // 即使原生 RESTART 未到，引擎也可能已通过宽限兜底确认首帧。
+        // The player may land via grace even when native RESTART never arrives.
+        // 即使原生 RESTART 未到，播放器也可能已通过宽限兜底确认首帧。
         final elapsed = _ttff.onNativeRestart(at);
         if (elapsed != null) {
           _emitFirstFrame(elapsed, at, signal: event.signal.name);
@@ -647,25 +647,25 @@ class MovaQoeCollector {
       case MovaQualityChange():
         // A manual/ABR variant switch reloads the kernel, which causes its
         // own transient buffering burst — not evidence of a real rebuffer,
-        // so the stall tally/index restart here (mirrors MovaEngine's own
+        // so the stall tally/index restart here (mirrors Mova's own
         // `_abrPolicy.reset()` on the same transition).
         //
         // 手动/ABR 换档会重载内核，随之而来的短暂缓冲是重载自身的代价，不是
-        // 真实卡顿的证据，故在此重启卡顿计数/index（与 MovaEngine 自己在同一
+        // 真实卡顿的证据，故在此重启卡顿计数/index（与 Mova 自己在同一
         // 转变点上的 `_abrPolicy.reset()` 同构）。
-        _stallPolicy = _config.newStallPolicy()..reset();
+        _stallPolicy = _opts.newStallPolicy()..reset();
         _stallIndex = 0;
       case MovaBufferChange(:final buffering):
         // buffering 的下降沿同时是 TTFF 的退化落地信号（当原生
         // MPV_EVENT_PLAYBACK_RESTART 不可达时）——两者都喂，谁先落地谁生效
         // （见 MovaTtffTracker 的 isArmed 守卫，不会重复上报）。
         _onBufferingForTtff(buffering, at);
-        // Only used as the degraded rebuffer signal when no MovaStatsProbe
+        // Only used as the degraded rebuffer signal when no IMovaStatsProbe
         // is wired; a real probe's `stalling` stream is authoritative and
         // this branch is then redundant but harmless (see _onStalling's
         // dedup via _lastStalled).
         //
-        // 仅在未接 MovaStatsProbe 时作为降级的卡顿信号；接了真实探针时其
+        // 仅在未接 IMovaStatsProbe 时作为降级的卡顿信号；接了真实探针时其
         // `stalling` 流才是权威来源，这里的分支会变得多余但无害（见
         // _onStalling 借助 _lastStalled 去重）。
         if (_probe == null) {
@@ -685,7 +685,7 @@ class MovaQoeCollector {
   /// `MPV_EVENT_PLAYBACK_RESTART` 信号尚未先行落地时生效（见 [_onRestart]）；
   /// [MovaTtffTracker.isArmed] 保证无论哪个信号先到都不会重复上报。
   void _onBufferingForTtff(bool buffering, DateTime at) {
-    if (!_config.qoe || _nativeRestartLive) return;
+    if (!_opts.qoe || _nativeRestartLive) return;
     final elapsed = _ttff.onBuffering(buffering, at);
     if (elapsed == null) return;
     _emitFirstFrame(elapsed, at, signal: _bufferingSignal);
@@ -697,7 +697,7 @@ class MovaQoeCollector {
   /// 处理一次原生 `MPV_EVENT_PLAYBACK_RESTART`——精确的 TTFF 落地信号（§D1 的
   /// 2026-09-29 更新）。
   void _onRestart() {
-    if (!_config.qoe) return;
+    if (!_opts.qoe) return;
     final at = _now();
     _landManualPlayback(at);
     final elapsed = _ttff.onNativeRestart(at);
@@ -707,7 +707,7 @@ class MovaQoeCollector {
 
   /// Disables coarse TTFF heuristics while the native RESTART subscription is live.
   ///
-  /// 原生 RESTART 订阅工作时禁用粗略兜底；引擎确认的首帧仍可落地。
+  /// 原生 RESTART 订阅工作时禁用粗略兜底；播放器确认的首帧仍可落地。
   bool get _nativeRestartLive => _probe?.nativeRestartAvailable ?? false;
 
   /// Enables manual-play accounting without emitting an autoplay TTFF.
@@ -786,7 +786,7 @@ class MovaQoeCollector {
     }
     if (stalled == _lastStalled) return;
     _lastStalled = stalled;
-    if (!_config.qoe) return;
+    if (!_opts.qoe) return;
     // Stalls before the first frame are startup latency, not rebuffering —
     // counted by TTFF instead, never both (see §D2).
     //
@@ -827,12 +827,12 @@ class MovaQoeCollector {
     _pendingLogAt = _now();
   }
 
-  /// Preserves engine error classification, using logs for missing details.
+  /// Preserves player error classification, using logs for missing details.
   ///
-  /// 保留引擎的错误分级，仅用日志补全缺失信息。
+  /// 保留播放器的错误分级，仅用日志补全缺失信息。
   void _onError(MovaErrorEvent event) {
     final at = _now();
-    if (!_config.qoe) {
+    if (!_opts.qoe) {
       // Legacy shape: no fatal/code classification, always immediate — this
       // is the byte-for-byte-unchanged path for qoe:false.
       //
@@ -888,7 +888,7 @@ class MovaQoeCollector {
   }
 
   MovaReportEvent _withSessionId(MovaReportEvent base) {
-    if (!_config.qoe) return base;
+    if (!_opts.qoe) return base;
     return MovaReportEvent(
       kind: base.kind,
       name: base.name,

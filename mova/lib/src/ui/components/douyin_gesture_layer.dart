@@ -7,7 +7,7 @@ import '../../core/feed/feed.dart';
 import '../slots/component.dart';
 import '../slots/slot.dart';
 
-/// Gesture layer for the douyin-style feed skin: single tap toggles
+/// Gesture layer for the douyin-style feed UI kit: single tap toggles
 /// play/pause, double tap toggles the local like state and flashes a heart
 /// burst — deliberately does **not** mount any drag-based
 /// volume/brightness/seek gesture (see doc/SPEC.md's feed entry): the
@@ -15,7 +15,7 @@ import '../slots/slot.dart';
 /// registering a competing gesture recognizer here is how mova's
 /// component architecture avoids the conflict without special-casing it.
 ///
-/// douyin 风格 feed 皮肤的手势层：单击切换播放/暂停，双击切换本地点赞状态并
+/// douyin 风格 feed UI 套件的手势层：单击切换播放/暂停，双击切换本地点赞状态并
 /// 闪一次心形动画——刻意**不**挂载任何基于拖动的音量/亮度/进度手势（见
 /// doc/SPEC.md 的 feed 条目）：纵向拖动归 feed 的 `PageView` 所有，这里干脆
 /// 不注册会竞争的手势识别器，就是 mova 组件化架构规避冲突的方式，
@@ -25,22 +25,22 @@ class MovaDouyinGestureLayerComponent extends MovaComponent {
   ///
   /// 创建抖音手势层组件。
   ///
-  /// - [controller]: the feed controller owning local like state / 持有本地
-  ///   点赞状态的 feed 控制器
+  /// - [feed]: the [MovaFeed] owning local like state / 持有本地
+  ///   点赞状态的 [MovaFeed]
   /// - [index]: this page's feed index / 本页在 feed 中的索引
   /// - [likeNotifier]: shared like-state notifier, kept in sync with the
   ///   social rail's like button / 共享的点赞状态 notifier，与社交竖排的点赞
   ///   按钮保持同步
   MovaDouyinGestureLayerComponent({
-    required this.controller,
+    required this.feed,
     required this.index,
     required this.likeNotifier,
   });
 
-  /// The feed controller owning local like state.
+  /// The [MovaFeed] owning local like state.
   ///
-  /// 持有本地点赞状态的 feed 控制器。
-  final MovaFeed controller;
+  /// 持有本地点赞状态的 [MovaFeed]。
+  final MovaFeed feed;
 
   /// This page's feed index.
   ///
@@ -64,10 +64,10 @@ class MovaDouyinGestureLayerComponent extends MovaComponent {
   MovaSlot get slot => MovaSlot.gesture;
 
   @override
-  Widget build(BuildContext context, MovaApi api, List<Widget> children) {
+  Widget build(BuildContext context, IMovaApi api, List<Widget> children) {
     return _DouyinGestureLayer(
       api: api,
-      controller: controller,
+      feed: feed,
       index: index,
       likeNotifier: likeNotifier,
     );
@@ -86,7 +86,7 @@ class _DouyinGestureLayer extends StatefulWidget {
   /// 创建内部抖音手势 widget。
   const _DouyinGestureLayer({
     required this.api,
-    required this.controller,
+    required this.feed,
     required this.index,
     required this.likeNotifier,
   });
@@ -94,12 +94,12 @@ class _DouyinGestureLayer extends StatefulWidget {
   /// The capability surface this gesture layer drives.
   ///
   /// 该手势层驱动的能力面。
-  final MovaApi api;
+  final IMovaApi api;
 
-  /// The feed controller owning local like state.
+  /// The [MovaFeed] owning local like state.
   ///
-  /// 持有本地点赞状态的 feed 控制器。
-  final MovaFeed controller;
+  /// 持有本地点赞状态的 [MovaFeed]。
+  final MovaFeed feed;
 
   /// This page's feed index.
   ///
@@ -138,7 +138,7 @@ class _DouyinGestureLayerState extends State<_DouyinGestureLayer> {
   ///
   /// 切换本地点赞状态并触发一次全新的心形动画。
   void _onDoubleTap() {
-    widget.likeNotifier.value = widget.controller.toggleLike(widget.index);
+    widget.likeNotifier.value = widget.feed.toggleLike(widget.index);
     setState(() => _burstSeq++);
   }
 

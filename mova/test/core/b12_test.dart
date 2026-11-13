@@ -5,7 +5,7 @@ import 'package:mova/mova.dart';
 import '../support/fake_api.dart';
 
 /// 无网络的预取器，可模拟宿主策略抛错。
-class _Prefetcher implements MovaFeedPrefetcher {
+class _Prefetcher implements IMovaFeedPrefetcher {
   /// 已发起的预取索引。
   final primed = <String>[];
 
@@ -27,7 +27,7 @@ Future<void> _drain() => Future<void>.delayed(Duration.zero);
 /// B12 的滑窗、请求归属、辅助错误与网络过期回归。
 void main() {
   test('连续浏览一万条后条目与请求数有界，回访窗口外条目重新加载', () async {
-    final pool = MovaFeedEnginePool(engineFactory: FakeMovaApi.new, size: 1);
+    final pool = MovaFeedPool(movaFactory: FakeMovaApi.new, size: 1);
     var firstLoads = 0;
     final feed = MovaFeed(
       pool: pool,
@@ -49,7 +49,7 @@ void main() {
     }
     expect(feed.peek(0), isNull);
     expect(feed.retains(0), isFalse);
-    expect(pool.engineCount, 1);
+    expect(pool.movaCount, 1);
     await feed.activate(0);
     expect(firstLoads, 2);
     expect(feed.likeStateOf(0).liked, isFalse);
@@ -59,7 +59,7 @@ void main() {
     final fresh = Completer<MovaFeedItem?>();
     final disposed = Completer<MovaFeedItem?>();
     var zeroLoads = 0;
-    final pool = MovaFeedEnginePool(engineFactory: FakeMovaApi.new, size: 1);
+    final pool = MovaFeedPool(movaFactory: FakeMovaApi.new, size: 1);
     final feed = MovaFeed(
       pool: pool,
       prefetchDepth: 0,
@@ -93,8 +93,8 @@ void main() {
   test('邻居 loader 或 open 抛错只影响自己，其余邻居继续预热且失败页可重试', () async {
     for (final failLoader in [true, false]) {
       var failed = false;
-      final pool = MovaFeedEnginePool(
-        engineFactory: () => FakeMovaApi()
+      final pool = MovaFeedPool(
+        movaFactory: () => FakeMovaApi()
           ..openThrows = failLoader ? null : StateError('warm open')
           ..openThrowsFor = '6'
           ..openThrowsOnce = true,
@@ -124,7 +124,7 @@ void main() {
   test('预取 loader 返回后校验过期，宿主预取错误隔离后继续下一条', () async {
     final old = Completer<MovaFeedItem?>();
     final strategy = _Prefetcher();
-    final pool = MovaFeedEnginePool(engineFactory: FakeMovaApi.new, size: 1);
+    final pool = MovaFeedPool(movaFactory: FakeMovaApi.new, size: 1);
     final feed = MovaFeed(
       pool: pool,
       prefetchDepth: 3,

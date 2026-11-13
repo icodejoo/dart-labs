@@ -11,14 +11,14 @@
 
 ## 0. 本轮已完成（别重复做）
 
-- **评审来源**：Codex 对 `mova/lib/src` 分 5 块（A 引擎/状态/事件/模型，B 内核/恢复/待机/守卫，
+- **评审来源**：Codex 对 `mova/lib/src` 分 5 块（A 播放器/状态/事件/模型，B 内核/恢复/待机/守卫，
   C cutover/会话/广告/feed/小窗，D 预览/上报/STT/配置，E UI/platform_impl/testing）只读全量评审，共 69 条；
   opus 逐条对照源码终审：成立 67、误报 2（A1、A6）；定级后 P1 1 条、P2 26 条、P3 40 条。
   原始报告在会话 scratchpad（临时目录，**已不可依赖**），需要的信息都已摘进本文。
 - **已修**：
   - P1/P2 全部 27 条（含 C2 唯一 P1：宿主直接 `open()` 换源后旧广告会话不再抢回）及终审附注 C1/C8/A9；
   - 首轮 `/code-review` 遗留 4 条：请求头经 media_kit 全局 URI 缓存串值、`screenshot()` 播放中过早放弃、
-    同步事件交付的监听器重入、`MovaFeedPlayerController.pause()` 等待激活；
+    同步事件交付的监听器重入、`MovaFeedPlayerCtrl.pause()` 等待激活；
   - P3 40 条中修 22 条，9 条核实为已不成立/已被前序修复覆盖，**9 条暂缓**（见 §3）。
   - 逐条内容见 `CHANGELOG.md` `Unreleased` 前四条与各提交信息。
 - **测试基线 2625 项全绿**，`flutter analyze lib test` 0 issues（本机 `main` 实跑）。
@@ -89,11 +89,11 @@ git commit -m "chore(mova): example Windows 插件列表同步 sherpa_onnx 屏�
 
 ### 3.1 A11 小窗与全屏、系统 PiP 的互斥只实现了部分方向
 
-- **位置**：`lib/src/core/engine.dart` 的 `setMini`、`setFullscreen`、`enterPip`。
+- **位置**：`lib/src/core/mova.dart` 的 `setMini`、`setFullscreen`、`enterPip`。
 - **现象**：`MovaState.mini` 文档声明与全屏/PiP 互斥，但 `setMini(true)` 不处理已在系统 PiP，`setFullscreen(true)` 不处理已在小窗；
   可得到 `pip && mini` 或 `fullscreen && mini`。`enterPip()` 方向已做（先 `setMini(false)`）。
-- **为何暂缓**：系统 PiP 没有主动退出端口（`MovaPipPort` 只有 enter），`MovaMini` 控制器又假定 `setMini(true)` 必然成功；完整修复要联动 UI。
-- **建议**：先定“窗口模式迁移”契约（PiP 中请求小窗 → 拒绝并返回 false，还是排队到 PiP 退出后），再统一在引擎里实现一张迁移表；
+- **为何暂缓**：系统 PiP 没有主动退出端口（`IMovaPip` 只有 enter），`MovaMini` 又假定 `setMini(true)` 必然成功；完整修复要联动 UI。
+- **建议**：先定“窗口模式迁移”契约（PiP 中请求小窗 → 拒绝并返回 false，还是排队到 PiP 退出后），再统一在播放器里实现一张迁移表；
   `MovaMini.show` 要处理被拒。单测：PiP 中 `setMini(true)` 被拒且 `mini` 仍为 false；小窗中全屏先收起小窗。
 
 ### 3.2 B1 END_FILE 可能把旧文件失败归给新尝试
@@ -115,10 +115,10 @@ git commit -m "chore(mova): example Windows 插件列表同步 sherpa_onnx 屏�
 
 - **位置**：`mpv_kernel.dart` 的 `_restoreKeepAlive()`（先清 `_keepAliveSaved` 再写回 `mute`/`vid`，异常吞掉）。
 - **现象**：`mute=no` 写回失败时方法仍返回 true，播放器保持静音；再次退出因原值已丢失不会重试。
-- **为何暂缓**：`MovaKeepAliveKernel.exitKeepAlive()` 返回 `bool` 只表达“是否重启了视频”，表达不了“还原失败”；改返回类型是内核契约变更。
+- **为何暂缓**：`IMovaKeepAliveKernel.exitKeepAlive()` 返回 `bool` 只表达“是否重启了视频”，表达不了“还原失败”；改返回类型是内核契约变更。
   mpv 写 `mute`/`vid` 实际几乎不失败。
 - **建议**：逐项确认写回成功再移除保存值；`exitKeepAlive` 改为返回结果枚举（`restartedVideo`/`noRestart`/`restoreFailed`），
-  引擎对 `restoreFailed` 走现有的终结错误出口（`_terminalError`）或重试一次。
+  播放器对 `restoreFailed` 走现有的终结错误出口（`_terminalError`）或重试一次。
 
 ### 3.5 C6 等待中插预热时丢弃有效的正片结束事件
 
@@ -130,9 +130,9 @@ git commit -m "chore(mova): example Windows 插件列表同步 sherpa_onnx 屏�
 
 ### 3.6 D3 看门狗期限忽略按源覆盖的超时
 
-- **位置**：`lib/src/core/options/recovery_config.dart` 的 `startTimeoutFor`/`stallTimeoutFor`、`lib/src/core/options/timeouts.dart`。
+- **位置**：`lib/src/core/options/recovery_opts.dart` 的 `startTimeoutFor`/`stallTimeoutFor`、`lib/src/core/options/timeouts.dart`。
 - **现象**：源级 `mpvOptions['network-timeout']=120`、全局默认时，看门狗仍约 65 秒触发恢复，打断本可等 120 秒的请求。
-- **为何暂缓**：只在 recovery 开启（默认关）且源级超时大于全局时触发，后果是提前重试；修复要改 engine 调用处的入参（P3 分组时不在该组范围内）。
+- **为何暂缓**：只在 recovery 开启（默认关）且源级超时大于全局时触发，后果是提前重试；修复要改 player 调用处的入参（P3 分组时不在该组范围内）。
 - **建议**：`startTimeoutFor/stallTimeoutFor` 接收最终生效的源配置（`MovaSource.mpvOptionsFor(...)` 合并后的值），显式 `startTimeout/stallTimeout` 仍最高优先级。
 
 ### 3.7 D12 卡顿时长与次数口径不一致
@@ -164,7 +164,7 @@ git commit -m "chore(mova): example Windows 插件列表同步 sherpa_onnx 屏�
 - **B1 未做**：尝试过 START_FILE 起始闸门（丢弃新文件 START_FILE 之前的 END_FILE/RESTART），真机 A/B：开启时 HE V9 仅 1/5 通过，关闭 5/5，已整体撤销。要做 B1 需先在真机上证明该 libmpv 向弱客户端投递 START_FILE 的时序，再按  关联。
 - 真机：CP3 headers 15/15（R1/R2/R3，夹具需去掉  片段后比较）、fullscreen 10/10（R5）、feedplayer 15/15（R4）；CP2：adpaths 39/40（hls.pod.3 续播落点偏 823ms）、adpause/adbg/pod2/playlist3/bgowner/audioonly-bg/qoe 全过、rate 10/10（R6，上轮 5 FAIL）、warmmute 15/15、v9 5/5（撤闸门后）、liveedge 5/5、events 5/5、pip 4/5（run0 ，疑首次调用时 pipSupported 异步未就绪，未证实）。
 - 补测（手机归还后）：R7 新增 CP2 `qoepause` 场景（卡顿进行中暂停 30 秒再恢复），5/5 通过，`stallMs` 283–946ms，不含暂停期；pip 复测 5/5，上次 run0 `enterPip=false` 未复现，按首次调用波动记录。
-- B1 两种方案都被真机证伪，已撤销并关闭：① START_FILE 起始闸门（HE V9 1/5）；② 按 `playlist_entry_id` 过滤 id 严格更小的 END_FILE（失败开放，单测过，但 cp1-recovery 开启后 16 项通过即夹具超时，关闭后 20/20；cp1-errclass 15/15、he-recovery V5/V6 3/3 不受影响）。根因未查明（怀疑 `playlist/0/id` 与 END_FILE 的 id 在换档/恢复重载时关系不是单调的假设）。要重开需先在真机上打日志对照两类 id。**日志已打过（cp1-recovery，调试输出）**：`playlist/0/id` 读数正确（1、2…），被替换旧文件的 END_FILE 确实会在新 open 窗口内到达（24 次，`current` 尚未更新），但 reason 全是 2（STOP），映射为 `stop`，引擎对它不判失败（`mpv_kernel_events_test` F-J 锚定），24 次里 0 次是 error，过滤器全程 0 次 DROP；同一轮仍然 16 项通过后夹具超时，说明回归并非来自丢事件，而来自 open 后额外的 `getProperty` 读取扰动了停滞恢复的时序。结论：B1 在真机上实际无害（只剩「旧文件恰在窗口内真的报错」这种极罕见情形），且任何新增原生读取都会扰动恢复流程，不再处理。补充事实（读 media_kit 1.2.6 `real.dart`）：`Player.open` = `stop` → `playlist-clear` → `loadlist append` → `playlist-play-index`，旧文件先被显式 stop（END_FILE 原因为 stop，不是 error）；B1 的误归属只可能发生在 `discardPending()` 到 `stop` 生效之间（首次 open 时要先等视频控制器就绪，窗口最长），后果是新尝试多一次误判重试。
+- B1 两种方案都被真机证伪，已撤销并关闭：① START_FILE 起始闸门（HE V9 1/5）；② 按 `playlist_entry_id` 过滤 id 严格更小的 END_FILE（失败开放，单测过，但 cp1-recovery 开启后 16 项通过即夹具超时，关闭后 20/20；cp1-errclass 15/15、he-recovery V5/V6 3/3 不受影响）。根因未查明（怀疑 `playlist/0/id` 与 END_FILE 的 id 在换档/恢复重载时关系不是单调的假设）。要重开需先在真机上打日志对照两类 id。**日志已打过（cp1-recovery，调试输出）**：`playlist/0/id` 读数正确（1、2…），被替换旧文件的 END_FILE 确实会在新 open 窗口内到达（24 次，`current` 尚未更新），但 reason 全是 2（STOP），映射为 `stop`，播放器对它不判失败（`mpv_kernel_events_test` F-J 锚定），24 次里 0 次是 error，过滤器全程 0 次 DROP；同一轮仍然 16 项通过后夹具超时，说明回归并非来自丢事件，而来自 open 后额外的 `getProperty` 读取扰动了停滞恢复的时序。结论：B1 在真机上实际无害（只剩「旧文件恰在窗口内真的报错」这种极罕见情形），且任何新增原生读取都会扰动恢复流程，不再处理。补充事实（读 media_kit 1.2.6 `real.dart`）：`Player.open` = `stop` → `playlist-clear` → `loadlist append` → `playlist-play-index`，旧文件先被显式 stop（END_FILE 原因为 stop，不是 error）；B1 的误归属只可能发生在 `discardPending()` 到 `stop` 生效之间（首次 open 时要先等视频控制器就绪，窗口最长），后果是新尝试多一次误判重试。
 - **C6 最终以「带片尾判据」版本落地（只在 MovaDone 且正片位置已到片尾时才按正片自然结束处理；换指副产物的 MovaDone 仍被吞；错误事件沿用旧路径）**。曾误判它令 adpaths 回退：其实 adpaths 的 HLS 中插续播抖动（±400–800ms，hls.mid.* 偶发）是间歇现象，与代码无关——对照实验证明：C6 分支存在但永不触发、以及完全不含 C6 的干净版，在同一设备状态下同样出现 38–39/40。该抖动属于 HLS 关键帧粒度 vs 500ms 判据，另立项（放宽判据或固定中插偏移对齐关键帧）。下面是当时（已被证伪的）回滚记录，保留作过程：
 - C6 曾回滚：C6 修复（中插预热期间正片自然结束/终结失败不被吞）上机后 CP2 adpaths 三次都是 39/40（HLS 续播离群 +823/-600/-600ms），基线 2 次与「仅回退 C6」1 次均 40/40，回滚 C6 后 HEAD 再跑 40/40，确认该改动在 HLS 中插路径引入回归（机理未查明）。收窄版（只处理 MovaDone）也试过：adpaths 38/40（含 mp4 中插 -600ms），同样回退。结论：现有验收判据把「中插预热期间正片结束时广告照播、正片从保存位置续播」当作正确行为，C6 的修法与它冲突；要改 C6 必须先由产品拍板新语义并同步改验收判据，而不是在代码里单改。
 - iOS 无 Mac，无法验证。
@@ -175,12 +175,12 @@ git commit -m "chore(mova): example Windows 插件列表同步 sherpa_onnx 屏�
 
 | # | 项 | 关联提交 | 怎么测 | 通过标准 |
 |---|---|---|---|---|
-| R1 | **请求头缓存键在 HLS 上的表现** | `8aa236e9` | CP3 headers 夹具换成需要鉴权的 HLS 源（master + 分片都校验头），普通引擎与 cutover 影子各开同一 URL 不同 token | 服务端看到的 master/分片请求路径**不含** `#mova-load`、各自 token 正确；能正常起播 |
+| R1 | **请求头缓存键在 HLS 上的表现** | `8aa236e9` | CP3 headers 夹具换成需要鉴权的 HLS 源（master + 分片都校验头），普通播放器与 cutover 影子各开同一 URL 不同 token | 服务端看到的 master/分片请求路径**不含** `#mova-load`、各自 token 正确；能正常起播 |
 | R2 | CP3 headers 回归 | `8aa236e9` | 原 CP3 headers 用例全量重跑（第七轮 15/15 为基线） | 仍 15/15 |
 | R3 | 暂停池截图（播放中重试） | `9a1848dd` | CP3 池预热截图用例，含 `autoPlay:true` 绑定后立即 `screenshot()` | 2 秒内拿到非空图；cutover 3 秒兜底不出现 null 抢跑 |
-| R4 | feed 暂停 | `3229f0e7` | 翻页后慢网 `controller.pause()` 立即返回；激活完成后画面仍暂停 | 无异常抛出，最终暂停 |
-| R5 | 退出全屏保留强制方向 | `649d515a` | `setOrientation(landscape)` → 全屏 → 退出全屏；再 `auto` 下重复 | 强制方向保留；`auto` 还原宿主方向 |
-| R6 | 广告→正片换指倍速/暂停 | `467fe58a`、`9513f1f7`、`f4c8a6e7` | 广告播放中改倍速、暂停再播放，然后 skip | 转正后的引擎倍速与最后一次设置一致、播放态与最后一次命令一致 |
+| R4 | feed 暂停 | `3229f0e7` | 翻页后慢网 `ctrl.pause()` 立即返回；激活完成后画面仍暂停 | 无异常抛出，最终暂停 |
+| R5 | 退出全屏保留强制方向 | `649d515a` | `setOrient(landscape)` → 全屏 → 退出全屏；再 `auto` 下重复 | 强制方向保留；`auto` 还原宿主方向 |
+| R6 | 广告→正片换指倍速/暂停 | `467fe58a`、`9513f1f7`、`f4c8a6e7` | 广告播放中改倍速、暂停再播放，然后 skip | 转正后的播放器倍速与最后一次设置一致、播放态与最后一次命令一致 |
 | R7 | QoE 暂停不计卡顿 | `04d04f22` | 限速源播放中暂停 30s 再播（`qoe:true`） | 暂停期间 `stallMs` 不增长；列表连播下一集仍能统计卡顿 |
 | R8 | CP2/CP3 整体 | — | 按 `doc/plans/2026-11-03-cp1-results.md` 同一套流程 | CP1 当前 13 PASS/3 BLOCKED，CP2/CP3 待跑 |
 
@@ -197,7 +197,7 @@ Gradle 构建前查空闲内存 ≥4GB（用户机器常驻别的前端项目）
   注意区分别的会话的 codex（命令行带 `--ignore-user-config`）和 sass 的 `dart.exe`，别误杀。
 - **后台调度**：用 `nohup` 起的调度脚本会被系统连同子进程一起停掉；改用 harness 托管的后台任务，并配 5 分钟心跳（看日志 mtime 是否推进）。
 - **续做而非重来**：Codex 中途死掉时，工作区已有半成品；prompt 写“先 git diff 核对每个编号哪些已完成，在现有改动上继续，不要 checkout/reset”。
-- **混合换行**：`core.autocrlf=true`，但 `engine.dart` 等文件在 HEAD 里本身混 CRLF/LF，git 不会规范化；Codex/编辑器把整份转成 CRLF 会让提交带几千行噪音。
+- **混合换行**：`core.autocrlf=true`，但 `mova.dart` 等文件在 HEAD 里本身混 CRLF/LF，git 不会规范化；Codex/编辑器把整份转成 CRLF 会让提交带几千行噪音。
   提交前用下面的脚本对齐：未改动行沿用 HEAD 换行，新增行用多数换行。`git diff --stat --ignore-cr-at-eol` 看真实改动量。
 
 ```python
@@ -228,13 +228,13 @@ for path in sys.argv[1:]:
 
 ## 6. 别改回去（本轮刻意定下的语义）
 
-- **普通引擎事件同步交付**（`broadcast(sync: true)`）保留；监听器重入的防护是：
+- **普通播放器事件同步交付**（`broadcast(sync: true)`）保留；监听器重入的防护是：
   同步段在发事件后比对 `_openGen`（`_isCurrentOpen`）；**跨 await 一律按 `_sessionGen` 判断**，await 之后重取 `_openGen` 基准。
-  这样被 `beforeOpen` 拒绝的 open 不会误伤在途的换档/恢复（`engine_final_review_test.dart` 的 `rejected host open during quality reload` 两例锚定）。
-- **强制方向独立于全屏**：退出全屏只有 `MovaOrientation.auto` 才还原宿主方向（`restore_test.dart` 已按此改写）。
+  这样被 `beforeOpen` 拒绝的 open 不会误伤在途的换档/恢复（`mova_final_review_test.dart` 的 `rejected host open during quality reload` 两例锚定）。
+- **强制方向独立于全屏**：退出全屏只有 `MovaOrientMode.auto` 才还原宿主方向（`restore_test.dart` 已按此改写）。
 - **请求头**：`Media(..., httpHeaders:)` 必须保留（media_kit 卸载钩子会清 `http-header-fields` 属性，只设属性会回退 CP3）；
   网络源带头时追加 `#mova-load=N` 只为隔离 media_kit 的进程级 URI 缓存，fragment 不发往服务端。
 - **QoE**：手动起播只由首帧事件或原生 RESTART 落地，不上报 TTFF；暂停期不计卡顿按 `_userPaused` 判断，**不要**改回依赖 `_playing`
-  （复用引擎连播时不一定再收到 `MovaPlay`）。
+  （复用播放器连播时不一定再收到 `MovaPlay`）。
 - **宿主广告回调异常**：隔离后交给 `Zone.current.handleUncaughtError`，宿主会在崩溃收集里看到以前被吞的异常，这是有意的。
 - **ABR 降档**：当前档有高度时只在有高度的变体里降，不会降到纯音频档。

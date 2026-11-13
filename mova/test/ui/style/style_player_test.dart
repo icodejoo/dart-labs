@@ -31,15 +31,15 @@ void main() {
     await t.pumpWidget(const SizedBox());
     await api.dispose();
   });
-  testWidgets('theme updates cached skin while API and calls stay stable', (
+  testWidgets('theme updates cached UI kit while API and calls stay stable', (
     t,
   ) async {
     final kernel = FakeKernel();
-    final api = MovaEngine(
+    final api = Mova(
       kernel: kernel,
-      brightness: MovaFallbackBrightnessPort(),
-      pip: MovaNoopPipPort(),
-      orientation: MovaNoopOrientationPort(),
+      brightness: MovaFallbackBrightness(),
+      pip: MovaNoopPip(),
+      orient: MovaNoopOrient(),
     );
     var changes = 0;
     final sub = api.events.listen((e) {
@@ -92,7 +92,7 @@ void main() {
               api: api,
               style: disabled
                   ? const MovaPlayerStyle(
-                      gesture: MovaGestureConfig(doubleTapSeek: false),
+                      gesture: MovaGestureOpts(doubleTapSeek: false),
                     )
                   : null,
             ),
@@ -126,7 +126,7 @@ void main() {
         theme: ThemeData(
           extensions: const [
             MovaPlayerStyle(
-              controls: MovaCtrlsConfig(autoHideDelay: Duration(seconds: 1)),
+              controls: MovaCtrlsOpts(autoHideDelay: Duration(seconds: 1)),
             ),
           ],
         ),
@@ -150,7 +150,7 @@ void main() {
         home: MovaPlayer(
           api: api,
           style: const MovaPlayerStyle(
-            controls: MovaCtrlsConfig(shortcuts: true),
+            controls: MovaCtrlsOpts(shortcuts: true),
           ),
         ),
       ),

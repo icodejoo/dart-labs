@@ -115,16 +115,16 @@ class Host:
         self.unlocked()
         self.command('dispose')
         self.command('snapshot')
-        self.command('orientation', value='portrait')
+        self.command('orient', value='portrait')
         baseline = self.native('baseline')
         for mode in ('landscape', 'portrait', 'auto'):
             if mode == 'auto': self.command('fullscreen', value='true')
-            state = self.command('orientation', value=mode)
-            native = self.native('orientation-'+mode)
-            numbers = dict(native, stateOrientation=state.get('orientation'))
+            state = self.command('orient', value=mode)
+            native = self.native('orient-'+mode)
+            numbers = dict(native, stateOrient=state.get('orient'))
             if 'width' in native and 'height' in native:
                 numbers['landscape'] = native['width'] > native['height']
-            expected = dict(stateOrientation=mode, focused=True)
+            expected = dict(stateOrient=mode, focused=True)
             if mode != 'auto': expected['landscape'] = mode == 'landscape'
             else:
                 # auto in fullscreen follows actual decoded video dimensions;
@@ -135,7 +135,7 @@ class Host:
                 numbers['videoLandscape'] = expected['landscape']
             self.check('A16.window.'+mode, numbers, expected)
         self.command('fullscreen', value='false')
-        self.command('orientation', value='portrait')
+        self.command('orient', value='portrait')
         baseline = self.native('before-fullscreen')
         for value in (True, False):
             state = self.command('fullscreen', value=str(value).lower())

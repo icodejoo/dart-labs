@@ -25,7 +25,7 @@ PKG='com.icodejoo.mova.mova_example.coverage'
 ACTIVITY=PKG+'/com.icodejoo.mova.mova_example.MainActivity'
 sys.path.insert(0,str(TOOL/'verify_sources'))
 from range_server import Handler as RangeHandler
-SCENES=('wakeswap','edgepause','errclass','probe','manageauto','bblock','pool','danmaku','recovery','dispose120','keepalive-s7s14')
+SCENES=('wakecutover','edgepause','errclass','probe','manageauto','bblock','pool','danmaku','recovery','dispose120','keepalive-s7s14')
 from cp1_sources import Fixtures, parse_system, parse_pss
 
 
@@ -33,12 +33,12 @@ def validate_checks(scene, runs, checks):
     if scene=='keepalive-s7s14':
         from cp1_keepalive import validate_checks as validate_keepalive
         return validate_keepalive(runs, checks)
-    variants={'wakeswap':['swap'],'edgepause':['pause','fallback'],
+    variants={'wakecutover':['cutover'],'edgepause':['pause','fallback'],
       'errclass':['nonfatal','fatal','poster'],'probe':['list','manual','once','failover','disabled'],
       'manageauto':['managed','default','disabled','lease'],'bblock':['restore','preview'],
       'pool':['reject','throw','feed'],'danmaku':['jump'],'recovery':['resume','manual720'],'dispose120':['round','summary']}[scene]
     fields={
-      'wakeswap':{'swap':['wakeUs','openUs','deltaUs','holdingPhase','held','expectedPath','frames','nativeSamples','renderEpoch']},
+      'wakecutover':{'cutover':['wakeUs','openUs','deltaUs','holdingPhase','held','expectedPath','frames','nativeSamples','renderEpoch']},
       'edgepause':{v:['pendingAtPause','phase','pauseUs','atPause','nativeSamples','after','bufferEvents'] for v in ('pause','fallback')},
       'errclass':{'nonfatal':['before','after','errors','state','overlay'], 'fatal':['endFile','errors','state','overlay','text','spinnerCount'],
                   'poster':['frames','posterHiddenObservedUs','opacity','posterSamples','native']},

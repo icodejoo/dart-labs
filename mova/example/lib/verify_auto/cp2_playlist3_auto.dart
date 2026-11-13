@@ -10,8 +10,8 @@ Future<void> runPlaylist3(Cp2Harness h) async {
     final rows=<Map<String,Object?>>[]; final ends=<int>[];
     final endEpochs=<int>[];
     MovaPlaylist? list;
-    final opts=MovaOpts(cutover:cp2CutoverConfig,playlist:MovaPlaylistConfig(enabled:true,items:items),
-      ads:MovaAdConfig(enabled:true,onAdEvent:(e){
+    final opts=MovaOpts(cutover:cp2CutoverOpts,playlist:MovaPlaylistOpts(enabled:true,items:items),
+      ads:MovaAdOpts(enabled:true,onAdEvent:(e){
         cp2AdEvent(h,e);
         // The next item's pre-roll starts before jumpTo updates currentIndex.
         // Attribute the callback using the scheduled break's unique source.

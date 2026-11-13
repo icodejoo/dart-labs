@@ -21,10 +21,10 @@ class _CaptureKernel extends FakeKernel {
   }
 }
 
-/// 可控截图的自定义引擎，用于验证真实 cutover 提交边界。
-class _CaptureApi extends FakeMovaApi implements MovaFrameCapture {
+/// 可控截图的自定义播放器，用于验证真实 cutover 提交边界。
+class _CaptureApi extends FakeMovaApi implements IMovaFrameCapture {
   _CaptureApi()
-    : super(options: const MovaOpts(cutover: MovaCutoverConfig(enabled: true)));
+    : super(options: const MovaOpts(cutover: MovaCutoverOpts(enabled: true)));
   final gate = Completer<Uint8List?>();
   @override
   Future<Uint8List?> screenshot() => gate.future;
@@ -34,13 +34,13 @@ class _CaptureApi extends FakeMovaApi implements MovaFrameCapture {
 ///
 /// 验证有界截图与切换归属。
 void main() {
-  test('cutover 提交后丢弃旧生效引擎截图，后续截图转发新引擎', () async {
+  test('cutover 提交后丢弃旧生效播放器截图，后续截图转发新播放器', () async {
     final made = <_CaptureApi>[];
-    final api = MovaCutoverEngine(
-      engineFactory: () {
-        final engine = _CaptureApi();
-        made.add(engine);
-        return engine;
+    final api = MovaCutover(
+      movaFactory: () {
+        final mova = _CaptureApi();
+        made.add(mova);
+        return mova;
       },
     );
     final oldShot = api.screenshot();
@@ -72,7 +72,7 @@ void main() {
   test('cutover allows the inner two-second deadline to settle', () {
     fakeAsync((clock) {
       final active = _CaptureApi();
-      final api = MovaCutoverEngine(engineFactory: () => active);
+      final api = MovaCutover(movaFactory: () => active);
       Uint8List? result;
       var done = false;
       api.screenshot().then((image) {
@@ -97,14 +97,14 @@ void main() {
       test('$name playing capture retries within total budget: $succeeds', () {
         fakeAsync((clock) {
           final kernel = _CaptureKernel();
-          final engine = MovaEngine(
+          final mova = Mova(
             kernel: kernel,
             fetcher: const MovaTestHttpFetch(),
           );
-          final MovaApi api = cutover
-              ? MovaCutoverEngine(engineFactory: () => engine)
-              : engine;
-          final pool = MovaFeedEnginePool(engineFactory: () => api, size: 1);
+          final IMovaApi api = cutover
+              ? MovaCutover(movaFactory: () => mova)
+              : mova;
+          final pool = MovaFeedPool(movaFactory: () => api, size: 1);
           pool.bind(0, const MovaSource('https://h/playing.mp4'), autoPlay: true);
           clock.flushMicrotasks();
           kernel.emitPlaying(true);
@@ -115,7 +115,7 @@ void main() {
               : null;
           Uint8List? result;
           var done = false;
-          (api as MovaFrameCapture).screenshot().then((image) {
+          (api as IMovaFrameCapture).screenshot().then((image) {
             result = image;
             done = true;
           });
@@ -139,14 +139,14 @@ void main() {
       test('$name 真机窗口：$window', () {
         fakeAsync((async) {
           final kernel = _CaptureKernel();
-          final engine = MovaEngine(
+          final mova = Mova(
             kernel: kernel,
             fetcher: const MovaTestHttpFetch(),
           );
-          final MovaApi api = cutover
-              ? MovaCutoverEngine(engineFactory: () => engine)
-              : engine;
-          final pool = MovaFeedEnginePool(engineFactory: () => api, size: 1);
+          final IMovaApi api = cutover
+              ? MovaCutover(movaFactory: () => mova)
+              : mova;
+          final pool = MovaFeedPool(movaFactory: () => api, size: 1);
           pool.bind(0, const MovaSource('https://h/a.mp4'));
           async.flushMicrotasks();
           if (window > 0) {
@@ -172,7 +172,7 @@ void main() {
           };
           Uint8List? result;
           var done = false;
-          (api as MovaFrameCapture).screenshot().then((value) {
+          (api as IMovaFrameCapture).screenshot().then((value) {
             result = value;
             done = true;
           });
@@ -193,14 +193,14 @@ void main() {
       test('$name 暂停截图：$scenario', () {
         fakeAsync((async) {
           final kernel = _CaptureKernel();
-          final engine = MovaEngine(
+          final mova = Mova(
             kernel: kernel,
             fetcher: const MovaTestHttpFetch(),
           );
-          final MovaApi api = cutover
-              ? MovaCutoverEngine(engineFactory: () => engine)
-              : engine;
-          final pool = MovaFeedEnginePool(engineFactory: () => api, size: 1);
+          final IMovaApi api = cutover
+              ? MovaCutover(movaFactory: () => mova)
+              : mova;
+          final pool = MovaFeedPool(movaFactory: () => api, size: 1);
           pool.bind(0, const MovaSource('https://h/a.mp4'));
           async.flushMicrotasks();
           expect(pool.slotFor(0)?.ready, isTrue);
@@ -226,7 +226,7 @@ void main() {
           }
           Uint8List? result;
           var done = false;
-          (api as MovaFrameCapture).screenshot().then((v) {
+          (api as IMovaFrameCapture).screenshot().then((v) {
             result = v;
             done = true;
           });
@@ -271,8 +271,8 @@ void main() {
     }
   }
 
-  test('cutover 自定义引擎没有截图能力时返回 null', () async {
-    final api = MovaCutoverEngine(engineFactory: FakeMovaApi.new);
+  test('cutover 自定义播放器没有截图能力时返回 null', () async {
+    final api = MovaCutover(movaFactory: FakeMovaApi.new);
     expect(await api.screenshot(), isNull);
     await api.dispose();
   });

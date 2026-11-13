@@ -12,7 +12,7 @@ const _spikeSourceUri =
     'https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4';
 
 /// A verification harness for [MovaAudioExtractor] — the unverified spike
-/// documented in `doc/notes/2026-08-04-stt-engine-decision.md`'s "批量预
+/// documented in `doc/notes/2026-08-04-stt-recognizer-decision.md`'s "批量预
 /// 转写" section. Answers three open questions on real hardware instead of
 /// guessing:
 ///
@@ -30,7 +30,7 @@ const _spikeSourceUri =
 /// numbers off real hardware.
 ///
 /// [MovaAudioExtractor] 的验证装置——对应
-/// `doc/notes/2026-08-04-stt-engine-decision.md`"批量预转写"一节里标注的
+/// `doc/notes/2026-08-04-stt-recognizer-decision.md`"批量预转写"一节里标注的
 /// 未验证 spike。在真机上回答三个悬而未决的问题，而不是靠猜：
 ///
 /// 1. `extractWav` 到底能不能返回非空路径（即 `ao`/`ao-pcm-file` 能不能在

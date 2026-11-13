@@ -67,7 +67,7 @@ import 'package:mova/mova.dart';
 /// 唯一确认可达的域名。
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  MovaEngine.ensureInitialized();
+  Mova.ensureInitialized();
   runApp(const MaterialApp(home: SeamlessBlackFrameTest()));
 }
 
@@ -116,14 +116,14 @@ const _skippableAfter = Duration.zero;
 /// Ad clip: back to the MDN flower.mp4 sample per user request, after
 /// reusing the content clip's own URL as the ad produced an inconclusive run
 /// (fell back to plain `open()` within 5s, cause not yet isolated — could be
-/// the shadow failing to open the same URL a second engine already has
+/// the shadow failing to open the same URL a second player already has
 /// open, or could still be network variance). [MovaAds.skip] (not a
 /// forced seek or waiting for natural end) is what makes the ad source
 /// choice safe to cutover independently of the earlier MDN reachability issue.
 ///
 /// 广告素材：按要求换回 MDN 的 flower.mp4 样片——把正片自己的 URL
 /// 复用为广告后，那次跑测没有定论（5 秒内回落到了普通 `open()`，原因还没
-/// 查清楚——可能是影子引擎打开一个另一个引擎已经打开着的同一个 URL 失败了，
+/// 查清楚——可能是影子播放器打开一个另一个播放器已经打开着的同一个 URL 失败了，
 /// 也可能仍是网络波动）。用 [MovaAds.skip]（而非强制 seek 或等自然结束）
 /// 才是让广告素材可以独立于早先 MDN 可达性问题而自由更换的原因。
 final _ad = MovaAdBreak(
@@ -148,8 +148,8 @@ class SeamlessBlackFrameTest extends StatefulWidget {
 }
 
 class _SeamlessBlackFrameTestState extends State<SeamlessBlackFrameTest> {
-  late final MovaCutoverEngine _engine;
-  late final MovaAds _controller;
+  late final MovaCutover _mova;
+  late final MovaAds _ads;
   final List<String> _log = [];
   Timer? _skipTimer;
   Stopwatch? _adGapClock;
@@ -160,30 +160,30 @@ class _SeamlessBlackFrameTestState extends State<SeamlessBlackFrameTest> {
   void initState() {
     super.initState();
     final opts = MovaOpts(
-      ads: const MovaAdConfig(enabled: true),
+      ads: const MovaAdOpts(enabled: true),
       // Eager: start warming the content up the instant the ad starts, not
       // just its last couple of seconds — a short ad has no meaningful
       // "last couple of seconds" to speak of anyway.
       //
       // 即时触发：广告一开始播放就预热正片，而不是只在最后一两秒——短广告
       // 本来也没有多少"最后一两秒"可言。
-      cutover: const MovaCutoverConfig(enabled: true, trigger: MovaEagerWarm()),
+      cutover: const MovaCutoverOpts(enabled: true, trigger: MovaEagerWarm()),
     );
-    _engine = MovaCutoverEngine(engineFactory: () => createMovaEngine(options: opts));
-    _controller = MovaAds(_engine, cutover: _engine);
-    _controller.changes.listen((_) => _onAdChange());
+    _mova = MovaCutover(movaFactory: () => createMova(options: opts));
+    _ads = MovaAds(_mova, cutover: _mova);
+    _ads.changes.listen((_) => _onAdChange());
     // MovaAds.changes fires the instant _playContent() *starts* (a
     // bookkeeping flag flip), not when the cutover actually lands — so it
     // measures "time to decide to resume", not "time until content is
     // really back". MovaState.renderEpoch only bumps once the atomic cutover
-    // has actually completed (see MovaCutoverEngine._commitNow), which is the
+    // has actually completed (see MovaCutover._commitNow), which is the
     // real signal for this test.
     //
     // MovaAds.changes 在 _playContent() *刚开始*那一刻就触发（一次记账用
     // 的标志翻转），而非切换真正落地时——所以它测的是"决定要续播的时刻"，
     // 不是"内容真的回来的时刻"。MovaState.renderEpoch 只在原子切换真正完成后
-    // 才会自增（见 MovaCutoverEngine._commitNow），这才是本测试要的真实信号。
-    _stateSub = _engine.states.listen((s) {
+    // 才会自增（见 MovaCutover._commitNow），这才是本测试要的真实信号。
+    _stateSub = _mova.states.listen((s) {
       if (s.renderEpoch != _lastEpoch) {
         _lastEpoch = s.renderEpoch;
         final clock = _adGapClock;
@@ -194,13 +194,13 @@ class _SeamlessBlackFrameTestState extends State<SeamlessBlackFrameTest> {
       }
     });
     _mark('opening content');
-    // Go through the controller's load(), not a bare engine.open(): playAdNow
-    // only fires while the controller believes it is in its "content" phase,
+    // Go through MovaAds.load(), not a bare mova.open(): playAdNow
+    // only fires while MovaAds believes it is in its "content" phase,
     // and load() is what puts it there.
     //
-    // 走控制器的 load()，而不是裸的 engine.open()：playAdNow 只在控制器认为
+    // 走 MovaAds.load()，而不是裸的 mova.open()：playAdNow 只在 MovaAds 认为
     // 自己处于"正片"阶段时才会生效，而让它进入这个阶段正是 load() 的职责。
-    unawaited(_controller.load(_buildContent()).then((_) async {
+    unawaited(_ads.load(_buildContent()).then((_) async {
       _mark('content opened — waiting for real playback to start (not just open() resolving)');
       // load()'s future resolving only means the open() call returned; the
       // clip can still be sitting in network startup/buffering with no
@@ -218,17 +218,17 @@ class _SeamlessBlackFrameTestState extends State<SeamlessBlackFrameTest> {
     }));
   }
 
-  /// Completes once the engine's progress shows playback actually advancing
+  /// Completes once the player's progress shows playback actually advancing
   /// (position past zero and not buffering) — the point past which elapsed
   /// time reflects real playback rather than network/decoder startup.
   ///
-  /// 在引擎的进度显示播放确实在推进（位置过零且不在缓冲）时完成——从这一刻
+  /// 在播放器的进度显示播放确实在推进（位置过零且不在缓冲）时完成——从这一刻
   /// 起的耗时才代表真实播放时间，而非网络/解码器起播开销。
   Future<void> _waitForRealPlayback() {
     final completer = Completer<void>();
     late final StreamSubscription<MovaProg> sub;
-    sub = _engine.progress.listen((p) {
-      if (p.position > Duration.zero && !_engine.state.buffering) {
+    sub = _mova.progress.listen((p) {
+      if (p.position > Duration.zero && !_mova.state.buffering) {
         unawaited(sub.cancel());
         completer.complete();
       }
@@ -238,7 +238,7 @@ class _SeamlessBlackFrameTestState extends State<SeamlessBlackFrameTest> {
 
   void _insertAd() {
     _mark('inserting ad');
-    unawaited(_controller.playAdNow(_ad).then((_) async {
+    unawaited(_ads.playAdNow(_ad).then((_) async {
       _mark('ad opened — waiting for it to really start playing');
       await _waitForRealPlayback();
       _mark('ad really playing now, will skip after ${_adHoldDuration.inSeconds}s of real playback');
@@ -250,8 +250,8 @@ class _SeamlessBlackFrameTestState extends State<SeamlessBlackFrameTest> {
         // 计时从这里开始：skip() 会直接同步续播正片，所以这一刻——而非之后
         // 某个媒体事件——正是用户能感知到的间隔的起点。
         _adGapClock = Stopwatch()..start();
-        _mark('skipping ad (canSkip=${_controller.canSkip})');
-        _controller.skip();
+        _mark('skipping ad (canSkip=${_ads.canSkip})');
+        _ads.skip();
       });
     }));
   }
@@ -262,7 +262,7 @@ class _SeamlessBlackFrameTestState extends State<SeamlessBlackFrameTest> {
     //
     // 仅供参考——为何这个时机太早、不能当作真实间隔，见上方 states 订阅处的
     // 注释。
-    if (!_controller.isShowingAd) {
+    if (!_ads.isShowingAd) {
       _mark('MovaAds phase flipped to content (bookkeeping only, not the real gap)');
       Timer(const Duration(seconds: 5), () {
         if (_adGapClock != null) {
@@ -277,8 +277,8 @@ class _SeamlessBlackFrameTestState extends State<SeamlessBlackFrameTest> {
   void dispose() {
     _skipTimer?.cancel();
     _stateSub?.cancel();
-    _controller.dispose();
-    _engine.dispose();
+    _ads.dispose();
+    _mova.dispose();
     super.dispose();
   }
 
@@ -301,7 +301,7 @@ class _SeamlessBlackFrameTestState extends State<SeamlessBlackFrameTest> {
           children: [
             AspectRatio(
               aspectRatio: 16 / 9,
-              child: MovaPlayer(api: _engine, skin: const MovaDefaultSkin()),
+              child: MovaPlayer(api: _mova, uiKit: const MovaDefaultUiKit()),
             ),
             Expanded(
               child: Container(

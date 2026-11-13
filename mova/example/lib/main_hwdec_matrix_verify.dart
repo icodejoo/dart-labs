@@ -21,7 +21,7 @@ import 'verify_auto/auto_kit.dart';
 /// 结果行 `HWM_ROW`；外部脚本在 `HWM_PROBE`/`HWM_SHOT`/`HWM_PIPCHECK`/`WAIT_HOME` 处采样。
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  MovaEngine.ensureInitialized();
+  Mova.ensureInitialized();
   runApp(MaterialApp(
     builder: (context, child) => MovaMiniHost(mini: _mini, child: child!),
     home: const _HwmPage(),
@@ -40,7 +40,7 @@ const String kHls = 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8';
 /// The two configurations under comparison: label -> per-source mpv options.
 ///
 /// 对照的两种配置：标签 -> 按源 mpv 选项。
-const Map<String, Map<String, String>> kConfigs = {
+const Map<String, Map<String, String>> kOpts = {
   'copy': <String, String>{},
   'zero': <String, String>{'hwdec': 'mediacodec'},
 };
@@ -59,14 +59,14 @@ const Map<String, String> kSamples = {
 
 final MovaMini _mini = MovaMini();
 
-/// One engine with its player/kernel kept for property reads.
+/// One player with its native player/kernel kept for property reads.
 ///
-/// 一个引擎及其 player/kernel，用于读属性。
+/// 一个播放器及其原生 player/kernel，用于读属性。
 class _Rig {
-  _Rig(this.player, this.kernel, this.engine);
+  _Rig(this.player, this.kernel, this.mova);
   final Player player;
   final MovaMpvKernel kernel;
-  final MovaEngine engine;
+  final Mova mova;
   final List<MovaEvent> events = <MovaEvent>[];
   StreamSubscription<MovaEvent>? sub;
   Duration pos = Duration.zero;
@@ -89,7 +89,7 @@ class _HwmPageState extends State<_HwmPage> with WidgetsBindingObserver {
 
   _Rig? _rig;
   bool _showSurface = true;
-  MovaCutoverEngine? _cutover;
+  MovaCutover? _cutover;
   MovaAds? _ads;
   final List<_Rig> _cutRigs = <_Rig>[];
 
@@ -126,7 +126,7 @@ class _HwmPageState extends State<_HwmPage> with WidgetsBindingObserver {
   }
 
   MovaSource _src(String file, String cfg, {String? title}) =>
-      MovaSource(_stamp('$kCodecBase/$file'), title: title ?? file, mpvOptions: kConfigs[cfg]!);
+      MovaSource(_stamp('$kCodecBase/$file'), title: title ?? file, mpvOptions: kOpts[cfg]!);
 
   Future<String> _prop(Player p, String name) async {
     final native = p.platform;
@@ -142,10 +142,10 @@ class _HwmPageState extends State<_HwmPage> with WidgetsBindingObserver {
     await _disposeRig();
     final player = Player();
     final kernel = MovaMpvKernel(player: player, lazyVideo: true, observeQoeSignals: false);
-    final engine = createMovaEngine(kernel: kernel, options: options);
-    final rig = _Rig(player, kernel, engine);
-    rig.sub = engine.events.listen((e) => rig.events.add(e));
-    rig.progSub = engine.progress.listen((p) => rig.pos = p.position);
+    final mova = createMova(kernel: kernel, options: options);
+    final rig = _Rig(player, kernel, mova);
+    rig.sub = mova.events.listen((e) => rig.events.add(e));
+    rig.progSub = mova.progress.listen((p) => rig.pos = p.position);
     _rig = rig;
     _showSurface = true;
     if (mounted) setState(() {});
@@ -161,7 +161,7 @@ class _HwmPageState extends State<_HwmPage> with WidgetsBindingObserver {
     await rig.sub?.cancel();
     await rig.progSub?.cancel();
     try {
-      await rig.engine.dispose().timeout(const Duration(seconds: 6));
+      await rig.mova.dispose().timeout(const Duration(seconds: 6));
     } on Object catch (e) {
       _log('dispose error $e');
     }
@@ -185,14 +185,14 @@ class _HwmPageState extends State<_HwmPage> with WidgetsBindingObserver {
     final t0 = _clock.elapsedMilliseconds;
     int? tPos;
     int? tFirst;
-    final sub = rig.engine.progress.listen((p) {
+    final sub = rig.mova.progress.listen((p) {
       if (tPos == null && p.position > Duration.zero) tPos = _clock.elapsedMilliseconds - t0;
     });
-    final evSub = rig.engine.events.listen((e) {
+    final evSub = rig.mova.events.listen((e) {
       if (e is MovaFirstFrame && tFirst == null) tFirst = _clock.elapsedMilliseconds - t0;
     });
     try {
-      await rig.engine.open(source);
+      await rig.mova.open(source);
     } on Object catch (e) {
       _log('open threw $e');
     }
@@ -285,7 +285,7 @@ class _HwmPageState extends State<_HwmPage> with WidgetsBindingObserver {
     final done = await _until(() => rig.events.any((e) => e is MovaDone), timeoutMs: 35000);
     _row('codec', {
       'id': id,
-      'hwdecOpt': kConfigs[cfg]!['hwdec'] ?? 'default',
+      'hwdecOpt': kOpts[cfg]!['hwdec'] ?? 'default',
       'hwdecCurrent': hw,
       'vcodec': codec,
       'pixfmt': fmt,
@@ -296,7 +296,7 @@ class _HwmPageState extends State<_HwmPage> with WidgetsBindingObserver {
       'posAdvanced': '${pos0.inMilliseconds}->${pos1.inMilliseconds}',
       'eof': done != null,
       'lastPosMs': rig.pos.inMilliseconds,
-      'duration': rig.engine.state.duration.inMilliseconds,
+      'duration': rig.mova.state.duration.inMilliseconds,
       'drops': drops,
       'errors': _errs(rig),
       'kernelShot': shot,
@@ -315,7 +315,7 @@ class _HwmPageState extends State<_HwmPage> with WidgetsBindingObserver {
     _row('shot', {'id': id, 'hwdecCurrent': hw, 'ttffMs': ff, 'kernelShot': shot, 'errors': _errs(rig)});
   }
 
-  /// Frame extractor (own player, vid=auto vo=null) while a zero-copy/copy engine plays.
+  /// Frame extractor (own player, vid=auto vo=null) while a zero-copy/copy player plays.
   Future<void> _extract(String file, String cfg, int run) async {
     final id = '$file-$cfg-$run';
     final rig = await _newRig();
@@ -347,17 +347,17 @@ class _HwmPageState extends State<_HwmPage> with WidgetsBindingObserver {
     await _disposeRig();
     await _disposeCutover();
     final opts = const MovaOpts(
-      ads: MovaAdConfig(enabled: true),
-      cutover: MovaCutoverConfig(enabled: true, trigger: MovaEagerWarm()),
+      ads: MovaAdOpts(enabled: true),
+      cutover: MovaCutoverOpts(enabled: true, trigger: MovaEagerWarm()),
     );
-    final cutover = MovaCutoverEngine(engineFactory: () {
+    final cutover = MovaCutover(movaFactory: () {
       final player = Player();
       final kernel = MovaMpvKernel(player: player, lazyVideo: true, observeQoeSignals: false);
-      final engine = createMovaEngine(kernel: kernel, options: opts);
-      final rig = _Rig(player, kernel, engine);
-      rig.sub = engine.events.listen((e) => rig.events.add(e));
+      final mova = createMova(kernel: kernel, options: opts);
+      final rig = _Rig(player, kernel, mova);
+      rig.sub = mova.events.listen((e) => rig.events.add(e));
       _cutRigs.add(rig);
-      return engine;
+      return mova;
     });
     _cutover = cutover;
     Duration lastPos = Duration.zero;
@@ -388,8 +388,8 @@ class _HwmPageState extends State<_HwmPage> with WidgetsBindingObserver {
         source: _src('h264_fs.mp4', cfg, title: 'ad'),
         skippableAfter: Duration.zero,
       ));
-      final swappedToAd = await _until(() => cutover.state.renderEpoch != e0, timeoutMs: 12000);
-      if (swappedToAd == null) {
+      final cutoverToAd = await _until(() => cutover.state.renderEpoch != e0, timeoutMs: 12000);
+      if (cutoverToAd == null) {
         _row('cutover', {'id': id, 'result': 'ad_never_active', 'errors': cutRigErrors()});
         return;
       }
@@ -406,7 +406,7 @@ class _HwmPageState extends State<_HwmPage> with WidgetsBindingObserver {
       final phaseAtSkip = cutover.cutoverPhase.name;
       final tSkip = _clock.elapsedMilliseconds;
       ads.skip();
-      final swapped = await _until(() => cutover.state.renderEpoch != epoch, timeoutMs: 12000);
+      final cutoverBack = await _until(() => cutover.state.renderEpoch != epoch, timeoutMs: 12000);
       final skipToCommit = _clock.elapsedMilliseconds - tSkip;
       await Future<void>.delayed(const Duration(milliseconds: 2500));
       final pA = lastPos;
@@ -418,8 +418,8 @@ class _HwmPageState extends State<_HwmPage> with WidgetsBindingObserver {
       final err = resumePos == null ? null : resumePos!.inMilliseconds - atTakeover.inMilliseconds;
       _row('cutover', {
         'id': id,
-        'swappedToAd': swappedToAd,
-        'swappedBack': swapped != null,
+        'cutoverToAd': cutoverToAd,
+        'cutoverBack': cutoverBack != null,
         'skipToCommitMs': skipToCommit,
         'phaseAtSkip': phaseAtSkip,
         'adHwdec': adHw,
@@ -472,27 +472,27 @@ class _HwmPageState extends State<_HwmPage> with WidgetsBindingObserver {
   /// In-page floating mini window, then persistent (cross-route) mini.
   Future<void> _miniScn(String file, String cfg, int run) async {
     final id = '$file-$cfg-$run';
-    final rig = await _newRig(options: const MovaOpts(mini: MovaMiniConfig(enabled: true)));
+    final rig = await _newRig(options: const MovaOpts(mini: MovaMiniOpts(enabled: true)));
     await _openAndWait(rig, _src(file, cfg));
     await Future<void>.delayed(const Duration(seconds: 2));
     final hw0 = await _prop(rig.player, 'hwdec-current');
     final p0 = rig.pos;
     setState(() => _showSurface = false);
-    await _mini.showInPage(context, rig.engine);
+    await _mini.showInPage(context, rig.mova);
     await Future<void>.delayed(const Duration(milliseconds: 1500));
     final a1 = rig.pos;
     await _shotMark('$id-inpage', quadrant: true);
     await Future<void>.delayed(const Duration(milliseconds: 1500));
     final a2 = rig.pos;
     final hwA = await _prop(rig.player, 'hwdec-current');
-    final miniA = rig.engine.state.mini;
+    final miniA = rig.mova.state.mini;
     await _mini.hide();
-    await rig.engine.setMini(false);
+    await rig.mova.setMini(false);
     setState(() => _showSurface = true);
     await Future<void>.delayed(const Duration(milliseconds: 1500));
     final a3 = rig.pos;
     // Persistent mount across a route push.
-    await _mini.show(rig.engine);
+    await _mini.show(rig.mova);
     setState(() => _showSurface = false);
     await Future<void>.delayed(const Duration(milliseconds: 800));
     final nav = Navigator.of(context);
@@ -506,7 +506,7 @@ class _HwmPageState extends State<_HwmPage> with WidgetsBindingObserver {
     nav.pop();
     await Future<void>.delayed(const Duration(milliseconds: 800));
     await _mini.hide();
-    await rig.engine.setMini(false);
+    await rig.mova.setMini(false);
     setState(() => _showSurface = true);
     await Future<void>.delayed(const Duration(milliseconds: 1500));
     _row('mini', {
@@ -529,8 +529,8 @@ class _HwmPageState extends State<_HwmPage> with WidgetsBindingObserver {
     await Future<void>.delayed(const Duration(seconds: 2));
     final hw0 = await _prop(rig.player, 'hwdec-current');
     final p0 = rig.pos;
-    final supported = rig.engine.pipSupported;
-    final entered = await rig.engine.enterPip();
+    final supported = rig.mova.pipSupported;
+    final entered = await rig.mova.enterPip();
     final evIn = await _until(() => rig.events.whereType<MovaPipChange>().any((e) => e.value), timeoutMs: 4000);
     _log('HWM_PIPCHECK $id');
     await Future<void>.delayed(const Duration(seconds: 4));
@@ -577,7 +577,7 @@ class _HwmPageState extends State<_HwmPage> with WidgetsBindingObserver {
     await _shotMark('$id-back');
     var manual = 'n/a';
     if (!autoResumed) {
-      await rig.engine.play();
+      await rig.mova.play();
       await Future<void>.delayed(const Duration(seconds: 3));
       final p3 = rig.pos;
       manual = '${p2.inMilliseconds}->${p3.inMilliseconds}';
@@ -606,7 +606,7 @@ class _HwmPageState extends State<_HwmPage> with WidgetsBindingObserver {
     await Future<void>.delayed(const Duration(seconds: 2));
     final out = <String, Object?>{'id': id, 'hwdecCurrent': await _prop(rig.player, 'hwdec-current')};
     for (final r in const [0.5, 2.0, 1.0]) {
-      await rig.engine.setRate(r);
+      await rig.mova.setRate(r);
       await Future<void>.delayed(const Duration(seconds: 1));
       final t1 = double.tryParse(await _prop(rig.player, 'time-pos')) ?? -1;
       final sw = Stopwatch()..start();
@@ -624,20 +624,20 @@ class _HwmPageState extends State<_HwmPage> with WidgetsBindingObserver {
   Future<void> _quality(String file, String cfg, int run) async {
     final id = 'hls-$cfg-$run';
     final rig = await _newRig();
-    final (ff, _) = await _openAndWait(rig, MovaSource(kHls, title: 'hls', mpvOptions: kConfigs[cfg]!), timeoutMs: 25000);
+    final (ff, _) = await _openAndWait(rig, MovaSource(kHls, title: 'hls', mpvOptions: kOpts[cfg]!), timeoutMs: 25000);
     await Future<void>.delayed(const Duration(seconds: 3));
     final hw0 = await _prop(rig.player, 'hwdec-current');
-    await rig.engine.loadQualities();
-    final qs = rig.engine.state.qualities.where((q) => !q.isAuto).toList();
+    await rig.mova.loadQualities();
+    final qs = rig.mova.state.qualities.where((q) => !q.isAuto).toList();
     if (qs.length < 2) {
       _row('quality', {'id': id, 'ttffMs': ff, 'qualities': qs.length, 'hwdecCurrent': hw0, 'errors': _errs(rig)});
       return;
     }
-    final cur = rig.engine.state.currentQuality;
+    final cur = rig.mova.state.currentQuality;
     final target = qs.firstWhere((q) => q.uri != cur?.uri, orElse: () => qs.last);
     final posBefore = rig.pos;
     final sizeBefore = rig.events.whereType<MovaSizeChange>().length;
-    await rig.engine.switchQuality(target);
+    await rig.mova.switchQuality(target);
     final moved = await _until(() => rig.pos > posBefore + const Duration(seconds: 2), timeoutMs: 20000);
     await Future<void>.delayed(const Duration(seconds: 1));
     _row('quality', {
@@ -659,7 +659,7 @@ class _HwmPageState extends State<_HwmPage> with WidgetsBindingObserver {
     final runs = autoRuns();
     _log('AUTORUN start runs=$runs only=${only.isEmpty ? 'all' : only.join(',')} os=${Platform.operatingSystemVersion}');
     bool want(String id) => only.isEmpty || only.contains(id);
-    final cfgs = kConfigs.keys.toList();
+    final cfgs = kOpts.keys.toList();
     if (want('codec')) {
       for (final f in kSamples.keys) {
         for (var i = 1; i <= runs; i++) {
@@ -716,7 +716,7 @@ class _HwmPageState extends State<_HwmPage> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    final MovaApi? api = _cutover ?? _rig?.engine;
+    final IMovaApi? api = _cutover ?? _rig?.mova;
     return Scaffold(
       appBar: AppBar(title: const Text('hwdec matrix')),
       body: Column(
@@ -725,7 +725,7 @@ class _HwmPageState extends State<_HwmPage> with WidgetsBindingObserver {
             key: _surfaceKey,
             child: AspectRatio(
               aspectRatio: 16 / 9,
-              child: (api != null && _showSurface) ? MovaPlayer(api: api, skin: const MovaMinimalSkin()) : const ColoredBox(color: Colors.black12),
+              child: (api != null && _showSurface) ? MovaPlayer(api: api, uiKit: const MovaMinimalUiKit()) : const ColoredBox(color: Colors.black12),
             ),
           ),
           Expanded(child: ListView(children: [for (final l in _lines.take(40)) Text(l, style: const TextStyle(fontSize: 10))])),

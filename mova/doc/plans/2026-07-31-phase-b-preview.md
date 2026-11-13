@@ -11,8 +11,8 @@ LRU + 磁盘字节 LRU），退出清理，默认仅 WiFi 下工作。**每个�
 服务编排）与 `lib/src/platform_impl/`（Flutter/插件侧具体实现：`connectivity_plus` 网络探针、
 `path_provider` 目录解析、media_kit 隐藏 `Player` 抽帧器）。core 只持抽象端口，**第二个
 `Player` 绝不出现在 `lib/src/core/**`**——`test/core/purity_test.dart` 的 media_kit 例外集合
-永远只有 `{'kernel/mpv_kernel.dart'}` 一项，本阶段不得往里加。`MovaPrevSvc` 挂在
-`MovaApi.preview` 上，UI 侧新增 `MovaPreviewComponent`（`MovaSlot.bottomAbove`，阶段 A 特意留空的槽位），
+永远只有 `{'kernel/mpv_kernel.dart'}` 一项，本阶段不得往里加。`MovaPreviewService` 挂在
+`IMovaApi.preview` 上，UI 侧新增 `MovaPreviewComponent`（`MovaSlot.bottomAbove`，阶段 A 特意留空的槽位），
 由已存在的 `MovaUiState.previewAt` 驱动。
 
 **Tech Stack:** Dart 3.12.2 / Flutter ≥3.3、media_kit ^1.2.6、media_kit_video ^2.0.1、
@@ -23,9 +23,9 @@ cacheKey 用自写 FNV-1a 64 位哈希（`core/preview/hash.dart`），**不引 
 上一阶段：[2026-07-30-phase-a-refactor.md](2026-07-30-phase-a-refactor.md)。
 
 **Baseline（阶段 A 结束、且 `fix(mova): wire real platform adapters, restoring
-brightness/PiP/orientation`〔commit `9c2d4f0`〕落地之后的既成事实，本计划全部以此为准）：**
+brightness/PiP/orient`〔commit `9c2d4f0`〕落地之后的既成事实，本计划全部以此为准）：**
 94 项测试全绿、`flutter analyze` 0 issues、版本 0.2.0。该 commit 已经创建了
-`lib/src/platform_impl/wiring.dart` 与 `createMovaEngine()`，接好了 brightness/PiP/orientation
+`lib/src/platform_impl/wiring.dart` 与 `createMova()`，接好了 brightness/PiP/orient
 三个真实端口；阶段 B 的 Task 12 是在它之上**新增**预览相关的端口参数，不是从零创建。
 
 ## 与 DESIGN-0.2.0.md 的偏差（以代码为准）
@@ -37,14 +37,14 @@ brightness/PiP/orientation`〔commit `9c2d4f0`〕落地之后的既成事实，�
 |---|---|---|
 | §4.2 `Stream<({int width,int height})> get size` | `Stream<MovaSize> get size`（`MovaSize` 类在 `core/kernel/kernel.dart`） | `MovaSize` |
 | §4.2 `Stream<String> get error` | `Stream<Object> get error` | `Object` |
-| §4.2 `Object get renderHandle` | `MovaKernel.renderHandle` 是 `Object`（非空），但 `MovaApi.renderHandle` 是 `Object?` | 各按各的 |
+| §4.2 `Object get renderHandle` | `IMovaKernel.renderHandle` 是 `Object`（非空），但 `IMovaApi.renderHandle` 是 `Object?` | 各按各的 |
 | §4.4 `MovaState` 无 `sourceTitle` | `MovaState` 有 `sourceTitle` 与 `clearSourceTitle` | 有 |
-| §3.1 `model/abr.dart` 里是 `MovaBufferAbr` | 确实存在，且抽象策略 `MovaAbrPolicy` 在 `options/abr_config.dart` | 以代码为准 |
+| §3.1 `model/abr.dart` 里是 `MovaBufferAbr` | 确实存在，且抽象策略 `IMovaAbrPolicy` 在 `options/abr_opts.dart` | 以代码为准 |
 | §7.4 `key = sha1(...)` | §12 自己推翻为 FNV-1a | FNV-1a |
-| §3.1 `preview/cache.dart` 一个文件装 `MovaThumbCache` + `MovaTwoLevelCache` | 磁盘目录解析需要 `path_provider`（Flutter 插件），不能放 core | 拆成 `cache.dart`（抽象 + 内存）、`disk_cache.dart`（纯 `dart:io`）、`two_level_cache.dart`，目录端口 `dir_provider.dart` + `platform_impl/thumb_dir_impl.dart` |
+| §3.1 `preview/cache.dart` 一个文件装 `IMovaThumbCache` + `MovaTwoLevelCache` | 磁盘目录解析需要 `path_provider`（Flutter 插件），不能放 core | 拆成 `cache.dart`（抽象 + 内存）、`disk_cache.dart`（纯 `dart:io`）、`two_level_cache.dart`，目录端口 `dir_provider.dart` + `platform_impl/thumb_dir_impl.dart` |
 | §3.1 `preview/mpv_extractor.dart` 在 `core/preview/` 下 | 会引入第二处 media_kit import，破坏 `purity_test.dart` | 抽象放 `core/preview/extractor.dart`，实现放 `lib/src/platform_impl/mpv_extractor_impl.dart` |
 | §3.1 `preview/net_probe.dart` 的 `MovaConnectivityNetProbe` | 同上，`connectivity_plus` 是 Flutter 插件 | 抽象放 `core/preview/net_probe.dart`，实现放 `lib/src/platform_impl/net_probe_impl.dart` |
-| §6.1「缩略图来源 `sources` 有序表」 | — | `List<MovaThumbSource>? sources`：`null` = 内置链 `[vtt, extractor]`，非空 = 整链替换 |
+| §6.1「缩略图来源 `sources` 有序表」 | — | `List<IMovaThumbSource>? sources`：`null` = 内置链 `[vtt, extractor]`，非空 = 整链替换 |
 
 ## Global Constraints
 
@@ -53,7 +53,7 @@ brightness/PiP/orientation`〔commit `9c2d4f0`〕落地之后的既成事实，�
   `lib/src/core/kernel/mpv_kernel.dart` 允许 `import 'package:media_kit/...'`。**
   守卫测试 `test/core/purity_test.dart` 的 `_mediaKitExceptions` 集合必须恒等于
   `{'kernel/mpv_kernel.dart'}`——本阶段**任何任务都不许改动这个集合**。
-  core 可以用 `dart:io`（`engine.dart` 已在用）。
+  core 可以用 `dart:io`（`mova.dart` 已在用）。
 - 注释规则（全局 `CLAUDE.md`）：每个类/方法/函数/getter/字段都要注释，**先英文一句、空行、后中文**；
   公开 API 用 `///` 文档注释，带参数与返回说明。本计划代码块里给出的注释按原样抄；未给出注释的
   私有小成员也要补一行双语。
@@ -64,7 +64,7 @@ brightness/PiP/orientation`〔commit `9c2d4f0`〕落地之后的既成事实，�
   **不许引 `crypto`、`http`、`image`、`ffmpeg_kit`。** HTTP 用 `dart:io` 的 `HttpClient`。
 - 基线的 94 项测试（含 `9c2d4f0` 新增的 `wiring_test.dart` 3 项）一项都不许删、不许改断言；
   只允许因新增可选参数而做纯增量修改。
-- 预览默认必须"不打扰"：被网络策略拦截时静默不显示、不请求，只发 `MovaPrevBlock` 事件并调
+- 预览默认必须"不打扰"：被网络策略拦截时静默不显示、不请求，只发 `MovaPreviewBlock` 事件并调
   `onBlocked`（若配置）。
 
 ## 文件结构
@@ -74,21 +74,21 @@ brightness/PiP/orientation`〔commit `9c2d4f0`〕落地之后的既成事实，�
 | 文件 | 职责 | 任务 |
 |---|---|---|
 | `lib/src/core/preview/models.dart` | `MovaThumb` / `MovaThumbCrop` / `MovaThumbCue` / `MovaThumbIndex` | Task 2 |
-| `lib/src/core/preview/hash.dart` | `fnv1a64()` / `defaultCacheKey()` / `MovaCacheKeyBldr` | Task 2 |
+| `lib/src/core/preview/hash.dart` | `fnv1a64()` / `defaultCacheKey()` / `MovaCacheKeyBuilder` | Task 2 |
 | `lib/src/core/preview/vtt.dart` | `parseVttThumbs()`（纯函数） | Task 3 |
-| `lib/src/core/preview/cache.dart` | `MovaThumbCache` 抽象 + `MovaMemoryThumbCache`（计数 LRU） | Task 4 |
-| `lib/src/core/preview/dir_provider.dart` | `MovaThumbDirProv` 抽象 + `MovaFixedThumbDirProvider` | Task 5 |
+| `lib/src/core/preview/cache.dart` | `IMovaThumbCache` 抽象 + `MovaMemoryThumbCache`（计数 LRU） | Task 4 |
+| `lib/src/core/preview/dir_provider.dart` | `IMovaThumbDirProvider` 抽象 + `MovaFixedThumbDirProvider` | Task 5 |
 | `lib/src/core/preview/disk_cache.dart` | `MovaDiskThumbCache`（`dart:io` 字节 LRU） | Task 5 |
 | `lib/src/core/preview/two_level_cache.dart` | `MovaTwoLevelCache` | Task 6 |
-| `lib/src/core/preview/net_probe.dart` | `MovaNetProbe` 抽象 + `MovaAlwaysAllowNetProbe` | Task 7 |
-| `lib/src/core/preview/fetcher.dart` | `MovaHttpFetch` 抽象 + `MovaIoHttpFetcher`（`dart:io`） | Task 8 |
-| `lib/src/core/preview/source.dart` | `MovaThumbSource` 抽象 | Task 8 |
+| `lib/src/core/preview/net_probe.dart` | `IMovaNetProbe` 抽象 + `MovaAlwaysAllowNetProbe` | Task 7 |
+| `lib/src/core/preview/fetcher.dart` | `IMovaHttpFetch` 抽象 + `MovaIoHttpFetcher`（`dart:io`） | Task 8 |
+| `lib/src/core/preview/source.dart` | `IMovaThumbSource` 抽象 | Task 8 |
 | `lib/src/core/preview/vtt_source.dart` | `MovaVttThumbSource` | Task 8 |
-| `lib/src/core/preview/extractor.dart` | `MovaFramePuller` 抽象 + `MovaPullerThumbSource` | Task 9 |
-| `lib/src/core/preview/platform_kind.dart` | `MovaPlatKind` + `currentPlatformKind()` | Task 9 |
-| `lib/src/core/options/preview_config.dart` | `MovaPrevConfig` / `MovaPrevNet` / `MovaPrevBlockReason` / 各 typedef | Task 10 |
-| `lib/src/core/preview/api.dart` | `MovaPrevApi` 抽象 | Task 11 |
-| `lib/src/core/preview/service.dart` | `MovaPrevSvc implements MovaPrevApi` | Task 11 |
+| `lib/src/core/preview/extractor.dart` | `IMovaFramePuller` 抽象 + `MovaPullerThumbSource` | Task 9 |
+| `lib/src/core/preview/platform_kind.dart` | `MovaPlatformKind` + `currentPlatformKind()` | Task 9 |
+| `lib/src/core/options/preview_opts.dart` | `MovaPreviewOpts` / `MovaPreviewNet` / `MovaPreviewBlockReason` / 各 typedef | Task 10 |
+| `lib/src/core/preview/api.dart` | `IMovaPreviewApi` 抽象 | Task 11 |
+| `lib/src/core/preview/service.dart` | `MovaPreviewService implements IMovaPreviewApi` | Task 11 |
 
 **platform_impl（新建，可引 Flutter/插件）**
 
@@ -97,18 +97,18 @@ brightness/PiP/orientation`〔commit `9c2d4f0`〕落地之后的既成事实，�
 | `lib/src/platform_impl/net_probe_impl.dart` | `MovaConnectivityNetProbe`（`connectivity_plus`） | Task 7 |
 | `lib/src/platform_impl/thumb_dir_impl.dart` | `MovaTempThumbDirProvider`（`path_provider`） | Task 5 |
 | `lib/src/platform_impl/mpv_extractor_impl.dart` | `MovaFrameExtractor`（隐藏 media_kit `Player`） | Task 9 |
-| `lib/src/platform_impl/wiring.dart` | **已存在**（`9c2d4f0`）：`createMovaEngine()` 接好 brightness/PiP/orientation；Task 12 只追加预览三端口的可选参数 | Task 12（扩展） |
+| `lib/src/platform_impl/wiring.dart` | **已存在**（`9c2d4f0`）：`createMova()` 接好 brightness/PiP/orient；Task 12 只追加预览三端口的可选参数 | Task 12（扩展） |
 
 **修改**
 
 | 文件 | 改动 | 任务 |
 |---|---|---|
 | `lib/src/core/options/options.dart` | 加 `preview` 节 + `copyWith`/`==`/`hashCode` | Task 10 |
-| `lib/src/core/events/events.dart` | 加 `MovaPrevBlock` | Task 10 |
-| `lib/src/core/api.dart` | 加 `MovaPrevApi get preview` | Task 12 |
-| `lib/src/core/engine.dart` | 装配并持有 `MovaPrevSvc`，`dispose()` 级联 | Task 12 |
+| `lib/src/core/events/events.dart` | 加 `MovaPreviewBlock` | Task 10 |
+| `lib/src/core/api.dart` | 加 `IMovaPreviewApi get preview` | Task 12 |
+| `lib/src/core/mova.dart` | 装配并持有 `MovaPreviewService`，`dispose()` 级联 | Task 12 |
 | `lib/src/ui/components/preview.dart` | 新建 `MovaPreviewComponent` | Task 13 |
-| `lib/src/ui/skins/default_skin.dart` | 组件树加 `MovaPreviewComponent()` | Task 13 |
+| `lib/src/ui/ui_kits/default_ui_kit.dart` | 组件树加 `MovaPreviewComponent()` | Task 13 |
 | `lib/mova.dart` | barrel 增补导出 | Task 2/10/12/13 |
 | `pubspec.yaml` | 加两个依赖 | Task 5/7 |
 | `test/support/fake_api.dart` | 加 `preview` 成员与 `FakePreviewApi` | Task 12 |
@@ -118,9 +118,9 @@ brightness/PiP/orientation`〔commit `9c2d4f0`〕落地之后的既成事实，�
 **测试**
 
 `test/core/preview/{models,hash,vtt,cache,disk_cache,two_level_cache,net_probe,vtt_source,extractor,service}_test.dart`、
-`test/core/options_test.dart`（增补）、`test/core/engine_test.dart`（增补）、
+`test/core/options_test.dart`（增补）、`test/core/mova_test.dart`（增补）、
 `test/platform_impl/net_probe_impl_test.dart`（新目录，Task 7）、`test/ui/preview_test.dart`、
-`test/ui/skin_test.dart`（增补，Task 13）、`test/core/openness_preview_test.dart`（Task 15）。
+`test/ui/ui_kit_test.dart`（增补，Task 13）、`test/core/openness_preview_test.dart`（Task 15）。
 
 **测试数量推进**（基线 94，已含 `9c2d4f0` 的 `wiring_test.dart` 3 项）：Task 2 → 105、
 3 → 114、4 → 122、5 → 131、6 → 138、7 → 147、8 → 157、9 → 163、10 → 168、11 → 185、
@@ -159,7 +159,7 @@ export 'src/platform_impl/wiring.dart';
 export 'src/ui/components/preview.dart';
 ```
 
-`options/preview_config.dart` 不单独导出——它已由既有的
+`options/preview_opts.dart` 不单独导出——它已由既有的
 `export 'src/core/options/options.dart';` 传递导出。`export 'src/platform_impl/wiring.dart';`
 这一行本身也已经存在（`9c2d4f0` 加的，不是本阶段哪个 Task 新增的导出）；列在这里只是因为
 它导出的文件内容会被 Task 12 继续修改（加预览三端口参数），导出行本身不变。
@@ -414,7 +414,7 @@ Expected: 控制台出现三行 `[baseline] …` / `[vf=scale] …` / `[controll
 `release()` 再重建"（`VideoControllerConfiguration` 只能在构造时给定）。同时把 Task 9 Step 5
 开头那段引用本步骤的引用块改写为已确认的路线说明。
 
-其余任务一律不受影响，因为它们只依赖 `MovaFramePuller` 抽象，`extractor_test.dart` 用的是
+其余任务一律不受影响，因为它们只依赖 `IMovaFramePuller` 抽象，`extractor_test.dart` 用的是
 `_FakeExtractor`、不碰 media_kit。**改完再进 Task 2。**
 
 - [x] **Step 5: 删除 spike 文件**
@@ -453,7 +453,7 @@ git commit -m "docs(mova): record libmpv screenshot resolution spike result for 
   - `class MovaThumbIndex { final List<MovaThumbCue> cues; const MovaThumbIndex(this.cues); MovaThumbCue? cueAt(Duration t); bool get isEmpty; }`
   - `int fnv1a64(String input)`（掩码为非负 63 位）
   - `String defaultCacheKey(String sourceKey, int bucketSec, int width)`
-  - `typedef MovaCacheKeyBldr = String Function(String sourceKey, int bucketSec, int width);`
+  - `typedef MovaCacheKeyBuilder = String Function(String sourceKey, int bucketSec, int width);`
 
 - [x] **Step 1: 写失败测试 `test/core/preview/models_test.dart`**
 
@@ -831,12 +831,12 @@ String defaultCacheKey(String sourceKey, int bucketSec, int width) =>
 /// Returns the cache key.
 ///
 /// 返回缓存 key。
-typedef MovaCacheKeyBldr = String Function(String sourceKey, int bucketSec, int width);
+typedef MovaCacheKeyBuilder = String Function(String sourceKey, int bucketSec, int width);
 ```
 
 - [x] **Step 6: barrel 增补导出**
 
-`lib/mova.dart` 在 `export 'src/core/platform/ports.dart';` 之后按字母序插入两行：
+`lib/mova.dart` 在 `export 'src/core/platform/platform.dart';` 之后按字母序插入两行：
 
 ```dart
 export 'src/core/preview/hash.dart';
@@ -1139,7 +1139,7 @@ git commit -m "feat(mova): parse WebVTT thumbnail tracks into a searchable cue i
 ## Task 4: 缓存抽象与内存计数 LRU
 
 DESIGN §7.4「内存：计数 LRU，默认 40 项」+ §6.1「内存上限 / `memMaxEntries` / 自定义
-`MovaThumbCache`」。`peek` 是同步方法，专供 §7.1 的「内存命中 → 同帧同步返回，无闪烁」。
+`IMovaThumbCache`」。`peek` 是同步方法，专供 §7.1 的「内存命中 → 同帧同步返回，无闪烁」。
 
 **Files:**
 - Create: `lib/src/core/preview/cache.dart`
@@ -1149,8 +1149,8 @@ DESIGN §7.4「内存：计数 LRU，默认 40 项」+ §6.1「内存上限 / `m
 **Interfaces:**
 - Consumes: 无
 - Produces:
-  - `abstract class MovaThumbCache { Uint8List? peek(String key); Future<Uint8List?> read(String key); Future<void> write(String key, Uint8List bytes); Future<void> clear(); Future<void> dispose(); }`
-  - `class MovaMemoryThumbCache implements MovaThumbCache { MovaMemoryThumbCache({int maxEntries = 40}); final int maxEntries; int get length; }`
+  - `abstract class IMovaThumbCache { Uint8List? peek(String key); Future<Uint8List?> read(String key); Future<void> write(String key, Uint8List bytes); Future<void> clear(); Future<void> dispose(); }`
+  - `class MovaMemoryThumbCache implements IMovaThumbCache { MovaMemoryThumbCache({int maxEntries = 40}); final int maxEntries; int get length; }`
 
 - [x] **Step 1: 写失败测试 `test/core/preview/cache_test.dart`**
 
@@ -1266,7 +1266,7 @@ import 'dart:typed_data';
 ///
 /// [peek] 刻意设计为同步：内存命中必须在拖动位置变化的同一帧内就能渲染，
 /// 否则预览气泡会闪烁。任何可能触达磁盘或网络的读取都应放在 [read]。
-abstract class MovaThumbCache {
+abstract class IMovaThumbCache {
   /// Returns the bytes for [key] if they are resident and cheap to fetch,
   /// otherwise null. Must never do I/O.
   ///
@@ -1310,16 +1310,16 @@ abstract class MovaThumbCache {
   Future<void> dispose();
 }
 
-/// An in-memory [MovaThumbCache] with count-based LRU eviction.
+/// An in-memory [IMovaThumbCache] with count-based LRU eviction.
 ///
 /// Stores encoded bytes (not decoded `ui.Image`s) so the core layer stays free
 /// of Flutter types and memory usage stays predictable.
 ///
-/// 基于条目数做 LRU 淘汰的内存 [MovaThumbCache]。
+/// 基于条目数做 LRU 淘汰的内存 [IMovaThumbCache]。
 ///
 /// 存的是编码后的字节（而非已解码的 `ui.Image`），从而让 core 层不依赖
 /// Flutter 类型，内存占用也更可预测。
-class MovaMemoryThumbCache implements MovaThumbCache {
+class MovaMemoryThumbCache implements IMovaThumbCache {
   /// Creates an in-memory cache holding at most [maxEntries] thumbnails.
   ///
   /// 创建一个最多保存 [maxEntries] 张缩略图的内存缓存。
@@ -1418,12 +1418,12 @@ DESIGN §7.4「磁盘：`getTemporaryDirectory()/mova_thumbs/`，字节 LRU 默�
 - Test: `test/core/preview/disk_cache_test.dart`
 
 **Interfaces:**
-- Consumes: `MovaThumbCache`（Task 4）
+- Consumes: `IMovaThumbCache`（Task 4）
 - Produces:
-  - `abstract class MovaThumbDirProv { Future<String> resolve(); }`
-  - `class MovaFixedThumbDirProvider implements MovaThumbDirProv { const MovaFixedThumbDirProvider(this.path); final String path; }`
-  - `class MovaDiskThumbCache implements MovaThumbCache { MovaDiskThumbCache({required MovaThumbDirProv dir, int maxBytes = 64 * 1024 * 1024}); final int maxBytes; Future<void> evict(); Future<int> totalBytes(); }`
-  - `class MovaTempThumbDirProvider implements MovaThumbDirProv { const MovaTempThumbDirProvider({String folderName = 'mova_thumbs'}); final String folderName; }`（`platform_impl`）
+  - `abstract class IMovaThumbDirProvider { Future<String> resolve(); }`
+  - `class MovaFixedThumbDirProvider implements IMovaThumbDirProvider { const MovaFixedThumbDirProvider(this.path); final String path; }`
+  - `class MovaDiskThumbCache implements IMovaThumbCache { MovaDiskThumbCache({required IMovaThumbDirProvider dir, int maxBytes = 64 * 1024 * 1024}); final int maxBytes; Future<void> evict(); Future<int> totalBytes(); }`
+  - `class MovaTempThumbDirProvider implements IMovaThumbDirProvider { const MovaTempThumbDirProvider({String folderName = 'mova_thumbs'}); final String folderName; }`（`platform_impl`）
 
 - [x] **Step 1: 加依赖**
 
@@ -1589,7 +1589,7 @@ Expected: FAIL — `Error when reading 'lib/src/core/preview/dir_provider.dart':
 /// 之所以做成端口，是因为默认答案需要 `path_provider`
 /// （`getTemporaryDirectory()`）——它是 Flutter 插件，`lib/src/core/**`
 /// 下不允许引入。具体实现放在 `lib/src/platform_impl/thumb_dir_impl.dart`。
-abstract class MovaThumbDirProv {
+abstract class IMovaThumbDirProvider {
   /// Returns the absolute path of the cache directory; the caller creates it
   /// if it does not exist yet.
   ///
@@ -1601,15 +1601,15 @@ abstract class MovaThumbDirProv {
   Future<String> resolve();
 }
 
-/// A [MovaThumbDirProv] that always returns one fixed path.
+/// A [IMovaThumbDirProvider] that always returns one fixed path.
 ///
-/// Backs the `diskDir` config knob and keeps disk-cache tests free of
+/// Backs the `diskDir` opts knob and keeps disk-cache tests free of
 /// plugin channels.
 ///
-/// 恒定返回同一路径的 [MovaThumbDirProv]。
+/// 恒定返回同一路径的 [IMovaThumbDirProvider]。
 ///
 /// 既支撑 `diskDir` 配置项，也让磁盘缓存测试无需依赖插件通道。
-class MovaFixedThumbDirProvider implements MovaThumbDirProv {
+class MovaFixedThumbDirProvider implements IMovaThumbDirProvider {
   /// Creates a provider pinned to [path].
   ///
   /// 创建一个固定指向 [path] 的 provider。
@@ -1641,7 +1641,7 @@ import 'dir_provider.dart';
 /// 每个缓存缩略图文件使用的扩展名后缀。
 const String _kSuffix = '.thumb';
 
-/// A [MovaThumbCache] backed by a directory of files, evicting by total bytes
+/// A [IMovaThumbCache] backed by a directory of files, evicting by total bytes
 /// with least-recently-touched-first ordering.
 ///
 /// Recency is the file's last-modified stamp: [write] sets it implicitly and
@@ -1649,12 +1649,12 @@ const String _kSuffix = '.thumb';
 /// Every filesystem error is swallowed — a broken cache directory must degrade
 /// the preview feature, never crash playback.
 ///
-/// 以文件目录为后端的 [MovaThumbCache]，按总字节数淘汰，最久未触碰者先删。
+/// 以文件目录为后端的 [IMovaThumbCache]，按总字节数淘汰，最久未触碰者先删。
 ///
 /// "最近使用"以文件的 last-modified 时间戳为准：[write] 会隐式更新它，
 /// [read] 会主动刷新它，因此反复被读取的缩略图不会被淘汰。所有文件系统错误
 /// 都被吞掉——缓存目录坏掉只能让预览功能降级，绝不能让播放崩溃。
-class MovaDiskThumbCache implements MovaThumbCache {
+class MovaDiskThumbCache implements IMovaThumbCache {
   /// Creates a disk cache rooted at [dir]'s resolved path.
   ///
   /// 创建一个以 [dir] 解析出的路径为根的磁盘缓存。
@@ -1667,7 +1667,7 @@ class MovaDiskThumbCache implements MovaThumbCache {
   /// Resolver for the cache directory.
   ///
   /// 缓存目录的解析器。
-  final MovaThumbDirProv dir;
+  final IMovaThumbDirProvider dir;
 
   /// Total byte budget across all cached files.
   ///
@@ -1837,18 +1837,18 @@ import 'package:path_provider/path_provider.dart';
 
 import '../core/preview/dir_provider.dart';
 
-/// The default [MovaThumbDirProv]: a named folder under the platform
+/// The default [IMovaThumbDirProvider]: a named folder under the platform
 /// temporary directory, e.g. `<tmp>/mova_thumbs`.
 ///
 /// Lives outside `lib/src/core/**` because `path_provider` is a Flutter
 /// plugin and the core layer must stay plugin-free.
 ///
-/// 默认的 [MovaThumbDirProv]：平台临时目录下的一个命名文件夹，
+/// 默认的 [IMovaThumbDirProvider]：平台临时目录下的一个命名文件夹，
 /// 例如 `<tmp>/mova_thumbs`。
 ///
 /// 放在 `lib/src/core/**` 之外，因为 `path_provider` 是 Flutter 插件，
 /// core 层必须与插件解耦。
-class MovaTempThumbDirProvider implements MovaThumbDirProv {
+class MovaTempThumbDirProvider implements IMovaThumbDirProvider {
   /// Creates a provider rooted at the temporary directory.
   ///
   /// 创建一个以临时目录为根的 provider。
@@ -1910,8 +1910,8 @@ DESIGN §7.1「内存命中 → 同帧同步返回；磁盘命中 → 异步读 
 - Test: `test/core/preview/two_level_cache_test.dart`
 
 **Interfaces:**
-- Consumes: `MovaThumbCache`, `MovaMemoryThumbCache`（Task 4）、`MovaDiskThumbCache`（Task 5）
-- Produces: `class MovaTwoLevelCache implements MovaThumbCache { MovaTwoLevelCache({required MovaThumbCache memory, required MovaThumbCache disk}); final MovaThumbCache memory; final MovaThumbCache disk; }`
+- Consumes: `IMovaThumbCache`, `MovaMemoryThumbCache`（Task 4）、`MovaDiskThumbCache`（Task 5）
+- Produces: `class MovaTwoLevelCache implements IMovaThumbCache { MovaTwoLevelCache({required IMovaThumbCache memory, required IMovaThumbCache disk}); final IMovaThumbCache memory; final IMovaThumbCache disk; }`
 
 - [x] **Step 1: 写失败测试 `test/core/preview/two_level_cache_test.dart`**
 
@@ -1927,10 +1927,10 @@ import 'package:mova/src/core/preview/two_level_cache.dart';
 /// 造 [n] 个填充字节，让测试可以按长度区分不同负载。
 Uint8List _bytes(int n) => Uint8List.fromList(List<int>.filled(n, n & 0xFF));
 
-/// A recording [MovaThumbCache] standing in for the slow (disk) level.
+/// A recording [IMovaThumbCache] standing in for the slow (disk) level.
 ///
-/// 记录调用的 [MovaThumbCache]，用于替身"慢速（磁盘）"层。
-class _RecordingCache implements MovaThumbCache {
+/// 记录调用的 [IMovaThumbCache]，用于替身"慢速（磁盘）"层。
+class _RecordingCache implements IMovaThumbCache {
   /// Stored entries.
   ///
   /// 已存储的条目。
@@ -2055,7 +2055,7 @@ import 'cache.dart';
 /// [peek] 只查 [memory]，因此拖到已驻留的桶时可在同一帧渲染出来。[read] 会
 /// 下探到 [disk] 并回填 [memory]，让下次拖到同一个桶时瞬时命中。[write] 同时
 /// 写入两层。
-class MovaTwoLevelCache implements MovaThumbCache {
+class MovaTwoLevelCache implements IMovaThumbCache {
   /// Creates a two-level cache over [memory] and [disk].
   ///
   /// 用 [memory] 与 [disk] 组成两级缓存。
@@ -2064,15 +2064,15 @@ class MovaTwoLevelCache implements MovaThumbCache {
   /// - [disk]: the slow, persistent level / 慢速持久层
   MovaTwoLevelCache({required this.memory, required this.disk});
 
-  /// The fast level; must answer [MovaThumbCache.peek] without I/O.
+  /// The fast level; must answer [IMovaThumbCache.peek] without I/O.
   ///
-  /// 快速层；其 [MovaThumbCache.peek] 必须不做 I/O。
-  final MovaThumbCache memory;
+  /// 快速层；其 [IMovaThumbCache.peek] 必须不做 I/O。
+  final IMovaThumbCache memory;
 
   /// The slow, persistent level.
   ///
   /// 慢速持久层。
-  final MovaThumbCache disk;
+  final IMovaThumbCache disk;
 
   @override
   Uint8List? peek(String key) => memory.peek(key);
@@ -2130,9 +2130,9 @@ git commit -m "feat(mova): compose memory and disk thumbnail caches into a two-l
 
 ## Task 7: 网络策略端口与 `connectivity_plus` 实现
 
-DESIGN §7.5 + §6.1「网络限制 | `wifiOnly` | `network` | `probe`（`MovaNetProbe`）」。
-`MovaPrevNet` 枚举与端口一起放在 `net_probe.dart`（DESIGN §7.5 就是这么排的），Task 10 的
-`MovaPrevConfig` 直接引用，避免配置与端口互相依赖。
+DESIGN §7.5 + §6.1「网络限制 | `wifiOnly` | `network` | `probe`（`IMovaNetProbe`）」。
+`MovaPreviewNet` 枚举与端口一起放在 `net_probe.dart`（DESIGN §7.5 就是这么排的），Task 10 的
+`MovaPreviewOpts` 直接引用，避免配置与端口互相依赖。
 
 **Files:**
 - Create: `lib/src/core/preview/net_probe.dart`, `lib/src/platform_impl/net_probe_impl.dart`
@@ -2142,11 +2142,11 @@ DESIGN §7.5 + §6.1「网络限制 | `wifiOnly` | `network` | `probe`（`MovaNe
 **Interfaces:**
 - Consumes: 无
 - Produces:
-  - `enum MovaPrevNet { wifiOnly, always, never }`
-  - `abstract class MovaNetProbe { Future<bool> allowHeavy(); Stream<bool> get changes; Future<void> dispose(); }`
-  - `class MovaAlwaysAllowNetProbe implements MovaNetProbe`
-  - `Future<bool> previewAllowedOn(MovaPrevNet policy, MovaNetProbe probe)`
-  - `class MovaConnectivityNetProbe implements MovaNetProbe { MovaConnectivityNetProbe({Connectivity? connectivity}); static bool allowsHeavy(List<ConnectivityResult> results); }`（`platform_impl`）
+  - `enum MovaPreviewNet { wifiOnly, always, never }`
+  - `abstract class IMovaNetProbe { Future<bool> allowHeavy(); Stream<bool> get changes; Future<void> dispose(); }`
+  - `class MovaAlwaysAllowNetProbe implements IMovaNetProbe`
+  - `Future<bool> previewAllowedOn(MovaPreviewNet policy, IMovaNetProbe probe)`
+  - `class MovaConnectivityNetProbe implements IMovaNetProbe { MovaConnectivityNetProbe({Connectivity? connectivity}); static bool allowsHeavy(List<ConnectivityResult> results); }`（`platform_impl`）
 
 - [x] **Step 1: 加依赖**
 
@@ -2170,7 +2170,7 @@ import 'package:mova/src/core/preview/net_probe.dart';
 /// A probe returning a fixed verdict, recording how often it was consulted.
 ///
 /// 返回固定判定结果的探针，并记录被咨询了多少次。
-class _FixedProbe implements MovaNetProbe {
+class _FixedProbe implements IMovaNetProbe {
   /// Creates a probe that always answers [verdict].
   ///
   /// 创建一个恒定回答 [verdict] 的探针。
@@ -2214,14 +2214,14 @@ void main() {
 
   test('the never policy blocks without consulting the probe', () async {
     final p = _FixedProbe(true);
-    expect(await previewAllowedOn(MovaPrevNet.never, p), isFalse);
+    expect(await previewAllowedOn(MovaPreviewNet.never, p), isFalse);
     expect(p.calls, 0);
     await p.dispose();
   });
 
   test('the always policy permits without consulting the probe', () async {
     final p = _FixedProbe(false);
-    expect(await previewAllowedOn(MovaPrevNet.always, p), isTrue);
+    expect(await previewAllowedOn(MovaPreviewNet.always, p), isTrue);
     expect(p.calls, 0);
     await p.dispose();
   });
@@ -2229,8 +2229,8 @@ void main() {
   test('the wifiOnly policy defers to the probe', () async {
     final allow = _FixedProbe(true);
     final deny = _FixedProbe(false);
-    expect(await previewAllowedOn(MovaPrevNet.wifiOnly, allow), isTrue);
-    expect(await previewAllowedOn(MovaPrevNet.wifiOnly, deny), isFalse);
+    expect(await previewAllowedOn(MovaPreviewNet.wifiOnly, allow), isTrue);
+    expect(await previewAllowedOn(MovaPreviewNet.wifiOnly, deny), isFalse);
     expect(allow.calls, 1);
     expect(deny.calls, 1);
     await allow.dispose();
@@ -2238,7 +2238,7 @@ void main() {
   });
 
   test('a throwing probe degrades to allowed rather than breaking playback', () async {
-    expect(await previewAllowedOn(MovaPrevNet.wifiOnly, _ThrowingProbe()), isTrue);
+    expect(await previewAllowedOn(MovaPreviewNet.wifiOnly, _ThrowingProbe()), isTrue);
   });
 }
 
@@ -2246,7 +2246,7 @@ void main() {
 /// connectivity plugin.
 ///
 /// [allowHeavy] 恒抛异常的探针，用于模拟坏掉的连通性插件。
-class _ThrowingProbe implements MovaNetProbe {
+class _ThrowingProbe implements IMovaNetProbe {
   @override
   Future<bool> allowHeavy() async => throw StateError('plugin missing');
 
@@ -2302,7 +2302,7 @@ Expected: FAIL — `Error when reading 'lib/src/core/preview/net_probe.dart': No
 /// When scrub-preview thumbnails are allowed to use the network.
 ///
 /// 何时允许拖动预览缩略图走网络。
-enum MovaPrevNet {
+enum MovaPreviewNet {
   /// Only on connections considered unmetered; the default.
   ///
   /// 仅在被视为不计流量的连接上启用；默认值。
@@ -2323,7 +2323,7 @@ enum MovaPrevNet {
 /// non-essential traffic such as sprite sheets and frame extraction.
 ///
 /// 判断当前连接是否适合承载雪碧图、抽帧这类"非必要且吃带宽"的流量。
-abstract class MovaNetProbe {
+abstract class IMovaNetProbe {
   /// Whether heavy, optional traffic is currently acceptable.
   ///
   /// 当前是否可以接受重量级的可选流量。
@@ -2344,17 +2344,17 @@ abstract class MovaNetProbe {
   Future<void> dispose();
 }
 
-/// A [MovaNetProbe] that always permits heavy traffic.
+/// A [IMovaNetProbe] that always permits heavy traffic.
 ///
 /// The core-layer default so a host that never wires a real probe still gets
 /// working previews; the plugin-backed probe lives in
 /// `lib/src/platform_impl/net_probe_impl.dart`.
 ///
-/// 恒定允许重量级流量的 [MovaNetProbe]。
+/// 恒定允许重量级流量的 [IMovaNetProbe]。
 ///
 /// 作为 core 层默认值，让未接入真实探针的宿主也能用上预览；基于插件的探针放在
 /// `lib/src/platform_impl/net_probe_impl.dart`。
-class MovaAlwaysAllowNetProbe implements MovaNetProbe {
+class MovaAlwaysAllowNetProbe implements IMovaNetProbe {
   @override
   Future<bool> allowHeavy() async => true;
 
@@ -2376,19 +2376,19 @@ class MovaAlwaysAllowNetProbe implements MovaNetProbe {
 /// 把功能关掉。
 ///
 /// - [policy]: the configured network policy / 配置的网络策略
-/// - [probe]: the connectivity probe to consult under [MovaPrevNet.wifiOnly] /
-///   在 [MovaPrevNet.wifiOnly] 下要咨询的连通性探针
+/// - [probe]: the connectivity probe to consult under [MovaPreviewNet.wifiOnly] /
+///   在 [MovaPreviewNet.wifiOnly] 下要咨询的连通性探针
 ///
 /// Returns whether networked preview sources may run.
 ///
 /// 返回是否允许运行需要联网的预览来源。
-Future<bool> previewAllowedOn(MovaPrevNet policy, MovaNetProbe probe) async {
+Future<bool> previewAllowedOn(MovaPreviewNet policy, IMovaNetProbe probe) async {
   switch (policy) {
-    case MovaPrevNet.never:
+    case MovaPreviewNet.never:
       return false;
-    case MovaPrevNet.always:
+    case MovaPreviewNet.always:
       return true;
-    case MovaPrevNet.wifiOnly:
+    case MovaPreviewNet.wifiOnly:
       try {
         return await probe.allowHeavy();
       } on Object {
@@ -2405,19 +2405,19 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 
 import '../core/preview/net_probe.dart';
 
-/// The default [MovaNetProbe]: treats wifi/ethernet/vpn as unmetered and a
+/// The default [IMovaNetProbe]: treats wifi/ethernet/vpn as unmetered and a
 /// mobile-only connection as metered.
 ///
 /// Anything else — `none`, `other`, an empty result list, or a platform the
 /// plugin cannot classify — is allowed, so desktops are never false-blocked
 /// (DESIGN §11: "未知一律放行；桌面视为允许").
 ///
-/// 默认的 [MovaNetProbe]：把 wifi/以太网/VPN 视为不计流量，把仅蜂窝的连接视为
+/// 默认的 [IMovaNetProbe]：把 wifi/以太网/VPN 视为不计流量，把仅蜂窝的连接视为
 /// 计流量。
 ///
 /// 其余情况——`none`、`other`、空结果列表，或插件无法分类的平台——一律放行，
 /// 避免误伤桌面端（DESIGN §11：「未知一律放行；桌面视为允许」）。
-class MovaConnectivityNetProbe implements MovaNetProbe {
+class MovaConnectivityNetProbe implements IMovaNetProbe {
   /// Creates a probe over [connectivity], defaulting to a new `Connectivity()`.
   ///
   /// 基于 [connectivity] 创建探针；省略时新建一个 `Connectivity()`。
@@ -2495,8 +2495,8 @@ git commit -m "feat(mova): add preview network policy port with connectivity_plu
 ## Task 8: HTTP 取数端口、缩略图来源抽象与 VTT 来源
 
 DESIGN §7.1 的第一条来源 + §6.1「缩略图来源 | `[vtt, mpvExtract]` | `sources` 有序表 | 自定义
-`MovaThumbSource`」「VTT 地址 | 约定 `<video>.vtt` | `vttUrl` | `vttUrlResolver`」。
-HTTP 用 `dart:io` 的 `HttpClient`（不引 `package:http`），并藏在 `MovaHttpFetch` 端口后面以便单测。
+`IMovaThumbSource`」「VTT 地址 | 约定 `<video>.vtt` | `vttUrl` | `vttUrlResolver`」。
+HTTP 用 `dart:io` 的 `HttpClient`（不引 `package:http`），并藏在 `IMovaHttpFetch` 端口后面以便单测。
 
 **Files:**
 - Create: `lib/src/core/preview/fetcher.dart`, `lib/src/core/preview/source.dart`, `lib/src/core/preview/vtt_source.dart`
@@ -2506,12 +2506,12 @@ HTTP 用 `dart:io` 的 `HttpClient`（不引 `package:http`），并藏在 `Mova
 **Interfaces:**
 - Consumes: `MovaSource`（既有）、`MovaThumb`/`MovaThumbIndex`（Task 2）、`parseVttThumbs`（Task 3）
 - Produces:
-  - `abstract class MovaHttpFetch { Future<Uint8List?> get(Uri url); Future<void> close(); }`
-  - `class MovaIoHttpFetcher implements MovaHttpFetch { MovaIoHttpFetcher({Duration timeout = const Duration(seconds: 10)}); }`
-  - `abstract class MovaThumbSource { String get name; Future<MovaThumb?> thumbAt(MovaSource source, Duration bucket); Future<void> reset(); Future<void> dispose(); }`
+  - `abstract class IMovaHttpFetch { Future<Uint8List?> get(Uri url); Future<void> close(); }`
+  - `class MovaIoHttpFetcher implements IMovaHttpFetch { MovaIoHttpFetcher({Duration timeout = const Duration(seconds: 10)}); }`
+  - `abstract class IMovaThumbSource { String get name; Future<MovaThumb?> thumbAt(MovaSource source, Duration bucket); Future<void> reset(); Future<void> dispose(); }`
   - `typedef MovaVttUrlSolver = Uri? Function(MovaSource source);`
   - `Uri? defaultVttUrl(MovaSource source)`
-  - `class MovaVttThumbSource implements MovaThumbSource { MovaVttThumbSource({required MovaHttpFetch fetcher, MovaVttUrlSolver resolveUrl = defaultVttUrl, int maxSprites = 4}); }`
+  - `class MovaVttThumbSource implements IMovaThumbSource { MovaVttThumbSource({required IMovaHttpFetch fetcher, MovaVttUrlSolver resolveUrl = defaultVttUrl, int maxSprites = 4}); }`
 
 - [x] **Step 1: 写失败测试 `test/core/preview/vtt_source_test.dart`**
 
@@ -2525,10 +2525,10 @@ import 'package:mova/src/core/preview/fetcher.dart';
 import 'package:mova/src/core/preview/models.dart';
 import 'package:mova/src/core/preview/vtt_source.dart';
 
-/// A [MovaHttpFetch] serving canned responses and recording every URL asked.
+/// A [IMovaHttpFetch] serving canned responses and recording every URL asked.
 ///
-/// 返回预置响应并记录每次请求 URL 的 [MovaHttpFetch]。
-class _FakeFetcher implements MovaHttpFetch {
+/// 返回预置响应并记录每次请求 URL 的 [IMovaHttpFetch]。
+class _FakeFetcher implements IMovaHttpFetch {
   /// Canned responses, keyed by URL.
   ///
   /// 按 URL 存放的预置响应。
@@ -2720,7 +2720,7 @@ import 'dart:typed_data';
 ///
 /// 之所以做成端口而不是直接调 `HttpClient`：测试可以喂预置字节，宿主也可以
 /// 注入自己的鉴权头、CDN 改写或带缓存的 HTTP 栈。
-abstract class MovaHttpFetch {
+abstract class IMovaHttpFetch {
   /// Fetches [url]; returns null on any non-200 response or transport error.
   ///
   /// 拉取 [url]；任何非 200 响应或传输错误都返回 null。
@@ -2738,17 +2738,17 @@ abstract class MovaHttpFetch {
   Future<void> close();
 }
 
-/// The default [MovaHttpFetch], built on `dart:io`'s [HttpClient].
+/// The default [IMovaHttpFetch], built on `dart:io`'s [HttpClient].
 ///
 /// Chosen over `package:http` so preview support adds no new dependency; every
 /// failure mode collapses to null so a broken thumbnail track never surfaces
 /// as a playback error.
 ///
-/// 默认的 [MovaHttpFetch]，基于 `dart:io` 的 [HttpClient]。
+/// 默认的 [IMovaHttpFetch]，基于 `dart:io` 的 [HttpClient]。
 ///
 /// 相比 `package:http` 选它是为了让预览功能不引入任何新依赖；所有失败路径都
 /// 收敛为 null，坏掉的缩略图轨绝不会冒充成播放错误。
-class MovaIoHttpFetcher implements MovaHttpFetch {
+class MovaIoHttpFetcher implements IMovaHttpFetch {
   /// Creates a fetcher with a per-request [timeout].
   ///
   /// 创建一个每请求超时为 [timeout] 的 fetcher。
@@ -2813,7 +2813,7 @@ import 'models.dart';
 /// 预览服务按顺序遍历来源列表，取第一个非 null 的结果；因此来源只要返回 null
 /// 即表示"我无法服务该媒体"。来源不得抛异常：坏掉的缩略图轨只能让气泡降级，
 /// 绝不能影响播放。
-abstract class MovaThumbSource {
+abstract class IMovaThumbSource {
   /// Stable identifier used in diagnostics and tests, e.g. `vtt`.
   ///
   /// 用于诊断与测试的稳定标识，例如 `vtt`。
@@ -2884,18 +2884,18 @@ Uri? defaultVttUrl(MovaSource source) {
   return u.replace(path: '${u.path}.vtt');
 }
 
-/// A [MovaThumbSource] backed by a server-provided WebVTT thumbnail track and
+/// A [IMovaThumbSource] backed by a server-provided WebVTT thumbnail track and
 /// its sprite sheets.
 ///
 /// The track is fetched once per media and memoised, including the negative
 /// result: a 404 must not trigger a fetch on every scrub tick. Sprite sheets
 /// are memoised too, bounded by `maxSprites` in least-recently-used order.
 ///
-/// 基于服务端提供的 WebVTT 缩略图轨及其雪碧图的 [MovaThumbSource]。
+/// 基于服务端提供的 WebVTT 缩略图轨及其雪碧图的 [IMovaThumbSource]。
 ///
 /// 每个媒体只拉取一次轨并记忆结果——包括失败结果：404 不能让每次拖动 tick 都
 /// 重新发请求。雪碧图同样被记忆，按最近最少使用顺序、以 `maxSprites` 为上限。
-class MovaVttThumbSource implements MovaThumbSource {
+class MovaVttThumbSource implements IMovaThumbSource {
   /// Creates a VTT-backed thumbnail source.
   ///
   /// 创建基于 VTT 的缩略图来源。
@@ -2914,7 +2914,7 @@ class MovaVttThumbSource implements MovaThumbSource {
   /// HTTP port used for the track and its sprite sheets.
   ///
   /// 拉取轨及其雪碧图所用的 HTTP 端口。
-  final MovaHttpFetch fetcher;
+  final IMovaHttpFetch fetcher;
 
   /// Strategy locating the WebVTT track for a media.
   ///
@@ -3069,7 +3069,7 @@ git commit -m "feat(mova): add http fetcher port, thumb source contract and WebV
 
 ## Task 9: 抽帧端口、平台判定与 media_kit 隐藏 Player 实现
 
-DESIGN §7.3 + §6.1「抽帧兜底 | 开 | `extractFallback`、`platforms` | 自定义 `MovaFramePuller`」。
+DESIGN §7.3 + §6.1「抽帧兜底 | 开 | `extractFallback`、`platforms` | 自定义 `IMovaFramePuller`」。
 **隐藏 `Player` 是本阶段唯一一处 media_kit 新用法，必须落在 `lib/src/platform_impl/`**，
 core 只见抽象端口。具体的 mpv 属性组合取决于 Task 1 的实测结论。
 
@@ -3079,13 +3079,13 @@ core 只见抽象端口。具体的 mpv 属性组合取决于 Task 1 的实测�
 - Test: `test/core/preview/extractor_test.dart`
 
 **Interfaces:**
-- Consumes: `MovaSource`（既有）、`MovaThumb`（Task 2）、`MovaThumbSource`（Task 8）
+- Consumes: `MovaSource`（既有）、`MovaThumb`（Task 2）、`IMovaThumbSource`（Task 8）
 - Produces:
-  - `abstract class MovaFramePuller { Future<Uint8List?> extract(String uri, Duration at, {required int width, required bool hwdec}); Future<void> release(); Future<void> dispose(); }`
-  - `class MovaPullerThumbSource implements MovaThumbSource { MovaPullerThumbSource({required MovaFramePuller extractor, int width = 160, bool hwdec = false}); }`
-  - `enum MovaPlatKind { android, ios, windows, macos, linux, other }`
-  - `MovaPlatKind currentPlatformKind()`
-  - `class MovaFrameExtractor implements MovaFramePuller`（`platform_impl`，无单测，靠 Task 14 实跑验证）
+  - `abstract class IMovaFramePuller { Future<Uint8List?> extract(String uri, Duration at, {required int width, required bool hwdec}); Future<void> release(); Future<void> dispose(); }`
+  - `class MovaPullerThumbSource implements IMovaThumbSource { MovaPullerThumbSource({required IMovaFramePuller extractor, int width = 160, bool hwdec = false}); }`
+  - `enum MovaPlatformKind { android, ios, windows, macos, linux, other }`
+  - `MovaPlatformKind currentPlatformKind()`
+  - `class MovaFrameExtractor implements IMovaFramePuller`（`platform_impl`，无单测，靠 Task 14 实跑验证）
 
 - [x] **Step 1: 写失败测试 `test/core/preview/extractor_test.dart`**
 
@@ -3097,10 +3097,10 @@ import 'package:mova/src/core/model/source.dart';
 import 'package:mova/src/core/preview/extractor.dart';
 import 'package:mova/src/core/preview/platform_kind.dart';
 
-/// A [MovaFramePuller] returning canned bytes and recording its arguments.
+/// A [IMovaFramePuller] returning canned bytes and recording its arguments.
 ///
-/// 返回预置字节并记录调用参数的 [MovaFramePuller]。
-class _FakeExtractor implements MovaFramePuller {
+/// 返回预置字节并记录调用参数的 [IMovaFramePuller]。
+class _FakeExtractor implements IMovaFramePuller {
   /// Bytes returned by [extract]; null makes extraction "fail".
   ///
   /// [extract] 返回的字节；为 null 表示抽帧"失败"。
@@ -3202,7 +3202,7 @@ void main() {
   });
 
   test('currentPlatformKind reports one of the known kinds', () {
-    expect(MovaPlatKind.values, contains(currentPlatformKind()));
+    expect(MovaPlatformKind.values, contains(currentPlatformKind()));
   });
 }
 ```
@@ -3220,7 +3220,7 @@ import 'dart:io';
 /// The host platform, as far as the preview feature needs to distinguish it.
 ///
 /// 预览功能所需区分的宿主平台粒度。
-enum MovaPlatKind {
+enum MovaPlatformKind {
   /// Android.
   ///
   /// 安卓。
@@ -3252,13 +3252,13 @@ enum MovaPlatKind {
   other,
 }
 
-/// Detects the current [MovaPlatKind] from `dart:io`.
+/// Detects the current [MovaPlatformKind] from `dart:io`.
 ///
 /// Uses `dart:io` rather than `defaultTargetPlatform` so the core layer stays
 /// free of Flutter imports; mova is a libmpv-backed plugin and never
 /// targets web, so the `dart:io` restriction costs nothing.
 ///
-/// 通过 `dart:io` 判定当前的 [MovaPlatKind]。
+/// 通过 `dart:io` 判定当前的 [MovaPlatformKind]。
 ///
 /// 用 `dart:io` 而非 `defaultTargetPlatform`，是为了让 core 层不引入 Flutter；
 /// mova 是基于 libmpv 的插件、本就不支持 web，因此这个限制没有代价。
@@ -3266,13 +3266,13 @@ enum MovaPlatKind {
 /// Returns the detected platform kind.
 ///
 /// 返回检测到的平台类型。
-MovaPlatKind currentPlatformKind() {
-  if (Platform.isAndroid) return MovaPlatKind.android;
-  if (Platform.isIOS) return MovaPlatKind.ios;
-  if (Platform.isWindows) return MovaPlatKind.windows;
-  if (Platform.isMacOS) return MovaPlatKind.macos;
-  if (Platform.isLinux) return MovaPlatKind.linux;
-  return MovaPlatKind.other;
+MovaPlatformKind currentPlatformKind() {
+  if (Platform.isAndroid) return MovaPlatformKind.android;
+  if (Platform.isIOS) return MovaPlatformKind.ios;
+  if (Platform.isWindows) return MovaPlatformKind.windows;
+  if (Platform.isMacOS) return MovaPlatformKind.macos;
+  if (Platform.isLinux) return MovaPlatformKind.linux;
+  return MovaPlatformKind.other;
 }
 ```
 
@@ -3297,7 +3297,7 @@ import 'source.dart';
 /// 之所以做成端口而非具体类：唯一的实现会另起一个隐藏的 media_kit `Player`，
 /// 而 `lib/src/core/**` 必须与 media_kit 解耦——实现放在
 /// `lib/src/platform_impl/mpv_extractor_impl.dart`。
-abstract class MovaFramePuller {
+abstract class IMovaFramePuller {
   /// Extracts the frame of [uri] at [at], encoded as JPEG.
   ///
   /// 抽取 [uri] 在 [at] 处的一帧，编码为 JPEG。
@@ -3330,17 +3330,17 @@ abstract class MovaFramePuller {
   Future<void> dispose();
 }
 
-/// Adapts a [MovaFramePuller] to the [MovaThumbSource] contract so the preview
+/// Adapts a [IMovaFramePuller] to the [IMovaThumbSource] contract so the preview
 /// service can treat extraction as just another entry in its ordered source
 /// list.
 ///
 /// An extracted frame is always the whole image, so [MovaThumb.crop] is null.
 ///
-/// 把 [MovaFramePuller] 适配为 [MovaThumbSource] 契约，让预览服务可以把抽帧
+/// 把 [IMovaFramePuller] 适配为 [IMovaThumbSource] 契约，让预览服务可以把抽帧
 /// 当作有序来源表里的普通一项对待。
 ///
 /// 抽出来的帧总是整张图，因此 [MovaThumb.crop] 恒为 null。
-class MovaPullerThumbSource implements MovaThumbSource {
+class MovaPullerThumbSource implements IMovaThumbSource {
   /// Creates an extractor-backed thumbnail source.
   ///
   /// 创建基于抽帧器的缩略图来源。
@@ -3357,7 +3357,7 @@ class MovaPullerThumbSource implements MovaThumbSource {
   /// The frame extractor this source drives.
   ///
   /// 该来源驱动的抽帧端口。
-  final MovaFramePuller extractor;
+  final IMovaFramePuller extractor;
 
   /// Target frame width in pixels.
   ///
@@ -3409,7 +3409,7 @@ import 'package:media_kit_video/media_kit_video.dart';
 
 import '../core/preview/extractor.dart';
 
-/// The default [MovaFramePuller]: a second, hidden media_kit `Player` used
+/// The default [IMovaFramePuller]: a second, hidden media_kit `Player` used
 /// only to decode single frames.
 ///
 /// Reuses the libmpv/ffmpeg already bundled for playback, so preview
@@ -3426,7 +3426,7 @@ import '../core/preview/extractor.dart';
 /// Calls are serialised internally: libmpv cannot service two seek+screenshot
 /// round trips on one player concurrently.
 ///
-/// 默认的 [MovaFramePuller]：第二个隐藏的 media_kit `Player`，只用于解单帧。
+/// 默认的 [IMovaFramePuller]：第二个隐藏的 media_kit `Player`，只用于解单帧。
 ///
 /// 复用播放时已经打包进来的 libmpv/ffmpeg，因此预览抽帧不引入任何依赖，也不
 /// 影响后续 ffmpeg 瘦身里程碑。播放相关设置刻意压到最低——关音频、不做缓存、
@@ -3438,7 +3438,7 @@ import '../core/preview/extractor.dart';
 ///
 /// 内部对调用做了串行化：libmpv 无法在同一个 player 上并发处理两次
 /// seek + screenshot 往返。
-class MovaFrameExtractor implements MovaFramePuller {
+class MovaFrameExtractor implements IMovaFramePuller {
   /// Creates an extractor; the hidden player is created lazily on first use.
   ///
   /// 创建抽帧器；隐藏播放器在首次使用时才惰性创建。
@@ -3621,24 +3621,24 @@ git commit -m "feat(mova): add frame extractor port with hidden media_kit player
 
 ---
 
-## Task 10: `MovaPrevConfig` 与 `MovaOpts.preview`
+## Task 10: `MovaPreviewOpts` 与 `MovaOpts.preview`
 
-DESIGN §6.1 全表落成配置类，外加 `MovaPrevBlock` 事件。阶段 A 在 `options.dart` 的类注释里
+DESIGN §6.1 全表落成配置类，外加 `MovaPreviewBlock` 事件。阶段 A 在 `options.dart` 的类注释里
 写了「目前暂不包含 `preview`（预览图）一节，留待后续任务」——本任务把那句话删掉。
 
 **Files:**
-- Create: `lib/src/core/options/preview_config.dart`
+- Create: `lib/src/core/options/preview_opts.dart`
 - Modify: `lib/src/core/options/options.dart`, `lib/src/core/events/events.dart`, `lib/mova.dart`
 - Test: `test/core/options_test.dart`（追加 5 项，不动既有 4 项）
 
 **Interfaces:**
-- Consumes: `MovaPrevNet`/`MovaNetProbe`（Task 7）、`MovaThumbSource`（Task 8）、`MovaFramePuller`（Task 9）、`MovaPlatKind`（Task 9）、`MovaThumbCache`（Task 4）、`MovaThumbDirProv`（Task 5）、`MovaCacheKeyBldr`（Task 2）、`MovaVttUrlSolver`（Task 8）
+- Consumes: `MovaPreviewNet`/`IMovaNetProbe`（Task 7）、`IMovaThumbSource`（Task 8）、`IMovaFramePuller`（Task 9）、`MovaPlatformKind`（Task 9）、`IMovaThumbCache`（Task 4）、`IMovaThumbDirProvider`（Task 5）、`MovaCacheKeyBuilder`（Task 2）、`MovaVttUrlSolver`（Task 8）
 - Produces:
-  - `enum MovaPrevBlockReason { network, disabled, noSource, platform }`
-  - `typedef MovaPrevBlockCb = void Function(MovaPrevBlockReason reason);`
-  - `class MovaPrevConfig`（字段见 Step 3），带 `const` 构造、`copyWith`、`==`、`hashCode`
-  - `MovaOpts.preview`（默认 `const MovaPrevConfig()`）+ `copyWith(preview:)` + 参与 `==`/`hashCode`
-  - `class MovaPrevBlock extends MovaEvent { final MovaPrevBlockReason reason; const MovaPrevBlock(this.reason); }`
+  - `enum MovaPreviewBlockReason { network, disabled, noSource, platform }`
+  - `typedef MovaPreviewBlockCb = void Function(MovaPreviewBlockReason reason);`
+  - `class MovaPreviewOpts`（字段见 Step 3），带 `const` 构造、`copyWith`、`==`、`hashCode`
+  - `MovaOpts.preview`（默认 `const MovaPreviewOpts()`）+ `copyWith(preview:)` + 参与 `==`/`hashCode`
+  - `class MovaPreviewBlock extends MovaEvent { final MovaPreviewBlockReason reason; const MovaPreviewBlock(this.reason); }`
 
 - [x] **Step 1: 追加失败测试到 `test/core/options_test.dart`**
 
@@ -3655,17 +3655,17 @@ import 'package:mova/src/core/preview/platform_kind.dart';
 在 `main()` 末尾追加：
 
 ```dart
-  test('MovaPrevConfig defaults match DESIGN section 6.1', () {
-    const p = MovaPrevConfig();
+  test('MovaPreviewOpts defaults match DESIGN section 6.1', () {
+    const p = MovaPreviewOpts();
     expect(p.enabled, isTrue);
-    expect(p.network, MovaPrevNet.wifiOnly);
+    expect(p.network, MovaPreviewNet.wifiOnly);
     expect(p.onBlocked, isNull);
     expect(p.sources, isNull, reason: 'null means the built-in [vtt, extract] chain');
     expect(p.vttEnabled, isTrue);
     expect(p.vttUrl, isNull);
     expect(p.vttUrlResolver, isNull);
     expect(p.extractFallback, isTrue);
-    expect(p.extractPlatforms, MovaPlatKind.values.toSet());
+    expect(p.extractPlatforms, MovaPlatformKind.values.toSet());
     expect(p.frameWidth, 160);
     expect(p.bucket, const Duration(seconds: 10));
     expect(p.hwdec, isFalse);
@@ -3680,42 +3680,42 @@ import 'package:mova/src/core/preview/platform_kind.dart';
     expect(p.extractor, isNull);
   });
 
-  test('MovaOpts exposes a preview section that defaults to MovaPrevConfig', () {
+  test('MovaOpts exposes a preview section that defaults to MovaPreviewOpts', () {
     const o = MovaOpts();
-    expect(o.preview, const MovaPrevConfig());
+    expect(o.preview, const MovaPreviewOpts());
   });
 
   test('MovaOpts.copyWith replaces only the preview section', () {
     const o = MovaOpts();
-    final n = o.copyWith(preview: const MovaPrevConfig(frameWidth: 320));
+    final n = o.copyWith(preview: const MovaPreviewOpts(frameWidth: 320));
     expect(n.preview.frameWidth, 320);
     expect(n.gesture, o.gesture);
     expect(n.controls, o.controls);
     expect(n, isNot(o));
   });
 
-  test('MovaPrevConfig.copyWith replaces one knob and compares by value', () {
-    const p = MovaPrevConfig();
-    final n = p.copyWith(network: MovaPrevNet.never);
-    expect(n.network, MovaPrevNet.never);
+  test('MovaPreviewOpts.copyWith replaces one knob and compares by value', () {
+    const p = MovaPreviewOpts();
+    final n = p.copyWith(network: MovaPreviewNet.never);
+    expect(n.network, MovaPreviewNet.never);
     expect(n.frameWidth, p.frameWidth);
     expect(n, isNot(p));
     expect(p.copyWith(), p);
   });
 
-  test('every MovaPrevConfig injection point accepts a custom strategy', () {
-    final p = MovaPrevConfig(
+  test('every MovaPreviewOpts injection point accepts a custom strategy', () {
+    final p = MovaPreviewOpts(
       probe: MovaAlwaysAllowNetProbe(),
       cacheKeyBuilder: (s, b, w) => 'custom',
       vttUrlResolver: (s) => Uri.parse('https://cdn/t.vtt'),
       onBlocked: (_) {},
-      extractPlatforms: const {MovaPlatKind.windows},
+      extractPlatforms: const {MovaPlatformKind.windows},
     );
-    expect(p.probe, isA<MovaNetProbe>());
+    expect(p.probe, isA<IMovaNetProbe>());
     expect(p.cacheKeyBuilder!('a', 1, 2), 'custom');
     expect(p.vttUrlResolver!(const MovaSource('x')), Uri.parse('https://cdn/t.vtt'));
     expect(p.onBlocked, isNotNull);
-    expect(p.extractPlatforms, {MovaPlatKind.windows});
+    expect(p.extractPlatforms, {MovaPlatformKind.windows});
   });
 ```
 
@@ -3724,9 +3724,9 @@ import 'package:mova/src/core/preview/platform_kind.dart';
 - [x] **Step 2: 跑测试确认失败**
 
 Run: `flutter test test/core/options_test.dart`
-Expected: FAIL — `MovaPrevConfig isn't defined`；既有 4 项仍 PASS
+Expected: FAIL — `MovaPreviewOpts isn't defined`；既有 4 项仍 PASS
 
-- [x] **Step 3: 实现 `lib/src/core/options/preview_config.dart`**
+- [x] **Step 3: 实现 `lib/src/core/options/preview_opts.dart`**
 
 ```dart
 import '../preview/cache.dart';
@@ -3741,15 +3741,15 @@ import '../preview/vtt_source.dart';
 /// Why a scrub-preview request was refused before any work happened.
 ///
 /// 一次拖动预览请求在真正开工前被拒绝的原因。
-enum MovaPrevBlockReason {
+enum MovaPreviewBlockReason {
   /// The network policy refused this connection.
   ///
   /// 网络策略拒绝了当前连接。
   network,
 
-  /// Preview is switched off via [MovaPrevConfig.enabled].
+  /// Preview is switched off via [MovaPreviewOpts.enabled].
   ///
-  /// 预览已通过 [MovaPrevConfig.enabled] 关闭。
+  /// 预览已通过 [MovaPreviewOpts.enabled] 关闭。
   disabled,
 
   /// No media has been opened yet.
@@ -3768,9 +3768,9 @@ enum MovaPrevBlockReason {
 /// 预览请求被拒绝时的回调；默认行为是静默。
 ///
 /// - [reason]: why the request was refused / 被拒绝的原因
-typedef MovaPrevBlockCb = void Function(MovaPrevBlockReason reason);
+typedef MovaPreviewBlockCb = void Function(MovaPreviewBlockReason reason);
 
-/// Configuration for the scrub-preview (thumbnail) feature.
+/// Options for the scrub-preview (thumbnail) feature.
 ///
 /// Every decision mova makes on the host's behalf appears here as a
 /// default plus a knob, and — where a decision is a strategy rather than a
@@ -3782,7 +3782,7 @@ typedef MovaPrevBlockCb = void Function(MovaPrevBlockReason reason);
 /// mova 替宿主做的每一个决策，在这里都以"默认值 + 配置项"的形式出现；
 /// 若该决策本质是策略而非取值，还额外提供注入点（[probe]、[cache]、
 /// [extractor]、[sources]、[vttUrlResolver]、[cacheKeyBuilder]）。见 DESIGN §6.1。
-class MovaPrevConfig {
+class MovaPreviewOpts {
   /// Whether the preview feature runs at all.
   ///
   /// 是否启用预览功能。
@@ -3791,26 +3791,26 @@ class MovaPrevConfig {
   /// When networked thumbnail sources may run.
   ///
   /// 何时允许运行需要联网的缩略图来源。
-  final MovaPrevNet network;
+  final MovaPreviewNet network;
 
   /// Injected connectivity probe; null uses [MovaAlwaysAllowNetProbe] in core and
   /// the connectivity_plus probe when the host wires one in.
   ///
   /// 注入的连通性探针；为 null 时 core 内部使用 [MovaAlwaysAllowNetProbe]，宿主
   /// 接入时可换成基于 connectivity_plus 的探针。
-  final MovaNetProbe? probe;
+  final IMovaNetProbe? probe;
 
   /// Called when a request is refused; null means stay silent.
   ///
   /// 请求被拒绝时的回调；为 null 表示静默。
-  final MovaPrevBlockCb? onBlocked;
+  final MovaPreviewBlockCb? onBlocked;
 
   /// Ordered thumbnail source chain; null builds the default
   /// `[vtt, extract]` chain from [vttEnabled]/[extractFallback].
   ///
   /// 有序的缩略图来源链；为 null 时按 [vttEnabled]/[extractFallback] 构建默认
   /// 的 `[vtt, extract]` 链。
-  final List<MovaThumbSource>? sources;
+  final List<IMovaThumbSource>? sources;
 
   /// Whether the WebVTT source participates in the default chain.
   ///
@@ -3835,13 +3835,13 @@ class MovaPrevConfig {
   /// Platforms frame extraction is allowed to run on.
   ///
   /// 允许运行抽帧的平台集合。
-  final Set<MovaPlatKind> extractPlatforms;
+  final Set<MovaPlatformKind> extractPlatforms;
 
   /// Injected frame extractor; null uses the media_kit-backed default wired in
   /// by the host layer.
   ///
   /// 注入的抽帧器；为 null 时使用由宿主层接入的、基于 media_kit 的默认实现。
-  final MovaFramePuller? extractor;
+  final IMovaFramePuller? extractor;
 
   /// Target thumbnail width in pixels.
   ///
@@ -3879,19 +3879,19 @@ class MovaPrevConfig {
   ///
   /// 注入的缓存实现；为 null 时按 [memMaxEntries]/[diskMaxBytes]/[diskDir]
   /// 构建默认的两级缓存。
-  final MovaThumbCache? cache;
+  final IMovaThumbCache? cache;
 
   /// Injected disk directory resolver; null uses [diskDir] when set, otherwise
   /// the host-wired temporary-directory provider.
   ///
   /// 注入的磁盘目录解析器；为 null 时优先用 [diskDir]，否则使用宿主接入的
   /// 临时目录 provider。
-  final MovaThumbDirProv? dirProvider;
+  final IMovaThumbDirProvider? dirProvider;
 
   /// Strategy building cache keys; null uses [defaultCacheKey].
   ///
   /// 构建缓存 key 的策略；为 null 时使用 [defaultCacheKey]。
-  final MovaCacheKeyBldr? cacheKeyBuilder;
+  final MovaCacheKeyBuilder? cacheKeyBuilder;
 
   /// Whether the disk cache directory is wiped on dispose.
   ///
@@ -3903,7 +3903,7 @@ class MovaPrevConfig {
   /// 拖动静止多久之后才发出请求。
   final Duration debounce;
 
-  /// Creates a preview configuration; every field defaults to the value
+  /// Creates preview options; every field defaults to the value
   /// documented in DESIGN §6.1.
   ///
   /// 创建预览配置；每个字段的默认值均与 DESIGN §6.1 一致。
@@ -3930,9 +3930,9 @@ class MovaPrevConfig {
   /// - [cacheKeyBuilder]: cache-key strategy / 缓存 key 策略
   /// - [clearOnDispose]: wipe disk cache on dispose / 销毁时清盘
   /// - [debounce]: scrub settle delay / 拖动防抖时长
-  const MovaPrevConfig({
+  const MovaPreviewOpts({
     this.enabled = true,
-    this.network = MovaPrevNet.wifiOnly,
+    this.network = MovaPreviewNet.wifiOnly,
     this.probe,
     this.onBlocked,
     this.sources,
@@ -3941,12 +3941,12 @@ class MovaPrevConfig {
     this.vttUrlResolver,
     this.extractFallback = true,
     this.extractPlatforms = const {
-      MovaPlatKind.android,
-      MovaPlatKind.ios,
-      MovaPlatKind.windows,
-      MovaPlatKind.macos,
-      MovaPlatKind.linux,
-      MovaPlatKind.other,
+      MovaPlatformKind.android,
+      MovaPlatformKind.ios,
+      MovaPlatformKind.windows,
+      MovaPlatformKind.macos,
+      MovaPlatformKind.linux,
+      MovaPlatformKind.other,
     },
     this.extractor,
     this.frameWidth = 160,
@@ -3971,34 +3971,34 @@ class MovaPrevConfig {
   ///
   /// 每个参数对应同名字段。
   ///
-  /// Returns the new [MovaPrevConfig].
+  /// Returns the new [MovaPreviewOpts].
   ///
-  /// 返回新的 [MovaPrevConfig]。
-  MovaPrevConfig copyWith({
+  /// 返回新的 [MovaPreviewOpts]。
+  MovaPreviewOpts copyWith({
     bool? enabled,
-    MovaPrevNet? network,
-    MovaNetProbe? probe,
-    MovaPrevBlockCb? onBlocked,
-    List<MovaThumbSource>? sources,
+    MovaPreviewNet? network,
+    IMovaNetProbe? probe,
+    MovaPreviewBlockCb? onBlocked,
+    List<IMovaThumbSource>? sources,
     bool? vttEnabled,
     String? vttUrl,
     MovaVttUrlSolver? vttUrlResolver,
     bool? extractFallback,
-    Set<MovaPlatKind>? extractPlatforms,
-    MovaFramePuller? extractor,
+    Set<MovaPlatformKind>? extractPlatforms,
+    IMovaFramePuller? extractor,
     int? frameWidth,
     Duration? bucket,
     bool? hwdec,
     int? memMaxEntries,
     int? diskMaxBytes,
     String? diskDir,
-    MovaThumbCache? cache,
-    MovaThumbDirProv? dirProvider,
-    MovaCacheKeyBldr? cacheKeyBuilder,
+    IMovaThumbCache? cache,
+    IMovaThumbDirProvider? dirProvider,
+    MovaCacheKeyBuilder? cacheKeyBuilder,
     bool? clearOnDispose,
     Duration? debounce,
   }) {
-    return MovaPrevConfig(
+    return MovaPreviewOpts(
       enabled: enabled ?? this.enabled,
       network: network ?? this.network,
       probe: probe ?? this.probe,
@@ -4027,7 +4027,7 @@ class MovaPrevConfig {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is MovaPrevConfig &&
+      other is MovaPreviewOpts &&
           runtimeType == other.runtimeType &&
           enabled == other.enabled &&
           network == other.network &&
@@ -4090,7 +4090,7 @@ class MovaPrevConfig {
 /// Returns whether the sets hold the same elements.
 ///
 /// 返回两个集合元素是否相同。
-bool _setEq(Set<MovaPlatKind> a, Set<MovaPlatKind> b) =>
+bool _setEq(Set<MovaPlatformKind> a, Set<MovaPlatformKind> b) =>
     a.length == b.length && a.containsAll(b);
 ```
 
@@ -4098,7 +4098,7 @@ bool _setEq(Set<MovaPlatKind> a, Set<MovaPlatKind> b) =>
 
 `lib/src/core/options/options.dart`：
 
-1. 顶部 export 区加 `export 'preview_config.dart';`，import 区加 `import 'preview_config.dart';`（都按字母序，`live_config` 与 `strings` 之间）。
+1. 顶部 export 区加 `export 'preview_opts.dart';`，import 区加 `import 'preview_opts.dart';`（都按字母序，`live_opts` 与 `strings` 之间）。
 2. 类文档注释里删掉 `A \`preview\` section is intentionally absent for now (deferred to a later task).` 与对应中文句「目前暂不包含 `preview`（预览图）一节，留待后续任务。」，改写为：
 
 ```dart
@@ -4115,24 +4115,24 @@ bool _setEq(Set<MovaPlatKind> a, Set<MovaPlatKind> b) =>
 3. 新字段（放在 `live` 之前，保持"预览在前"与构造参数顺序一致）：
 
 ```dart
-  /// Scrub-preview (thumbnail) configuration.
+  /// Scrub-preview (thumbnail) options.
   ///
   /// 拖动预览（缩略图）配置。
-  final MovaPrevConfig preview;
+  final MovaPreviewOpts preview;
 ```
 
-4. 构造参数加 `this.preview = const MovaPrevConfig(),`（第一个参数）。
-5. `copyWith` 加 `MovaPrevConfig? preview,` 参数、`preview: preview ?? this.preview,` 赋值、
-   文档注释加 `/// - [preview]: replacement preview config / 替换用的预览配置`。
+4. 构造参数加 `this.preview = const MovaPreviewOpts(),`（第一个参数）。
+5. `copyWith` 加 `MovaPreviewOpts? preview,` 参数、`preview: preview ?? this.preview,` 赋值、
+   文档注释加 `/// - [preview]: replacement preview opts / 替换用的预览配置`。
 6. `==` 加 `preview == other.preview &&`；`hashCode` 改为
    `Object.hash(preview, live, gesture, abr, controls, strings, theme)`。
 
-- [x] **Step 5: 加 `MovaPrevBlock` 事件**
+- [x] **Step 5: 加 `MovaPreviewBlock` 事件**
 
 `lib/src/core/events/events.dart` 顶部 import 区加：
 
 ```dart
-import '../options/preview_config.dart';
+import '../options/preview_opts.dart';
 ```
 
 在 `MovaErrorEvent` 之前插入：
@@ -4141,40 +4141,40 @@ import '../options/preview_config.dart';
 /// A scrub-preview request was refused before any work happened.
 ///
 /// 一次拖动预览请求在真正开工前被拒绝。
-class MovaPrevBlock extends MovaEvent {
+class MovaPreviewBlock extends MovaEvent {
   /// Why the request was refused.
   ///
   /// 被拒绝的原因。
-  final MovaPrevBlockReason reason;
+  final MovaPreviewBlockReason reason;
 
   /// Creates the event with [reason].
   ///
   /// 用 [reason] 创建事件。
-  const MovaPrevBlock(this.reason);
+  const MovaPreviewBlock(this.reason);
 }
 ```
 
 - [x] **Step 6: barrel 增补导出**
 
-`lib/mova.dart` 已导出 `src/core/options/options.dart`，`preview_config.dart` 随之传递导出，
+`lib/mova.dart` 已导出 `src/core/options/options.dart`，`preview_opts.dart` 随之传递导出，
 无需新增行。确认 `flutter analyze` 无 `unused_import`。
 
 - [x] **Step 7: 跑测试与分析**
 
 Run: `flutter test && flutter analyze`
 Expected: options 9 项（原 4 + 新 5）PASS，累计 168 项全绿，analyze 0 issues。
-`purity_test.dart` PASS（`preview_config.dart` 只 import core 内部文件）。
+`purity_test.dart` PASS（`preview_opts.dart` 只 import core 内部文件）。
 
 - [ ] **Step 8: Commit**
 
 ```bash
 git add -A
-git commit -m "feat(mova): add MovaPrevConfig section and MovaPrevBlock event"
+git commit -m "feat(mova): add MovaPreviewOpts section and MovaPreviewBlock event"
 ```
 
 ---
 
-## Task 11: `MovaPrevApi` 与 `MovaPrevSvc`
+## Task 11: `IMovaPreviewApi` 与 `MovaPreviewService`
 
 DESIGN §7.1 的整条数据流：防抖 → 桶对齐 → 网络策略 → 内存同步命中 → 磁盘异步命中 →
 按顺序试来源 → 过期结果仍落盘。这是阶段 B 的核心逻辑，全部可在纯 Dart 下测。
@@ -4187,16 +4187,16 @@ DESIGN §7.1 的整条数据流：防抖 → 桶对齐 → 网络策略 → 内�
 **Interfaces:**
 - Consumes: Task 2/4/6/7/8/9/10 全部类型
 - Produces:
-  - `abstract class MovaPrevApi { Stream<MovaThumb?> get thumbs; MovaThumb? get current; MovaThumb? peekAt(Duration position); void requestAt(Duration position); void cancel(); Future<void> clear(); }`
-  - `class MovaPrevSvc implements MovaPrevApi`，构造：
+  - `abstract class IMovaPreviewApi { Stream<MovaThumb?> get thumbs; MovaThumb? get current; MovaThumb? peekAt(Duration position); void requestAt(Duration position); void cancel(); Future<void> clear(); }`
+  - `class MovaPreviewService implements IMovaPreviewApi`，构造：
 
 ```dart
-MovaPrevSvc({
-  required MovaPrevConfig config,
-  required MovaThumbCache cache,
-  required MovaNetProbe probe,
-  required List<MovaThumbSource> sources,
-  void Function(MovaPrevBlockReason reason)? onBlocked,
+MovaPreviewService({
+  required MovaPreviewOpts opts,
+  required IMovaThumbCache cache,
+  required IMovaNetProbe probe,
+  required List<IMovaThumbSource> sources,
+  void Function(MovaPreviewBlockReason reason)? onBlocked,
 });
 ```
 
@@ -4210,18 +4210,18 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mova/src/core/model/source.dart';
-import 'package:mova/src/core/options/preview_config.dart';
+import 'package:mova/src/core/options/preview_opts.dart';
 import 'package:mova/src/core/preview/cache.dart';
 import 'package:mova/src/core/preview/models.dart';
 import 'package:mova/src/core/preview/net_probe.dart';
 import 'package:mova/src/core/preview/service.dart';
 import 'package:mova/src/core/preview/source.dart';
 
-/// A [MovaThumbSource] returning canned bytes after an optional delay, recording
+/// A [IMovaThumbSource] returning canned bytes after an optional delay, recording
 /// every bucket it was asked for.
 ///
-/// 可选延迟后返回预置字节的 [MovaThumbSource]，并记录被请求过的每个桶。
-class _FakeSource implements MovaThumbSource {
+/// 可选延迟后返回预置字节的 [IMovaThumbSource]，并记录被请求过的每个桶。
+class _FakeSource implements IMovaThumbSource {
   /// Creates a fake source.
   ///
   /// 创建一个假来源。
@@ -4270,10 +4270,10 @@ class _FakeSource implements MovaThumbSource {
   Future<void> dispose() async => calls.add('dispose');
 }
 
-/// A [MovaNetProbe] with a flippable verdict.
+/// A [IMovaNetProbe] with a flippable verdict.
 ///
-/// 判定结果可切换的 [MovaNetProbe]。
-class _SwitchProbe implements MovaNetProbe {
+/// 判定结果可切换的 [IMovaNetProbe]。
+class _SwitchProbe implements IMovaNetProbe {
   /// Creates a probe answering [verdict].
   ///
   /// 创建一个回答 [verdict] 的探针。
@@ -4296,25 +4296,25 @@ class _SwitchProbe implements MovaNetProbe {
 
 void main() {
   const src = MovaSource('https://host/a.mp4');
-  const noDebounce = MovaPrevConfig(
+  const noDebounce = MovaPreviewOpts(
     debounce: Duration.zero,
-    network: MovaPrevNet.always,
+    network: MovaPreviewNet.always,
   );
 
   late MovaMemoryThumbCache cache;
   late _FakeSource source;
-  late MovaPrevSvc service;
+  late MovaPreviewService service;
 
-  /// Builds a service over the shared fakes with [config].
+  /// Builds a service over the shared fakes with [opts].
   ///
-  /// 用共享替身与 [config] 构造一个服务。
-  MovaPrevSvc build(MovaPrevConfig config, {MovaNetProbe? probe}) {
-    return MovaPrevSvc(
-      config: config,
+  /// 用共享替身与 [opts] 构造一个服务。
+  MovaPreviewService build(MovaPreviewOpts opts, {IMovaNetProbe? probe}) {
+    return MovaPreviewService(
+      opts: opts,
       cache: cache,
       probe: probe ?? MovaAlwaysAllowNetProbe(),
       sources: [source],
-      onBlocked: config.onBlocked,
+      onBlocked: opts.onBlocked,
     )..attach(src);
   }
 
@@ -4363,9 +4363,9 @@ void main() {
   });
 
   test('debounce collapses a burst of scrub ticks into one request', () async {
-    service = build(const MovaPrevConfig(
+    service = build(const MovaPreviewOpts(
       debounce: Duration(milliseconds: 40),
-      network: MovaPrevNet.always,
+      network: MovaPreviewNet.always,
     ));
     service.requestAt(const Duration(seconds: 10));
     service.requestAt(const Duration(seconds: 20));
@@ -4402,9 +4402,9 @@ void main() {
   });
 
   test('a blocked network refuses without touching any source', () async {
-    final reasons = <MovaPrevBlockReason>[];
+    final reasons = <MovaPreviewBlockReason>[];
     service = build(
-      MovaPrevConfig(
+      MovaPreviewOpts(
         debounce: Duration.zero,
         onBlocked: reasons.add,
       ),
@@ -4414,29 +4414,29 @@ void main() {
     await service.drain();
     expect(source.asked, isEmpty);
     expect(service.current, isNull);
-    expect(reasons, [MovaPrevBlockReason.network]);
+    expect(reasons, [MovaPreviewBlockReason.network]);
   });
 
-  test('a disabled config refuses with the disabled reason', () async {
-    final reasons = <MovaPrevBlockReason>[];
-    service = build(MovaPrevConfig(
+  test('disabled opts refuse with the disabled reason', () async {
+    final reasons = <MovaPreviewBlockReason>[];
+    service = build(MovaPreviewOpts(
       enabled: false,
       debounce: Duration.zero,
-      network: MovaPrevNet.always,
+      network: MovaPreviewNet.always,
       onBlocked: reasons.add,
     ));
     service.requestAt(const Duration(seconds: 10));
     await service.drain();
     expect(source.asked, isEmpty);
-    expect(reasons, [MovaPrevBlockReason.disabled]);
+    expect(reasons, [MovaPreviewBlockReason.disabled]);
   });
 
   test('no attached source refuses with the noSource reason', () async {
-    final reasons = <MovaPrevBlockReason>[];
-    service = MovaPrevSvc(
-      config: const MovaPrevConfig(
+    final reasons = <MovaPreviewBlockReason>[];
+    service = MovaPreviewService(
+      opts: const MovaPreviewOpts(
         debounce: Duration.zero,
-        network: MovaPrevNet.always,
+        network: MovaPreviewNet.always,
       ),
       cache: cache,
       probe: MovaAlwaysAllowNetProbe(),
@@ -4446,31 +4446,31 @@ void main() {
     service.requestAt(const Duration(seconds: 10));
     await service.drain();
     expect(source.asked, isEmpty);
-    expect(reasons, [MovaPrevBlockReason.noSource]);
+    expect(reasons, [MovaPreviewBlockReason.noSource]);
   });
 
   test('an empty source chain refuses with the platform reason', () async {
-    final reasons = <MovaPrevBlockReason>[];
-    service = MovaPrevSvc(
-      config: const MovaPrevConfig(
+    final reasons = <MovaPreviewBlockReason>[];
+    service = MovaPreviewService(
+      opts: const MovaPreviewOpts(
         debounce: Duration.zero,
-        network: MovaPrevNet.always,
+        network: MovaPreviewNet.always,
       ),
       cache: cache,
       probe: MovaAlwaysAllowNetProbe(),
-      sources: const <MovaThumbSource>[],
+      sources: const <IMovaThumbSource>[],
       onBlocked: reasons.add,
     )..attach(src);
     service.requestAt(const Duration(seconds: 10));
     await service.drain();
-    expect(reasons, [MovaPrevBlockReason.platform]);
+    expect(reasons, [MovaPreviewBlockReason.platform]);
   });
 
   test('sources are tried in order and the first non-null answer wins', () async {
     final first = _FakeSource(name: 'first', answer: false);
     final second = _FakeSource(name: 'second');
-    service = MovaPrevSvc(
-      config: noDebounce,
+    service = MovaPreviewService(
+      opts: noDebounce,
       cache: cache,
       probe: MovaAlwaysAllowNetProbe(),
       sources: [first, second],
@@ -4493,9 +4493,9 @@ void main() {
   });
 
   test('cancel drops the pending request and hides the current thumb', () async {
-    service = build(const MovaPrevConfig(
+    service = build(const MovaPreviewOpts(
       debounce: Duration(milliseconds: 40),
-      network: MovaPrevNet.always,
+      network: MovaPreviewNet.always,
     ));
     service.requestAt(const Duration(seconds: 10));
     service.cancel();
@@ -4506,10 +4506,10 @@ void main() {
   });
 
   test('a custom cacheKeyBuilder is used for every entry', () async {
-    service = MovaPrevSvc(
-      config: MovaPrevConfig(
+    service = MovaPreviewService(
+      opts: MovaPreviewOpts(
         debounce: Duration.zero,
-        network: MovaPrevNet.always,
+        network: MovaPreviewNet.always,
         cacheKeyBuilder: (s, b, w) => 'custom_${b}_$w',
       ),
       cache: cache,
@@ -4555,17 +4555,17 @@ Expected: FAIL — `Error when reading 'lib/src/core/preview/service.dart': No s
 ```dart
 import 'models.dart';
 
-/// The scrub-preview capability surface exposed on `MovaApi.preview`.
+/// The scrub-preview capability surface exposed on `IMovaApi.preview`.
 ///
 /// UI components only ever call [requestAt]/[peekAt] and listen to [thumbs];
 /// all policy (debounce, bucketing, network, caching, source order) lives
 /// behind this abstraction in the core layer.
 ///
-/// 挂在 `MovaApi.preview` 上的拖动预览能力面。
+/// 挂在 `IMovaApi.preview` 上的拖动预览能力面。
 ///
 /// UI 组件只会调用 [requestAt]/[peekAt] 并监听 [thumbs]；所有策略（防抖、
 /// 桶对齐、网络、缓存、来源顺序）都藏在该抽象之后的 core 层里。
-abstract class MovaPrevApi {
+abstract class IMovaPreviewApi {
   /// Emits the thumbnail to display, or null when nothing should be shown.
   ///
   /// 推送应展示的缩略图；无内容可展示时推送 null。
@@ -4617,7 +4617,7 @@ import 'dart:async';
 import 'package:meta/meta.dart';
 
 import '../model/source.dart';
-import '../options/preview_config.dart';
+import '../options/preview_opts.dart';
 import 'api.dart';
 import 'cache.dart';
 import 'hash.dart';
@@ -4625,7 +4625,7 @@ import 'models.dart';
 import 'net_probe.dart';
 import 'source.dart';
 
-/// The production [MovaPrevApi]: debounces scrub ticks, aligns them to
+/// The production [IMovaPreviewApi]: debounces scrub ticks, aligns them to
 /// buckets, enforces the network policy, serves cache hits, and walks the
 /// configured source chain — one request in flight at a time.
 ///
@@ -4633,54 +4633,54 @@ import 'source.dart';
 /// discarded: the work is already paid for, and the user is very likely to
 /// scrub back over that bucket (DESIGN §7.1).
 ///
-/// 生产环境的 [MovaPrevApi]：对拖动 tick 做防抖、按桶对齐、执行网络策略、
+/// 生产环境的 [IMovaPreviewApi]：对拖动 tick 做防抖、按桶对齐、执行网络策略、
 /// 优先吃缓存命中，再按配置的来源链依次尝试——同一时刻只有一个请求在飞。
 ///
 /// 被后来者取代的请求，其结果仍会写入缓存而非丢弃：这份开销已经付过了，而且
 /// 用户很可能会拖回那个桶（DESIGN §7.1）。
-class MovaPrevSvc implements MovaPrevApi {
+class MovaPreviewService implements IMovaPreviewApi {
   /// Creates a preview service.
   ///
   /// 创建一个预览服务。
   ///
-  /// - [config]: the resolved preview configuration / 已解析的预览配置
+  /// - [opts]: the resolved preview options / 已解析的预览配置
   /// - [cache]: thumbnail storage / 缩略图存储
   /// - [probe]: connectivity probe consulted under `wifiOnly` / `wifiOnly` 下
   ///   要咨询的连通性探针
   /// - [sources]: ordered source chain / 有序的来源链
   /// - [onBlocked]: refusal callback / 被拒回调
-  MovaPrevSvc({
-    required this.config,
+  MovaPreviewService({
+    required this.opts,
     required this.cache,
     required this.probe,
     required this.sources,
     this.onBlocked,
   });
 
-  /// The resolved preview configuration.
+  /// The resolved preview options.
   ///
   /// 已解析的预览配置。
-  final MovaPrevConfig config;
+  final MovaPreviewOpts opts;
 
   /// Thumbnail storage; usually a two-level memory + disk cache.
   ///
   /// 缩略图存储；通常是内存 + 磁盘的两级缓存。
-  final MovaThumbCache cache;
+  final IMovaThumbCache cache;
 
-  /// Connectivity probe consulted under [MovaPrevNet.wifiOnly].
+  /// Connectivity probe consulted under [MovaPreviewNet.wifiOnly].
   ///
-  /// [MovaPrevNet.wifiOnly] 下要咨询的连通性探针。
-  final MovaNetProbe probe;
+  /// [MovaPreviewNet.wifiOnly] 下要咨询的连通性探针。
+  final IMovaNetProbe probe;
 
   /// Ordered source chain; the first non-null answer wins.
   ///
   /// 有序的来源链；第一个非 null 的结果获胜。
-  final List<MovaThumbSource> sources;
+  final List<IMovaThumbSource> sources;
 
   /// Called whenever a request is refused; null means stay silent.
   ///
   /// 请求被拒绝时的回调；为 null 表示静默。
-  final MovaPrevBlockCb? onBlocked;
+  final MovaPreviewBlockCb? onBlocked;
 
   /// Broadcast sink for [thumbs].
   ///
@@ -4751,7 +4751,7 @@ class MovaPrevSvc implements MovaPrevApi {
   ///
   /// 返回桶对齐后的位置。
   Duration _bucketOf(Duration position) {
-    final step = config.bucket.inMilliseconds;
+    final step = opts.bucket.inMilliseconds;
     if (step <= 0) return position;
     final ms = position.inMilliseconds;
     return Duration(milliseconds: (ms < 0 ? 0 : ms) ~/ step * step);
@@ -4769,8 +4769,8 @@ class MovaPrevSvc implements MovaPrevApi {
   String? _keyFor(Duration bucket) {
     final src = _source;
     if (src == null) return null;
-    final builder = config.cacheKeyBuilder ?? defaultCacheKey;
-    return builder(src.uri, bucket.inSeconds, config.frameWidth);
+    final builder = opts.cacheKeyBuilder ?? defaultCacheKey;
+    return builder(src.uri, bucket.inSeconds, opts.frameWidth);
   }
 
   /// Exposes [_keyFor] to tests that assert on cache contents.
@@ -4801,7 +4801,7 @@ class MovaPrevSvc implements MovaPrevApi {
   /// 把 [reason] 报给 [onBlocked]，并吞掉宿主回调抛出的异常。
   ///
   /// - [reason]: why the request was refused / 被拒原因
-  void _block(MovaPrevBlockReason reason) {
+  void _block(MovaPreviewBlockReason reason) {
     final cb = onBlocked;
     if (cb == null) return;
     try {
@@ -4836,10 +4836,10 @@ class MovaPrevSvc implements MovaPrevApi {
     }
 
     _debounce?.cancel();
-    if (config.debounce <= Duration.zero) {
+    if (opts.debounce <= Duration.zero) {
       _enqueue(bucket);
     } else {
-      _debounce = Timer(config.debounce, () => _enqueue(bucket));
+      _debounce = Timer(opts.debounce, () => _enqueue(bucket));
     }
   }
 
@@ -4860,21 +4860,21 @@ class MovaPrevSvc implements MovaPrevApi {
   /// - [bucket]: the bucket-aligned position / 桶对齐位置
   Future<void> _resolve(Duration bucket) async {
     if (_disposed) return;
-    if (!config.enabled) {
-      _block(MovaPrevBlockReason.disabled);
+    if (!opts.enabled) {
+      _block(MovaPreviewBlockReason.disabled);
       return;
     }
     final src = _source;
     if (src == null) {
-      _block(MovaPrevBlockReason.noSource);
+      _block(MovaPreviewBlockReason.noSource);
       return;
     }
     if (sources.isEmpty) {
-      _block(MovaPrevBlockReason.platform);
+      _block(MovaPreviewBlockReason.platform);
       return;
     }
-    if (!await previewAllowedOn(config.network, probe)) {
-      _block(MovaPrevBlockReason.network);
+    if (!await previewAllowedOn(opts.network, probe)) {
+      _block(MovaPreviewBlockReason.network);
       return;
     }
 
@@ -4927,12 +4927,12 @@ class MovaPrevSvc implements MovaPrevApi {
 
   /// Releases the service, its sources and its cache.
   ///
-  /// Wipes the cache first when [MovaPrevConfig.clearOnDispose] is set, so a
+  /// Wipes the cache first when [MovaPreviewOpts.clearOnDispose] is set, so a
   /// killed process does not leave a temp directory full of thumbnails.
   ///
   /// 释放服务、其来源与其缓存。
   ///
-  /// [MovaPrevConfig.clearOnDispose] 打开时先清空缓存，避免进程被杀后临时
+  /// [MovaPreviewOpts.clearOnDispose] 打开时先清空缓存，避免进程被杀后临时
   /// 目录里堆满缩略图。
   Future<void> dispose() async {
     if (_disposed) return;
@@ -4944,7 +4944,7 @@ class MovaPrevSvc implements MovaPrevApi {
     for (final s in sources) {
       await s.dispose();
     }
-    if (config.clearOnDispose) await cache.clear();
+    if (opts.clearOnDispose) await cache.clear();
     await cache.dispose();
     await probe.dispose();
     await _thumbs.close();
@@ -4975,49 +4975,49 @@ Expected: 17 项 PASS，analyze 0 issues
 
 ```bash
 git add -A
-git commit -m "feat(mova): add MovaPrevApi and debounced bucket-aligned preview service"
+git commit -m "feat(mova): add IMovaPreviewApi and debounced bucket-aligned preview service"
 ```
 
 ---
 
 
-## Task 12: 接进 `MovaApi` / `MovaEngine`，并补上 platform_impl 装配
+## Task 12: 接进 `IMovaApi` / `Mova`，并补上 platform_impl 装配
 
-DESIGN §4.1 的 `MovaPrevApi get preview` 在阶段 A 被明确推迟（`api.dart` 注释里写着「阶段 A 的
-`MovaApi` 暂不含 `preview` getter（阶段 B 加）」），本任务补上。
+DESIGN §4.1 的 `IMovaPreviewApi get preview` 在阶段 A 被明确推迟（`api.dart` 注释里写着「阶段 A 的
+`IMovaApi` 暂不含 `preview` getter（阶段 B 加）」），本任务补上。
 
-**`createMovaEngine()` 已经存在，本任务只扩展它**：阶段 A 收口后的 `fix(mova): wire real
-platform adapters, restoring brightness/PiP/orientation`（commit `9c2d4f0`）已经建了
-`lib/src/platform_impl/wiring.dart` 与 `createMovaEngine({kernel, options, interceptors,
-brightness, pip, orientation})`，接好了 brightness/PiP/orientation 三个真实端口，并从
+**`createMova()` 已经存在，本任务只扩展它**：阶段 A 收口后的 `fix(mova): wire real
+platform adapters, restoring brightness/PiP/orient`（commit `9c2d4f0`）已经建了
+`lib/src/platform_impl/wiring.dart` 与 `createMova({kernel, options, interceptors,
+brightness, pip, orient})`，接好了 brightness/PiP/orient 三个真实端口，并从
 `lib/mova.dart` 导出。阶段 B 要做的只是在同一个函数上**追加**预览用的三个可选端口参数
-（`MovaThumbDirProv? thumbDir`、`MovaFramePuller? extractor`、`MovaHttpFetch? fetcher`），
-默认接入 Task 5/9 的真实平台实现，不改、不删已有的 brightness/pip/orientation 参数。
+（`IMovaThumbDirProvider? thumbDir`、`IMovaFramePuller? extractor`、`IMovaHttpFetch? fetcher`），
+默认接入 Task 5/9 的真实平台实现，不改、不删已有的 brightness/pip/orient 参数。
 
 **Files:**
-- Modify: `lib/src/platform_impl/wiring.dart`, `lib/src/core/api.dart`, `lib/src/core/engine.dart`,
+- Modify: `lib/src/platform_impl/wiring.dart`, `lib/src/core/api.dart`, `lib/src/core/mova.dart`,
   `test/support/fake_api.dart`
-- Test: `test/core/engine_test.dart`（追加 5 项，不动既有项）
+- Test: `test/core/mova_test.dart`（追加 5 项，不动既有项）
 
 **Interfaces:**
 - Consumes: Task 4–11 全部类型
 - Produces:
-  - `MovaApi.preview` → `MovaPrevApi`
-  - `MovaEngine` 新增可选构造参数 `MovaThumbDirProv? thumbDir`、`MovaFramePuller? extractor`、`MovaHttpFetch? fetcher`
-  - `createMovaEngine()`（已存在，`platform_impl/wiring.dart`）新增三个可选参数：
-    `MovaThumbDirProv? thumbDir`、`MovaFramePuller? extractor`、`MovaHttpFetch? fetcher`，
+  - `IMovaApi.preview` → `IMovaPreviewApi`
+  - `Mova` 新增可选构造参数 `IMovaThumbDirProvider? thumbDir`、`IMovaFramePuller? extractor`、`IMovaHttpFetch? fetcher`
+  - `createMova()`（已存在，`platform_impl/wiring.dart`）新增三个可选参数：
+    `IMovaThumbDirProvider? thumbDir`、`IMovaFramePuller? extractor`、`IMovaHttpFetch? fetcher`，
     默认分别接入 `MovaTempThumbDirProvider()`、`MovaFrameExtractor()`、（`fetcher` 留空即走
-    `MovaEngine` 自己的 `MovaIoHttpFetcher()` 兜底）；原有的 `kernel`/`options`/`interceptors`/
-    `brightness`/`pip`/`orientation` 参数与行为不变
-  - `class FakePreviewApi implements MovaPrevApi`（测试替身，带 `push(MovaThumb?)`、`peekResult`、`lastRequestedAt`、`calls`）
+    `Mova` 自己的 `MovaIoHttpFetcher()` 兜底）；原有的 `kernel`/`options`/`interceptors`/
+    `brightness`/`pip`/`orient` 参数与行为不变
+  - `class FakePreviewApi implements IMovaPreviewApi`（测试替身，带 `push(MovaThumb?)`、`peekResult`、`lastRequestedAt`、`calls`）
   - `FakeMovaApi.preview` → `FakePreviewApi`
 
-- [x] **Step 1: 追加失败测试到 `test/core/engine_test.dart`**
+- [x] **Step 1: 追加失败测试到 `test/core/mova_test.dart`**
 
 顶部 import 区补：
 
 ```dart
-import 'package:mova/src/core/options/preview_config.dart';
+import 'package:mova/src/core/options/preview_opts.dart';
 import 'package:mova/src/core/preview/net_probe.dart';
 ```
 
@@ -5040,14 +5040,14 @@ import 'package:mova/src/core/preview/net_probe.dart';
     expect(e.preview.current, isNull);
   });
 
-  test('a disabled preview config emits MovaPrevBlock on the event stream', () async {
-    final e2 = MovaEngine(
+  test('disabled preview opts emit MovaPreviewBlock on the event stream', () async {
+    final e2 = Mova(
       kernel: FakeKernel(),
       options: const MovaOpts(
-        preview: MovaPrevConfig(
+        preview: MovaPreviewOpts(
           enabled: false,
           debounce: Duration.zero,
-          network: MovaPrevNet.always,
+          network: MovaPreviewNet.always,
         ),
       ),
     );
@@ -5056,24 +5056,24 @@ import 'package:mova/src/core/preview/net_probe.dart';
     await e2.open(const MovaSource('https://host/a.mp4'));
     e2.preview.requestAt(const Duration(seconds: 5));
     await Future<void>.delayed(const Duration(milliseconds: 50));
-    expect(events.whereType<MovaPrevBlock>(), isNotEmpty);
+    expect(events.whereType<MovaPreviewBlock>(), isNotEmpty);
     expect(
-      events.whereType<MovaPrevBlock>().first.reason,
-      MovaPrevBlockReason.disabled,
+      events.whereType<MovaPreviewBlock>().first.reason,
+      MovaPreviewBlockReason.disabled,
     );
     await sub.cancel();
     await e2.dispose();
   });
 
   test('the configured onBlocked callback also fires', () async {
-    final reasons = <MovaPrevBlockReason>[];
-    final e2 = MovaEngine(
+    final reasons = <MovaPreviewBlockReason>[];
+    final e2 = Mova(
       kernel: FakeKernel(),
       options: MovaOpts(
-        preview: MovaPrevConfig(
+        preview: MovaPreviewOpts(
           enabled: false,
           debounce: Duration.zero,
-          network: MovaPrevNet.always,
+          network: MovaPreviewNet.always,
           onBlocked: reasons.add,
         ),
       ),
@@ -5081,12 +5081,12 @@ import 'package:mova/src/core/preview/net_probe.dart';
     await e2.open(const MovaSource('https://host/a.mp4'));
     e2.preview.requestAt(const Duration(seconds: 5));
     await Future<void>.delayed(const Duration(milliseconds: 50));
-    expect(reasons, [MovaPrevBlockReason.disabled]);
+    expect(reasons, [MovaPreviewBlockReason.disabled]);
     await e2.dispose();
   });
 
-  test('disposing the engine disposes the preview service', () async {
-    final e2 = MovaEngine(kernel: FakeKernel());
+  test('disposing the player disposes the preview service', () async {
+    final e2 = Mova(kernel: FakeKernel());
     await e2.dispose();
     // A closed preview stream is the observable proof the service was torn
     // down; requesting after dispose must be a silent no-op.
@@ -5099,10 +5099,10 @@ import 'package:mova/src/core/preview/net_probe.dart';
 
 - [x] **Step 2: 跑测试确认失败**
 
-Run: `flutter test test/core/engine_test.dart`
-Expected: FAIL — `The getter 'preview' isn't defined for the class 'MovaEngine'`；既有项仍 PASS
+Run: `flutter test test/core/mova_test.dart`
+Expected: FAIL — `The getter 'preview' isn't defined for the class 'Mova'`；既有项仍 PASS
 
-- [x] **Step 3: 在 `MovaApi` 上声明 `preview`**
+- [x] **Step 3: 在 `IMovaApi` 上声明 `preview`**
 
 `lib/src/core/api.dart`：import 区加 `import 'preview/api.dart';`；在 `Object? get renderHandle;`
 之后插入：
@@ -5112,17 +5112,17 @@ Expected: FAIL — `The getter 'preview' isn't defined for the class 'MovaEngine
   /// thumbnail stream, and cache control.
   ///
   /// 拖动预览能力面：缩略图请求、已解析缩略图的流，以及缓存控制。
-  MovaPrevApi get preview;
+  IMovaPreviewApi get preview;
 ```
 
-- [x] **Step 4: 在 `MovaEngine` 里装配预览服务**
+- [x] **Step 4: 在 `Mova` 里装配预览服务**
 
-`lib/src/core/engine.dart`：
+`lib/src/core/mova.dart`：
 
 1. import 区补：
 
 ```dart
-import 'options/preview_config.dart';
+import 'options/preview_opts.dart';
 import 'preview/api.dart';
 import 'preview/cache.dart';
 import 'preview/dir_provider.dart';
@@ -5137,21 +5137,21 @@ import 'preview/two_level_cache.dart';
 import 'preview/vtt_source.dart';
 ```
 
-2. 字段（放在 `_orientation` 之后）：
+2. 字段（放在 `_orient` 之后）：
 
 ```dart
   /// The scrub-preview service assembled from [MovaOpts.preview].
   ///
   /// 依据 [MovaOpts.preview] 装配出来的拖动预览服务。
-  late final MovaPrevSvc _previewService;
+  late final MovaPreviewService _previewService;
 ```
 
-3. 构造签名加三个可选参数（放在 `orientation` 之后）：
+3. 构造签名加三个可选参数（放在 `orient` 之后）：
 
 ```dart
-    MovaThumbDirProv? thumbDir,
-    MovaFramePuller? extractor,
-    MovaHttpFetch? fetcher,
+    IMovaThumbDirProvider? thumbDir,
+    IMovaFramePuller? extractor,
+    IMovaHttpFetch? fetcher,
 ```
 
 并在构造函数文档注释里补一段：
@@ -5181,18 +5181,18 @@ import 'preview/vtt_source.dart';
 
 ```dart
   @override
-  MovaPrevApi get preview => _previewService;
+  IMovaPreviewApi get preview => _previewService;
 
   /// Assembles the preview service from [MovaOpts.preview] plus the
   /// platform-side pieces the host injected.
   ///
-  /// Every injection point in [MovaPrevConfig] wins over the built-in
+  /// Every injection point in [MovaPreviewOpts] wins over the built-in
   /// default; a missing platform piece degrades that one capability instead of
   /// disabling preview outright.
   ///
   /// 依据 [MovaOpts.preview] 与宿主注入的平台侧零件装配预览服务。
   ///
-  /// [MovaPrevConfig] 里的每个注入点都优先于内置默认；缺失某个平台零件只会
+  /// [MovaPreviewOpts] 里的每个注入点都优先于内置默认；缺失某个平台零件只会
   /// 让该项能力降级，而不会整体关闭预览。
   ///
   /// - [thumbDir]: disk-cache directory resolver / 磁盘缓存目录解析器
@@ -5203,10 +5203,10 @@ import 'preview/vtt_source.dart';
   /// Returns the assembled service.
   ///
   /// 返回装配好的服务。
-  MovaPrevSvc _buildPreview({
-    MovaThumbDirProv? thumbDir,
-    MovaFramePuller? extractor,
-    MovaHttpFetch? fetcher,
+  MovaPreviewService _buildPreview({
+    IMovaThumbDirProvider? thumbDir,
+    IMovaFramePuller? extractor,
+    IMovaHttpFetch? fetcher,
   }) {
     final cfg = options.preview;
     final dir = cfg.dirProvider ??
@@ -5218,8 +5218,8 @@ import 'preview/vtt_source.dart';
                 memory: MovaMemoryThumbCache(maxEntries: cfg.memMaxEntries),
                 disk: MovaDiskThumbCache(dir: dir, maxBytes: cfg.diskMaxBytes),
               ));
-    return MovaPrevSvc(
-      config: cfg,
+    return MovaPreviewService(
+      opts: cfg,
       cache: cache,
       probe: cfg.probe ?? MovaAlwaysAllowNetProbe(),
       sources: cfg.sources ?? _defaultThumbSources(cfg, extractor, fetcher),
@@ -5228,25 +5228,25 @@ import 'preview/vtt_source.dart';
   }
 
   /// Builds the built-in `[vtt, extract]` source chain, honouring
-  /// [MovaPrevConfig.vttEnabled], [MovaPrevConfig.extractFallback] and
-  /// [MovaPrevConfig.extractPlatforms].
+  /// [MovaPreviewOpts.vttEnabled], [MovaPreviewOpts.extractFallback] and
+  /// [MovaPreviewOpts.extractPlatforms].
   ///
-  /// 构建内置的 `[vtt, extract]` 来源链，遵循 [MovaPrevConfig.vttEnabled]、
-  /// [MovaPrevConfig.extractFallback] 与 [MovaPrevConfig.extractPlatforms]。
+  /// 构建内置的 `[vtt, extract]` 来源链，遵循 [MovaPreviewOpts.vttEnabled]、
+  /// [MovaPreviewOpts.extractFallback] 与 [MovaPreviewOpts.extractPlatforms]。
   ///
-  /// - [cfg]: the preview configuration / 预览配置
+  /// - [cfg]: the preview options / 预览配置
   /// - [extractor]: host-injected frame extractor / 宿主注入的抽帧器
   /// - [fetcher]: host-injected HTTP fetcher / 宿主注入的 HTTP 客户端
   ///
   /// Returns the ordered source chain, possibly empty.
   ///
   /// 返回有序的来源链，可能为空。
-  List<MovaThumbSource> _defaultThumbSources(
-    MovaPrevConfig cfg,
-    MovaFramePuller? extractor,
-    MovaHttpFetch? fetcher,
+  List<IMovaThumbSource> _defaultThumbSources(
+    MovaPreviewOpts cfg,
+    IMovaFramePuller? extractor,
+    IMovaHttpFetch? fetcher,
   ) {
-    final chain = <MovaThumbSource>[];
+    final chain = <IMovaThumbSource>[];
     if (cfg.vttEnabled) {
       final fixed = cfg.vttUrl;
       chain.add(MovaVttThumbSource(
@@ -5274,16 +5274,16 @@ import 'preview/vtt_source.dart';
   /// 把一次预览拒绝发布到 [events] 上，并转发给宿主回调。
   ///
   /// - [reason]: why the request was refused / 被拒原因
-  void _onPreviewBlocked(MovaPrevBlockReason reason) {
-    if (!_events.isClosed) _events.add(MovaPrevBlock(reason));
+  void _onPreviewBlocked(MovaPreviewBlockReason reason) {
+    if (!_events.isClosed) _events.add(MovaPreviewBlock(reason));
     final cb = options.preview.onBlocked;
     if (cb == null) return;
     try {
       cb(reason);
     } on Object {
-      // A host callback must never break the engine.
+      // A host callback must never break the player.
       //
-      // 宿主回调绝不能打断 engine。
+      // 宿主回调绝不能打断播放器。
     }
   }
 ```
@@ -5296,138 +5296,138 @@ import 'preview/vtt_source.dart';
 这是 `9c2d4f0` 落地后的**当前文件全文**（不要从零重写，下面的 diff 建立在它之上）：
 
 ```dart
-// Wires a [MovaEngine] to the real platform adapters implemented under
-// `lib/src/platform_impl/`. This file — not `core/engine.dart` — is the only
+// Wires a [Mova] to the real platform adapters implemented under
+// `lib/src/platform_impl/`. This file — not `core/mova.dart` — is the only
 // place allowed to reference those adapters, since `lib/src/core/**` must
 // never import `package:flutter/*` or any `platform_impl/*` file (enforced
 // by `test/core/purity_test.dart`).
 //
-// 把 [MovaEngine] 接到 `lib/src/platform_impl/` 下的真实平台适配器。只有本文件
-// （而非 `core/engine.dart`）允许引用这些适配器，因为 `lib/src/core/**` 绝不能
+// 把 [Mova] 接到 `lib/src/platform_impl/` 下的真实平台适配器。只有本文件
+// （而非 `core/mova.dart`）允许引用这些适配器，因为 `lib/src/core/**` 绝不能
 // 引入 `package:flutter/*` 或任何 `platform_impl/*` 文件（由
 // `test/core/purity_test.dart` 强制检查）。
 
-import '../core/engine.dart';
+import '../core/mova.dart';
 import '../core/interceptor/interceptor.dart';
 import '../core/kernel/kernel.dart';
 import '../core/options/options.dart';
-import '../core/platform/ports.dart';
+import '../core/platform/platform.dart';
 import 'brightness_impl.dart';
-import 'orientation_impl.dart';
+import 'orient_impl.dart';
 import 'pip_impl.dart';
 
-/// Creates a [MovaEngine] wired to the real platform adapters
-/// ([MovaScreenBrightnessPort], [MovaChannelPipPort], [MovaSystemChromeOrientationPort])
-/// instead of [MovaEngine]'s own noop/fallback defaults.
+/// Creates a [Mova] wired to the real platform adapters
+/// ([MovaBrightness], [MovaPip], [MovaOrient])
+/// instead of [Mova]'s own noop/fallback defaults.
 ///
-/// [MovaEngine]'s bare constructor intentionally defaults to zero-dependency
+/// [Mova]'s bare constructor intentionally defaults to zero-dependency
 /// noop ports so it stays usable from pure-Dart unit tests that can't touch
 /// platform channels; app code should call this factory instead so the
 /// brightness-drag gesture, PiP, and fullscreen-orientation features actually
-/// work. Any of [brightness], [pip], or [orientation] can still be overridden
-/// (e.g. with a fake, in a widget test that exercises the real engine
+/// work. Any of [brightness], [pip], or [orient] can still be overridden
+/// (e.g. with a fake, in a widget test that exercises the real player
 /// wiring).
 ///
-/// 创建一个接入真实平台适配器（[MovaScreenBrightnessPort]、[MovaChannelPipPort]、
-/// [MovaSystemChromeOrientationPort]）的 [MovaEngine]，而非使用 [MovaEngine] 自身的
+/// 创建一个接入真实平台适配器（[MovaBrightness]、[MovaPip]、
+/// [MovaOrient]）的 [Mova]，而非使用 [Mova] 自身的
 /// 空/兜底默认实现。
 ///
-/// [MovaEngine] 的裸构造函数刻意默认使用零依赖的空端口，以便纯 Dart 单测（无法
+/// [Mova] 的裸构造函数刻意默认使用零依赖的空端口，以便纯 Dart 单测（无法
 /// 触达平台通道）也能直接使用；app 代码应改用本工厂函数，这样亮度拖拽手势、
-/// 画中画、全屏方向这些功能才能真正生效。[brightness]、[pip]、[orientation]
-/// 三者仍可分别覆盖（例如在验证真实 engine 接线的 widget 测试中传入 fake）。
+/// 画中画、全屏方向这些功能才能真正生效。[brightness]、[pip]、[orient]
+/// 三者仍可分别覆盖（例如在验证真实播放器接线的 widget 测试中传入 fake）。
 ///
 /// - [kernel]: the playback kernel; defaults to a new `MovaMpvKernel` (see
-///   [MovaEngine.new]) / 播放内核，省略时默认新建 `MovaMpvKernel`（见
-///   [MovaEngine.new]）
-/// - [options]: engine configuration / engine 配置
+///   [Mova.new]) / 播放内核，省略时默认新建 `MovaMpvKernel`（见
+///   [Mova.new]）
+/// - [options]: player options / 播放器配置
 /// - [interceptors]: interceptor chain consulted before open/seek/play /
 ///   在 open/seek/play 前咨询的拦截链
-/// - [brightness]: overrides the real [MovaScreenBrightnessPort] default /
-///   覆盖默认的真实 [MovaScreenBrightnessPort]
-/// - [pip]: overrides the real [MovaChannelPipPort] default / 覆盖默认的真实
-///   [MovaChannelPipPort]
-/// - [orientation]: overrides the real [MovaSystemChromeOrientationPort] default
-///   / 覆盖默认的真实 [MovaSystemChromeOrientationPort]
+/// - [brightness]: overrides the real [MovaBrightness] default /
+///   覆盖默认的真实 [MovaBrightness]
+/// - [pip]: overrides the real [MovaPip] default / 覆盖默认的真实
+///   [MovaPip]
+/// - [orient]: overrides the real [MovaOrient] default
+///   / 覆盖默认的真实 [MovaOrient]
 ///
-/// Returns a [MovaEngine] ready for use by app code.
+/// Returns a [Mova] ready for use by app code.
 ///
-/// 返回一个可供 app 代码直接使用的 [MovaEngine]。
-MovaEngine createMovaEngine({
-  MovaKernel? kernel,
+/// 返回一个可供 app 代码直接使用的 [Mova]。
+Mova createMova({
+  IMovaKernel? kernel,
   MovaOpts options = const MovaOpts(),
   List<MovaHook> interceptors = const [],
-  MovaBrightPort? brightness,
-  MovaPipPort? pip,
-  MovaOrientPort? orientation,
+  IMovaBrightness? brightness,
+  IMovaPip? pip,
+  IMovaOrient? orient,
 }) {
-  return MovaEngine(
+  return Mova(
     kernel: kernel,
     options: options,
     interceptors: interceptors,
-    brightness: brightness ?? MovaScreenBrightnessPort(),
-    pip: pip ?? MovaChannelPipPort(),
-    orientation: orientation ?? MovaSystemChromeOrientationPort(),
+    brightness: brightness ?? MovaBrightness(),
+    pip: pip ?? MovaPip(),
+    orient: orient ?? MovaOrient(),
   );
 }
 ```
 
 改动：加三个 import（`mpv_extractor_impl.dart`、`net_probe_impl.dart`、`thumb_dir_impl.dart`），
-给 `createMovaEngine` 追加 `thumbDir`/`extractor`/`fetcher` 三个可选参数并接入默认实现，
+给 `createMova` 追加 `thumbDir`/`extractor`/`fetcher` 三个可选参数并接入默认实现，
 同时把 `options.preview.probe` 缺省接上 `MovaConnectivityNetProbe()`。**`kernel`/`options`/
-`interceptors`/`brightness`/`pip`/`orientation` 六个既有参数与其默认值一字不动**——阶段 B
+`interceptors`/`brightness`/`pip`/`orient` 六个既有参数与其默认值一字不动**——阶段 B
 只做增量。改完后的完整文件：
 
 ```dart
-import '../core/engine.dart';
+import '../core/mova.dart';
 import '../core/interceptor/interceptor.dart';
 import '../core/kernel/kernel.dart';
 import '../core/options/options.dart';
-import '../core/platform/ports.dart';
+import '../core/platform/platform.dart';
 import '../core/preview/dir_provider.dart';
 import '../core/preview/extractor.dart';
 import '../core/preview/fetcher.dart';
 import 'brightness_impl.dart';
 import 'mpv_extractor_impl.dart';
 import 'net_probe_impl.dart';
-import 'orientation_impl.dart';
+import 'orient_impl.dart';
 import 'pip_impl.dart';
 import 'thumb_dir_impl.dart';
 
-/// Creates a [MovaEngine] wired to the real platform adapters
-/// ([MovaScreenBrightnessPort], [MovaChannelPipPort], [MovaSystemChromeOrientationPort],
-/// and — since phase B — [MovaThumbDirProv]/[MovaFramePuller] for scrub
-/// preview) instead of [MovaEngine]'s own noop/fallback defaults.
+/// Creates a [Mova] wired to the real platform adapters
+/// ([MovaBrightness], [MovaPip], [MovaOrient],
+/// and — since phase B — [IMovaThumbDirProvider]/[IMovaFramePuller] for scrub
+/// preview) instead of [Mova]'s own noop/fallback defaults.
 ///
-/// [MovaEngine]'s bare constructor intentionally defaults to zero-dependency
+/// [Mova]'s bare constructor intentionally defaults to zero-dependency
 /// noop ports so it stays usable from pure-Dart unit tests that can't touch
 /// platform channels; app code should call this factory instead so the
 /// brightness-drag gesture, PiP, fullscreen-orientation, and scrub-preview
 /// thumbnails actually work. Any port can still be overridden (e.g. with a
-/// fake, in a widget test that exercises the real engine wiring).
+/// fake, in a widget test that exercises the real player wiring).
 ///
-/// 创建一个接入真实平台适配器（[MovaScreenBrightnessPort]、[MovaChannelPipPort]、
-/// [MovaSystemChromeOrientationPort]，以及阶段 B 起新增的拖动预览端口
-/// [MovaThumbDirProv]/[MovaFramePuller]）的 [MovaEngine]，而非使用 [MovaEngine]
+/// 创建一个接入真实平台适配器（[MovaBrightness]、[MovaPip]、
+/// [MovaOrient]，以及阶段 B 起新增的拖动预览端口
+/// [IMovaThumbDirProvider]/[IMovaFramePuller]）的 [Mova]，而非使用 [Mova]
 /// 自身的空/兜底默认实现。
 ///
-/// [MovaEngine] 的裸构造函数刻意默认使用零依赖的空端口，以便纯 Dart 单测（无法
+/// [Mova] 的裸构造函数刻意默认使用零依赖的空端口，以便纯 Dart 单测（无法
 /// 触达平台通道）也能直接使用；app 代码应改用本工厂函数，这样亮度拖拽手势、
 /// 画中画、全屏方向、拖动预览缩略图这些功能才能真正生效。每个端口仍可分别
-/// 覆盖（例如在验证真实 engine 接线的 widget 测试中传入 fake）。
+/// 覆盖（例如在验证真实播放器接线的 widget 测试中传入 fake）。
 ///
 /// - [kernel]: the playback kernel; defaults to a new `MovaMpvKernel` (see
-///   [MovaEngine.new]) / 播放内核，省略时默认新建 `MovaMpvKernel`（见
-///   [MovaEngine.new]）
-/// - [options]: engine configuration / engine 配置
+///   [Mova.new]) / 播放内核，省略时默认新建 `MovaMpvKernel`（见
+///   [Mova.new]）
+/// - [options]: player options / 播放器配置
 /// - [interceptors]: interceptor chain consulted before open/seek/play /
 ///   在 open/seek/play 前咨询的拦截链
-/// - [brightness]: overrides the real [MovaScreenBrightnessPort] default /
-///   覆盖默认的真实 [MovaScreenBrightnessPort]
-/// - [pip]: overrides the real [MovaChannelPipPort] default / 覆盖默认的真实
-///   [MovaChannelPipPort]
-/// - [orientation]: overrides the real [MovaSystemChromeOrientationPort] default
-///   / 覆盖默认的真实 [MovaSystemChromeOrientationPort]
+/// - [brightness]: overrides the real [MovaBrightness] default /
+///   覆盖默认的真实 [MovaBrightness]
+/// - [pip]: overrides the real [MovaPip] default / 覆盖默认的真实
+///   [MovaPip]
+/// - [orient]: overrides the real [MovaOrient] default
+///   / 覆盖默认的真实 [MovaOrient]
 /// - [thumbDir]: overrides the real [MovaTempThumbDirProvider] default used for
 ///   the on-disk thumbnail cache / 覆盖默认的真实 [MovaTempThumbDirProvider]（磁盘
 ///   缩略图缓存目录）
@@ -5435,33 +5435,33 @@ import 'thumb_dir_impl.dart';
 ///   frame-extraction fallback source / 覆盖默认的真实 [MovaFrameExtractor]
 ///   （抽帧兜底来源）
 /// - [fetcher]: overrides the HTTP fetcher used to pull WebVTT tracks and
-///   sprites; left null, [MovaEngine] falls back to its own `MovaIoHttpFetcher()` /
-///   覆盖拉取 WebVTT 轨与雪碧图的 HTTP 客户端；留空则由 [MovaEngine] 自己兜底为
+///   sprites; left null, [Mova] falls back to its own `MovaIoHttpFetcher()` /
+///   覆盖拉取 WebVTT 轨与雪碧图的 HTTP 客户端；留空则由 [Mova] 自己兜底为
 ///   `MovaIoHttpFetcher()`
 ///
-/// Returns a [MovaEngine] ready for use by app code.
+/// Returns a [Mova] ready for use by app code.
 ///
-/// 返回一个可供 app 代码直接使用的 [MovaEngine]。
-MovaEngine createMovaEngine({
-  MovaKernel? kernel,
+/// 返回一个可供 app 代码直接使用的 [Mova]。
+Mova createMova({
+  IMovaKernel? kernel,
   MovaOpts options = const MovaOpts(),
   List<MovaHook> interceptors = const [],
-  MovaBrightPort? brightness,
-  MovaPipPort? pip,
-  MovaOrientPort? orientation,
-  MovaThumbDirProv? thumbDir,
-  MovaFramePuller? extractor,
-  MovaHttpFetch? fetcher,
+  IMovaBrightness? brightness,
+  IMovaPip? pip,
+  IMovaOrient? orient,
+  IMovaThumbDirProvider? thumbDir,
+  IMovaFramePuller? extractor,
+  IMovaHttpFetch? fetcher,
 }) {
-  return MovaEngine(
+  return Mova(
     kernel: kernel,
     options: options.preview.probe == null
         ? options.copyWith(preview: options.preview.copyWith(probe: MovaConnectivityNetProbe()))
         : options,
     interceptors: interceptors,
-    brightness: brightness ?? MovaScreenBrightnessPort(),
-    pip: pip ?? MovaChannelPipPort(),
-    orientation: orientation ?? MovaSystemChromeOrientationPort(),
+    brightness: brightness ?? MovaBrightness(),
+    pip: pip ?? MovaPip(),
+    orient: orient ?? MovaOrient(),
     thumbDir: thumbDir ?? const MovaTempThumbDirProvider(),
     extractor: extractor ?? MovaFrameExtractor(),
     fetcher: fetcher,
@@ -5481,11 +5481,11 @@ import 'package:mova/src/core/preview/models.dart';
 在 `FakeMovaApi` 类之后追加：
 
 ```dart
-/// A test double for [MovaPrevApi] that records requests and lets tests push
+/// A test double for [IMovaPreviewApi] that records requests and lets tests push
 /// thumbnails into the stream.
 ///
-/// [MovaPrevApi] 的测试替身：记录请求，并允许测试向流中推送缩略图。
-class FakePreviewApi implements MovaPrevApi {
+/// [IMovaPreviewApi] 的测试替身：记录请求，并允许测试向流中推送缩略图。
+class FakePreviewApi implements IMovaPreviewApi {
   /// Backing controller for [thumbs].
   ///
   /// [thumbs] 的底层控制器。
@@ -5572,32 +5572,32 @@ class FakePreviewApi implements MovaPrevApi {
 确认这行还在，再跑：
 
 Run: `flutter test && flutter analyze`
-Expected: engine 新增 5 项 PASS，累计 190 项全绿，analyze 0 issues；`test/platform_impl/wiring_test.dart`
-原有 3 项（`9c2d4f0` 加的）仍 PASS。`purity_test.dart` PASS（`engine.dart` 只 import core
+Expected: 播放器新增 5 项 PASS，累计 190 项全绿，analyze 0 issues；`test/platform_impl/wiring_test.dart`
+原有 3 项（`9c2d4f0` 加的）仍 PASS。`purity_test.dart` PASS（`mova.dart` 只 import core
 内部文件；插件全在 `wiring.dart`）。
 
 - [x] **Step 8: Commit**
 
 ```bash
 git add -A
-git commit -m "feat(mova): expose preview on MovaApi and wire platform implementations via createMovaEngine"
+git commit -m "feat(mova): expose preview on IMovaApi and wire platform implementations via createMova"
 ```
 
 ---
 
-## Task 13: 预览气泡组件与默认皮肤
+## Task 13: 预览气泡组件与默认 UI 套件
 
 DESIGN §5.4 的 `bottomAbove preview` + §6.1「气泡外观 | 默认组件 | — | patch `preview`」。
 `MovaSlot.bottomAbove` 自阶段 A 起一直是空的，就是给这个组件留的。
 
 **Files:**
 - Create: `lib/src/ui/components/preview.dart`
-- Modify: `lib/src/ui/skins/default_skin.dart`, `lib/mova.dart`
-- Test: `test/ui/preview_test.dart`, `test/ui/skin_test.dart`（追加 1 项）
+- Modify: `lib/src/ui/ui_kits/default_ui_kit.dart`, `lib/mova.dart`
+- Test: `test/ui/preview_test.dart`, `test/ui/ui_kit_test.dart`（追加 1 项）
 
 **Interfaces:**
-- Consumes: `MovaApi`（含 Task 12 的 `preview`）、`MovaThumb`/`MovaThumbCrop`（Task 2）、`MovaUiSelect`、`MovaComp`、`MovaSlot`、`formatDuration`
-- Produces: `class MovaPreviewComponent extends MovaComp`（`name` = `'preview'`，`slot` = `MovaSlot.bottomAbove`）
+- Consumes: `IMovaApi`（含 Task 12 的 `preview`）、`MovaThumb`/`MovaThumbCrop`（Task 2）、`MovaUiSelect`、`MovaComponent`、`MovaSlot`、`formatDuration`
+- Produces: `class MovaPreviewComponent extends MovaComponent`（`name` = `'preview'`，`slot` = `MovaSlot.bottomAbove`）
 
 - [x] **Step 1: 写失败测试 `test/ui/preview_test.dart`**
 
@@ -5723,13 +5723,13 @@ void main() {
 }
 ```
 
-- [x] **Step 2: 追加失败测试到 `test/ui/skin_test.dart`**
+- [x] **Step 2: 追加失败测试到 `test/ui/ui_kit_test.dart`**
 
 在 `main()` 末尾追加：
 
 ```dart
   test('the default tree mounts the preview bubble in the bottomAbove slot', () {
-    final tree = const MovaDefSkin().components(const MovaState());
+    final tree = const MovaDefaultUiKit().components(const MovaState());
     final preview = tree.firstWhere((c) => c.name == 'preview');
     expect(preview.slot, MovaSlot.bottomAbove);
   });
@@ -5739,7 +5739,7 @@ void main() {
 
 - [x] **Step 3: 跑测试确认失败**
 
-Run: `flutter test test/ui/preview_test.dart test/ui/skin_test.dart`
+Run: `flutter test test/ui/preview_test.dart test/ui/ui_kit_test.dart`
 Expected: FAIL — `Error when reading 'lib/src/ui/components/preview.dart': No such file or directory`
 
 - [x] **Step 4: 实现 `lib/src/ui/components/preview.dart`**
@@ -5761,16 +5761,16 @@ import '../slots/slot.dart';
 ///
 /// Driven purely by [MovaUiState.previewAt] — both drag sources (the seek bar's
 /// `onChanged` and the gesture layer's horizontal drag) already publish it via
-/// `MovaApi.setDragging`, so this component needs no knowledge of either.
+/// `IMovaApi.setDragging`, so this component needs no knowledge of either.
 /// Replace it wholesale with `MovaPatch.replace('preview', MyBubble())`.
 ///
 /// 拖动预览气泡：一张缩略图加目标时间戳，拖动过程中浮在进度条正上方。
 ///
 /// 完全由 [MovaUiState.previewAt] 驱动——两个拖动来源（进度条的 `onChanged`
-/// 与手势层的横滑）都已经通过 `MovaApi.setDragging` 发布该字段，因此本组件
+/// 与手势层的横滑）都已经通过 `IMovaApi.setDragging` 发布该字段，因此本组件
 /// 无需感知它们中的任何一个。可用 `MovaPatch.replace('preview', MyBubble())`
 /// 整块替换。
-class MovaPreviewComponent extends MovaComp {
+class MovaPreviewComponent extends MovaComponent {
   /// Creates the preview-bubble component.
   ///
   /// 创建预览气泡组件。
@@ -5783,15 +5783,15 @@ class MovaPreviewComponent extends MovaComp {
   MovaSlot get slot => MovaSlot.bottomAbove;
 
   @override
-  Widget build(BuildContext context, MovaApi api, List<Widget> children) =>
+  Widget build(BuildContext context, IMovaApi api, List<Widget> children) =>
       _PreviewBubble(api: api);
 }
 
 /// Stateful body of [MovaPreviewComponent]: tracks the scrub position from
-/// [MovaApi.uiStates] and the resolved thumbnail from `MovaApi.preview.thumbs`.
+/// [IMovaApi.uiStates] and the resolved thumbnail from `IMovaApi.preview.thumbs`.
 ///
-/// [MovaPreviewComponent] 的有状态主体：从 [MovaApi.uiStates] 跟踪拖动位置，从
-/// `MovaApi.preview.thumbs` 跟踪已解析的缩略图。
+/// [MovaPreviewComponent] 的有状态主体：从 [IMovaApi.uiStates] 跟踪拖动位置，从
+/// `IMovaApi.preview.thumbs` 跟踪已解析的缩略图。
 class _PreviewBubble extends StatefulWidget {
   /// Creates the bubble widget.
   ///
@@ -5805,7 +5805,7 @@ class _PreviewBubble extends StatefulWidget {
   /// The capability surface this bubble reads from.
   ///
   /// 该气泡读取的能力面。
-  final MovaApi api;
+  final IMovaApi api;
 
   @override
   State<_PreviewBubble> createState() => _PreviewBubbleState();
@@ -5995,9 +5995,9 @@ class _PreviewBubbleState extends State<_PreviewBubble> {
 }
 ```
 
-- [x] **Step 5: 挂进默认皮肤**
+- [x] **Step 5: 挂进默认 UI 套件**
 
-`lib/src/ui/skins/default_skin.dart`：import 区加 `import '../components/preview.dart';`；
+`lib/src/ui/ui_kits/default_ui_kit.dart`：import 区加 `import '../components/preview.dart';`；
 `components()` 的列表里，在 `s.type == MovaStreamType.live ? LiveBarComponent() : MovaBottomBarComponent(),`
 **之前**插入 `MovaPreviewComponent(),`（`bottomAbove` 在 `assemble` 里已排在 `bottom` 之上）。
 
@@ -6012,7 +6012,7 @@ export 'src/ui/components/preview.dart';
 - [x] **Step 7: 跑测试与分析**
 
 Run: `flutter test && flutter analyze`
-Expected: preview 8 项 + skin 追加 1 项 PASS，累计 199 项全绿，analyze 0 issues
+Expected: preview 8 项 + UI 套件追加 1 项 PASS，累计 199 项全绿，analyze 0 issues
 
 - [x] **Step 8: Commit**
 
@@ -6026,20 +6026,20 @@ git commit -m "feat(mova): add scrub preview bubble component in the bottomAbove
 ## Task 14: example 接入与 Windows 实跑验证
 
 DESIGN §12 阶段 B 的出口条件之一：「Windows 实跑可见气泡」。example 已经在用
-`createMovaEngine()`（`_engine = createMovaEngine();`，`9c2d4f0` 切过去的），本任务只是给这个
-调用加上 Task 12 新增的预览配置参数，不涉及从裸 `MovaEngine()` 切换。
+`createMova()`（`_mova = createMova();`，`9c2d4f0` 切过去的），本任务只是给这个
+调用加上 Task 12 新增的预览配置参数，不涉及从裸 `Mova()` 切换。
 
 **Files:**
 - Modify: `example/lib/main.dart`
 - Test: 无新增单测（这是实跑验证）
 
 **Interfaces:**
-- Consumes: `createMovaEngine`（已存在，Task 12 扩展）、`MovaPrevConfig`（Task 10）、`MovaPreviewComponent`（Task 13）
+- Consumes: `createMova`（已存在，Task 12 扩展）、`MovaPreviewOpts`（Task 10）、`MovaPreviewComponent`（Task 13）
 - Produces: 可实跑的预览 demo
 
-- [x] **Step 1: 给 example 现有的 `createMovaEngine()` 调用加预览网络策略**
+- [x] **Step 1: 给 example 现有的 `createMova()` 调用加预览网络策略**
 
-`example/lib/main.dart` 的 `initState()`（当前是 `_engine = createMovaEngine();`，无参数）：
+`example/lib/main.dart` 的 `initState()`（当前是 `_mova = createMova();`，无参数）：
 
 ```dart
   @override
@@ -6051,17 +6051,17 @@ DESIGN §12 阶段 B 的出口条件之一：「Windows 实跑可见气泡」。
     //
     // demo 在桌面/模拟器上跑，网络类型不确定，故把预览网络策略放宽为
     // `always`；生产环境默认是 `wifiOnly`。
-    _engine = createMovaEngine(
+    _mova = createMova(
       options: const MovaOpts(
-        preview: MovaPrevConfig(network: MovaPrevNet.always),
+        preview: MovaPreviewOpts(network: MovaPreviewNet.always),
       ),
     );
-    _engine.open(_demos[_index].source);
+    _mova.open(_demos[_index].source);
   }
 ```
 
 顶部 import 保持 `import 'package:mova/mova.dart';` 即可（barrel 已导出
-`createMovaEngine`、`MovaPrevConfig`、`MovaPrevNet`）。
+`createMova`、`MovaPreviewOpts`、`MovaPreviewNet`）。
 
 - [x] **Step 2: 在 AppBar 上加一个"关闭预览"开关，验证配置项真的生效**
 
@@ -6074,31 +6074,31 @@ DESIGN §12 阶段 B 的出口条件之一：「Windows 实跑可见气泡」。
   bool _previewOn = true;
 ```
 
-`_engine` 改为可重建：把 `late final MovaEngine _engine;` 改成 `late MovaEngine _engine;`，
+`_mova` 改为可重建：把 `late final Mova _mova;` 改成 `late Mova _mova;`，
 并加一个重建方法：
 
 ```dart
-  /// Rebuilds the engine with preview switched to [on], reopening the current
+  /// Rebuilds the player with preview switched to [on], reopening the current
   /// demo source.
   ///
-  /// 以预览开关 [on] 重建 engine，并重新打开当前演示源。
+  /// 以预览开关 [on] 重建播放器，并重新打开当前演示源。
   ///
   /// - [on]: whether the preview bubble should be enabled / 是否启用预览气泡
   Future<void> _togglePreview(bool on) async {
-    final old = _engine;
+    final old = _mova;
     setState(() {
       _previewOn = on;
-      _engine = createMovaEngine(
+      _mova = createMova(
         options: MovaOpts(
-          preview: MovaPrevConfig(
+          preview: MovaPreviewOpts(
             enabled: on,
-            network: MovaPrevNet.always,
+            network: MovaPreviewNet.always,
           ),
         ),
       );
     });
     await old.dispose();
-    await _engine.open(_demos[_index].source);
+    await _mova.open(_demos[_index].source);
   }
 ```
 
@@ -6139,7 +6139,7 @@ Expected: 0 issues，199 项全绿
 
 ```bash
 git add -A
-git commit -m "feat(mova): wire example to createMovaEngine with a preview toggle"
+git commit -m "feat(mova): wire example to createMova with a preview toggle"
 ```
 
 ---
@@ -6162,7 +6162,7 @@ DESIGN §6 的硬约束要求「review 时逐条对账」。本任务把 §6.1 �
 
 ```dart
 // A row-by-row audit of DESIGN-0.2.0 section 6.1: every decision mova
-// makes for the user must ship a default, a config knob, and — when the
+// makes for the user must ship a default, an opts knob, and — when the
 // decision is a strategy — an injection point. This test fails loudly if a
 // later change drops any of the three.
 //
@@ -6175,7 +6175,7 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mova/src/core/model/source.dart';
 import 'package:mova/src/core/options/options.dart';
-import 'package:mova/src/core/options/preview_config.dart';
+import 'package:mova/src/core/options/preview_opts.dart';
 import 'package:mova/src/core/preview/cache.dart';
 import 'package:mova/src/core/preview/dir_provider.dart';
 import 'package:mova/src/core/preview/extractor.dart';
@@ -6184,13 +6184,13 @@ import 'package:mova/src/core/preview/net_probe.dart';
 import 'package:mova/src/core/preview/platform_kind.dart';
 import 'package:mova/src/core/preview/source.dart';
 import 'package:mova/src/ui/components/preview.dart';
-import 'package:mova/src/ui/skins/default_skin.dart';
+import 'package:mova/src/ui/ui_kits/default_ui_kit.dart';
 import 'package:mova/src/ui/slots/patch.dart';
 
-/// A minimal [MovaThumbSource] used to prove the source chain is replaceable.
+/// A minimal [IMovaThumbSource] used to prove the source chain is replaceable.
 ///
-/// 用于证明来源链可替换的最小 [MovaThumbSource]。
-class _NullSource implements MovaThumbSource {
+/// 用于证明来源链可替换的最小 [IMovaThumbSource]。
+class _NullSource implements IMovaThumbSource {
   @override
   String get name => 'null';
 
@@ -6204,10 +6204,10 @@ class _NullSource implements MovaThumbSource {
   Future<void> dispose() async {}
 }
 
-/// A minimal [MovaThumbCache] used to prove the cache is replaceable.
+/// A minimal [IMovaThumbCache] used to prove the cache is replaceable.
 ///
-/// 用于证明缓存可替换的最小 [MovaThumbCache]。
-class _NullCache implements MovaThumbCache {
+/// 用于证明缓存可替换的最小 [IMovaThumbCache]。
+class _NullCache implements IMovaThumbCache {
   @override
   Uint8List? peek(String key) => null;
 
@@ -6224,10 +6224,10 @@ class _NullCache implements MovaThumbCache {
   Future<void> dispose() async {}
 }
 
-/// A minimal [MovaFramePuller] used to prove extraction is replaceable.
+/// A minimal [IMovaFramePuller] used to prove extraction is replaceable.
 ///
-/// 用于证明抽帧可替换的最小 [MovaFramePuller]。
-class _NullExtractor implements MovaFramePuller {
+/// 用于证明抽帧可替换的最小 [IMovaFramePuller]。
+class _NullExtractor implements IMovaFramePuller {
   @override
   Future<Uint8List?> extract(
     String uri,
@@ -6247,21 +6247,21 @@ class _NullExtractor implements MovaFramePuller {
 void main() {
   group('DESIGN 6.1 row: network policy', () {
     test('default is wifiOnly, knob is network, strategy is probe', () {
-      expect(const MovaPrevConfig().network, MovaPrevNet.wifiOnly);
+      expect(const MovaPreviewOpts().network, MovaPreviewNet.wifiOnly);
       expect(
-        const MovaPrevConfig(network: MovaPrevNet.never).network,
-        MovaPrevNet.never,
+        const MovaPreviewOpts(network: MovaPreviewNet.never).network,
+        MovaPreviewNet.never,
       );
-      expect(MovaPrevConfig(probe: MovaAlwaysAllowNetProbe()).probe, isA<MovaNetProbe>());
+      expect(MovaPreviewOpts(probe: MovaAlwaysAllowNetProbe()).probe, isA<IMovaNetProbe>());
     });
   });
 
   group('DESIGN 6.1 row: blocked notification', () {
     test('default is silence, strategy is onBlocked', () {
-      expect(const MovaPrevConfig().onBlocked, isNull);
+      expect(const MovaPreviewOpts().onBlocked, isNull);
       var seen = false;
-      MovaPrevConfig(onBlocked: (_) => seen = true).onBlocked!(
-        MovaPrevBlockReason.network,
+      MovaPreviewOpts(onBlocked: (_) => seen = true).onBlocked!(
+        MovaPreviewBlockReason.network,
       );
       expect(seen, isTrue);
     });
@@ -6269,45 +6269,45 @@ void main() {
 
   group('DESIGN 6.1 row: thumbnail sources', () {
     test('default chain is implicit, knob is vttEnabled/extractFallback, strategy is sources', () {
-      const d = MovaPrevConfig();
+      const d = MovaPreviewOpts();
       expect(d.sources, isNull, reason: 'null means the built-in [vtt, extract] chain');
       expect(d.vttEnabled, isTrue);
       expect(d.extractFallback, isTrue);
-      expect(const MovaPrevConfig(vttEnabled: false).vttEnabled, isFalse);
-      expect(const MovaPrevConfig(extractFallback: false).extractFallback, isFalse);
-      expect(MovaPrevConfig(sources: [_NullSource()]).sources, hasLength(1));
+      expect(const MovaPreviewOpts(vttEnabled: false).vttEnabled, isFalse);
+      expect(const MovaPreviewOpts(extractFallback: false).extractFallback, isFalse);
+      expect(MovaPreviewOpts(sources: [_NullSource()]).sources, hasLength(1));
     });
   });
 
   group('DESIGN 6.1 row: vtt url', () {
     test('default is the .vtt convention, knob is vttUrl, strategy is vttUrlResolver', () {
-      expect(const MovaPrevConfig().vttUrl, isNull);
-      expect(const MovaPrevConfig(vttUrl: 'https://cdn/t.vtt').vttUrl, 'https://cdn/t.vtt');
-      final cfg = MovaPrevConfig(vttUrlResolver: (_) => Uri.parse('https://cdn/x.vtt'));
+      expect(const MovaPreviewOpts().vttUrl, isNull);
+      expect(const MovaPreviewOpts(vttUrl: 'https://cdn/t.vtt').vttUrl, 'https://cdn/t.vtt');
+      final cfg = MovaPreviewOpts(vttUrlResolver: (_) => Uri.parse('https://cdn/x.vtt'));
       expect(cfg.vttUrlResolver!(const MovaSource('a')), Uri.parse('https://cdn/x.vtt'));
     });
   });
 
   group('DESIGN 6.1 row: extraction fallback', () {
     test('default on, knobs are extractFallback/extractPlatforms, strategy is extractor', () {
-      const d = MovaPrevConfig();
+      const d = MovaPreviewOpts();
       expect(d.extractFallback, isTrue);
-      expect(d.extractPlatforms, MovaPlatKind.values.toSet());
+      expect(d.extractPlatforms, MovaPlatformKind.values.toSet());
       expect(
-        const MovaPrevConfig(extractPlatforms: {MovaPlatKind.windows}).extractPlatforms,
-        {MovaPlatKind.windows},
+        const MovaPreviewOpts(extractPlatforms: {MovaPlatformKind.windows}).extractPlatforms,
+        {MovaPlatformKind.windows},
       );
-      expect(MovaPrevConfig(extractor: _NullExtractor()).extractor, isA<MovaFramePuller>());
+      expect(MovaPreviewOpts(extractor: _NullExtractor()).extractor, isA<IMovaFramePuller>());
     });
   });
 
   group('DESIGN 6.1 row: frame width / bucket / hwdec', () {
     test('defaults are 160px, 10s and software decoding, each configurable', () {
-      const d = MovaPrevConfig();
+      const d = MovaPreviewOpts();
       expect(d.frameWidth, 160);
       expect(d.bucket, const Duration(seconds: 10));
       expect(d.hwdec, isFalse);
-      const c = MovaPrevConfig(
+      const c = MovaPreviewOpts(
         frameWidth: 320,
         bucket: Duration(seconds: 5),
         hwdec: true,
@@ -6320,47 +6320,47 @@ void main() {
 
   group('DESIGN 6.1 row: memory ceiling', () {
     test('default 40 entries, knob memMaxEntries, strategy cache', () {
-      expect(const MovaPrevConfig().memMaxEntries, 40);
-      expect(const MovaPrevConfig(memMaxEntries: 5).memMaxEntries, 5);
-      expect(MovaPrevConfig(cache: _NullCache()).cache, isA<MovaThumbCache>());
+      expect(const MovaPreviewOpts().memMaxEntries, 40);
+      expect(const MovaPreviewOpts(memMaxEntries: 5).memMaxEntries, 5);
+      expect(MovaPreviewOpts(cache: _NullCache()).cache, isA<IMovaThumbCache>());
     });
   });
 
   group('DESIGN 6.1 row: disk ceiling and directory', () {
     test('defaults 64MB and temp dir, knobs diskMaxBytes/diskDir, strategies cache/dirProvider', () {
-      const d = MovaPrevConfig();
+      const d = MovaPreviewOpts();
       expect(d.diskMaxBytes, 64 * 1024 * 1024);
       expect(d.diskDir, isNull, reason: 'null means the platform temp directory');
-      expect(const MovaPrevConfig(diskMaxBytes: 1024).diskMaxBytes, 1024);
-      expect(const MovaPrevConfig(diskDir: '/tmp/x').diskDir, '/tmp/x');
+      expect(const MovaPreviewOpts(diskMaxBytes: 1024).diskMaxBytes, 1024);
+      expect(const MovaPreviewOpts(diskDir: '/tmp/x').diskDir, '/tmp/x');
       expect(
-        const MovaPrevConfig(dirProvider: MovaFixedThumbDirProvider('/tmp/y')).dirProvider,
-        isA<MovaThumbDirProv>(),
+        const MovaPreviewOpts(dirProvider: MovaFixedThumbDirProvider('/tmp/y')).dirProvider,
+        isA<IMovaThumbDirProvider>(),
       );
     });
   });
 
   group('DESIGN 6.1 row: cache key', () {
     test('default is the built-in hash, strategy is cacheKeyBuilder', () {
-      expect(const MovaPrevConfig().cacheKeyBuilder, isNull);
-      final cfg = MovaPrevConfig(cacheKeyBuilder: (s, b, w) => 'k');
+      expect(const MovaPreviewOpts().cacheKeyBuilder, isNull);
+      final cfg = MovaPreviewOpts(cacheKeyBuilder: (s, b, w) => 'k');
       expect(cfg.cacheKeyBuilder!('a', 1, 2), 'k');
     });
   });
 
   group('DESIGN 6.1 row: clear on dispose', () {
     test('default on, knob clearOnDispose, strategy cache', () {
-      expect(const MovaPrevConfig().clearOnDispose, isTrue);
-      expect(const MovaPrevConfig(clearOnDispose: false).clearOnDispose, isFalse);
-      expect(MovaPrevConfig(cache: _NullCache()).cache, isA<MovaThumbCache>());
+      expect(const MovaPreviewOpts().clearOnDispose, isTrue);
+      expect(const MovaPreviewOpts(clearOnDispose: false).clearOnDispose, isFalse);
+      expect(MovaPreviewOpts(cache: _NullCache()).cache, isA<IMovaThumbCache>());
     });
   });
 
   group('DESIGN 6.1 row: request debounce', () {
     test('default 120ms and configurable', () {
-      expect(const MovaPrevConfig().debounce, const Duration(milliseconds: 120));
+      expect(const MovaPreviewOpts().debounce, const Duration(milliseconds: 120));
       expect(
-        const MovaPrevConfig(debounce: Duration.zero).debounce,
+        const MovaPreviewOpts(debounce: Duration.zero).debounce,
         Duration.zero,
       );
     });
@@ -6369,7 +6369,7 @@ void main() {
   group('DESIGN 6.1 row: bubble appearance', () {
     test('default component is addressable and replaceable by patch', () {
       expect(MovaPreviewComponent().name, 'preview');
-      final patched = MovaDefSkin(
+      final patched = MovaDefaultUiKit(
         patches: [MovaPatch.remove('preview')],
       ).components(const MovaState());
       expect(patched.where((c) => c.name == 'preview'), isEmpty);
@@ -6378,8 +6378,8 @@ void main() {
 
   test('MovaOpts carries the preview section and copyWith keeps it isolated', () {
     const o = MovaOpts();
-    expect(o.preview, const MovaPrevConfig());
-    expect(o.copyWith(preview: const MovaPrevConfig(frameWidth: 99)).gesture, o.gesture);
+    expect(o.preview, const MovaPreviewOpts());
+    expect(o.copyWith(preview: const MovaPreviewOpts(frameWidth: 99)).gesture, o.gesture);
   });
 }
 ```
@@ -6403,14 +6403,14 @@ Expected: 13 项 PASS，analyze 0 issues。
 - 拖动进度条或横滑手势时，在进度条上方显示目标时刻的缩略图气泡（`MovaPreviewComponent`，
   挂在 `MovaSlot.bottomAbove`，可用 `MovaPatch.replace('preview', …)` 整块替换）。
 - 缩略图来源按序：服务端 WebVTT 雪碧图（约定 `<video-url>.vtt`，支持 `#xywh` 裁剪）→
-  libmpv 隐藏 `Player` 抽帧兜底。可用 `MovaPrevConfig.sources` 整链替换。
+  libmpv 隐藏 `Player` 抽帧兜底。可用 `MovaPreviewOpts.sources` 整链替换。
 - 两级缓存：内存计数 LRU（默认 40 项）+ 磁盘字节 LRU（默认 64MB，临时目录），
   `dispose()` 默认清盘。
 - 网络策略默认 `wifiOnly`，由 `connectivity_plus` 探针判定；未知连接与桌面一律放行。
-  被拦时静默不请求，只发 `MovaPrevBlock` 事件并回调 `onBlocked`。
-- `MovaApi.preview`（`MovaPrevApi`）、`MovaOpts.preview`（`MovaPrevConfig`）、
-  `MovaPrevBlock` 事件为新增公开 API。
-- 扩展 `createMovaEngine()`（已在阶段 A 收尾的平台适配器接线修复中随 brightness/PiP/orientation
+  被拦时静默不请求，只发 `MovaPreviewBlock` 事件并回调 `onBlocked`。
+- `IMovaApi.preview`（`IMovaPreviewApi`）、`MovaOpts.preview`（`MovaPreviewOpts`）、
+  `MovaPreviewBlock` 事件为新增公开 API。
+- 扩展 `createMova()`（已在阶段 A 收尾的平台适配器接线修复中随 brightness/PiP/orient
   一起加入）：新增 `thumbDir`/`extractor`/`fetcher` 三个可选参数，缺省接入缩略图目录、抽帧器、
   网络探针的真实实现，用于本阶段的拖动预览功能。
 
@@ -6428,10 +6428,10 @@ Expected: 13 项 PASS，analyze 0 issues。
 ## 拖动预览
 
 ```dart
-final engine = createMovaEngine(
+final mova = createMova(
   options: const MovaOpts(
-    preview: MovaPrevConfig(
-      network: MovaPrevNet.wifiOnly, // 默认；always / never 可选
+    preview: MovaPreviewOpts(
+      network: MovaPreviewNet.wifiOnly, // 默认；always / never 可选
       frameWidth: 160,                    // 缩略图宽度
       bucket: Duration(seconds: 10),      // 桶大小，同桶复用同一张图
       memMaxEntries: 40,                  // 内存 LRU 条目上限
@@ -6446,8 +6446,8 @@ final engine = createMovaEngine(
 
 ```dart
 MovaPlayer(
-  api: engine,
-  skin: MovaDefSkin(patches: [MovaPatch.replace('preview', MyBubble())]),
+  api: mova,
+  uiKit: MovaDefaultUiKit(patches: [MovaPatch.replace('preview', MyBubble())]),
 )
 ```
 ````
@@ -6455,8 +6455,8 @@ MovaPlayer(
 - [x] **Step 5: 更新 `doc/SPEC.md`**
 
 把「阶段 B：拖动预览——未开始」那条改成「已完成」，并补一段实现现状：文件清单、
-`MovaApi.preview` / `MovaOpts.preview` / `MovaPrevBlock` 三个新公开面、
-抽帧路线（引用附录 A 的结论）、以及 `createMovaEngine()` 在本阶段新增的 `thumbDir`/
+`IMovaApi.preview` / `MovaOpts.preview` / `MovaPreviewBlock` 三个新公开面、
+抽帧路线（引用附录 A 的结论）、以及 `createMova()` 在本阶段新增的 `thumbDir`/
 `extractor`/`fetcher` 三个预览端口参数。
 
 - [x] **Step 6: 最终校验**

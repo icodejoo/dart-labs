@@ -28,10 +28,10 @@ Future<void> run() async {
     ]) {
       final k = MovaTestKernel(nativeRestartAvailable: native);
       final reports = <MovaReportEvent>[];
-      final a = MovaEngine(
+      final a = Mova(
         kernel: k,
         options: MovaOpts(
-          report: MovaReportConfig(
+          report: MovaReportOpts(
             qoe: true,
             minStall: Duration.zero,
             truncatedBelow: end == 'disabled' ? 0 : .9,
@@ -169,10 +169,10 @@ Future<void> run() async {
   }
   final reports = <MovaReportEvent>[];
   final k = MovaTestKernel();
-  final a = MovaEngine(
+  final a = Mova(
     kernel: k,
     options: const MovaOpts(
-      report: MovaReportConfig(
+      report: MovaReportOpts(
         qoe: true,
         heartbeat: Duration(milliseconds: 10),
       ),
@@ -282,7 +282,7 @@ Future<void> seekRetry() async {
         }
 
         final k = DropSeekKernel(drops);
-        final a = MovaEngine(kernel: k);
+        final a = Mova(kernel: k);
         final progress = <int>[];
         final sub = a.progress.listen(
           (p) => progress.add(p.position.inMilliseconds),
@@ -359,9 +359,9 @@ Future<void> reportedErrors() async {
     for (final after in [false, true]) {
       final k = LogKernel();
       final reports = <MovaReportEvent>[];
-      final a = MovaEngine(
+      final a = Mova(
         kernel: k,
-        options: const MovaOpts(report: MovaReportConfig(qoe: true)),
+        options: const MovaOpts(report: MovaReportOpts(qoe: true)),
         reporter: MovaCallbackReporter(reports.add),
       );
       try {

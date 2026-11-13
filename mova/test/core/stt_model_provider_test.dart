@@ -7,7 +7,7 @@ import 'package:mova/src/core/stt/model_dir_provider.dart';
 import 'package:mova/src/core/stt/model_provider.dart';
 import 'package:mova/src/core/stt/model_spec.dart';
 
-class _FakeFetcher implements MovaHttpFetch {
+class _FakeFetcher implements IMovaHttpFetch {
   final Map<String, Uint8List?> responses;
   final List<Uri> requested = [];
   _FakeFetcher(this.responses);

@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mova/src/core/events/events.dart';
 import 'package:mova/src/core/model/source.dart';
-import 'package:mova/src/core/options/report_config.dart';
+import 'package:mova/src/core/options/report_opts.dart';
 import 'package:mova/src/core/report/collector.dart';
 import 'package:mova/src/core/report/error_policy.dart';
 import 'package:mova/src/core/report/report.dart';
@@ -16,7 +16,7 @@ import '../support/fake_api.dart';
 /// consulted rather than the default silently winning.
 ///
 /// 记录每次调用的卡顿策略，供测试证明它真被使用，而非默认实现悄悄生效。
-class _RecordingStall implements MovaStallPolicy {
+class _RecordingStall implements IMovaStallPolicy {
   int calls = 0;
 
   @override
@@ -32,7 +32,7 @@ class _RecordingStall implements MovaStallPolicy {
 /// An error policy that records every call.
 ///
 /// 记录每次调用的错误策略。
-class _RecordingError implements MovaErrorPolicy {
+class _RecordingError implements IMovaErrorPolicy {
   int calls = 0;
 
   @override
@@ -45,11 +45,11 @@ class _RecordingError implements MovaErrorPolicy {
 void main() {
   group(
     'telemetry-enhancement openness contract — every replace-the-user-decision '
-    'row needs default + config knob + injectable policy',
+    'row needs default + opts knob + injectable policy',
     () {
       group('injection points', () {
         test('stallPolicy: default is MovaEdgeStall, injecting one replaces it and it is really consulted', () async {
-          expect(const MovaReportConfig().newStallPolicy(), isA<MovaEdgeStall>());
+          expect(const MovaReportOpts().newStallPolicy(), isA<MovaEdgeStall>());
 
           final recording = _RecordingStall();
           final events = StreamController<MovaEvent>.broadcast();
@@ -57,7 +57,7 @@ void main() {
           final collector = MovaQoeCollector(
             events: events.stream,
             reporter: MovaCallbackReporter((_) {}),
-            config: MovaReportConfig(qoe: true, stallPolicy: recording),
+            opts: MovaReportOpts(qoe: true, stallPolicy: recording),
             probe: probe,
           );
           collector.onOpen(const MovaSource('https://host/a.mp4'), autoPlay: true);
@@ -73,14 +73,14 @@ void main() {
         });
 
         test('errorPolicy: default is MovaPrefixError, injecting one replaces it and it is really consulted', () async {
-          expect(const MovaReportConfig().effectiveErrorPolicy, isA<MovaPrefixError>());
+          expect(const MovaReportOpts().effectiveErrorPolicy, isA<MovaPrefixError>());
 
           final recording = _RecordingError();
           final events = StreamController<MovaEvent>.broadcast();
           final collector = MovaQoeCollector(
             events: events.stream,
             reporter: MovaCallbackReporter((_) {}),
-            config: MovaReportConfig(qoe: true, errorPolicy: recording),
+            opts: MovaReportOpts(qoe: true, errorPolicy: recording),
           );
           collector.onOpen(const MovaSource('https://host/a.mp4'), autoPlay: true);
           events.add(MovaErrorEvent(Exception('boom')));
@@ -91,7 +91,7 @@ void main() {
         });
 
         test('sessionId: default is newMovaSessionId, injecting a factory replaces it and it is really consulted', () async {
-          expect(const MovaReportConfig().effectiveSessionIdFactory, newMovaSessionId);
+          expect(const MovaReportOpts().effectiveSessionIdFactory, newMovaSessionId);
 
           var calls = 0;
           String factory() {
@@ -104,7 +104,7 @@ void main() {
           final collector = MovaQoeCollector(
             events: events.stream,
             reporter: MovaCallbackReporter(received.add),
-            config: MovaReportConfig(qoe: true, sessionId: factory),
+            opts: MovaReportOpts(qoe: true, sessionId: factory),
           );
           collector.onOpen(const MovaSource('https://host/a.mp4'), autoPlay: true);
           await Future<void>.delayed(Duration.zero);
@@ -115,15 +115,15 @@ void main() {
         });
       });
 
-      group('config knobs', () {
+      group('opts knobs', () {
         test('qoe: default false, event stream identical to legacy translator until flipped', () async {
-          expect(const MovaReportConfig().qoe, isFalse);
+          expect(const MovaReportOpts().qoe, isFalse);
           final events = StreamController<MovaEvent>.broadcast();
           final received = <MovaReportEvent>[];
           final collector = MovaQoeCollector(
             events: events.stream,
             reporter: MovaCallbackReporter(received.add),
-            config: const MovaReportConfig(),
+            opts: const MovaReportOpts(),
           );
           collector.onOpen(const MovaSource('https://host/a.mp4'), autoPlay: true);
           events.add(const MovaSourceChange(MovaSource('https://host/a.mp4')));
@@ -134,14 +134,14 @@ void main() {
         });
 
         test('minStall: default 200ms, feeds MovaEdgeStall when no policy is injected', () {
-          expect(const MovaReportConfig().minStall, const Duration(milliseconds: 200));
-          final policy = const MovaReportConfig(minStall: Duration(seconds: 1)).newStallPolicy() as MovaEdgeStall;
+          expect(const MovaReportOpts().minStall, const Duration(milliseconds: 200));
+          final policy = const MovaReportOpts(minStall: Duration(seconds: 1)).newStallPolicy() as MovaEdgeStall;
           expect(policy.minStall, const Duration(seconds: 1));
         });
 
         test('heartbeat: default null (no Timer at all), non-null enables periodic emission', () {
-          expect(const MovaReportConfig().heartbeat, isNull);
-          expect(const MovaReportConfig(heartbeat: Duration(seconds: 5)).heartbeat, const Duration(seconds: 5));
+          expect(const MovaReportOpts().heartbeat, isNull);
+          expect(const MovaReportOpts(heartbeat: Duration(seconds: 5)).heartbeat, const Duration(seconds: 5));
         });
       });
     },

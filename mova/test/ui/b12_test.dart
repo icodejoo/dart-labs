@@ -10,7 +10,7 @@ void main() {
     await t.pumpWidget(
       MaterialApp(
         home: MovaFeedPlayer(
-          engineFactory: FakeMovaApi.new,
+          movaFactory: FakeMovaApi.new,
           prefetchDepth: 0,
           loader: (i) async {
             loads++;

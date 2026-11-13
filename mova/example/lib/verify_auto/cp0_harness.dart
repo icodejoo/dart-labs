@@ -18,7 +18,7 @@ typedef Cp0Script = Future<void> Function(Cp0Harness h);
 
 void cp0Main(String scene, Cp0Script script, {bool automatic = false}) {
   WidgetsFlutterBinding.ensureInitialized();
-  MovaEngine.ensureInitialized();
+  Mova.ensureInitialized();
   runApp(MaterialApp(home: Cp0Page(scene: scene, script: script, automatic: automatic || kAutoRun || coverageRunsOverride != null)));
 }
 
@@ -37,11 +37,11 @@ class Cp0Harness extends State<Cp0Page> with WidgetsBindingObserver {
   final records = <Map<String, Object?>>[];
   final subscriptions = <StreamSubscription<dynamic>>[];
   final acks = <String>{};
-  final positions = <MovaApi,Duration>{};
-  Duration position(MovaApi a) => positions[a] ?? Duration.zero;
+  final positions = <IMovaApi,Duration>{};
+  Duration position(IMovaApi a) => positions[a] ?? Duration.zero;
   final videoKey = GlobalKey();
   HttpServer? server;
-  MovaApi? api;
+  IMovaApi? api;
   bool rawVideo = false;
   bool backgroundPause = true;
   Axis? outerAxis;
@@ -69,7 +69,7 @@ class Cp0Harness extends State<Cp0Page> with WidgetsBindingObserver {
     });
   }
 
-  Map<String,Object?> snapshot([MovaApi? a]) {
+  Map<String,Object?> snapshot([IMovaApi? a]) {
     final s=(a??api)!.state;
     return {'positionMs':position(a??api!).inMilliseconds,'durationMs':s.duration.inMilliseconds,
       'playing':s.playing,'intent':s.playbackIntent,'buffering':s.buffering,
@@ -106,7 +106,7 @@ class Cp0Harness extends State<Cp0Page> with WidgetsBindingObserver {
     }
   }
 
-  void observe(MovaApi a) {
+  void observe(IMovaApi a) {
     subscriptions.add(a.progress.listen((p){positions[a]=p.position;}));
     subscriptions.add(a.events.listen((e) {
     final payload = switch (e) {
@@ -124,7 +124,7 @@ class Cp0Harness extends State<Cp0Page> with WidgetsBindingObserver {
       MovaZoomChange() => {'zoom': e.zoom},
       MovaLockChange() => {'value': e.value},
       MovaFullScreenChange() => {'value': e.value},
-      MovaOrientationChange() => {'orientation': e.orientation.name},
+      MovaOrientChange() => {'orient': e.orient.name},
       MovaMiniChange() => {'mini': e.mini},
       MovaPipChange() => {'value': e.value},
       MovaQualityListChange() => {'qualities': e.qualities.map((q) => '${q.label}:${q.uri}').toList()},
@@ -155,7 +155,7 @@ class Cp0Harness extends State<Cp0Page> with WidgetsBindingObserver {
     'http://127.0.0.1:18190/$name.mp4?t=${DateTime.now().microsecondsSinceEpoch}${slow?'&slow=1':''}',
     type:live?MovaStreamType.live:MovaStreamType.vod,title:name);
 
-  Future<void> mount(MovaApi a, {bool raw=false, bool pause=true, Axis? axis}) async {
+  Future<void> mount(IMovaApi a, {bool raw=false, bool pause=true, Axis? axis}) async {
     api=a; rawVideo=raw; backgroundPause=pause; outerAxis=axis;
     pages?.dispose();pages=axis==null?null:PageController();pageIndex=0;
     observe(a);
@@ -179,15 +179,15 @@ class Cp0Harness extends State<Cp0Page> with WidgetsBindingObserver {
   Future<Map<String,Object?>> native() async {
     final deadline=clock.elapsedMilliseconds+10000;
     while(true) {
-      final active=api is MovaCutoverEngine?(api as MovaCutoverEngine).active:api!;
+      final active=api is MovaCutover?(api as MovaCutover).active:api!;
       final epoch=api!.state.renderEpoch;
       final controller=active.renderHandle as VideoController;
       final player=controller.player.platform as NativePlayer;
       final values=await Future.wait(['path','time-pos','pause','duration'].map(player.getProperty));
-      final stable=api is! MovaCutoverEngine||identical((api as MovaCutoverEngine).active,active);
+      final stable=api is! MovaCutover||identical((api as MovaCutover).active,active);
       if(stable&&values[0].isNotEmpty&&double.tryParse(values[1])!=null) {
         final r=<String,Object?>{'path':values[0],'timePosMs':(double.parse(values[1])*1000).round(),
-          'pause':values[2],'duration':values[3],'engine':identityHashCode(active),'epochAtRead':epoch,'state':snapshot()};
+          'pause':values[2],'duration':values[3],'mova':identityHashCode(active),'epochAtRead':epoch,'state':snapshot()};
         mark('NATIVE',r);return r;
       }
       mark('NATIVE_PENDING',{'properties':values,'activeStable':stable});
@@ -199,7 +199,7 @@ class Cp0Harness extends State<Cp0Page> with WidgetsBindingObserver {
   Future<void> manualAudioFocus() async {
     setState((){running=true;completed=false;});
     await release();
-    final a=createMovaEngine(preciseFirstFrame:true);
+    final a=createMova(preciseFirstFrame:true);
     await mount(a);
     final src=source('a');
     await call('open.manualAudioFocus',src.uri,()=>a.open(MovaSource(src.uri,

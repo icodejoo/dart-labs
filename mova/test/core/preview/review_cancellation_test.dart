@@ -19,7 +19,7 @@ class _Probe extends MovaAlwaysAllowNetProbe {
   }
 }
 
-class _Fetch implements MovaHttpFetch {
+class _Fetch implements IMovaHttpFetch {
   final urls = <Uri>[];
   @override
   Future<Uint8List?> get(Uri url) async {
@@ -32,7 +32,7 @@ class _Fetch implements MovaHttpFetch {
   Future<void> close() async {}
 }
 
-class _Puller implements MovaFramePuller {
+class _Puller implements IMovaFramePuller {
   final uris = <String>[];
   @override
   Future<Uint8List?> extract(String uri, Duration at, {required int width, required bool hwdec}) async {
@@ -50,19 +50,19 @@ Future<void> _turns() async {
   for (var i = 0; i < 10; i++) { await Future<void>.delayed(Duration.zero); }
 }
 
-MovaEngine _engine(String mode, _Probe probe, _Fetch fetch, _Puller puller) {
-  final engine = MovaEngine(kernel: FakeKernel(), fetcher: fetch,
+Mova _mova(String mode, _Probe probe, _Fetch fetch, _Puller puller) {
+  final mova = Mova(kernel: FakeKernel(), fetcher: fetch,
     options: MovaOpts(
-      controls: const MovaCtrlsConfig(autoHide: false),
-      abr: const MovaAbrConfig(probeVariants: false),
-      preview: MovaPreviewConfig(probe: probe, cache: MovaMemoryThumbCache(),
+      controls: const MovaCtrlsOpts(autoHide: false),
+      abr: const MovaAbrOpts(probeVariants: false),
+      preview: MovaPreviewOpts(probe: probe, cache: MovaMemoryThumbCache(),
         debounce: Duration.zero, vttEnabled: mode != 'extract',
         vttUrl: mode == 'sprite' ? 'file:///local.vtt' : null,
         extractor: mode == 'extract' ? puller : null,
         extractPlatforms: MovaPlatformKind.values.toSet()),
     ));
-  addTearDown(engine.dispose);
-  return engine;
+  addTearDown(mova.dispose);
+  return mova;
 }
 
 void main() {
@@ -72,17 +72,17 @@ void main() {
         final probe = _Probe();
         final fetch = _Fetch();
         final puller = _Puller();
-        final engine = _engine(mode, probe, fetch, puller);
-        final service = engine.preview as MovaPreviewService;
-        await engine.open(_source);
-        engine.preview.requestAt(const Duration(seconds: 12));
+        final mova = _mova(mode, probe, fetch, puller);
+        final service = mova.preview as MovaPreviewService;
+        await mova.open(_source);
+        mova.preview.requestAt(const Duration(seconds: 12));
         await probe.started.future;
         Future<void>? closing;
         var closedBeforeProbe = false;
         if (action == 'cancel') {
-          engine.preview.cancel();
+          mova.preview.cancel();
         } else if (action == 'attach') {
-          await engine.open(const MovaSource('https://host/b.mp4'));
+          await mova.open(const MovaSource('https://host/b.mp4'));
         } else {
           closing = service.dispose().then((_) { closedBeforeProbe = true; });
         }
@@ -93,7 +93,7 @@ void main() {
         await closing;
         expect(fetch.urls.map((u) => u.path), mode == 'sprite' ? ['/local.vtt'] : isEmpty);
         expect(puller.uris, isEmpty);
-        expect(engine.preview.current, isNull);
+        expect(mova.preview.current, isNull);
         if (action == 'dispose') expect(didClose, isTrue, reason: 'dispose 不等待探针');
       });
     }
@@ -102,15 +102,15 @@ void main() {
   test('review P2 same bucket replacement progresses while old probe is pending', () async {
     final probe = _Probe();
     final fetch = _Fetch();
-    final engine = _engine('track', probe, fetch, _Puller());
-    await engine.open(_source);
-    engine.preview.requestAt(const Duration(seconds: 12));
+    final mova = _mova('track', probe, fetch, _Puller());
+    await mova.open(_source);
+    mova.preview.requestAt(const Duration(seconds: 12));
     await probe.started.future;
-    engine.preview.requestAt(const Duration(seconds: 12));
+    mova.preview.requestAt(const Duration(seconds: 12));
     await _turns();
-    final replacement = engine.preview.current;
+    final replacement = mova.preview.current;
     probe.gate.complete(true);
-    await (engine.preview as MovaPreviewService).drain();
+    await (mova.preview as MovaPreviewService).drain();
     expect(replacement, isNotNull, reason: '新代际无需等旧探针返回');
     expect(fetch.urls.map((u) => u.path), ['/a.mp4.vtt', '/sprite.jpg']);
   });
@@ -120,9 +120,9 @@ void main() {
       final probe = _Probe();
       final fetch = _Fetch();
       final puller = _Puller();
-      final engine = _engine(mode, probe, fetch, puller);
-      await engine.open(_source);
-      final source = (engine.preview as MovaPreviewService).sources.single;
+      final mova = _mova(mode, probe, fetch, puller);
+      await mova.open(_source);
+      final source = (mova.preview as MovaPreviewService).sources.single;
       final result = expectLater(source.thumbAt(_source, const Duration(seconds: 12)),
         throwsA(isA<PreviewRequestCancelled>()));
       await probe.started.future;

@@ -21,22 +21,22 @@ void main() {
   const off = MovaHideReason.offscreen;
 
   test('1. hiding while playing pauses; hiding while not playing does nothing', () {
-    expect(_set(MovaAutoPauseGate(const MovaAutoPauseConfig()), off, true), MovaGuardAction.pause);
-    expect(_set(MovaAutoPauseGate(const MovaAutoPauseConfig()), off, true, playing: false), MovaGuardAction.none);
+    expect(_set(MovaAutoPauseGate(const MovaAutoPauseOpts()), off, true), MovaGuardAction.pause);
+    expect(_set(MovaAutoPauseGate(const MovaAutoPauseOpts()), off, true, playing: false), MovaGuardAction.none);
   });
 
   test('2. showing again resumes only if it was playing before hiding', () {
-    final g = MovaAutoPauseGate(const MovaAutoPauseConfig());
+    final g = MovaAutoPauseGate(const MovaAutoPauseOpts());
     _set(g, off, true);
     expect(_set(g, off, false, playing: false), MovaGuardAction.resume);
 
-    final idle = MovaAutoPauseGate(const MovaAutoPauseConfig());
+    final idle = MovaAutoPauseGate(const MovaAutoPauseOpts());
     _set(idle, off, true, playing: false);
     expect(_set(idle, off, false, playing: false), MovaGuardAction.none);
   });
 
   test('3. stacked reasons: dropping one stays hidden, dropping the last resumes', () {
-    final g = MovaAutoPauseGate(const MovaAutoPauseConfig());
+    final g = MovaAutoPauseGate(const MovaAutoPauseOpts());
     expect(_set(g, off, true), MovaGuardAction.pause);
     expect(_set(g, MovaHideReason.routeCovered, true, playing: false), MovaGuardAction.none);
     expect(g.reasons, {off, MovaHideReason.routeCovered});
@@ -47,41 +47,41 @@ void main() {
   });
 
   test('4. exempt (pip / mini): neither pauses on hide nor resumes on show', () {
-    final g = MovaAutoPauseGate(const MovaAutoPauseConfig());
+    final g = MovaAutoPauseGate(const MovaAutoPauseOpts());
     expect(_set(g, MovaHideReason.background, true, exempt: true), MovaGuardAction.none);
     expect(_set(g, MovaHideReason.background, false, exempt: true), MovaGuardAction.none);
   });
 
   test('5. resumeOnShow:false pauses but never resumes', () {
-    final g = MovaAutoPauseGate(const MovaAutoPauseConfig(resumeOnShow: false));
+    final g = MovaAutoPauseGate(const MovaAutoPauseOpts(resumeOnShow: false));
     expect(_set(g, off, true), MovaGuardAction.pause);
     expect(_set(g, off, false, playing: false), MovaGuardAction.none);
   });
 
   test('6. live + reloadEdge + hidden at least the grace period reloads the edge', () {
-    final g = MovaAutoPauseGate(const MovaAutoPauseConfig());
+    final g = MovaAutoPauseGate(const MovaAutoPauseOpts());
     _set(g, off, true, live: true);
     expect(_set(g, off, false, live: true, playing: false, at: const Duration(seconds: 3)), MovaGuardAction.reloadEdge);
   });
 
   test('7. live hidden for less than the grace period just resumes', () {
-    final g = MovaAutoPauseGate(const MovaAutoPauseConfig());
+    final g = MovaAutoPauseGate(const MovaAutoPauseOpts());
     _set(g, off, true, live: true);
     expect(_set(g, off, false, live: true, playing: false, at: const Duration(milliseconds: 2999)), MovaGuardAction.resume);
   });
 
   test('8. MovaLiveResume.resume and VOD always resume plainly', () {
-    final live = MovaAutoPauseGate(const MovaAutoPauseConfig(liveResume: MovaLiveResume.resume));
+    final live = MovaAutoPauseGate(const MovaAutoPauseOpts(liveResume: MovaLiveResume.resume));
     _set(live, off, true, live: true);
     expect(_set(live, off, false, live: true, playing: false, at: const Duration(minutes: 5)), MovaGuardAction.resume);
 
-    final vod = MovaAutoPauseGate(const MovaAutoPauseConfig());
+    final vod = MovaAutoPauseGate(const MovaAutoPauseOpts());
     _set(vod, off, true);
     expect(_set(vod, off, false, playing: false, at: const Duration(minutes: 5)), MovaGuardAction.resume);
   });
 
   test('9. the inactive snapshot survives the system pausing the player before hidden arrives', () {
-    final g = MovaAutoPauseGate(const MovaAutoPauseConfig());
+    final g = MovaAutoPauseGate(const MovaAutoPauseOpts());
     g.onInactive(playing: true);
     // By the time `hidden` lands, Android has already paused libmpv.
     _set(g, MovaHideReason.background, true, playing: false);
@@ -89,7 +89,7 @@ void main() {
   });
 
   test('10. inactive then resumed without hiding clears the snapshot', () {
-    final g = MovaAutoPauseGate(const MovaAutoPauseConfig());
+    final g = MovaAutoPauseGate(const MovaAutoPauseOpts());
     g.onInactive(playing: true);
     g.onResumed();
     // A later hide (the user had since paused) must not borrow the stale snapshot.
@@ -98,14 +98,14 @@ void main() {
   });
 
   test('11. a disabled kind is ignored entirely: offscreen with viewport:false never hides', () {
-    final g = MovaAutoPauseGate(const MovaAutoPauseConfig(viewport: false));
+    final g = MovaAutoPauseGate(const MovaAutoPauseOpts(viewport: false));
     expect(_set(g, off, true), MovaGuardAction.none);
     expect(g.hidden, isFalse);
     expect(g.reasons, isEmpty);
   });
 
   test('12. setting or clearing the same reason twice is idempotent', () {
-    final g = MovaAutoPauseGate(const MovaAutoPauseConfig());
+    final g = MovaAutoPauseGate(const MovaAutoPauseOpts());
     expect(_set(g, off, false), MovaGuardAction.none);
     expect(_set(g, off, true), MovaGuardAction.pause);
     expect(_set(g, off, true), MovaGuardAction.none);
@@ -115,11 +115,11 @@ void main() {
 
   // ---- keepAlive (hiddenMode) ----
 
-  const keepAliveCfg = MovaAutoPauseConfig(hiddenMode: MovaHiddenMode.keepAlive);
+  const keepAliveCfg = MovaAutoPauseOpts(hiddenMode: MovaHiddenMode.keepAlive);
 
-  /// Like [_set] but lets a case say whether the engine can hold a stream.
+  /// Like [_set] but lets a case say whether the player can hold a stream.
   ///
-  /// 与 [_set] 相同，但让用例指明引擎能否待机。
+  /// 与 [_set] 相同，但让用例指明播放器能否待机。
   MovaGuardAction sb(
     MovaAutoPauseGate g,
     MovaHideReason r,
@@ -132,7 +132,7 @@ void main() {
   }) =>
       g.update(r, active, playing: playing, live: live, exempt: exempt, now: _t0.add(at), keepAliveCapable: capable);
 
-  test('13. keepAlive mode + live + capable engine: hiding holds, showing wakes', () {
+  test('13. keepAlive mode + live + capable player: hiding holds, showing wakes', () {
     final g = MovaAutoPauseGate(keepAliveCfg);
     expect(sb(g, off, true), MovaGuardAction.keepAlive);
     expect(sb(g, off, false, playing: false), MovaGuardAction.wake);
@@ -144,7 +144,7 @@ void main() {
     expect(sb(g, off, false, live: false, playing: false), MovaGuardAction.resume);
   });
 
-  test('15. keepAlive mode with an engine that cannot hold pauses, and a long live pause reloads the edge', () {
+  test('15. keepAlive mode with a player that cannot hold pauses, and a long live pause reloads the edge', () {
     final g = MovaAutoPauseGate(keepAliveCfg);
     expect(sb(g, off, true, capable: false), MovaGuardAction.pause);
     expect(
@@ -178,7 +178,7 @@ void main() {
   });
 
   test('19. resumeOnShow:false still leaves keepAlive, by pausing', () {
-    final g = MovaAutoPauseGate(const MovaAutoPauseConfig(hiddenMode: MovaHiddenMode.keepAlive, resumeOnShow: false));
+    final g = MovaAutoPauseGate(const MovaAutoPauseOpts(hiddenMode: MovaHiddenMode.keepAlive, resumeOnShow: false));
     expect(sb(g, off, true), MovaGuardAction.keepAlive);
     expect(sb(g, off, false, playing: false), MovaGuardAction.pause);
   });
@@ -186,10 +186,10 @@ void main() {
   test('B6 reconfigure keepAlive to pause preserves the hidden cycle', () {
     final g = MovaAutoPauseGate(keepAliveCfg);
     expect(sb(g, off, true), MovaGuardAction.keepAlive);
-    expect(g.reconfigure(const MovaAutoPauseConfig(), playing: true,
+    expect(g.reconfigure(const MovaAutoPauseOpts(), playing: true,
         live: true, exempt: false, now: _t0.add(const Duration(seconds: 2)),
         keepAliveCapable: true), MovaGuardAction.pause);
-    expect(g.reconfigure(const MovaAutoPauseConfig(), playing: false,
+    expect(g.reconfigure(const MovaAutoPauseOpts(), playing: false,
         live: true, exempt: false, now: _t0.add(const Duration(seconds: 2)),
         keepAliveCapable: true), MovaGuardAction.none);
     expect(sb(g, off, false, playing: false, at: const Duration(seconds: 4)),
@@ -197,7 +197,7 @@ void main() {
   });
 
   test('B6 enabling background watch downgrades an already hidden keepAlive', () {
-    final g = MovaAutoPauseGate(const MovaAutoPauseConfig(
+    final g = MovaAutoPauseGate(const MovaAutoPauseOpts(
         hiddenMode: MovaHiddenMode.keepAlive, background: false));
     expect(sb(g, off, true), MovaGuardAction.keepAlive);
     expect(sb(g, MovaHideReason.background, true, playing: false), MovaGuardAction.none);
@@ -208,7 +208,7 @@ void main() {
   });
 
   test('B6 newly watched background uses inactive intent when reconfigured', () {
-    final g = MovaAutoPauseGate(const MovaAutoPauseConfig(background: false));
+    final g = MovaAutoPauseGate(const MovaAutoPauseOpts(background: false));
     g.onInactive(playing: true);
     expect(sb(g, MovaHideReason.background, true, playing: false), MovaGuardAction.none);
     expect(g.reconfigure(keepAliveCfg, playing: false, live: true,
@@ -217,14 +217,14 @@ void main() {
   });
 
   test('20. hiddenMode defaults to pause and takes part in == and hashCode', () {
-    expect(const MovaAutoPauseConfig().hiddenMode, MovaHiddenMode.pause);
-    expect(keepAliveCfg, isNot(const MovaAutoPauseConfig()));
-    expect(keepAliveCfg.hashCode, isNot(const MovaAutoPauseConfig().hashCode));
-    expect(keepAliveCfg, const MovaAutoPauseConfig(hiddenMode: MovaHiddenMode.keepAlive));
+    expect(const MovaAutoPauseOpts().hiddenMode, MovaHiddenMode.pause);
+    expect(keepAliveCfg, isNot(const MovaAutoPauseOpts()));
+    expect(keepAliveCfg.hashCode, isNot(const MovaAutoPauseOpts().hashCode));
+    expect(keepAliveCfg, const MovaAutoPauseOpts(hiddenMode: MovaHiddenMode.keepAlive));
   });
 
-  test('21. a play intent appearing mid-hide: pause mode (or an engine that cannot hold) still pauses', () {
-    final g = MovaAutoPauseGate(const MovaAutoPauseConfig());
+  test('21. a play intent appearing mid-hide: pause mode (or a player that cannot hold) still pauses', () {
+    final g = MovaAutoPauseGate(const MovaAutoPauseOpts());
     sb(g, off, true, playing: false);
     expect(g.observe(playing: true, exempt: false, live: true, keepAliveCapable: true), MovaGuardAction.pause);
     expect(sb(g, off, false, playing: false, at: const Duration(seconds: 4)), MovaGuardAction.reloadEdge);

@@ -3,10 +3,10 @@ import 'dart:async';
 import 'package:meta/meta.dart' show visibleForTesting;
 
 import '../api.dart';
-import '../cutover/ctl.dart';
+import '../cutover/api.dart';
 import '../model/ad.dart';
 import '../model/source.dart';
-import '../options/ad_config.dart';
+import '../options/ad_opts.dart';
 import '../session/session.dart';
 import '../session/timeline.dart';
 
@@ -30,39 +30,39 @@ MovaAdBreak? dueMidRoll(
   return movaDueMidRoll(breaks, position, played);
 }
 
-/// Orchestrates pre/mid/post-roll ads on top of a [MovaApi] by swapping the
+/// Orchestrates pre/mid/post-roll ads on top of a [IMovaApi] by swapping the
 /// playing source between the content and each ad break.
 ///
 /// Pure Dart (no Flutter dependency) so it stays unit-testable and lives in the
 /// core layer. Host-constructed and injected — call [load] instead of
-/// [MovaApi.open] to start content with its ads. Mid-roll saves the content
-/// position and resumes there after the ad (relying on the engine's parked-seek
+/// [IMovaApi.open] to start content with its ads. Mid-roll saves the content
+/// position and resumes there after the ad (relying on the player's parked-seek
 /// so the resume lands even before the resumed source reports a duration).
 /// Click-through is never navigated here — it is surfaced via
-/// [MovaAdConfig.onAdEvent].
+/// [MovaAdOpts.onAdEvent].
 ///
-/// 在 [MovaApi] 之上编排前/中/后贴片广告：在正片与各广告位之间切换正在播放的源。
+/// 在 [IMovaApi] 之上编排前/中/后贴片广告：在正片与各广告位之间切换正在播放的源。
 ///
 /// 纯 Dart（无 Flutter 依赖），可单测并归属核心层。由宿主构造并注入——用 [load]
-/// 代替 [MovaApi.open] 来带广告地起播正片。中插会保存正片位置并在广告后从该处续播
-/// （依赖 engine 的 seek 寄存，使续播位置在被续播源尚未报告时长前也能落地）。
-/// 点击跳转不会在此处执行——经 [MovaAdConfig.onAdEvent] 暴露给宿主。
+/// 代替 [IMovaApi.open] 来带广告地起播正片。中插会保存正片位置并在广告后从该处续播
+/// （依赖播放器的 seek 寄存，使续播位置在被续播源尚未报告时长前也能落地）。
+/// 点击跳转不会在此处执行——经 [MovaAdOpts.onAdEvent] 暴露给宿主。
 ///
 /// 与播放列表组合时使用 `MovaPlaylist(api, ads: ads)` 共享会话。
 /// 新代码推荐直接使用 [MovaSession]；本类长期保留为薄适配器。
 class MovaAds {
-  /// Creates a controller bound to [api], seeded from [MovaOpts.ads].
+  /// Creates an ads orchestrator bound to [api], seeded from [MovaOpts.ads].
   ///
-  /// [cutover] enables seamless ad→content swaps: it should be the same
-  /// [MovaCutoverEngine] passed as [api], so the controller can drive it to
+  /// [cutover] enables seamless ad→content cutovers: it should be the same
+  /// [MovaCutover] passed as [api], so the orchestrator can drive it to
   /// warm the content up before the ad ends. Omit it (or pass an [api] that
-  /// is not a cutover engine) to keep today's plain `open()` behaviour.
+  /// is not a cutover player) to keep today's plain `open()` behaviour.
   ///
-  /// 创建绑定到 [api] 的控制器，初值取自 [MovaOpts.ads]。
+  /// 创建绑定到 [api] 的广告编排对象，初值取自 [MovaOpts.ads]。
   ///
   /// [cutover] 用于开启广告→正片的无缝切换：它应当就是同时作为 [api] 传入的那个
-  /// `MovaCutoverEngine`，使控制器能驱动它在广告结束前预热正片。省略它（或传入
-  /// 非切换引擎的 [api]）即保持今天的普通 `open()` 行为。
+  /// `MovaCutover`，使编排对象能驱动它在广告结束前预热正片。省略它（或传入
+  /// 非切换播放器的 [api]）即保持今天的普通 `open()` 行为。
   ///
   /// - [api]: the player capability surface to drive / 要驱动的播放器能力面
   /// - [cutover]: optional seamless-cutover capability, same instance as [api] /
@@ -70,11 +70,11 @@ class MovaAds {
   ///
   /// Example / 示例:
   /// ```dart
-  /// final api = MovaCutoverEngine(engineFactory: createMovaEngine);
+  /// final api = MovaCutover(movaFactory: createMova);
   /// final ads = MovaAds(api, cutover: api);
   /// await ads.load(const MovaSource('https://host/movie.m3u8'));
   /// ```
-  MovaAds(MovaApi api, {MovaCutover? cutover})
+  MovaAds(IMovaApi api, {IMovaCutover? cutover})
     : _session = movaSessionForAds(api, cutover);
 
   final MovaSession _session;
@@ -158,7 +158,7 @@ class MovaAds {
   /// Reports resolver, content-open and terminal content failures.
   ///
   /// 返回正片源解析、打开/切换失败与正片终结错误的异常流；回 idle，由宿主决定重试。
-  /// recovery 开启时等待引擎 giveUp，非终结诊断不触发本流。
+  /// recovery 开启时等待播放器 giveUp，非终结诊断不触发本流。
   /// 宿主钩子拒绝 open、或已过期加载的迟到异常不触发本流；不代表所有播放错误。
   ///
   /// 示例：`ads.contentError.listen((error) => showRetry(error));`
@@ -179,11 +179,11 @@ class MovaAds {
   ///
   /// Behaves exactly like [load] except that [resolve] is not called until the
   /// content is actually about to be opened — after every pre-roll has
-  /// finished, or (when seamless swapping is on) a couple of seconds before
+  /// finished, or (when seamless cutover is on) a couple of seconds before
   /// the last pre-roll ends, when the content starts warming up. The result is
   /// memoised: [resolve] is called at most once per [loadDeferred].
   ///
-  /// If [resolve] throws or rejects, the controller goes idle and the error is
+  /// If [resolve] throws or rejects, the orchestrator goes idle and the error is
   /// reported on [contentError]; the host decides whether to call
   /// [loadDeferred] again.
   ///
@@ -194,7 +194,7 @@ class MovaAds {
   /// 正片开始预热之时。结果会被记忆化：每次 [loadDeferred] 最多调用一次
   /// [resolve]。
   ///
-  /// [resolve] 抛出或 reject 时，控制器转入空闲，错误经 [contentError] 上报；
+  /// [resolve] 抛出或 reject 时，编排对象转入空闲，错误经 [contentError] 上报；
   /// 是否重新调用 [loadDeferred] 由宿主决定。
   ///
   /// - [resolve]: resolves the content source on demand / 按需解析正片源
@@ -213,13 +213,13 @@ class MovaAds {
 
   /// Immediately interrupts the content to play [ad] at an arbitrary point,
   /// then resumes the content where it was interrupted. For ads scheduled at
-  /// runtime rather than pre-configured in [MovaAdConfig.breaks]; only fires
+  /// runtime rather than pre-configured in [MovaAdOpts.breaks]; only fires
   /// while content is actually playing. [ad] should be a
   /// [MovaAdBreakKind.mid] break — its own [MovaAdBreak.offset] is ignored, "now"
   /// is the current content position.
   ///
   /// 立即打断正片，在任意时点插播 [ad]，播完回到打断处续播。用于运行时（而非
-  /// 在 [MovaAdConfig.breaks] 预配置）插播的广告；仅在正片确实在播放时生效。[ad]
+  /// 在 [MovaAdOpts.breaks] 预配置）插播的广告；仅在正片确实在播放时生效。[ad]
   /// 应为 [MovaAdBreakKind.mid]——其自身的 [MovaAdBreak.offset] 被忽略，"当下"即当前
   /// 正片位置。
   ///

@@ -11,7 +11,7 @@ import 'dart:typed_data';
 ///
 /// [peek] 刻意设计为同步：内存命中必须在拖动位置变化的同一帧内就能渲染，
 /// 否则预览气泡会闪烁。任何可能触达磁盘或网络的读取都应放在 [read]。
-abstract class MovaThumbCache {
+abstract class IMovaThumbCache {
   /// Returns the bytes for [key] if they are resident and cheap to fetch,
   /// otherwise null. Must never do I/O.
   ///
@@ -55,16 +55,16 @@ abstract class MovaThumbCache {
   Future<void> dispose();
 }
 
-/// An in-memory [MovaThumbCache] with byte- and count-based LRU eviction.
+/// An in-memory [IMovaThumbCache] with byte- and count-based LRU eviction.
 ///
 /// Stores encoded bytes (not decoded `ui.Image`s) so the core layer stays free
 /// of Flutter types and memory usage stays predictable.
 ///
-/// 基于字节数和条目数做 LRU 淘汰的内存 [MovaThumbCache]。
+/// 基于字节数和条目数做 LRU 淘汰的内存 [IMovaThumbCache]。
 ///
 /// 存的是编码后的字节（而非已解码的 `ui.Image`），从而让 core 层不依赖
 /// Flutter 类型，内存占用也更可预测。
-class MovaMemoryThumbCache implements MovaThumbCache {
+class MovaMemoryThumbCache implements IMovaThumbCache {
   /// Creates an in-memory cache holding at most [maxEntries] thumbnails.
   ///
   /// 创建一个最多保存 [maxEntries] 张缩略图的内存缓存。

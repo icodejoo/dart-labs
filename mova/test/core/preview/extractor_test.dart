@@ -5,10 +5,10 @@ import 'package:mova/src/core/model/source.dart';
 import 'package:mova/src/core/preview/extractor.dart';
 import 'package:mova/src/core/preview/platform_kind.dart';
 
-/// A [MovaFramePuller] returning canned bytes and recording its arguments.
+/// A [IMovaFramePuller] returning canned bytes and recording its arguments.
 ///
-/// 返回预置字节并记录调用参数的 [MovaFramePuller]。
-class _FakeExtractor implements MovaFramePuller {
+/// 返回预置字节并记录调用参数的 [IMovaFramePuller]。
+class _FakeExtractor implements IMovaFramePuller {
   /// Bytes returned by [extract]; null makes extraction "fail".
   ///
   /// [extract] 返回的字节；为 null 表示抽帧"失败"。

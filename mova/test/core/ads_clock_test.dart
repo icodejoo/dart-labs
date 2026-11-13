@@ -13,7 +13,7 @@ const delayed = MovaAdBreak(kind: MovaAdBreakKind.mid, source: MovaSource('https
 /// 用注入时钟构造广告环境，不依赖墙钟流逝。
 (FakeMovaApi, MovaAds, List<MovaAdEvent>) rig(FakeAsync a, {bool pending = false, bool framed = false, bool startPending = true}) {
   final events = <MovaAdEvent>[];
-  final api = FakeMovaApi(options: MovaOpts(ads: MovaAdConfig(enabled: true, breaks: [pending ? delayed : slot], durationFromFirstFrame: framed, loadTimeout: const Duration(seconds: 8), onAdEvent: events.add)));
+  final api = FakeMovaApi(options: MovaOpts(ads: MovaAdOpts(enabled: true, breaks: [pending ? delayed : slot], durationFromFirstFrame: framed, loadTimeout: const Duration(seconds: 8), onAdEvent: events.add)));
   final ads = MovaAds(api)..debugClock = () => DateTime.utc(2026).add(a.elapsed);
   ads.load(content);
   a.flushMicrotasks();

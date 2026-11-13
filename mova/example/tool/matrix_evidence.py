@@ -9,15 +9,12 @@ import json
 from pathlib import Path
 import re
 
-ALIASES = {'MovaSwapChange': 'MovaCutoverChange',
-           'MovaStandbyChange': 'MovaKeepAliveChange',
-           'MovaStandbyResume': 'MovaKeepAliveResume'}
 SCALARS = {'MovaDurationChange': ('duration','duration'),
  'MovaBufferChange': ('buffering','buffering'), 'MovaVolumeChange': ('value','volume'),
  'MovaBrightChange': ('value','brightness'), 'MovaRateChange': ('value','rate'),
  'MovaFitChange': ('fit','fit'), 'MovaZoomChange': ('zoom','zoom'),
  'MovaLockChange': ('value','locked'), 'MovaFullScreenChange': ('value','fullscreen'),
- 'MovaOrientationChange': ('orientation','orientation'), 'MovaMiniChange': ('mini','mini'),
+ 'MovaOrientChange': ('orient','orient'), 'MovaMiniChange': ('mini','mini'),
  'MovaPipChange': ('value','pip'), 'MovaQualityChange': ('quality','quality'),
  'MovaQualityListChange': ('qualities','qualities'),
  'MovaTimeShiftChange': ('behind','timeshiftBehind'), 'MovaKeepAliveChange': ('phase','keepAlive')}
@@ -173,7 +170,6 @@ class Evidence:
         return 'PASS'
 
     def event(self, name, **kw):
-        name = ALIASES.get(name,name)
         samples = [(r,p) for r,p in self.records if r.get('kind')=='EVENT' and r.get('event')==name]
         if not samples: return 'BLOCKED', f'缺 EVENT {name}'
         vals=[]; details=[]
@@ -256,7 +252,7 @@ class Evidence:
 
     def volume(self, **kw):
         values=[];details=[]
-        for mode in ('engine','cutover'):
+        for mode in ('mova','cutover'):
             for v in (-10,0,1,30,50,100,110):
                 suffix=f'rerun-native-{mode}-volume{v}.native.txt'
                 file=next((f for f in self.texts if f.endswith(suffix)),None)

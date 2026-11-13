@@ -1,7 +1,7 @@
 # 保活增强：出声保活 + 到期断流
 
-> 2026-10-27 · 计划 · **落地前置：Codex 真机覆盖测试结束、[改名](2026-10-27-rename-controllers-keepalive.md)完成。** 本文用**改名后**的名字，旧名见括号。
-> 相关：[standby 计划](2026-10-23-standby-mode.md)、`lib/src/core/standby/`（改名后 `core/keep_alive/`）、`engine.dart` 的 `_enterStandby`/`_expireStandby`/`_degradeStandby`。
+> 2026-10-27 · 计划 · **落地前置：Codex 真机覆盖测试结束、[改名](2026-10-27-rename-controllers-keepalive.md)完成。** 本文用**改名后**的名字。
+> 相关：[keepAlive 计划](2026-10-23-keep-alive-mode.md)、`lib/src/core/keep_alive/`、`mova.dart` 的 `_enterKeepAlive`/`_expireKeepAlive`/`_degradeKeepAlive`。
 
 ## 1. 目标与不做
 
@@ -13,8 +13,8 @@
 
 ## 2. 现状（已读代码确认）
 
-- 保活只碰 mpv 的 `vid` 与 `mute`；`MovaStandbyMode` 目前两值：`muted`（`vid=no`+静音，音频维持时钟）、`decodeOnly`（无声流，照常解码渲染并静音）。
-- `maxDuration`（默认 30s）到期走 `_degradeStandby`：`kernel.pause()` → `exitStandby()` → 阶段 `fallback`、原因 `maxDuration`。**只是暂停，连接未断。**
+- 保活只碰 mpv 的 `vid` 与 `mute`；`MovaKeepAliveMode` 目前两值：`muted`（`vid=no`+静音，音频维持时钟）、`decodeOnly`（无声流，照常解码渲染并静音）。
+- `maxDuration`（默认 30s）到期走 `_degradeKeepAlive`：`kernel.pause()` → `exitKeepAlive()` → 阶段 `fallback`、原因 `maxDuration`。**只是暂停，连接未断。**
 - 已有"暂停且唤醒时重开"的路径（原因 `failed`/`ended`），可复用做"断流后恢复"。
 - 守卫进后台时把保活降级为暂停（已有，保持）。
 
@@ -24,7 +24,7 @@
 |---|---|---|
 | 出声保活的表达 | `MovaKeepAliveMode` 新增 `audible`（`vid=no`，**不**静音）；入口 `MovaHiddenMode.keepAliveAudible`（暂名） | 复用内核只碰 `vid`/`mute` 的不变量；不新增内核方法 |
 | 出声保活要不要到期 | **不到期、不断流** | 要持续出声，连接必须在；省的是视频解码 CPU，不是网络 |
-| 静音保活到期动作 | 配置 `MovaKeepAliveConfig.onExpire`：`pause`（现状，默认）/ `disconnect` | 默认行为不变，遵循"新功能默认关闭" |
+| 静音保活到期动作 | 配置 `MovaKeepAliveOpts.onExpire`：`pause`（现状，默认）/ `disconnect` | 默认行为不变，遵循"新功能默认关闭" |
 | 断流怎么做 | 到期时停止当前流（具体用 mpv `stop`/卸载，**待 Task 1 实测选型**），阶段 `fallback`、原因 `maxDuration`，标记"唤醒时重开" | 复用现有重开路径 |
 | 无声流 + `audible` | 退回普通暂停（沿用 `silentStreams` 规则的判断） | 无声流没有"声音"可保；此前对无声流强制 `vid=no` 会 EOF 重载 |
 | 状态可见性 | `MovaState.keepAlivePhase` 不变；`MovaKeepAliveChange` 的 `mode` 带 `audible`，宿主据此显示"后台播放中"提示 | 零新增字段 |
@@ -36,13 +36,13 @@
 - 产出写进本文「附录 A」，作为 Task 2/4 选型依据。
 
 **Task 2 · 到期断流（`onExpire: disconnect`）**
-- `MovaKeepAliveConfig` 加 `onExpire`（枚举 `MovaKeepAliveExpire{pause, disconnect}`，默认 `pause`）。
-- `_degradeStandby` 按配置分支；断流分支复用"唤醒重开"标记。
-- 单测：纯决策（`core/keep_alive/plan.dart` 扩）+ 引擎层用 `FakeKernel` 断言 `stop` 被调、唤醒触发重开、直播回边缘；默认配置行为与改前逐字一致（回归）。
+- `MovaKeepAliveOpts` 加 `onExpire`（枚举 `MovaKeepAliveExpire{pause, disconnect}`，默认 `pause`）。
+- `_degradeKeepAlive` 按配置分支；断流分支复用"唤醒重开"标记。
+- 单测：纯决策（`core/keep_alive/plan.dart` 扩）+ 播放器层用 `FakeKernel` 断言 `stop` 被调、唤醒触发重开、直播回边缘；默认配置行为与改前逐字一致（回归）。
 
 **Task 3 · 出声保活模式**
-- `MovaKeepAliveMode.audible`；`decideStandbyEntry` 增加分支（无声流 → fallback；PiP/小窗豁免沿用）。
-- 内核 `enterStandby(audible)`：只设 `vid=no`，不动 `mute`；还原路径不变。
+- `MovaKeepAliveMode.audible`；`decideKeepAliveEntry` 增加分支（无声流 → fallback；PiP/小窗豁免沿用）。
+- 内核 `enterKeepAlive(audible)`：只设 `vid=no`，不动 `mute`；还原路径不变。
 - `audible` 不启动 `maxDuration` 计时器。
 - 单测：决策表（有声/无声/PiP/点播/HLS）、内核属性序列（不碰 mute）、不到期。
 
@@ -66,7 +66,7 @@
 
 - **音频焦点**：出声保活会一直占焦点，可能打断别的 App 声音（Task 1(b) 必测）。
 - **断流恢复慢**：重开需握手 + 等关键帧，直播还会丢隐藏期间的内容；因此默认仍是 `pause`，由宿主显式选 `disconnect`。
-- **Android 上 `vid=no` 不静音时的 `mediacodec-copy` 行为**未测（standby S7 同类问题仍待真机）。
+- **Android 上 `vid=no` 不静音时的 `mediacodec-copy` 行为**未测（keepAlive S7 同类问题仍待真机）。
 
 ## 附录 A：Task 1 预研结果
 

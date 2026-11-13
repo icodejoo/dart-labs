@@ -35,7 +35,7 @@ mode=sys.argv[1] if len(sys.argv)>1 else 'visual'
 if mode=='visual':
     path=H/'coverage_visual_final.py'
     source=path.read_text(encoding='utf-8').replace('batch25-','rerun-safe-visual-')
-    source=source.replace("call('start',style='custom',preview='true')", "call('prepare-dispose','dispose')\ncall('start',style='custom',preview='true')\ncall('portrait','orientation',value='portrait')\ncall('auto','orientation',value='auto')")
+    source=source.replace("call('start',style='custom',preview='true')", "call('prepare-dispose','dispose')\ncall('start',style='custom',preview='true')\ncall('portrait','orient',value='portrait')\ncall('auto','orient',value='auto')")
     source=source.replace("adb('shell','input','tap','600','230')", "assert click_text('1x'), 'speed control 1x not found'")
     source=source.replace("adb('shell','input','tap','915','2120')", "assert click_text('立即播放'), 'NextUp play button not found'")
     source=source.replace("p=subprocess.Popen(", "require_own_foreground()\np=subprocess.Popen(")
@@ -43,7 +43,7 @@ if mode=='visual':
 else:
     path=H/'coverage_transition_final.py'
     source=path.read_text(encoding='utf-8').replace('batch28-','rerun-safe-transition-')
-    source=source.replace("call('slow-start',preview='true',slowPreview='true')", "call('prepare-dispose','dispose')\ncall('slow-start',preview='true',slowPreview='true')\ncall('portrait','orientation',value='portrait')\ncall('auto','orientation',value='auto')")
+    source=source.replace("call('slow-start',preview='true',slowPreview='true')", "call('prepare-dispose','dispose')\ncall('slow-start',preview='true',slowPreview='true')\ncall('portrait','orient',value='portrait')\ncall('auto','orient',value='auto')")
 source=source.replace("adb('shell','input',","safe_input(")
 exec(compile(source,str(path),'exec'),{'__name__':'__main__','__file__':str(path),
     'safe_input':safe_input,'require_own_foreground':require_own_foreground})

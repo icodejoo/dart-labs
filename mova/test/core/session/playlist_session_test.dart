@@ -41,8 +41,8 @@ const episodes = [
 }) {
   final api = FakeMovaApi(
     options: MovaOpts(
-      ads: MovaAdConfig(enabled: true, breaks: breaks),
-      playlist: MovaPlaylistConfig(
+      ads: MovaAdOpts(enabled: true, breaks: breaks),
+      playlist: MovaPlaylistOpts(
         enabled: enabled,
         items: episodes,
         initialIndex: initialIndex,
@@ -231,19 +231,19 @@ void main() {
       source: MovaSource('https://host/waiting.mp4'),
       offset: Duration(seconds: 30),
     );
-    final factory = GatedEngineFactory();
-    final api = MovaCutoverEngine(
-      engineFactory: () {
-        final engine = FakeMovaApi(
+    final factory = GatedMovaFactory();
+    final api = MovaCutover(
+      movaFactory: () {
+        final mova = FakeMovaApi(
           commandLog: factory.log,
           options: const MovaOpts(
-            ads: MovaAdConfig(enabled: true, breaks: [waiting]),
-            playlist: MovaPlaylistConfig(enabled: true, items: episodes),
-            cutover: MovaCutoverConfig(enabled: true, trigger: MovaEagerWarm()),
+            ads: MovaAdOpts(enabled: true, breaks: [waiting]),
+            playlist: MovaPlaylistOpts(enabled: true, items: episodes),
+            cutover: MovaCutoverOpts(enabled: true, trigger: MovaEagerWarm()),
           ),
         );
-        factory.engines.add(engine);
-        return engine;
+        factory.movas.add(mova);
+        return mova;
       },
     );
     final ads = MovaAds(api, cutover: api);
@@ -256,10 +256,10 @@ void main() {
       await api.dispose();
     });
     await playlist.jumpTo(0);
-    final active = factory.engines.first..pauseGate = pause;
+    final active = factory.movas.first..pauseGate = pause;
     await reachMid(active);
     expect(ads.isAdPending, isTrue);
-    final shadow = factory.engines.last;
+    final shadow = factory.movas.last;
     expect(shadow, isNot(same(active)));
     const ready = MovaProg(
       position: Duration(seconds: 1),
@@ -291,19 +291,19 @@ void main() {
       source: MovaSource('https://host/waiting.mp4'),
       offset: Duration(seconds: 30),
     );
-    final factory = GatedEngineFactory();
-    final api = MovaCutoverEngine(
-      engineFactory: () {
-        final engine = FakeMovaApi(
+    final factory = GatedMovaFactory();
+    final api = MovaCutover(
+      movaFactory: () {
+        final mova = FakeMovaApi(
           commandLog: factory.log,
           options: const MovaOpts(
-            ads: MovaAdConfig(enabled: true, breaks: [waiting]),
-            playlist: MovaPlaylistConfig(enabled: true, items: episodes),
-            cutover: MovaCutoverConfig(enabled: true, trigger: MovaEagerWarm()),
+            ads: MovaAdOpts(enabled: true, breaks: [waiting]),
+            playlist: MovaPlaylistOpts(enabled: true, items: episodes),
+            cutover: MovaCutoverOpts(enabled: true, trigger: MovaEagerWarm()),
           ),
         );
-        factory.engines.add(engine);
-        return engine;
+        factory.movas.add(mova);
+        return mova;
       },
     );
     final ads = MovaAds(api, cutover: api);
@@ -316,10 +316,10 @@ void main() {
       await api.dispose();
     });
     await playlist.jumpTo(0);
-    final active = factory.engines.first..pauseGate = pause;
+    final active = factory.movas.first..pauseGate = pause;
     await reachMid(active);
     expect(ads.isAdPending, isTrue);
-    final shadow = factory.engines.last;
+    final shadow = factory.movas.last;
     expect(shadow, isNot(same(active)));
     const ready = MovaProg(
       position: Duration(seconds: 1),
@@ -422,7 +422,7 @@ void main() {
 
   test('旧 MovaPlaylist(api) 响应 Done 且不看 enabled', () async {
     final api = FakeMovaApi(
-      options: const MovaOpts(playlist: MovaPlaylistConfig(items: episodes)),
+      options: const MovaOpts(playlist: MovaPlaylistOpts(items: episodes)),
     );
     final playlist = MovaPlaylist(api);
     addTearDown(() async {

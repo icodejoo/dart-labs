@@ -6,12 +6,12 @@ Future<void> runManageauto(Cp1Harness h) async {
   for (final mode in ['managed', 'default', 'disabled', 'lease']) {
     for (var run = 0; run < h.runs; run++) {
       await h.control('reset');
-      final a = createMovaEngine(
+      final a = createMova(
         preciseFirstFrame: true,
         options: MovaOpts(
           abr: mode == 'default'
-              ? const MovaAbrConfig(stallThreshold: 1)
-              : MovaAbrConfig(
+              ? const MovaAbrOpts(stallThreshold: 1)
+              : MovaAbrOpts(
                   manageAuto: mode == 'managed' || mode == 'lease',
                   enabled: mode != 'disabled',
                   stallThreshold: 1,

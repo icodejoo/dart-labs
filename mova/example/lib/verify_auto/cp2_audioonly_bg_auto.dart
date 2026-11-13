@@ -7,7 +7,7 @@ Future<void> runAudioonlyBg(Cp2Harness h) async {
     for(var run=0;run<h.runs;run++) {
       if (coverageOnlyOverride == 'missing-videoGuard' &&
           (variant != 'videoGuard' || run == 0)) { continue; }
-      final api=cp2Engine(h,audioOnly:variant=='audio');h.guarded=variant=='videoGuard';await h.mount(api);
+      final api=cp2Mova(h,audioOnly:variant=='audio');h.guarded=variant=='videoGuard';await h.mount(api);
       try {
         await api.open(cp2Source('long'));await h.waitPosition(1000);
         final before=await h.native();final intent=api.state.playbackIntent;

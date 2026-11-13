@@ -24,7 +24,7 @@ String newMovaSessionId() {
   return '$micros-$rand';
 }
 
-/// Injectable session-id factory type; see [MovaReportConfig.sessionId].
+/// Injectable session-id factory type; see [MovaReportOpts.sessionId].
 ///
-/// 可注入的会话 ID 工厂类型；见 `MovaReportConfig.sessionId`。
+/// 可注入的会话 ID 工厂类型；见 `MovaReportOpts.sessionId`。
 typedef MovaSessionIdFactory = String Function();

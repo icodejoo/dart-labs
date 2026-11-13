@@ -1,4 +1,4 @@
-// 未上机。池只建固定数量引擎；无画面的 feed 压力阶段用 audioOnly。
+// 未上机。池只建固定数量播放器；无画面的 feed 压力阶段用 audioOnly。
 import 'package:mova/mova.dart';
 import 'package:flutter/material.dart';
 import 'cp1_harness.dart';
@@ -19,9 +19,9 @@ Future<void> runPool(Cp1Harness h) async {
     for (var run = 0; run < h.runs; run++) {
       final hook = _Reject();
       var requestedIndex = 0;
-      final pool = MovaFeedEnginePool(
+      final pool = MovaFeedPool(
         size: 1,
-        engineFactory: () => createMovaEngine(interceptors: [hook]),
+        movaFactory: () => createMova(interceptors: [hook]),
         onChanged: h.refresh,
       );
       h.customSurface = Builder(
@@ -35,7 +35,7 @@ Future<void> runPool(Cp1Harness h) async {
                 );
         },
       );
-      // Mount before binding: even rejected/retried engines have a real surface.
+      // Mount before binding: even rejected/retried players have a real surface.
       final first = pool.bind(0, h.source('a'), autoPlay: true);
       await h.until(() => pool.slotFor(0) != null);
       await h.mount(pool.slotFor(0)!.api);
@@ -84,13 +84,13 @@ Future<void> runPool(Cp1Harness h) async {
       );
       await pool.dispose();
       h.customSurface = null;
-      await h.release(disposeEngine: false);
+      await h.release(disposeMova: false);
     }
   }
   for (var run = 0; run < 3; run++) {
-    final pool = MovaFeedEnginePool(
+    final pool = MovaFeedPool(
       size: 3,
-      engineFactory: () => createMovaEngine(audioOnly: true),
+      movaFactory: () => createMova(audioOnly: true),
     );
     final feed = MovaFeed(
       pool: pool,
@@ -111,7 +111,7 @@ Future<void> runPool(Cp1Harness h) async {
           'index': index + 1,
           'cacheCount': feed.cachedItemCount,
           'pending': feed.pendingItemCount,
-          'engineCount': pool.engineCount,
+          'movaCount': pool.movaCount,
           ...h.hostData[id]!,
         });
       }

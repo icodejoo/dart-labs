@@ -15,11 +15,11 @@ class _Hook extends MovaHook {
   void onError(Object error, StackTrace stack) => errors.add(error);
 }
 
-/// 使用显式端口和关闭探测的真实引擎，避免平台及网络副作用。
-MovaEngine _engine(FakeKernel k, _Hook hook) => createMovaEngine(
-  kernel: k, interceptors: [hook], brightness: MovaFallbackBrightnessPort(),
-  pip: MovaNoopPipPort(), orientation: MovaNoopOrientationPort(),
-  options: const MovaOpts(controls: MovaCtrlsConfig(autoHide: false), abr: MovaAbrConfig(probeVariants: false)),
+/// 使用显式端口和关闭探测的真实播放器，避免平台及网络副作用。
+Mova _mova(FakeKernel k, _Hook hook) => createMova(
+  kernel: k, interceptors: [hook], brightness: MovaFallbackBrightness(),
+  pip: MovaNoopPip(), orient: MovaNoopOrient(),
+  options: const MovaOpts(controls: MovaCtrlsOpts(autoHide: false), abr: MovaAbrOpts(probeVariants: false)),
 );
 
 /// 运行终结状态与用户文案的回归测试。
@@ -28,7 +28,7 @@ void main() {
     test('A14b nonterminal diagnostic rendered=$rendered keeps state clear and notifies event and hook', () async {
       final k = FakeKernel();
       final hook = _Hook();
-      final e = _engine(k, hook);
+      final e = _mova(k, hook);
       final events = <MovaErrorEvent>[];
       e.events.where((v) => v is MovaErrorEvent).cast<MovaErrorEvent>().listen(events.add);
       await e.open(const MovaSource('https://h/a.mp4'));
@@ -51,7 +51,7 @@ void main() {
 
   test('A14b nonterminal logs cannot overwrite an existing terminal failure', () async {
     final k = FakeStatsKernel();
-    final e = _engine(k, _Hook());
+    final e = _mova(k, _Hook());
     await e.open(const MovaSource('https://h/a.mp4'));
     k.emitEndFile(MovaEndFileReason.error);
     await pumpEventQueue();
@@ -65,7 +65,7 @@ void main() {
     test('A14b known terminal $error still writes state', () async {
       final k = FakeKernel();
       final hook = _Hook();
-      final e = _engine(k, hook);
+      final e = _mova(k, hook);
       final events = <MovaErrorEvent>[];
       e.events.where((v) => v is MovaErrorEvent).cast<MovaErrorEvent>().listen(events.add);
       k.emitError(error);
@@ -91,7 +91,7 @@ void main() {
 
   testWidgets('A14b actual nonterminal kernel event never raises overlay', (t) async {
     final k = FakeKernel();
-    final e = (await t.runAsync(() async => _engine(k, _Hook())))!;
+    final e = (await t.runAsync(() async => _mova(k, _Hook())))!;
     await pumpComponent(t, e, MovaErrorComponent());
     await t.runAsync(() async {
       k.emitError('damaged frame');

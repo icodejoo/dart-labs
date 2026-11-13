@@ -28,7 +28,7 @@ class _FakePathProviderPlatform extends PathProviderPlatform with MockPlatformIn
   Future<String?> getTemporaryPath() async => Directory.systemTemp.path;
 }
 
-const _noAutoHide = MovaOpts(controls: MovaCtrlsConfig(autoHide: false));
+const _noAutoHide = MovaOpts(controls: MovaCtrlsOpts(autoHide: false));
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -37,32 +37,32 @@ void main() {
   setUp(MovaTesting.useTestKernels);
   tearDown(MovaTesting.reset);
 
-  test('1. createMovaEngine() with no arguments works and hands out the scripted kernel', () async {
-    final engine = createMovaEngine();
-    addTearDown(engine.dispose);
+  test('1. createMova() with no arguments works and hands out the scripted kernel', () async {
+    final mova = createMova();
+    addTearDown(mova.dispose);
     expect(MovaTesting.kernels, hasLength(1));
-    await engine.open(const MovaSource('https://h/a.m3u8'));
+    await mova.open(const MovaSource('https://h/a.m3u8'));
     expect(MovaTesting.lastKernel!.lastUri, 'https://h/a.m3u8');
     expect(MovaTesting.lastKernel!.calls, contains('open'));
   });
 
-  test('2. platform ports are the engine no-ops, never the real adapters', () {
-    final engine = createMovaEngine();
-    addTearDown(engine.dispose);
-    expect(engine.debugBrightnessPort, isA<MovaFallbackBrightnessPort>());
-    expect(engine.debugPipPort, isA<MovaNoopPipPort>());
-    expect(engine.debugOrientationPort, isA<MovaNoopOrientationPort>());
-    expect(engine.debugVolumePort, isNull);
+  test('2. platform ports are the player no-ops, never the real adapters', () {
+    final mova = createMova();
+    addTearDown(mova.dispose);
+    expect(mova.debugBrightness, isA<MovaFallbackBrightness>());
+    expect(mova.debugPip, isA<MovaNoopPip>());
+    expect(mova.debugOrient, isA<MovaNoopOrient>());
+    expect(mova.debugVolume, isNull);
   });
 
   test('3. an explicitly passed kernel still wins over the test kernels', () {
-    final engine = createMovaEngine(kernel: FakeKernel());
-    addTearDown(engine.dispose);
+    final mova = createMova(kernel: FakeKernel());
+    addTearDown(mova.dispose);
     expect(MovaTesting.kernels, isEmpty);
   });
 
   test('4. reset() uninstalls and forgets every kernel', () {
-    createMovaEngine().dispose();
+    createMova().dispose();
     expect(MovaTesting.active, isTrue);
     expect(MovaTesting.kernels, isNotEmpty);
     MovaTesting.reset();
@@ -73,7 +73,7 @@ void main() {
 
   test('5. restart and the buffering edge both land rendered, leaving no pending timer', () {
     fakeAsync((async) {
-      final a = createMovaEngine(options: _noAutoHide);
+      final a = createMova(options: _noAutoHide);
       a.open(const MovaSource('https://h/a.m3u8'));
       async.flushMicrotasks();
       expect(a.state.rendered, isFalse);
@@ -81,7 +81,7 @@ void main() {
       async.flushMicrotasks();
       expect(a.state.rendered, isTrue);
 
-      final b = createMovaEngine(options: _noAutoHide);
+      final b = createMova(options: _noAutoHide);
       b.open(const MovaSource('https://h/b.m3u8'));
       async.flushMicrotasks();
       MovaTesting.lastKernel!
@@ -99,7 +99,7 @@ void main() {
           home: MovaView(
             source: const MovaSource('https://h/live.flv', type: MovaStreamType.live),
             poster: p,
-            options: _noAutoHide.copyWith(recovery: const MovaRecoveryConfig(startTimeout: Duration(seconds: 10), stallTimeout: Duration(seconds: 10), enabled: true)),
+            options: _noAutoHide.copyWith(recovery: const MovaRecoveryOpts(startTimeout: Duration(seconds: 10), stallTimeout: Duration(seconds: 10), enabled: true)),
           ),
         );
     await t.pumpWidget(view(poster));
@@ -113,10 +113,10 @@ void main() {
     await t.pump();
     expect(fade().opacity, 0);
 
-    // Tear down while a fresh engine's start deadline is still running: the
+    // Tear down while a fresh player's start deadline is still running: the
     // watchdog timer must already be gone when the test framework checks.
     //
-    // 在新引擎的起播期限还在计时时拆树：测试框架检查时看门狗计时器必须已经不在了。
+    // 在新播放器的起播期限还在计时时拆树：测试框架检查时看门狗计时器必须已经不在了。
     await t.pumpWidget(const SizedBox());
     await t.pumpWidget(view(poster));
     await t.pump();
@@ -124,17 +124,17 @@ void main() {
     await t.pump();
   });
 
-  test('7b. the test kernel records the per-source mpv options the engine stages', () async {
-    final engine = createMovaEngine();
-    addTearDown(engine.dispose);
-    await engine.open(
+  test('7b. the test kernel records the per-source mpv options the player stages', () async {
+    final mova = createMova();
+    addTearDown(mova.dispose);
+    await mova.open(
       const MovaSource(
         'whep+http://h:8889/x/whep',
         type: MovaStreamType.live,
         whepMediaTimeout: Duration(seconds: 3),
       ),
     );
-    await engine.open(const MovaSource('https://h/b.m3u8'));
+    await mova.open(const MovaSource('https://h/b.m3u8'));
     expect(MovaTesting.lastKernel!.stagedSourceOptions, [
       {'demuxer-lavf-o': 'media_timeout=3000000'},
       <String, String>{},
@@ -155,7 +155,7 @@ void main() {
           enabled: on,
           child: MovaView(
             source: const MovaSource('https://h/live.flv', type: MovaStreamType.live),
-            autoPause: const MovaAutoPauseConfig(hiddenMode: MovaHiddenMode.keepAlive),
+            autoPause: const MovaAutoPauseOpts(hiddenMode: MovaHiddenMode.keepAlive),
             options: _noAutoHide,
           ),
         ),

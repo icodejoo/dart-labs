@@ -5,7 +5,7 @@ import 'dart:typed_data';
 import 'package:fake_async/fake_async.dart';
 import 'package:mova/src/testing/hooks.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mova/src/core/engine.dart';
+import 'package:mova/src/core/mova.dart';
 import 'package:mova/src/core/events/events.dart';
 import 'package:mova/src/core/interceptor/interceptor.dart';
 import 'package:mova/src/core/model/quality.dart';
@@ -28,7 +28,7 @@ class _RejectB extends MovaHook {
 /// Holds an auxiliary request until a test settles it.
 ///
 /// 挂起辅助请求直到测试完成它。
-class _Fetch extends MovaHttpFetch {
+class _Fetch extends IMovaHttpFetch {
   final result = Completer<Uint8List?>();
   @override
   Future<Uint8List?> get(Uri url) => result.future;
@@ -36,21 +36,21 @@ class _Fetch extends MovaHttpFetch {
   Future<void> close() async {}
 }
 
-/// Builds a recovery engine without unrelated control timers.
+/// Builds a recovery player without unrelated control timers.
 ///
-/// 构建没有控制条计时器的恢复引擎。
-MovaEngine _engine(
+/// 构建没有控制条计时器的恢复播放器。
+Mova _mova(
   FakeKernel k, {
   List<MovaHook> hooks = const [],
-  MovaHttpFetch? fetcher,
-  MovaRecoveryPolicy policy = const MovaRetryThenFailover(maxRetries: 3),
-}) => MovaEngine(
+  IMovaHttpFetch? fetcher,
+  IMovaRecoveryPolicy policy = const MovaRetryThenFailover(maxRetries: 3),
+}) => Mova(
   kernel: k,
   interceptors: hooks,
   fetcher: fetcher ?? const MovaTestHttpFetch(),
   options: MovaOpts(
-    controls: const MovaCtrlsConfig(autoHide: false),
-    recovery: MovaRecoveryConfig(startTimeout: Duration(seconds: 10), stallTimeout: Duration(seconds: 10), enabled: true, policy: policy),
+    controls: const MovaCtrlsOpts(autoHide: false),
+    recovery: MovaRecoveryOpts(startTimeout: Duration(seconds: 10), stallTimeout: Duration(seconds: 10), enabled: true, policy: policy),
   ),
 );
 
@@ -71,7 +71,7 @@ void main() {
     () {
       fakeAsync((a) {
         final k = FakeKernel();
-        final e = _engine(k);
+        final e = _mova(k);
         final failures = <MovaPlayFailure>[];
         e.events
             .where((v) => v is MovaPlayFailure)
@@ -103,7 +103,7 @@ void main() {
       () {
         fakeAsync((a) {
           final k = FakeKernel();
-          final e = _engine(k);
+          final e = _mova(k);
           e.open(
             MovaSource(
               source.uri,
@@ -131,7 +131,7 @@ void main() {
       () {
         fakeAsync((a) {
           final k = FakeKernel();
-          final e = _engine(k);
+          final e = _mova(k);
           final failures = <MovaPlayFailure>[];
           e.events
               .where((v) => v is MovaPlayFailure)
@@ -163,7 +163,7 @@ void main() {
   test('#7 recovery retains VOD position across a thrown retry', () {
     fakeAsync((a) {
       final k = FakeKernel();
-      final e = _engine(k);
+      final e = _mova(k);
       e.open(source);
       a.flushMicrotasks();
       _land(k, a);
@@ -188,7 +188,7 @@ void main() {
   test('#8 rejected open preserves accepted session recovery', () {
     fakeAsync((a) {
       final k = FakeKernel();
-      final e = _engine(k, hooks: [_RejectB()]);
+      final e = _mova(k, hooks: [_RejectB()]);
       e.open(source);
       a.flushMicrotasks();
       a.elapse(const Duration(seconds: 10));
@@ -204,7 +204,7 @@ void main() {
   test('#9 paused open replays size received before open completes', () {
     fakeAsync((a) {
       final k = FakeKernel()..openGate = Completer<void>();
-      final e = _engine(k);
+      final e = _mova(k);
       e.open(source, autoPlay: false);
       a.flushMicrotasks();
       k.emitSize(640, 360);
@@ -223,7 +223,7 @@ void main() {
       fakeAsync((a) {
         final k = FakeKernel();
         final fetch = _Fetch();
-        final e = _engine(k, fetcher: fetch, policy: const MovaFailoverOnly());
+        final e = _mova(k, fetcher: fetch, policy: const MovaFailoverOnly());
         final qualityEvents = <MovaQualityListChange>[];
         e.events
             .where((v) => v is MovaQualityListChange)

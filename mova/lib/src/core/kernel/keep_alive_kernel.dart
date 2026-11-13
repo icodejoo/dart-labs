@@ -51,7 +51,7 @@ class MovaKeepAliveMedia {
 ///
 /// 可选的内核能力：在关掉画面和/或声音的情况下维持流。绝不抛异常；不具备此能力的内核
 /// 只会让待机退回为普通暂停。
-abstract class MovaKeepAliveKernel {
+abstract class IMovaKeepAliveKernel {
   /// Reads the facts keepAlive decides on.
   ///
   /// 读取待机决策所需的事实。

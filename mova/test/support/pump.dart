@@ -14,7 +14,7 @@ import 'package:mova/src/ui/slots/tree.dart';
 /// - [component]: component under test / 被测组件
 Future<void> pumpComponent(
   WidgetTester tester,
-  MovaApi api,
+  IMovaApi api,
   MovaComponent component,
 ) async {
   await tester.pumpWidget(MaterialApp(

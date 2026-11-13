@@ -9,16 +9,16 @@ import 'package:mova/src/core/model/ad.dart';
 import 'package:mova/src/core/model/source.dart';
 import 'package:mova/src/core/options/options.dart';
 import 'package:mova/src/core/state/progress.dart';
-import 'package:mova/src/core/cutover/ctl.dart';
+import 'package:mova/src/core/cutover/api.dart';
 import 'package:mova/src/core/cutover/trigger.dart';
 import '../support/fake_api.dart';
 
 const _content = MovaSource('https://host/content.m3u8');
 
-/// Yields a few microtasks so chained `open`/`seek` awaits inside the
-/// controller settle before assertions.
+/// Yields a few microtasks so chained `open`/`seek` awaits inside
+/// [MovaAds] settle before assertions.
 ///
-/// 让出几个微任务，使控制器内部链式的 `open`/`seek` await 在断言前结算完毕。
+/// 让出几个微任务，使 MovaAds 内部链式的 `open`/`seek` await 在断言前结算完毕。
 Future<void> settle() async {
   for (var i = 0; i < 3; i++) {
     await Future<void>.delayed(Duration.zero);
@@ -51,9 +51,9 @@ void main() {
     });
   });
 
-  /// Builds a fake API + controller with [breaks] and an event sink.
+  /// Builds a fake API + [MovaAds] with [breaks] and an event sink.
   ///
-  /// 用 [breaks] 与一个事件收集器构造假 API + 控制器。
+  /// 用 [breaks] 与一个事件收集器构造假 API + MovaAds。
   (FakeMovaApi, MovaAds, List<MovaAdEvent>) build(
     List<MovaAdBreak> breaks, {
     bool enabled = true,
@@ -61,7 +61,7 @@ void main() {
     final events = <MovaAdEvent>[];
     final api = FakeMovaApi(
       options: MovaOpts(
-        ads: MovaAdConfig(enabled: enabled, breaks: breaks, onAdEvent: events.add),
+        ads: MovaAdOpts(enabled: enabled, breaks: breaks, onAdEvent: events.add),
       ),
     );
     return (api, MovaAds(api), events);
@@ -391,7 +391,7 @@ void main() {
     expect(api.calls, isEmpty);
   });
 
-  group('MovaAds with a MovaCutover (seamless ad→content cutover)', () {
+  group('MovaAds with a IMovaCutover (seamless ad→content cutover)', () {
     const pre = MovaAdBreak(
       kind: MovaAdBreakKind.pre,
       source: MovaSource('https://host/pre.mp4'),
@@ -426,12 +426,12 @@ void main() {
       expect(api.lastSeek, const Duration(seconds: 31));
     });
 
-    test('cutoverEnabled false on the cutover ctl: prepare is never called, _playContent still opens', () async {
+    test('cutoverEnabled false on the cutover: prepare is never called, _playContent still opens', () async {
       final events = <MovaAdEvent>[];
       final api = FakeMovaApi(
-        options: MovaOpts(ads: MovaAdConfig(enabled: true, breaks: [pre], onAdEvent: events.add)),
+        options: MovaOpts(ads: MovaAdOpts(enabled: true, breaks: [pre], onAdEvent: events.add)),
       );
-      final cutover = FakeCutoverCtl()..cutoverEnabled = false;
+      final cutover = FakeCutover()..cutoverEnabled = false;
       final c = MovaAds(api, cutover: cutover);
       await c.load(_content);
       await settle();
@@ -442,8 +442,8 @@ void main() {
     });
 
     test('every progress tick during the ad calls prepare with a shrinking remaining and fixed total', () async {
-      final api = FakeMovaApi(options: MovaOpts(ads: MovaAdConfig(enabled: true, breaks: [pre])));
-      final cutover = FakeCutoverCtl();
+      final api = FakeMovaApi(options: MovaOpts(ads: MovaAdOpts(enabled: true, breaks: [pre])));
+      final cutover = FakeCutover();
       final c = MovaAds(api, cutover: cutover);
       await c.load(_content);
       await settle();
@@ -461,8 +461,8 @@ void main() {
     });
 
     test('prepare is called with the saved content-resume position (zero for a pre-roll)', () async {
-      final api = FakeMovaApi(options: MovaOpts(ads: MovaAdConfig(enabled: true, breaks: [pre])));
-      final cutover = FakeCutoverCtl();
+      final api = FakeMovaApi(options: MovaOpts(ads: MovaAdOpts(enabled: true, breaks: [pre])));
+      final cutover = FakeCutover();
       final c = MovaAds(api, cutover: cutover);
       await c.load(_content);
       await settle();
@@ -472,8 +472,8 @@ void main() {
     });
 
     test('prepare uses the mid-roll saved resume position, not zero', () async {
-      final api = FakeMovaApi(options: MovaOpts(ads: MovaAdConfig(enabled: true, breaks: [mid])));
-      final cutover = FakeCutoverCtl();
+      final api = FakeMovaApi(options: MovaOpts(ads: MovaAdOpts(enabled: true, breaks: [mid])));
+      final cutover = FakeCutover();
       final c = MovaAds(api, cutover: cutover);
       await c.load(_content);
       await settle();
@@ -494,8 +494,8 @@ void main() {
       // 回归（真机实测，STG AL00）：影子当初用默认计划预热、在广告在屏期间一路
       // 按真实时间播，提交切换时落点比续播目标晚了 2.8 秒，用户平白丢掉这么多
       // 正片。续播目标 6006ms → 实际落点 8842ms。
-      final api = FakeMovaApi(options: MovaOpts(ads: MovaAdConfig(enabled: true, breaks: [mid])));
-      final cutover = FakeCutoverCtl();
+      final api = FakeMovaApi(options: MovaOpts(ads: MovaAdOpts(enabled: true, breaks: [mid])));
+      final cutover = FakeCutover();
       final c = MovaAds(api, cutover: cutover);
       await c.load(_content);
       await settle();
@@ -507,8 +507,8 @@ void main() {
     });
 
     test('commit() returning true: no open/seek happens on the api', () async {
-      final api = FakeMovaApi(options: MovaOpts(ads: MovaAdConfig(enabled: true, breaks: [pre])));
-      final cutover = FakeCutoverCtl()..commitResult = true;
+      final api = FakeMovaApi(options: MovaOpts(ads: MovaAdOpts(enabled: true, breaks: [pre])));
+      final cutover = FakeCutover()..commitResult = true;
       final c = MovaAds(api, cutover: cutover);
       await c.load(_content);
       await settle();
@@ -527,10 +527,10 @@ void main() {
       // seamless path almost never actually engaged on real devices.
       //
       // 回归测试：裸 commit() 几乎总是输给就绪判据的时序竞争（广告结束的精确
-      // 瞬间，影子引擎通常还是 `warming`、尚未 `ready`），导致无缝路径在真机上
+      // 瞬间，影子播放器通常还是 `warming`、尚未 `ready`），导致无缝路径在真机上
       // 几乎从未真正生效。
-      final api = FakeMovaApi(options: MovaOpts(ads: MovaAdConfig(enabled: true, breaks: [pre])));
-      final cutover = FakeCutoverCtl()..commitResult = true;
+      final api = FakeMovaApi(options: MovaOpts(ads: MovaAdOpts(enabled: true, breaks: [pre])));
+      final cutover = FakeCutover()..commitResult = true;
       final c = MovaAds(api, cutover: cutover);
       await c.load(_content);
       await settle();
@@ -540,8 +540,8 @@ void main() {
     });
 
     test('commit() returning false: falls back to open (and seek for mid-roll)', () async {
-      final api = FakeMovaApi(options: MovaOpts(ads: MovaAdConfig(enabled: true, breaks: [mid])));
-      final cutover = FakeCutoverCtl()..commitResult = false;
+      final api = FakeMovaApi(options: MovaOpts(ads: MovaAdOpts(enabled: true, breaks: [mid])));
+      final cutover = FakeCutover()..commitResult = false;
       final c = MovaAds(api, cutover: cutover);
       await c.load(_content);
       await settle();
@@ -554,8 +554,8 @@ void main() {
     });
 
     test('STT restore still applies on the seamless path', () async {
-      final api = FakeMovaApi(options: MovaOpts(ads: MovaAdConfig(enabled: true, breaks: [mid])));
-      final cutover = FakeCutoverCtl()..commitResult = true;
+      final api = FakeMovaApi(options: MovaOpts(ads: MovaAdOpts(enabled: true, breaks: [mid])));
+      final cutover = FakeCutover()..commitResult = true;
       final c = MovaAds(api, cutover: cutover);
       await c.load(_content);
       await settle();
@@ -573,8 +573,8 @@ void main() {
         kind: MovaAdBreakKind.pre,
         source: MovaSource('https://host/pre2.mp4'),
       );
-      final api = FakeMovaApi(options: MovaOpts(ads: MovaAdConfig(enabled: true, breaks: [pre, pre2])));
-      final cutover = FakeCutoverCtl();
+      final api = FakeMovaApi(options: MovaOpts(ads: MovaAdOpts(enabled: true, breaks: [pre, pre2])));
+      final cutover = FakeCutover();
       final c = MovaAds(api, cutover: cutover);
       await c.load(_content);
       await settle();
@@ -586,8 +586,8 @@ void main() {
     });
 
     test('dispose calls abandon', () async {
-      final api = FakeMovaApi(options: MovaOpts(ads: MovaAdConfig(enabled: true, breaks: [pre])));
-      final cutover = FakeCutoverCtl();
+      final api = FakeMovaApi(options: MovaOpts(ads: MovaAdOpts(enabled: true, breaks: [pre])));
+      final cutover = FakeCutover();
       final c = MovaAds(api, cutover: cutover);
       await c.load(_content);
       await settle();
@@ -606,8 +606,8 @@ void main() {
         source: MovaSource('https://host/mid2.mp4'),
         offset: Duration(seconds: 30),
       );
-      final api = FakeMovaApi(options: MovaOpts(ads: MovaAdConfig(enabled: true, breaks: [mid, mid2])));
-      final cutover = FakeCutoverCtl()..commitResult = true;
+      final api = FakeMovaApi(options: MovaOpts(ads: MovaAdOpts(enabled: true, breaks: [mid, mid2])));
+      final cutover = FakeCutover()..commitResult = true;
       final c = MovaAds(api, cutover: cutover);
       await c.load(_content);
       await settle();
@@ -641,8 +641,8 @@ void main() {
         source: MovaSource('https://host/mid2.mp4'),
         offset: Duration(seconds: 30),
       );
-      final api = FakeMovaApi(options: MovaOpts(ads: MovaAdConfig(enabled: true, breaks: [mid, mid2])));
-      final cutover = FakeCutoverCtl()..commitResult = true;
+      final api = FakeMovaApi(options: MovaOpts(ads: MovaAdOpts(enabled: true, breaks: [mid, mid2])));
+      final cutover = FakeCutover()..commitResult = true;
       final c = MovaAds(api, cutover: cutover);
       await c.load(_content);
       await settle();
@@ -653,7 +653,7 @@ void main() {
       api.pushEvent(const MovaDone()); // mid -> mid2 via cutoverTo, held open
       await settle();
       expect(cutover.calls, contains('commit'));
-      // The old engine ticks while cutoverTo waits.
+      // The old player ticks while cutoverTo waits.
       api.pushProgress(const MovaProg(position: Duration(seconds: 1)));
       await settle();
       expect(cutover.preparedSources.last, same(mid2.source));
@@ -666,8 +666,8 @@ void main() {
   group('ad rate is declared in the cutover plan', () {
     test('a one-shot cutoverTo for the ad asks for 1x', () async {
       const pre = MovaAdBreak(kind: MovaAdBreakKind.pre, source: MovaSource('https://host/pre.mp4'));
-      final api = FakeMovaApi(options: MovaOpts(ads: MovaAdConfig(enabled: true, breaks: [pre], waitForAdReady: const MovaAdWaitByKind(pre: true))));
-      final cutover = FakeCutoverCtl()..commitResult = true;
+      final api = FakeMovaApi(options: MovaOpts(ads: MovaAdOpts(enabled: true, breaks: [pre], waitForAdReady: const MovaAdWaitByKind(pre: true))));
+      final cutover = FakeCutover()..commitResult = true;
       final c = MovaAds(api, cutover: cutover);
       await c.load(_content);
       await settle();
@@ -689,15 +689,15 @@ void main() {
     );
     const resolved = MovaSource('https://host/signed-content.m3u8');
 
-    /// Builds an api + controller over [breaks], plus a counting resolver.
+    /// Builds an api + [MovaAds] over [breaks], plus a counting resolver.
     ///
-    /// 基于 [breaks] 构造 api + 控制器，外加一个计数型解析器。
+    /// 基于 [breaks] 构造 api + MovaAds，外加一个计数型解析器。
     (FakeMovaApi, MovaAds, List<int>) deferredBuild(
       List<MovaAdBreak> breaks, {
-      MovaCutover? cutover,
+      IMovaCutover? cutover,
     }) {
       final api = FakeMovaApi(
-        options: MovaOpts(ads: MovaAdConfig(enabled: true, breaks: breaks)),
+        options: MovaOpts(ads: MovaAdOpts(enabled: true, breaks: breaks)),
       );
       return (api, MovaAds(api, cutover: cutover), <int>[]);
     }
@@ -757,7 +757,7 @@ void main() {
     });
 
     test('the warm-up path prepares the resolved source, still resolving only once', () async {
-      final cutover = FakeCutoverCtl();
+      final cutover = FakeCutover();
       final (api, c, calls) = deferredBuild([pre], cutover: cutover);
       await c.loadDeferred(() async {
         calls.add(1);
@@ -797,7 +797,7 @@ void main() {
 
     test('the plain load(MovaSource) path is byte-for-byte unchanged', () async {
       final api = FakeMovaApi(
-        options: MovaOpts(ads: MovaAdConfig(enabled: true, breaks: [pre])),
+        options: MovaOpts(ads: MovaAdOpts(enabled: true, breaks: [pre])),
       );
       final c = MovaAds(api);
       await c.load(_content);
@@ -811,10 +811,10 @@ void main() {
   });
 
   group('MovaAdBreak.duration — fixed-length slots driven by a plain Timer', () {
-    /// Builds api + controller for [breaks] with an event sink, optionally
+    /// Builds api + [MovaAds] for [breaks] with an event sink, optionally
     /// counting the slot from `open()` instead of the first frame.
     ///
-    /// 为 [breaks] 构造 api + 控制器与事件收集器，可选择从 `open()` 而非首帧起算。
+    /// 为 [breaks] 构造 api + MovaAds 与事件收集器，可选择从 `open()` 而非首帧起算。
     (FakeMovaApi, MovaAds, List<MovaAdEvent>) slotBuild(
       List<MovaAdBreak> breaks, {
       bool fromFirstFrame = true,
@@ -822,7 +822,7 @@ void main() {
       final events = <MovaAdEvent>[];
       final api = FakeMovaApi(
         options: MovaOpts(
-          ads: MovaAdConfig(
+          ads: MovaAdOpts(
             enabled: true,
             breaks: breaks,
             onAdEvent: events.add,
@@ -840,9 +840,9 @@ void main() {
       return (api, MovaAds(api), events);
     }
 
-    /// Lets the controller's async chains settle inside a [fakeAsync] zone.
+    /// Lets the [MovaAds] async chains settle inside a [fakeAsync] zone.
     ///
-    /// 在 [fakeAsync] 区域内让控制器的异步链结算完毕。
+    /// 在 [fakeAsync] 区域内让 MovaAds 的异步链结算完毕。
     void flush(FakeAsync async) => async.elapse(const Duration(milliseconds: 1));
 
     const midPlain = MovaAdBreak(
@@ -1045,19 +1045,19 @@ void main() {
   });
 
   group('_Phase.pending — the delay countdown, with the content playing on', () {
-    /// Builds api + controller for [breaks], optionally with a cutover ctl and a
+    /// Builds api + [MovaAds] for [breaks], optionally with a cutover and a
     /// custom wait policy.
     ///
-    /// 为 [breaks] 构造 api + 控制器，可选地带切换能力面与自定义等待策略。
+    /// 为 [breaks] 构造 api + MovaAds，可选地带切换能力面与自定义等待策略。
     (FakeMovaApi, MovaAds, List<MovaAdEvent>) pendBuild(
       List<MovaAdBreak> breaks, {
-      MovaCutover? cutover,
-      MovaAdWaitPolicy? wait,
+      IMovaCutover? cutover,
+      IMovaAdWaitPolicy? wait,
     }) {
       final events = <MovaAdEvent>[];
       final api = FakeMovaApi(
         options: MovaOpts(
-          ads: MovaAdConfig(
+          ads: MovaAdOpts(
             enabled: true,
             breaks: breaks,
             onAdEvent: events.add,
@@ -1068,9 +1068,9 @@ void main() {
       return (api, MovaAds(api, cutover: cutover), events);
     }
 
-    /// Lets the controller's async chains settle inside a [fakeAsync] zone.
+    /// Lets the [MovaAds] async chains settle inside a [fakeAsync] zone.
     ///
-    /// 在 [fakeAsync] 区域内让控制器的异步链结算完毕。
+    /// 在 [fakeAsync] 区域内让 MovaAds 的异步链结算完毕。
     void flush(FakeAsync async) => async.elapse(const Duration(milliseconds: 1));
 
     const midNoDelay = MovaAdBreak(
@@ -1085,7 +1085,7 @@ void main() {
       delay: Duration(seconds: 5),
     );
 
-    test('a zero delay with no cutover engine keeps the mid-roll path byte-for-byte unchanged', () {
+    test('a zero delay with no cutover player keeps the mid-roll path byte-for-byte unchanged', () {
       fakeAsync((async) {
         final (api, c, events) = pendBuild([midNoDelay]);
         c.load(_content);
@@ -1342,7 +1342,7 @@ void main() {
 
     test('a zero delay still goes through pending when the break waits for readiness', () {
       fakeAsync((async) {
-        final cutover = FakeCutoverCtl();
+        final cutover = FakeCutover();
         final (api, c, events) = pendBuild([midNoDelay], cutover: cutover);
         c.load(_content);
         flush(async);
@@ -1362,7 +1362,7 @@ void main() {
 
     test('a zero delay with waiting turned off never enters pending', () {
       fakeAsync((async) {
-        final cutover = FakeCutoverCtl();
+        final cutover = FakeCutover();
         final (api, c, _) = pendBuild(
           [midNoDelay],
           cutover: cutover,
@@ -1380,20 +1380,20 @@ void main() {
   });
 
   group('waiting for ad readiness — per-kind defaults and atomic cut-in', () {
-    /// Builds api + controller with an optional cutover ctl, wait policy and
+    /// Builds api + [MovaAds] with an optional cutover, wait policy and
     /// not-ready action.
     ///
-    /// 构造 api + 控制器，可选地带切换能力面、等待策略与等不到时的动作。
+    /// 构造 api + MovaAds，可选地带切换能力面、等待策略与等不到时的动作。
     (FakeMovaApi, MovaAds, List<MovaAdEvent>) waitBuild(
       List<MovaAdBreak> breaks, {
-      MovaCutover? cutover,
-      MovaAdWaitPolicy? wait,
+      IMovaCutover? cutover,
+      IMovaAdWaitPolicy? wait,
       MovaAdNotReady notReady = MovaAdNotReady.hardCut,
     }) {
       final events = <MovaAdEvent>[];
       final api = FakeMovaApi(
         options: MovaOpts(
-          ads: MovaAdConfig(
+          ads: MovaAdOpts(
             enabled: true,
             breaks: breaks,
             onAdEvent: events.add,
@@ -1405,9 +1405,9 @@ void main() {
       return (api, MovaAds(api, cutover: cutover), events);
     }
 
-    /// Lets the controller's async chains settle inside a [fakeAsync] zone.
+    /// Lets the [MovaAds] async chains settle inside a [fakeAsync] zone.
     ///
-    /// 在 [fakeAsync] 区域内让控制器的异步链结算完毕。
+    /// 在 [fakeAsync] 区域内让 MovaAds 的异步链结算完毕。
     void flush(FakeAsync async) => async.elapse(const Duration(milliseconds: 1));
 
     const pre = MovaAdBreak(
@@ -1424,7 +1424,7 @@ void main() {
       offset: Duration(seconds: 30),
     );
 
-    test('with no cutover ctl nothing is ever prepared or swapped; everything opens', () {
+    test('with no cutover nothing is ever prepared or cut over; everything opens', () {
       fakeAsync((async) {
         final (api, c, _) = waitBuild([mid]);
         c.load(_content);
@@ -1436,9 +1436,9 @@ void main() {
       });
     });
 
-    test('a disabled cutover ctl behaves the same, even though waitsFor says yes', () {
+    test('a disabled cutover behaves the same, even though waitsFor says yes', () {
       fakeAsync((async) {
-        final cutover = FakeCutoverCtl()..cutoverEnabled = false;
+        final cutover = FakeCutover()..cutoverEnabled = false;
         final (api, c, _) = waitBuild([mid], cutover: cutover);
         c.load(_content);
         flush(async);
@@ -1452,7 +1452,7 @@ void main() {
 
     test('a mid-roll waits by default: it prepares, and the content is not interrupted', () {
       fakeAsync((async) {
-        final cutover = FakeCutoverCtl();
+        final cutover = FakeCutover();
         const delayed = MovaAdBreak(
           kind: MovaAdBreakKind.mid,
           source: MovaSource('https://host/mid.mp4'),
@@ -1474,7 +1474,7 @@ void main() {
 
     test('a pre-roll does NOT wait by default: no prepare, no cutoverTo', () {
       fakeAsync((async) {
-        final cutover = FakeCutoverCtl();
+        final cutover = FakeCutover();
         final (api, c, _) = waitBuild([pre], cutover: cutover);
         c.load(_content);
         flush(async);
@@ -1486,7 +1486,7 @@ void main() {
 
     test('a post-roll does NOT wait by default either', () {
       fakeAsync((async) {
-        final cutover = FakeCutoverCtl();
+        final cutover = FakeCutover();
         final (api, c, _) = waitBuild([post], cutover: cutover);
         c.load(_content);
         flush(async);
@@ -1500,7 +1500,7 @@ void main() {
 
     test('MovaAdWaitByKind(mid: false) puts mid-rolls back on the hard-cut path', () {
       fakeAsync((async) {
-        final cutover = FakeCutoverCtl();
+        final cutover = FakeCutover();
         final (api, c, _) = waitBuild([mid], cutover: cutover, wait: const MovaAdWaitByKind(mid: false));
         c.load(_content);
         flush(async);
@@ -1513,7 +1513,7 @@ void main() {
 
     test('MovaAdWaitByKind(pre: true) routes the pre-roll through cutoverTo, not open', () {
       fakeAsync((async) {
-        final cutover = FakeCutoverCtl()..commitResult = true;
+        final cutover = FakeCutover()..commitResult = true;
         final (api, c, _) = waitBuild([pre], cutover: cutover, wait: const MovaAdWaitByKind(pre: true));
         c.load(_content);
         flush(async);
@@ -1525,7 +1525,7 @@ void main() {
 
     test('MovaAdBreak.waitForReady false overrides the mid default of true', () {
       fakeAsync((async) {
-        final cutover = FakeCutoverCtl();
+        final cutover = FakeCutover();
         const forced = MovaAdBreak(
           kind: MovaAdBreakKind.mid,
           source: MovaSource('https://host/mid.mp4'),
@@ -1544,7 +1544,7 @@ void main() {
 
     test('MovaAdBreak.waitForReady true overrides the pre default of false', () {
       fakeAsync((async) {
-        final cutover = FakeCutoverCtl()..commitResult = true;
+        final cutover = FakeCutover()..commitResult = true;
         const forced = MovaAdBreak(
           kind: MovaAdBreakKind.pre,
           source: MovaSource('https://host/pre.mp4'),
@@ -1557,10 +1557,10 @@ void main() {
       });
     });
 
-    test('an injected MovaAdWaitPolicy is actually consulted and obeyed', () {
+    test('an injected IMovaAdWaitPolicy is actually consulted and obeyed', () {
       fakeAsync((async) {
         final policy = RecordingAdWaitPolicy(answer: false);
-        final cutover = FakeCutoverCtl();
+        final cutover = FakeCutover();
         final (api, c, _) = waitBuild([mid], cutover: cutover, wait: policy);
         c.load(_content);
         flush(async);
@@ -1574,7 +1574,7 @@ void main() {
 
     test('the warm-up uses the content→ad plan, always at position zero', () {
       fakeAsync((async) {
-        final cutover = FakeCutoverCtl();
+        final cutover = FakeCutover();
         const delayed = MovaAdBreak(
           kind: MovaAdBreakKind.mid,
           source: MovaSource('https://host/mid.mp4'),
@@ -1596,7 +1596,7 @@ void main() {
 
     test('the cue carries the countdown when there is one, and nothing when there is not', () {
       fakeAsync((async) {
-        final cutover = FakeCutoverCtl();
+        final cutover = FakeCutover();
         const delayed = MovaAdBreak(
           kind: MovaAdBreakKind.mid,
           source: MovaSource('https://host/mid.mp4'),
@@ -1616,7 +1616,7 @@ void main() {
         expect(cutover.lastCue!.remaining, const Duration(seconds: 3));
 
         // A zero-delay mid-roll: the warm-up still starts, with an empty cue.
-        final cutover2 = FakeCutoverCtl();
+        final cutover2 = FakeCutover();
         final (api2, c2, _) = waitBuild([mid], cutover: cutover2);
         c2.load(_content);
         flush(async);
@@ -1630,7 +1630,7 @@ void main() {
 
     test('a successful commit cuts in with no open(), and keeps every bit of bookkeeping', () {
       fakeAsync((async) {
-        final cutover = FakeCutoverCtl()..commitResult = true;
+        final cutover = FakeCutover()..commitResult = true;
         final (api, c, events) = waitBuild([mid], cutover: cutover);
         c.load(_content);
         flush(async);
@@ -1653,7 +1653,7 @@ void main() {
 
     test('a failed commit with hardCut falls back to open(), the way it always did', () {
       fakeAsync((async) {
-        final cutover = FakeCutoverCtl()..commitResult = false;
+        final cutover = FakeCutover()..commitResult = false;
         final (api, c, _) = waitBuild([mid], cutover: cutover);
         c.load(_content);
         flush(async);
@@ -1668,7 +1668,7 @@ void main() {
 
     test('a failed commit with dropBreak never interrupts the content', () {
       fakeAsync((async) {
-        final cutover = FakeCutoverCtl()..commitResult = false;
+        final cutover = FakeCutover()..commitResult = false;
         final (api, c, events) = waitBuild(
           [mid],
           cutover: cutover,
@@ -1694,7 +1694,7 @@ void main() {
 
     test('the ad→content direction holds at the resume point but keeps the configured trigger', () {
       fakeAsync((async) {
-        final cutover = FakeCutoverCtl();
+        final cutover = FakeCutover();
         final (api, c, _) = waitBuild([pre], cutover: cutover);
         c.load(_content);
         flush(async);
@@ -1716,18 +1716,18 @@ void main() {
   });
 
   group('ad failure fallback', () {
-    /// Builds api + controller with an optional failure policy.
+    /// Builds api + [MovaAds] with an optional failure policy.
     ///
-    /// 构造 api + 控制器，可选地带失败兜底策略。
+    /// 构造 api + MovaAds，可选地带失败兜底策略。
     (FakeMovaApi, MovaAds, List<MovaAdEvent>) failBuild(
       List<MovaAdBreak> breaks, {
-      MovaAdFailPolicy? policy,
+      IMovaAdFailPolicy? policy,
       Duration loadTimeout = const Duration(seconds: 8),
     }) {
       final events = <MovaAdEvent>[];
       final api = FakeMovaApi(
         options: MovaOpts(
-          ads: MovaAdConfig(
+          ads: MovaAdOpts(
             enabled: true,
             breaks: breaks,
             onAdEvent: events.add,
@@ -1747,9 +1747,9 @@ void main() {
     int opensOf(FakeMovaApi api, String uri) =>
         api.openedUris.where((u) => u == uri).length;
 
-    /// Lets the controller's async chains settle inside a [fakeAsync] zone.
+    /// Lets the [MovaAds] async chains settle inside a [fakeAsync] zone.
     ///
-    /// 在 [fakeAsync] 区域内让控制器的异步链结算完毕。
+    /// 在 [fakeAsync] 区域内让 MovaAds 的异步链结算完毕。
     void flush(FakeAsync async) => async.elapse(const Duration(milliseconds: 1));
 
     const pre = MovaAdBreak(
@@ -2010,10 +2010,10 @@ void main() {
   });
 }
 
-/// A [MovaAdFailPolicy] that records every failure it is shown.
+/// A [IMovaAdFailPolicy] that records every failure it is shown.
 ///
-/// 一个记录所有被告知失败的 [MovaAdFailPolicy]。
-class RecordingFailPolicy implements MovaAdFailPolicy {
+/// 一个记录所有被告知失败的 [IMovaAdFailPolicy]。
+class RecordingFailPolicy implements IMovaAdFailPolicy {
   /// Every failure passed to [onFailure], in order.
   ///
   /// 依次传给 [onFailure] 的所有失败记录。
@@ -2036,10 +2036,10 @@ class RecordingFailPolicy implements MovaAdFailPolicy {
   }
 }
 
-/// A [MovaAdWaitPolicy] that records how often the controller consulted it.
+/// A [IMovaAdWaitPolicy] that records how often [MovaAds] consulted it.
 ///
-/// 一个记录控制器咨询次数的 [MovaAdWaitPolicy]。
-class RecordingAdWaitPolicy implements MovaAdWaitPolicy {
+/// 一个记录 MovaAds 咨询次数的 [IMovaAdWaitPolicy]。
+class RecordingAdWaitPolicy implements IMovaAdWaitPolicy {
   /// What [waitFor] answers.
   ///
   /// [waitFor] 的回答。

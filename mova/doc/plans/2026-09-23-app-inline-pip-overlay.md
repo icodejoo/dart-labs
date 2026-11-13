@@ -7,16 +7,16 @@
 （`MovaOpts.mini.enabled` 为 `false` 时全链路零行为变化），四端通用（Android/iOS/桌面/Web）。
 
 **与系统 PiP 的关系：** 三者正交、互斥生效——
-① `MovaApi.enterPip()`（Android 系统级，已真机验证 `mWindowingMode=pinned`）把**整个 Activity**
+① `IMovaApi.enterPip()`（Android 系统级，已真机验证 `mWindowingMode=pinned`）把**整个 Activity**
 缩成系统悬浮窗，退出 App 后仍在；② iOS 系统 PiP 仍未实现（卡在 `AVSampleBufferDisplayLayer`
 门槛 spike，见 `doc/notes/2026-07-31-ios-pip-feasibility.md`）；③ 本计划的 **App 内小窗**只在
 自家 App 前台的绘制树里做文章，**不出 App**，但**没有任何平台门槛**，四端一次写完。
 本计划是 iOS PiP 缺口的跨平台降级方案（即那份笔记里的"阶段 3：跨平台应用内悬浮窗"），
 同时也是 Android 上"不想申请 PiP 权限/不想让用户离开 App"场景的首选。
 
-**Architecture:** 核心洞察——**画面不动，widget 动**。`MovaEngine`/`MovaMpvKernel`/`VideoController`
+**Architecture:** 核心洞察——**画面不动，widget 动**。`Mova`/`MovaMpvKernel`/`VideoController`
 是纯 Dart 对象，它们的生命周期与 widget 树**完全无关**；只要宿主在路由之外持有同一个
-`MovaApi` 实例，把 `MovaPlayer` 从页面里卸载、在小窗里重新挂载，libmpv 侧一个字节都不会重新解码
+`IMovaApi` 实例，把 `MovaPlayer` 从页面里卸载、在小窗里重新挂载，libmpv 侧一个字节都不会重新解码
 ——重挂的只是 Flutter 的 `Texture` widget，`renderHandle` 指向的 `VideoController` 自始至终没变。
 `player.dart` 现有的 `KeyedSubtree(key: ValueKey(widget.api))` 恰好保证了这次重挂是干净的
 （所有在 `initState` 里订阅流的后代都会重新订阅到同一个活着的 api 上）。
@@ -38,7 +38,7 @@
 
 | 包 | 实际是什么 | 结论 |
 |---|---|---|
-| **`floating`** (v6.0.0, wrbl.xyz, 270 likes, 160 pts, 距今约 19 个月未更新) | **不是**纯 Dart Overlay，而是 **Android 系统 PiP 的原生封装**（`PiPSwitcher` / `ImmediatePiP` / `OnLeavePiP` / `sourceRectHint`）。README 明说 **Android only**，且"iOS/Web 在平台自身支持前不计划支持" | **否决**。它解决的是 mova **已经自研并真机验证过**的那件事（`MovaApi.enterPip()` + `MovaPlugin.kt`），引进来只会与既有 `pipSupported`/`MovaPipChg`/`MovaState.pip` 语义打架，而对本需求（App 内小窗）**零贡献** |
+| **`floating`** (v6.0.0, wrbl.xyz, 270 likes, 160 pts, 距今约 19 个月未更新) | **不是**纯 Dart Overlay，而是 **Android 系统 PiP 的原生封装**（`PiPSwitcher` / `ImmediatePiP` / `OnLeavePiP` / `sourceRectHint`）。README 明说 **Android only**，且"iOS/Web 在平台自身支持前不计划支持" | **否决**。它解决的是 mova **已经自研并真机验证过**的那件事（`IMovaApi.enterPip()` + `MovaPlugin.kt`），引进来只会与既有 `pipSupported`/`MovaPipChange`/`MovaState.pip` 语义打架，而对本需求（App 内小窗）**零贡献** |
 | `draggable_panel` (v4.1.0，22 天前发布，27 likes，全平台，零依赖) | 真正的纯 Dart 可拖拽面板；**不碰任何 video controller**，只是一个壳 | **可用但不推荐**。① 它要求挂在 `MaterialApp.builder` 上并**自带一套三段式动效模型**（parked / small / expanded），会把它的交互语言强加给 mova 的宿主；② mova 是发到 pub.dev 的**库**，为约 300 行可写的 UI 外壳给所有下游用户加一个 27 likes 的依赖，性价比不成立；③ 与 mova 的 Skin/Component 契约无从对接 |
 | `flutter_overlay_window` / `floating_window_android` / `floating_view` 等 | **系统级悬浮窗**，不是"App 内悬浮"——见下方专门辨析 | **否决**。需要运行时权限、Android 独占，与"App 内、四端通用"的需求正交 |
 
@@ -59,8 +59,8 @@ Dart 的绘制层，与 `SYSTEM_ALERT_WINDOW` 毫无关系，只是名字里也�
 
 **推荐：手撸。** 理由不是"NIH"，而是本功能的**难点根本不在拖拽框**——拖拽框是 `Stack` +
 `Positioned` + `GestureDetector` 约 150 行；难点在**播放器实例如何脱离路由生命周期存活**，
-而这件事**只有 mova 自己知道怎么做**（`MovaApi` 由谁持有、`renderHandle` 何时可复用、
-`ValueKey(api)` 的重挂语义、`MovaSwapEngine` 代理下的稳定引用）。任何第三方包都帮不上这一段，
+而这件事**只有 mova 自己知道怎么做**（`IMovaApi` 由谁持有、`renderHandle` 何时可复用、
+`ValueKey(api)` 的重挂语义、`MovaCutover` 代理下的稳定引用）。任何第三方包都帮不上这一段，
 而这一段正是全部风险所在。
 
 ---
@@ -81,7 +81,7 @@ Dart 的绘制层，与 `SYSTEM_ALERT_WINDOW` 毫无关系，只是名字里也�
 | 需求 | 就在**这一个页面内部**浮着：不受页面滚动内容影响、可拖拽移动位置 | 跨路由常驻：push/pop 任意多层，小窗一直在最上 |
 | 挂载 | `Overlay.of(context)` 找到的**最近祖先** Overlay，`insert(OverlayEntry)` | `MaterialApp.builder` 下的 `Stack` + `Positioned` |
 | 生命周期 | 跟随该页面：页面被 pop，小窗随之消失（本来就该消失） | 独立于路由栈 |
-| 谁实现 | **mova 实现**（`MovaMiniCtl.showInPage`，封装 entry 的 insert/remove） | **mova 只给文档 + 示例**（宿主自己在 `builder` 里包一层 `Stack`） |
+| 谁实现 | **mova 实现**（`MovaMini.showInPage`，封装 entry 的 insert/remove） | **mova 只给文档 + 示例**（宿主自己在 `builder` 里包一层 `Stack`） |
 
 #### 方式 A：`OverlayEntry` 没有被此前那个问题排除
 
@@ -102,10 +102,10 @@ Navigator 那个 Overlay）且追求跨路由持久化时成立**。而页内悬
 
 方式 B 的本质是宿主在 `MaterialApp.builder` 里包一层 `Stack`，`child` 就是 `Navigator`，
 绘制顺序与路由栈无关。**mova 要保证的底层能力只有一个：controller 与路由生命周期解耦**
-（`MovaMiniCtl` 活在 Navigator 之外，见 §1.2/Task 5）——这条保证到位，方式 B 就是水到渠成的
+（`MovaMini` 活在 Navigator 之外，见 §1.2/Task 5）——这条保证到位，方式 B 就是水到渠成的
 十几行宿主代码，不需要 mova 内部再造一层机制。
 
-因此 `MovaMiniHost` **降级为一个可选的便利壳**（约 30 行：监听 `ctl` + `Stack` 两件事），
+因此 `MovaMiniHost` **降级为一个可选的便利壳**（约 30 行：监听 `mini` + `Stack` 两件事），
 README 同时给出等价的手写 `Stack` 代码，宿主用哪种都行、不用也行。
 
 #### 解耦点：`MovaMiniWindow` 不关心自己被谁挂载
@@ -115,7 +115,7 @@ README 同时给出等价的手写 `Stack` 代码，宿主用哪种都行、不�
 插入的还是被宿主的 `Stack` 摆放的：
 
 ```
-        MovaMiniCtl（路由外真值源：api / rect / skin / mount）
+        MovaMini（路由外真值源：api / rect / uiKit / mount）
                  │  ChangeNotifier
                  ▼
         MovaMiniWindow（全屏尺寸的 Stack，内部一个 Positioned 装小窗）
@@ -134,12 +134,12 @@ README 同时给出等价的手写 `Stack` 代码，宿主用哪种都行、不�
   不假设"就是整块屏幕"——页内 Overlay 的尺寸可能小于屏幕（例如宿主把 Overlay 包在半屏区域里）。
   优先用 `LayoutBuilder` 拿到的实际约束当 `bounds`，`MediaQuery.padding` 只用来算 `MovaMiniInsets`。
 
-#### 互斥：同一个 ctl 不许同时被两种方式渲染
+#### 互斥：同一个 mini 不许同时被两种方式渲染
 
-双挂同一个 `VideoController` 是 §1.2 明令禁止的事。`MovaMiniCtl` 记一个 `MovaMiniMount`
+双挂同一个 `VideoController` 是 §1.2 明令禁止的事。`MovaMini` 记一个 `MovaMiniMount`
 （`page` / `persistent`），`show*` 时写入：
 
-- `showInPage(context, api)` → `mount = page`，ctl 自己 insert entry；
+- `showInPage(context, api)` → `mount = page`，mini 自己 insert entry；
 - `show(api)`（纯状态，给方式 B）→ `mount = persistent`，`MovaMiniHost` 只在 `mount == persistent`
   时渲染，`page` 时渲染 `nothing`（避免宿主同时接了 host 又调 `showInPage` 时出现两个渲染面）。
 
@@ -149,7 +149,7 @@ README 同时给出等价的手写 `Stack` 代码，宿主用哪种都行、不�
 ### 1.2 画面为什么不会重新解码（本计划的技术基石）
 
 ```
-宿主持有 ──▶ MovaApi (MovaEngine / MovaSwapEngine)   ← 生命周期与路由无关
+宿主持有 ──▶ IMovaApi (Mova / MovaCutover)   ← 生命周期与路由无关
                   │  renderHandle: VideoController    ← 构造期绑死，全程不变
                   ▼
    页面里的 MovaPlayer  ──卸载──▶  小窗里的 MovaPlayer  ──重新挂载
@@ -161,12 +161,12 @@ README 同时给出等价的手写 `Stack` 代码，宿主用哪种都行、不�
   —— 句柄没变，Flutter 复用同一个 `Texture`，**不重建纹理**。
 - `player.dart` 的 `ValueKey(widget.api)`：小窗与页面用的是**同一个 api 引用**，
   但它们处在树的不同位置，本来就是两次独立挂载，`initState` 各订阅一次、`dispose` 各取消一次，
-  不存在订阅指向死引擎的问题。
+  不存在订阅指向死播放器的问题。
 - **唯一的可见代价：交接那一帧可能有 1 帧黑**（旧 `Texture` 已卸、新 `Texture` 未绘）。
   缓解：先挂小窗、下一帧再让页面侧的 surface 换成占位（Task 6 的 `handoff` 顺序），
   真机验证里单列一条逐帧核对（Task 10 B 组）。
 - **硬约束：同一时刻只允许一个 `MovaPlayer` 持有该 api 的渲染面。** 双挂同一个
-  `VideoController` 在部分平台（Android SurfaceTexture）行为未定义。`MovaMiniCtl` 用
+  `VideoController` 在部分平台（Android SurfaceTexture）行为未定义。`MovaMini` 用
   `MovaState.mini` 这一个真值源保证互斥：页面侧用 `_MiniHidden` 把自己整体收起来
   （与既有 `_PipHidden` 同构）。
 
@@ -175,57 +175,57 @@ README 同时给出等价的手写 `Stack` 代码，宿主用哪种都行、不�
 | 层 | 改什么 | 为什么 |
 |---|---|---|
 | `core/state/state.dart` | **加一个 `bool mini`**（默认 `false`） | 与 `fullscreen`/`locked`/`pip` 完全同构的纯 UI 状态位。放进 `MovaState` 的唯一理由是：组件靠 `MovaSelect` 免费拿到响应式（`_MiniHidden` 一行搞定），换成独立的 InheritedWidget 就得给每个组件再铺一套订阅 |
-| `core/api.dart` | **加一个 `Future<void> setMini(bool v)`** | 与既有的 `setFullscreen`/`setLocked` 同类：纯状态 setter，不碰任何平台端口。`MovaEngine` 里 3 行实现（emit + 事件），`MovaSwapEngine` 里 1 行转发 |
-| `core/events/events.dart` | 加 `MovaMiniChg` | 与 `MovaPipChg`/`MovaFullScreenChg` 同构，宿主要靠它做埋点与路由联动 |
-| `core/options/mini_config.dart` | 新增 `MovaMiniConfig` | 默认值 + 配置项 + **可注入策略**三件套（项目开放性硬约束） |
+| `core/api.dart` | **加一个 `Future<void> setMini(bool v)`** | 与既有的 `setFullscreen`/`setLocked` 同类：纯状态 setter，不碰任何平台端口。`Mova` 里 3 行实现（emit + 事件），`MovaCutover` 里 1 行转发 |
+| `core/events/events.dart` | 加 `MovaMiniChange` | 与 `MovaPipChange`/`MovaFullScreenChange` 同构，宿主要靠它做埋点与路由联动 |
+| `core/options/mini_opts.dart` | 新增 `MovaMiniOpts` | 默认值 + 配置项 + **可注入策略**三件套（项目开放性硬约束） |
 | `core/mini/placement.dart` | **纯函数** `resolveMiniRect` / `snapCorner` / `MovaMiniRect` | 吸边、边界钳制、安全区避让全是纯算术，抽出来单测（项目约定："纯逻辑务必抽出来测"）。**用自定义 `MovaMiniRect`（4 个 double）而非 `Rect`**，以免给 core 引入 `dart:ui` |
-| `ui/mini/**` | `MovaMiniCtl`（含 `MovaMiniMount` 与两种挂载入口）/ `MovaMiniWindow`（挂载无关的本体）/ `MovaMiniHost`（方式 B 便利壳）/ `MovaMiniSkin` | 全部 Flutter 侧；挂载方式只是外壳差异，核心逻辑只在 `MovaMiniCtl` + `MovaMiniWindow` 两处 |
-| `ui/skins/default_skin.dart` | 加 `_MiniHidden`（与 `_PipHidden` 同构） | 页面侧在小窗态收起 chrome |
+| `ui/mini/**` | `MovaMini`（含 `MovaMiniMount` 与两种挂载入口）/ `MovaMiniWindow`（挂载无关的本体）/ `MovaMiniHost`（方式 B 便利壳）/ `MovaMiniUiKit` | 全部 Flutter 侧；挂载方式只是外壳差异，核心逻辑只在 `MovaMini` + `MovaMiniWindow` 两处 |
+| `ui/ui_kits/default_ui_kit.dart` | 加 `_MiniHidden`（与 `_PipHidden` 同构） | 页面侧在小窗态收起 chrome |
 
-**core 的改动总量：一个 bool 字段 + 一个方法 + 一个事件 + 一个 config + 一个纯函数文件。**
-`engine.dart` 的播放链路**一行不动**，`purity_test.dart` 的 `_mediaKitExceptions` 不变。
+**core 的改动总量：一个 bool 字段 + 一个方法 + 一个事件 + 一个 opts + 一个纯函数文件。**
+`mova.dart` 的播放链路**一行不动**，`purity_test.dart` 的 `_mediaKitExceptions` 不变。
 
-### 1.4 为什么**不**做成一种 `MovaComp`
+### 1.4 为什么**不**做成一种 `MovaComponent`
 
-考虑过"把小窗做成 `MovaComp` 体系里的一种特殊挂载方式"（问题 3 的第三条路线），**否决**：
-`MovaComp` 的契约是"渲染进 `MovaSlot` 指定的**播放器叠加层区域**"，它天生活在
+考虑过"把小窗做成 `MovaComponent` 体系里的一种特殊挂载方式"（问题 3 的第三条路线），**否决**：
+`MovaComponent` 的契约是"渲染进 `MovaSlot` 指定的**播放器叠加层区域**"，它天生活在
 `MovaPlayer` 的 `Stack` **内部**；而小窗必须活在 `MovaPlayer` **外部、Navigator 之上**——
-两者的坐标系与生命周期都不在一个量级。强行做成 `MovaComp` 会让组件树契约里多出一个
+两者的坐标系与生命周期都不在一个量级。强行做成 `MovaComponent` 会让组件树契约里多出一个
 "这个组件不在本 Stack 里渲染"的例外，污染 0.3.0 刚立住的三层契约。
-**但小窗内部的 chrome 仍然完全复用该契约**：`MovaMiniSkin implements MovaSkin`，
-只 `components()` 出三个既有叶子组件，`assemble()` 简单堆叠——这是 Skin 抽象的正确用法，
-也是"新皮肤零成本"这一设计意图的一次实证。
+**但小窗内部的 chrome 仍然完全复用该契约**：`MovaMiniUiKit implements IMovaUiKit`，
+只 `components()` 出三个既有叶子组件，`assemble()` 简单堆叠——这是 UI 套件抽象的正确用法，
+也是"新 UI 套件零成本"这一设计意图的一次实证。
 
-### 1.5 `MovaSwapEngine` 的经验能直接搬吗
+### 1.5 `MovaCutover` 的经验能直接搬吗
 
-**能搬的是结论，不是代码。** 0.4.0 已经证明过一次"引用稳定的 `MovaApi` 代理 + 组件按 api 身份重挂"
+**能搬的是结论，不是代码。** 0.4.0 已经证明过一次"引用稳定的 `IMovaApi` 代理 + 组件按 api 身份重挂"
 这套模型是成立的；本计划复用的正是它的**下半段**（`ValueKey(api)` 的重挂语义 + `renderHandle`
 重读 + `renderEpoch` 触发面重建）。但小窗**不需要**代理层：它自始至终就是**同一个** api，
-没有换引擎、没有影子引擎、没有原子换指。**不要为小窗引入第二个代理**。
-唯一要做的对接是：`MovaSwapEngine` 补一行 `setMini` 转发（Task 3），
-以及确认 swap 发生在小窗态时 `renderEpoch` 递增能把小窗里的 `_RenderSurface` 也刷新
+没有换播放器、没有影子播放器、没有原子换指。**不要为小窗引入第二个代理**。
+唯一要做的对接是：`MovaCutover` 补一行 `setMini` 转发（Task 3），
+以及确认 cutover 发生在小窗态时 `renderEpoch` 递增能把小窗里的 `_RenderSurface` 也刷新
 （Task 9 的契约测试，二者天然同一份 `MovaSelect` 逻辑，只需断言不回归）。
 
-### 1.6 engine 归谁 dispose（最容易踩的坑，必须写进 README）
+### 1.6 播放器归谁 dispose（最容易踩的坑，必须写进 README）
 
-mova 现有约定是"**宿主持有 engine**"（`MovaPlayer(api: ...)` 从不 dispose 传进来的 api）。
+mova 现有约定是"**宿主持有播放器**"（`MovaPlayer(api: ...)` 从不 dispose 传进来的 api）。
 小窗把这条约定的后果放大了：**页面 `dispose()` 里顺手 `api.dispose()` 是最常见的错误用法**，
-会在交接瞬间把正在小窗里播的引擎干掉。
-对策三件：① `MovaMiniCtl.show(api)` 的文档注释明写"借用不持有，宿主负责 dispose"；
-② `MovaMiniCtl` 提供 `isShowing(api)` 让页面在 `dispose` 前自检；
-③ `MovaEngine.dispose()` 在 `state.mini == true` 时打一条 `assert`（debug-only，零 release 成本，
+会在交接瞬间把正在小窗里播的播放器干掉。
+对策三件：① `MovaMini.show(api)` 的文档注释明写"借用不持有，宿主负责 dispose"；
+② `MovaMini` 提供 `isShowing(api)` 让页面在 `dispose` 前自检；
+③ `Mova.dispose()` 在 `state.mini == true` 时打一条 `assert`（debug-only，零 release 成本，
 符合项目"构造期/误用不变量用 assert"的约定）。
 
-### 1.7 方式 A 独有的坑：`OverlayEntry` 的生命周期归 ctl 管
+### 1.7 方式 A 独有的坑：`OverlayEntry` 的生命周期归 mini 管
 
-页内悬浮多出一条方式 B 没有的风险线——**entry 的宿主 Overlay 可能先于 ctl 消失**
-（页面被 pop，该 route 子树连同它的 Overlay 一起销毁），此时 ctl 若还握着那个已 remove/
+页内悬浮多出一条方式 B 没有的风险线——**entry 的宿主 Overlay 可能先于 mini 消失**
+（页面被 pop，该 route 子树连同它的 Overlay 一起销毁），此时 mini 若还握着那个已 remove/
 已失效的 entry，下次 `hide()` 会对一个死 entry 调 `remove()`（重复 remove 抛
 `'Tried to remove an OverlayEntry that is not in the Overlay'`）。三条对策：
 
-1. `MovaMiniCtl` 内部 remove 前一律判 `entry.mounted`，并在 remove 后立刻置 `null`
+1. `MovaMini` 内部 remove 前一律判 `entry.mounted`，并在 remove 后立刻置 `null`
    （`hide()`/`close()`/换 api 三条路径共用同一个私有 `_detachEntry()`）。
-2. `showInPage` 的文档注释明写：**页面 `dispose()` 里必须调一次 `ctl.hide()` 或 `ctl.close()`**，
+2. `showInPage` 的文档注释明写：**页面 `dispose()` 里必须调一次 `mini.hide()` 或 `mini.close()`**，
    否则 `MovaState.mini` 会停在 `true`（画面没人渲染，但页面侧 chrome 仍以为在小窗态）。
    demo 里正确演示一次（Task 10）。
 3. `showInPage` 用的是 `Overlay.of(context)`（`rootOverlay: false`，最近祖先）。
@@ -241,17 +241,17 @@ mova 现有约定是"**宿主持有 engine**"（`MovaPlayer(api: ...)` 从不 di
 
 | 文件 | 职责 | 任务 |
 |---|---|---|
-| `lib/src/core/options/mini_config.dart` | `MovaMiniConfig` + `MovaMiniCorner` | Task 1 |
-| `lib/src/core/mini/placement.dart` | `MovaMiniRect` / `MovaMiniPlacement` 抽象 + `MovaCornerSnap` 默认实现 + 纯函数 `clampToBounds` | Task 4 |
+| `lib/src/core/options/mini_opts.dart` | `MovaMiniOpts` + `MovaMiniCorner` | Task 1 |
+| `lib/src/core/mini/placement.dart` | `MovaMiniRect` / `IMovaMiniPlacement` 抽象 + `MovaCornerSnap` 默认实现 + 纯函数 `clampToBounds` | Task 4 |
 
 **新建（ui）**
 
 | 文件 | 职责 | 任务 |
 |---|---|---|
-| `lib/src/ui/mini/mini_ctl.dart` | `MovaMiniCtl extends ChangeNotifier` + `MovaMiniMount` — 路由外的真值源，含方式 A 的 `OverlayEntry` 挂载封装 | Task 5 |
+| `lib/src/ui/mini/mini.dart` | `MovaMini extends ChangeNotifier` + `MovaMiniMount` — 路由外的真值源，含方式 A 的 `OverlayEntry` 挂载封装 | Task 5 |
 | `lib/src/ui/mini/mini_host.dart` | `MovaMiniHost` — 方式 B 的便利壳（约 30 行 `Stack`，可不用） | Task 6 |
 | `lib/src/ui/mini/mini_window.dart` | `MovaMiniWindow` — 挂载无关的小窗本体（全屏 `Stack` + 内部 `Positioned`）：拖拽/吸边/关闭与回页面 | Task 7 |
-| `lib/src/ui/mini/mini_skin.dart` | `MovaMiniSkin implements MovaSkin` — 小窗内的极简 chrome | Task 8 |
+| `lib/src/ui/mini/mini_ui_kit.dart` | `MovaMiniUiKit implements IMovaUiKit` — 小窗内的极简 chrome | Task 8 |
 
 **修改**
 
@@ -259,12 +259,12 @@ mova 现有约定是"**宿主持有 engine**"（`MovaPlayer(api: ...)` 从不 di
 |---|---|---|
 | `lib/src/core/state/state.dart` | 加 `bool mini`（默认 false）+ `copyWith`/`==`/`hashCode` | Task 2 |
 | `lib/src/core/api.dart` | 加 `Future<void> setMini(bool v)` | Task 3 |
-| `lib/src/core/engine.dart` | 实现 `setMini`；`dispose()` 加 mini-态 assert | Task 3 |
-| `lib/src/core/events/events.dart` | 加 `MovaMiniChg` | Task 3 |
-| `lib/src/core/swap/swap_engine.dart` | 转发 `setMini` | Task 3 |
-| `lib/src/core/compat.dart` | `MovaCtrl` 兼容层补 `setMini`（若其转发全量 API） | Task 3 |
+| `lib/src/core/mova.dart` | 实现 `setMini`；`dispose()` 加 mini-态 assert | Task 3 |
+| `lib/src/core/events/events.dart` | 加 `MovaMiniChange` | Task 3 |
+| `lib/src/core/cutover/cutover.dart` | 转发 `setMini` | Task 3 |
+| `lib/src/core/compat.dart`（当时的兼容层，最早的门面类 `MovaCtrl`，已删除） | 补 `setMini`（若其转发全量 API） | Task 3 |
 | `lib/src/core/options/options.dart` | 加 `mini` 节 + `copyWith`/`==`/`hashCode` + export | Task 1 |
-| `lib/src/ui/skins/default_skin.dart` | 加 `_MiniHidden`，套在操作层外（与 `_PipHidden` 并列） | Task 8 |
+| `lib/src/ui/ui_kits/default_ui_kit.dart` | 加 `_MiniHidden`，套在操作层外（与 `_PipHidden` 并列） | Task 8 |
 | `lib/mova.dart` | barrel 增补 6 处导出 | Task 1/4/5/6/7/8 |
 | `test/support/fake_api.dart` | `FakeMovaApi` 补 `setMini` + `mini` 推送辅助 | Task 3 |
 | `example/lib/mini_window_demo.dart` | **独立** demo 页（项目约定：验收 demo 不与其他 spike 混用） | Task 10 |
@@ -274,10 +274,10 @@ mova 现有约定是"**宿主持有 engine**"（`MovaPlayer(api: ...)` 从不 di
 **测试**
 
 `test/core/mini/placement_test.dart`、`test/core/options_test.dart`（增补）、
-`test/core/state_test.dart`（增补）、`test/core/engine_test.dart`（增补）、
-`test/core/swap/swap_engine_test.dart`（增补）、`test/core/openness_mini_test.dart`、
+`test/core/state_test.dart`（增补）、`test/core/mova_test.dart`（增补）、
+`test/core/cutover/cutover_test.dart`（增补）、`test/core/openness_mini_test.dart`、
 `test/ui/mini/mini_ctl_test.dart`、`test/ui/mini/mini_mount_test.dart`（**新增**：两种挂载方式
-各自的行为 + 二者等价性）、`test/ui/mini/mini_window_test.dart`、`test/ui/mini/mini_skin_test.dart`、
+各自的行为 + 二者等价性）、`test/ui/mini/mini_window_test.dart`、`test/ui/mini/mini_ui_kit_test.dart`、
 `test/ui/player_test.dart`（增补：跨位置重挂同一 api 后渲染句柄不变）。
 （原 `mini_host_test.dart` 并入 `mini_mount_test.dart`——`MovaMiniHost` 降级成便利壳后，
 真正要测的是"两种外壳下同一个 `MovaMiniWindow` 行为一致"，分两个文件反而割裂。）
@@ -302,19 +302,19 @@ Task 1 → 717、2 → 723、3 → 735、4 → 751、5 → 765（+14，含方式
 - 校验用 `flutter analyze`（0 issues），不用 `flutter build`。每个 Task 结束 `flutter test`
   全绿再 commit，信息用 `type(mova): message`。
 - **既有 709 项测试一项都不许删、不许改断言**，只允许因新增字段/可选参数做纯增量修改。
-- **默认关闭是硬约束**：`MovaMiniConfig.enabled` 默认 `false`；未接 `MovaMiniHost` 的宿主
+- **默认关闭是硬约束**：`MovaMiniOpts.enabled` 默认 `false`；未接 `MovaMiniHost` 的宿主
   行为与今天逐字节相同。每个 Task 都要有一条"关闭时行为不变"的测试。
 - 开放性契约：每个替用户做的决策必须齐**默认值 + 配置项 + 可注入策略**三样
-  （Task 9 做成可执行对账测试，照抄 `openness_swap_test.dart` 的写法）。
+  （Task 9 做成可执行对账测试，照抄 `openness_cutover_test.dart` 的写法）。
 
 ---
 
-## Task 1: `MovaMiniConfig` 与 `MovaOpts.mini`
+## Task 1: `MovaMiniOpts` 与 `MovaOpts.mini`
 
 先钉死配置面：默认关闭，每个决策三件套齐全。
 
 **Files:**
-- Create: `lib/src/core/options/mini_config.dart`
+- Create: `lib/src/core/options/mini_opts.dart`
 - Modify: `lib/src/core/options/options.dart`, `lib/mova.dart`
 - Test: `test/core/options_test.dart`（追加 8 项，不动既有项）
 
@@ -338,7 +338,7 @@ enum MovaMiniCorner {
   bottomRight,
 }
 
-/// Configuration for the in-app mini window (app-inline picture-in-picture).
+/// Options for the in-app mini window (app-inline picture-in-picture).
 ///
 /// Off by default. This feature never touches a platform PiP API — it is pure
 /// Flutter compositing above the [Navigator], so it behaves identically on
@@ -348,7 +348,7 @@ enum MovaMiniCorner {
 ///
 /// 默认关闭。该特性完全不碰任何平台 PiP API——它只是在 [Navigator] 之上做纯
 /// Flutter 合成，因此四端行为一致，也不需要任何权限。
-class MovaMiniConfig {
+class MovaMiniOpts {
   /// Master switch; [MovaMiniHost] renders nothing when `false`.
   ///
   /// 总开关；为 `false` 时 [MovaMiniHost] 不渲染任何东西。
@@ -394,9 +394,9 @@ class MovaMiniConfig {
   ///
   /// 决定*小窗最终落点*；为 `null` 时使用由 [snapToEdge]/[margin] 构造的
   /// [MovaCornerSnap]。
-  final MovaMiniPlacement? placement;
+  final IMovaMiniPlacement? placement;
 
-  /// Creates a mini-window configuration; disabled by default.
+  /// Creates mini-window options; disabled by default.
   ///
   /// 创建一份小窗配置；默认关闭。
   ///
@@ -412,9 +412,9 @@ class MovaMiniConfig {
   ///
   /// Example / 示例:
   /// ```dart
-  /// const opts = MovaOpts(mini: MovaMiniConfig(enabled: true, width: 180));
+  /// const opts = MovaOpts(mini: MovaMiniOpts(enabled: true, width: 180));
   /// ```
-  const MovaMiniConfig({
+  const MovaMiniOpts({
     this.enabled = false,
     this.width = 180,
     this.aspectRatio = 16 / 9,
@@ -431,25 +431,25 @@ class MovaMiniConfig {
   /// The placement policy actually in effect.
   ///
   /// 实际生效的落点策略。
-  MovaMiniPlacement get effectivePlacement =>
+  IMovaMiniPlacement get effectivePlacement =>
       placement ?? MovaCornerSnap(snap: snapToEdge, margin: margin);
 
   /// Returns a copy with the given fields replaced.
   ///
   /// 返回一份替换了指定字段的拷贝。
-  MovaMiniConfig copyWith({ /* 每个字段一个可空参数 */ });
+  MovaMiniOpts copyWith({ /* 每个字段一个可空参数 */ });
 
-  // == / hashCode 覆盖全部字段，写法照抄 MovaSwapConfig。
+  // == / hashCode 覆盖全部字段，写法照抄 MovaCutoverOpts。
 }
 ```
 
-`MovaOpts` 加一节：`final MovaMiniConfig mini;`，构造器 `this.mini = const MovaMiniConfig()`，
-`copyWith`/`==`/`hashCode` 同步，`options.dart` 顶部 `export 'mini_config.dart';`。
+`MovaOpts` 加一节：`final MovaMiniOpts mini;`，构造器 `this.mini = const MovaMiniOpts()`，
+`copyWith`/`==`/`hashCode` 同步，`options.dart` 顶部 `export 'mini_opts.dart';`。
 
 **Test assertions:**
 - 默认构造 `enabled` 为 `false`、`width == 180`、`aspectRatio == 16/9`、
   `initialCorner == MovaMiniCorner.bottomRight`。
-- `MovaOpts().mini == const MovaMiniConfig()`；`MovaOpts()` 的 `==`/`hashCode` 纳入 `mini`。
+- `MovaOpts().mini == const MovaMiniOpts()`；`MovaOpts()` 的 `==`/`hashCode` 纳入 `mini`。
 - `copyWith(enabled: true)` 只改那一个字段。
 - `effectivePlacement` 在 `placement == null` 时返回 `MovaCornerSnap`，非空时原样返回。
 - `assert`：`width: 0` / `aspectRatio: -1` / `margin: -1` 各抛 `AssertionError`。
@@ -465,11 +465,11 @@ class MovaMiniConfig {
   /// Whether the picture is currently rendered in the in-app mini window.
   ///
   /// Orthogonal to [pip] (system-level) and mutually exclusive with it and
-  /// with [fullscreen]: the engine clears the other two when this turns on.
+  /// with [fullscreen]: the player clears the other two when this turns on.
   ///
   /// 画面当前是否渲染在 App 内小窗里。
   ///
-  /// 与 [pip]（系统级）正交，且与它和 [fullscreen] 互斥：该位置真时 engine 会
+  /// 与 [pip]（系统级）正交，且与它和 [fullscreen] 互斥：该位置真时播放器会
   /// 清掉另外两个。
   final bool mini;
 ```
@@ -486,13 +486,13 @@ class MovaMiniConfig {
 
 ---
 
-## Task 3: `MovaApi.setMini` + `MovaMiniChg` + 互斥语义
+## Task 3: `IMovaApi.setMini` + `MovaMiniChange` + 互斥语义
 
 **Files:**
-- Modify: `lib/src/core/api.dart`, `lib/src/core/engine.dart`,
-  `lib/src/core/events/events.dart`, `lib/src/core/swap/swap_engine.dart`,
+- Modify: `lib/src/core/api.dart`, `lib/src/core/mova.dart`,
+  `lib/src/core/events/events.dart`, `lib/src/core/cutover/cutover.dart`,
   `lib/src/core/compat.dart`, `test/support/fake_api.dart`
-- Test: `test/core/engine_test.dart`（+8）、`test/core/swap/swap_engine_test.dart`（+2）、
+- Test: `test/core/mova_test.dart`（+8）、`test/core/cutover/cutover_test.dart`（+2）、
   `test/core/api_test.dart`（+2）
 
 ```dart
@@ -520,40 +520,40 @@ class MovaMiniConfig {
 ```
 
 ```dart
-// engine.dart
+// mova.dart
   @override
   Future<void> setMini(bool v) async {
     if (state.mini == v) return;               // 幂等，避免无谓事件
     if (v && state.fullscreen) await setFullscreen(false);
     _state.emit(state.copyWith(mini: v));
-    _events.add(MovaMiniChg(v));
+    _events.add(MovaMiniChange(v));
   }
 ```
 
 `dispose()` 首行加：
 
 ```dart
-    // Disposing while the mini window still renders this engine leaves the
+    // Disposing while the mini window still renders this player leaves the
     // host painting a dead texture — almost always a page that disposed the
-    // engine it had just handed off. Debug-only, zero release cost.
+    // player it had just handed off. Debug-only, zero release cost.
     //
-    // 小窗仍在渲染本引擎时 dispose，会让宿主继续绘制一个已死的纹理——几乎总是
-    // 某个页面把刚交接出去的引擎顺手销毁了。仅 debug 生效，release 零成本。
-    assert(!state.mini, 'dispose() while MovaState.mini is true — see MovaMiniCtl docs');
+    // 小窗仍在渲染本播放器时 dispose，会让宿主继续绘制一个已死的纹理——几乎总是
+    // 某个页面把刚交接出去的播放器顺手销毁了。仅 debug 生效，release 零成本。
+    assert(!state.mini, 'dispose() while MovaState.mini is true — see MovaMini docs');
 ```
 
-`MovaMiniChg extends MovaEvent`（带 `final bool mini;`，照抄 `MovaPipChg`）。
-`swap_engine.dart` 加一行 `Future<void> setMini(bool v) => _active.setMini(v);`。
+`MovaMiniChange extends MovaEvent`（带 `final bool mini;`，照抄 `MovaPipChange`）。
+`cutover.dart` 加一行 `Future<void> setMini(bool v) => _active.setMini(v);`。
 `fake_api.dart` 的 `FakeMovaApi` 记录调用并暴露 `emitMini(bool)`。
 
 **Test assertions:**
-- `setMini(true)` → `state.mini` 为真、发出一次 `MovaMiniChg(true)`。
+- `setMini(true)` → `state.mini` 为真、发出一次 `MovaMiniChange(true)`。
 - 重复 `setMini(true)` **不再发事件**（幂等）。
-- 全屏态下 `setMini(true)` → `fullscreen` 变 false 且先发 `MovaFullScreenChg(false)` 再发
-  `MovaMiniChg(true)`（事件顺序断言）。
+- 全屏态下 `setMini(true)` → `fullscreen` 变 false 且先发 `MovaFullScreenChange(false)` 再发
+  `MovaMiniChange(true)`（事件顺序断言）。
 - `setMini(false)` 不会把 `fullscreen` 改回去。
-- `setMini` 不触碰任何 Port（用假 Port 断言零调用：`pip`/`orientation`/`brightness`/`volume`）。
-- `MovaSwapEngine.setMini` 转发到当前生效引擎；swap 后转发到新引擎。
+- `setMini` 不触碰任何 Port（用假 Port 断言零调用：`pip`/`orient`/`brightness`/`volume`）。
+- `MovaCutover.setMini` 转发到当前生效播放器；cutover 后转发到新播放器。
 - mini 态下 `dispose()` 在 debug 触发 `AssertionError`；`setMini(false)` 后正常 dispose。
 
 ---
@@ -600,15 +600,15 @@ class MovaMiniInsets { const MovaMiniInsets({this.left = 0, this.top = 0,
 
 /// Decides where the mini window lands after a drag ends.
 ///
-/// Pure logic, injected via [MovaMiniConfig.placement] so a host can replace
+/// Pure logic, injected via [MovaMiniOpts.placement] so a host can replace
 /// the built-in corner snapping with its own (free positioning, magnetic
 /// grid, single-edge dock, …) without forking the widget.
 ///
 /// 决定小窗在一次拖动结束后落在哪里。
 ///
-/// 纯逻辑，经 [MovaMiniConfig.placement] 注入，宿主可以在不 fork widget 的
+/// 纯逻辑，经 [MovaMiniOpts.placement] 注入，宿主可以在不 fork widget 的
 /// 前提下把内置的吸角换成自己的（自由摆放、磁吸网格、单边停靠……）。
-abstract class MovaMiniPlacement {
+abstract class IMovaMiniPlacement {
   /// Returns the resting rectangle for [current] inside [bounds].
   ///
   /// - [current]: where the finger released it / 手指松开时的位置
@@ -627,7 +627,7 @@ abstract class MovaMiniPlacement {
 ///
 /// 内置落点策略：先钳进边界，再（[snap] 为真时）沿水平方向滑到窗口中心更靠近
 /// 的那一侧，并遵守 [margin] 与安全区 [MovaMiniInsets]。
-class MovaCornerSnap implements MovaMiniPlacement { /* ... */ }
+class MovaCornerSnap implements IMovaMiniPlacement { /* ... */ }
 
 /// Clamps [r] so it lies fully inside [bounds] minus [insets] and [margin].
 /// Exposed separately because the drag itself needs it every frame, while
@@ -659,11 +659,11 @@ MovaMiniRect rectForCorner(MovaMiniCorner corner, {required double width,
 
 ---
 
-## Task 5: `MovaMiniCtl` — 路由外的真值源（两种挂载方式的共同底座）
+## Task 5: `MovaMini` — 路由外的真值源（两种挂载方式的共同底座）
 
-**本 Task 是"挂载方式解耦"的落点**：ctl 持有全部与挂载无关的状态（api / skin / rect /
+**本 Task 是"挂载方式解耦"的落点**：mini 持有全部与挂载无关的状态（api / uiKit / rect /
 onClosed），只多一个 `mount` 字段区分当前走的是哪条路；方式 A 的 `OverlayEntry` 生命周期
-也收在这里（§1.7），方式 B 则完全不经过 ctl 的挂载代码——它只读 ctl 的状态。
+也收在这里（§1.7），方式 B 则完全不经过 mini 的挂载代码——它只读 mini 的状态。
 
 ```dart
 /// How the mini window is mounted into the widget tree.
@@ -693,38 +693,38 @@ enum MovaMiniMount {
 ///
 /// Lives outside the [Navigator] (a host-level singleton, or provided however
 /// the host prefers) so that popping the page that started playback does not
-/// take the engine down with it. It **borrows** the [MovaApi] — it never
+/// take the player down with it. It **borrows** the [IMovaApi] — it never
 /// creates and never disposes one; disposing stays the host's job, exactly as
 /// with [MovaPlayer].
 ///
 /// 当前在小窗里播放的内容的持有者，独立于路由。
 ///
 /// 它活在 [Navigator] 之外（宿主级单例，或宿主偏好的任何注入方式），使得弹出
-/// 发起播放的那个页面不会把引擎一起带走。它**借用** [MovaApi]——既不创建也不
+/// 发起播放的那个页面不会把播放器一起带走。它**借用** [IMovaApi]——既不创建也不
 /// 销毁；销毁仍然是宿主的职责，与 [MovaPlayer] 的约定完全一致。
 ///
 /// Example / 示例:
 /// ```dart
-/// final mini = MovaMiniCtl();
+/// final mini = MovaMini();
 ///
 /// // 方式 A：页内悬浮（mova 负责插 OverlayEntry）
 /// await mini.showInPage(context, api);
 ///
 /// // 方式 B：跨路由持久（宿主自己在 MaterialApp.builder 里放 Stack）
-/// // MaterialApp(builder: (c, child) => MovaMiniHost(ctl: mini, child: child!))
-/// await mini.show(api, skin: const MovaMiniSkin());
-/// Navigator.of(context).pop();   // 引擎不受影响，画面在小窗里继续
+/// // MaterialApp(builder: (c, child) => MovaMiniHost(mini: mini, child: child!))
+/// await mini.show(api, uiKit: const MovaMiniUiKit());
+/// Navigator.of(context).pop();   // 播放器不受影响，画面在小窗里继续
 /// ```
-class MovaMiniCtl extends ChangeNotifier {
+class MovaMini extends ChangeNotifier {
   /// The api currently rendered in the mini window; `null` when hidden.
   ///
   /// 当前渲染在小窗里的 api；隐藏时为 `null`。
-  MovaApi? get api => _api;
+  IMovaApi? get api => _api;
 
-  /// The skin used inside the mini window.
+  /// The UI kit used inside the mini window.
   ///
-  /// 小窗内使用的皮肤。
-  MovaSkin get skin => _skin;
+  /// 小窗内使用的 UI 套件。
+  IMovaUiKit get uiKit => _uiKit;
 
   /// The window's current rectangle; `null` before the first layout.
   ///
@@ -750,7 +750,7 @@ class MovaMiniCtl extends ChangeNotifier {
   ///
   /// 同一个 [api] 重复调用是幂等的。已有小窗时 show 另一个 [api]，会先把前一个
   /// 的 `mini` 置回 false（此处永不 dispose 它）。
-  Future<void> show(MovaApi api, {MovaSkin skin = const MovaMiniSkin()});
+  Future<void> show(IMovaApi api, {IMovaUiKit uiKit = const MovaMiniUiKit()});
 
   /// Same as [show], but also inserts an [OverlayEntry] into the [Overlay]
   /// nearest to [context], so the window floats inside that page — free of the
@@ -779,8 +779,8 @@ class MovaMiniCtl extends ChangeNotifier {
   /// `MovaState.mini` 会停在 `true` 而无人渲染。
   ///
   /// - [context]: locates the target [Overlay] / 用于定位目标 [Overlay]
-  /// - [api]: the borrowed engine / 借用的引擎
-  /// - [skin]: chrome inside the window / 小窗内的皮肤
+  /// - [api]: the borrowed player / 借用的播放器
+  /// - [uiKit]: chrome inside the window / 小窗内的 UI 套件
   /// - [rootOverlay]: insert into the root overlay instead / 改插根 overlay
   ///
   /// Example / 示例:
@@ -790,8 +790,8 @@ class MovaMiniCtl extends ChangeNotifier {
   /// // 页面 dispose 里：
   /// if (mini.isShowing(api)) await mini.hide();
   /// ```
-  Future<void> showInPage(BuildContext context, MovaApi api,
-      {MovaSkin skin = const MovaMiniSkin(), bool rootOverlay = false});
+  Future<void> showInPage(BuildContext context, IMovaApi api,
+      {IMovaUiKit uiKit = const MovaMiniUiKit(), bool rootOverlay = false});
 
   /// Takes the picture back out of the mini window, leaving playback running.
   ///
@@ -815,16 +815,16 @@ class MovaMiniCtl extends ChangeNotifier {
 
   /// Whether [candidate] is the api the mini window currently renders.
   ///
-  /// Page `dispose()` should consult this before disposing its engine.
+  /// Page `dispose()` should consult this before disposing its player.
   ///
   /// [candidate] 是否就是小窗当前渲染的那个 api。
-  /// 页面 `dispose()` 在销毁引擎前应先问这一句。
-  bool isShowing(MovaApi candidate) => identical(_api, candidate);
+  /// 页面 `dispose()` 在销毁播放器前应先问这一句。
+  bool isShowing(IMovaApi candidate) => identical(_api, candidate);
 
-  /// Called after [close]; the host's hook for disposing the engine.
+  /// Called after [close]; the host's hook for disposing the player.
   ///
-  /// [close] 之后触发；宿主销毁引擎的挂钩。
-  void Function(MovaApi api)? onClosed;
+  /// [close] 之后触发；宿主销毁播放器的挂钩。
+  void Function(IMovaApi api)? onClosed;
 
   /// Updates the window rectangle (called by [MovaMiniWindow] while dragging).
   ///
@@ -839,7 +839,7 @@ class MovaMiniCtl extends ChangeNotifier {
 `_mount` 在 `show` 时置 `persistent`、`showInPage` 时置 `page`、`hide`/`close` 时置 `none`。
 
 **Test assertions**（`test/ui/mini/mini_ctl_test.dart`，14 项）：
-- `show(api)` → `api` 非空、`mount == persistent`、`ctl` 通知一次、
+- `show(api)` → `api` 非空、`mount == persistent`、`mini` 通知一次、
   `FakeMovaApi.setMini(true)` 被调一次、**没有**插入任何 `OverlayEntry`。
 - `showInPage(context, api)` → `mount == page`、目标 Overlay 里多出恰好一个 entry、
   `setMini(true)` 被调一次。
@@ -871,7 +871,7 @@ Task 5 已给出 API 形状，本 Task 补它的渲染契约：
   _entry = OverlayEntry(
     // 不用 Positioned/maintainState：MovaMiniWindow 自己是全屏 Stack，
     // RenderTheatre 给未定位 child 的是 tight 约束（= Overlay 尺寸）。
-    builder: (_) => MovaMiniWindow(ctl: this, api: api, config: cfg),
+    builder: (_) => MovaMiniWindow(mini: this, api: api, opts: cfg),
   );
   Overlay.of(context, rootOverlay: rootOverlay).insert(_entry!);
 ```
@@ -887,8 +887,8 @@ Task 5 已给出 API 形状，本 Task 补它的渲染契约：
 /// [MaterialApp.builder], where [child] is the [Navigator] itself, so the
 /// window is composited above every pushed route.
 ///
-/// Renders nothing while [MovaMiniCtl.api] is `null`, while
-/// [MovaMiniConfig.enabled] is `false`, or while the window is mounted the
+/// Renders nothing while [MovaMini.api] is `null`, while
+/// [MovaMiniOpts.enabled] is `false`, or while the window is mounted the
 /// other way ([MovaMiniMount.page]) — the same api must never have two
 /// rendering surfaces.
 ///
@@ -898,22 +898,22 @@ Task 5 已给出 API 形状，本 Task 补它的渲染契约：
 /// 完全可以不用它——README 里给了等价的手写代码。用在 [MaterialApp.builder]
 /// 里，[child] 就是 [Navigator] 本身，因此小窗合成在所有已压入路由之上。
 ///
-/// [MovaMiniCtl.api] 为 `null`、[MovaMiniConfig.enabled] 为 `false`、或小窗正以
+/// [MovaMini.api] 为 `null`、[MovaMiniOpts.enabled] 为 `false`、或小窗正以
 /// 另一种方式挂载（[MovaMiniMount.page]）时，它什么都不渲染——同一个 api 绝不
 /// 允许有两个渲染面。
 ///
 /// Example / 示例:
 /// ```dart
 /// MaterialApp(
-///   builder: (context, child) => MovaMiniHost(ctl: miniCtl, child: child!),
+///   builder: (context, child) => MovaMiniHost(mini: mini, child: child!),
 ///   home: const HomePage(),
 /// )
 /// ```
 class MovaMiniHost extends StatefulWidget {
-  const MovaMiniHost({super.key, required this.ctl, required this.child});
+  const MovaMiniHost({super.key, required this.mini, required this.child});
 
   /// The route-independent mini-window state. / 独立于路由的小窗状态。
-  final MovaMiniCtl ctl;
+  final MovaMini mini;
 
   /// The app content (normally the [Navigator]). / App 内容（通常是 [Navigator]）。
   final Widget child;
@@ -921,18 +921,18 @@ class MovaMiniHost extends StatefulWidget {
 ```
 
 实现要点（`_MovaMiniHostState`）：
-- `initState` 里 `widget.ctl.addListener(_onCtl)`，`didUpdateWidget` 里换监听，`dispose` 里摘。
+- `initState` 里 `widget.mini.addListener(_onMini)`，`didUpdateWidget` 里换监听，`dispose` 里摘。
 - `build`：
   ```dart
-  final api = widget.ctl.api;
-  final cfg = api?.options.mini ?? const MovaMiniConfig();   // 配置跟着 api 走
+  final api = widget.mini.api;
+  final cfg = api?.options.mini ?? const MovaMiniOpts();   // 配置跟着 api 走
   return Stack(children: [
     widget.child,
-    if (api != null && cfg.enabled && widget.ctl.mount == MovaMiniMount.persistent)
+    if (api != null && cfg.enabled && widget.mini.mount == MovaMiniMount.persistent)
       Positioned.fill(
         child: MovaMiniWindow(
           key: const ValueKey('movaMiniWindow'),
-          ctl: widget.ctl, api: api, config: cfg),
+          mini: widget.mini, api: api, opts: cfg),
       ),
   ]);
   ```
@@ -943,23 +943,22 @@ class MovaMiniHost extends StatefulWidget {
   ```dart
   builder: (context, child) => Stack(children: [
     child!,
-    if (miniCtl.api != null)      // 自行加 ListenableBuilder 订阅 miniCtl
-      Positioned.fill(child: MovaMiniWindow(ctl: miniCtl, api: miniCtl.api!,
-                                            config: miniCtl.api!.options.mini)),
+    if (mini.api != null)      // 自行加 ListenableBuilder 订阅 mini
+      Positioned.fill(child: MovaMiniWindow(mini: mini, api: mini.api!, opts: mini.api!.options.mini)),
   ]),
   ```
 
 **Test assertions**（`test/ui/mini/mini_mount_test.dart`，16 项）：
 
 *方式 B（6 项）*
-- `ctl.api == null` → 树里找不到 `MovaMiniWindow`，且 `child` 正常渲染。
+- `mini.api == null` → 树里找不到 `MovaMiniWindow`，且 `child` 正常渲染。
 - `cfg.enabled == false` → 同上（**关闭态硬约束**）。
 - `show(api)` 后 pump → 找到 exactly one `MovaMiniWindow`。
 - **跨路由存活**：带 `MaterialApp.builder` 的两页应用 → `show` → `Navigator.push` 新页 →
   小窗仍在树中且**在新页之上**（`tester.getTopLeft` + hit-test 断言小窗接得到点击）；
   `pop` 回去后仍在。
 - `hide()` 后小窗消失、`child` 不受影响。
-- `ctl` 实例被替换（`didUpdateWidget`）时监听正确迁移；host 自身 dispose 不 dispose `ctl`。
+- `mini` 实例被替换（`didUpdateWidget`）时监听正确迁移；host 自身 dispose 不 dispose `mini`。
 
 *方式 A（6 项）*
 - `showInPage(context, api)` → 该页面的 Overlay 里出现 exactly one `MovaMiniWindow`。
@@ -972,10 +971,10 @@ class MovaMiniHost extends StatefulWidget {
 - `enabled == false` 时 `showInPage` 不插 entry（**关闭态硬约束**）。
 
 *两种方式等价（4 项，§1.1 解耦约束的可执行证明）*
-- 同一 `ctl`+`api`+`config`，分别用 `OverlayEntry` 外壳与 `Positioned.fill` 外壳
+- 同一 `mini`+`api`+`opts`，分别用 `OverlayEntry` 外壳与 `Positioned.fill` 外壳
   `pumpWidget`，**`MovaMiniWindow` 的首帧 `getRect` 相等**。
 - 两种外壳下拖拽 100px 的落点相等。
-- 两种外壳下点画面都触发 `ctl.hide()`、点关闭都触发 `ctl.close()`。
+- 两种外壳下点画面都触发 `mini.hide()`、点关闭都触发 `mini.close()`。
 - **互斥**：宿主同时接了 `MovaMiniHost` 又调 `showInPage` → 树里 `MovaMiniWindow`
   **仍然只有一个**（host 因 `mount == page` 不渲染）；页面侧 `MovaPlayer` 在 `mini` 为真时
   不渲染 `_RenderSurface`（配合 Task 8 的 `_MiniHidden`），断言全树渲染面只有一个。
@@ -990,26 +989,26 @@ class MovaMiniHost extends StatefulWidget {
 ///
 /// **Mount-agnostic by design**: it fills whatever box it is given and does its
 /// own positioning inside, so the very same widget works as an [OverlayEntry]'s
-/// child (in-page floating, via [MovaMiniCtl.showInPage]) and as a
+/// child (in-page floating, via [MovaMini.showInPage]) and as a
 /// `Positioned.fill` child of a host-level [Stack] (persistent floating, via
 /// [MovaMiniHost]). It must never assume which one it is in, and must never be
 /// a [Positioned] itself.
 ///
 /// Drag moves it (clamped every frame); release hands the rect to
-/// [MovaMiniConfig.effectivePlacement] and animates to the result. Tapping the
-/// picture calls [MovaMiniCtl.hide]; tapping the close affordance calls
-/// [MovaMiniCtl.close].
+/// [MovaMiniOpts.effectivePlacement] and animates to the result. Tapping the
+/// picture calls [MovaMini.hide]; tapping the close affordance calls
+/// [MovaMini.close].
 ///
 /// 可拖拽的小窗本体，内部用借来的 api 挂一个 [MovaPlayer]。
 ///
 /// **设计上与挂载方式无关**：它撑满外部给它的盒子，在盒子内部自行定位，因此同一个
-/// widget 既能当 [OverlayEntry] 的 child（页内悬浮，经 [MovaMiniCtl.showInPage]），
+/// widget 既能当 [OverlayEntry] 的 child（页内悬浮，经 [MovaMini.showInPage]），
 /// 也能当宿主级 [Stack] 的 `Positioned.fill` child（持久悬浮，经 [MovaMiniHost]）。
 /// 它绝不许假设自己在哪一种里，也绝不许自己就是 [Positioned]。
 ///
-/// 拖动即移动（每帧钳制）；松手把矩形交给 [MovaMiniConfig.effectivePlacement]
-/// 并动画到结果。点画面调 [MovaMiniCtl.hide]；点关闭按钮调 [MovaMiniCtl.close]。
-class MovaMiniWindow extends StatefulWidget { /* ctl / api / config */ }
+/// 拖动即移动（每帧钳制）；松手把矩形交给 [MovaMiniOpts.effectivePlacement]
+/// 并动画到结果。点画面调 [MovaMini.hide]；点关闭按钮调 [MovaMini.close]。
+class MovaMiniWindow extends StatefulWidget { /* mini / api / opts */ }
 ```
 
 实现要点：
@@ -1017,15 +1016,15 @@ class MovaMiniWindow extends StatefulWidget { /* ctl / api / config */ }
   `AnimatedPositioned`**。`bounds` 取 `LayoutBuilder` 的 `constraints.biggest`
   （**不是** `MediaQuery.size`）——页内 Overlay 的尺寸可能小于整块屏幕。
   `MediaQuery.padding` 只用来算 `MovaMiniInsets`。
-- 位置状态 `MovaMiniRect _rect`，首帧由 `rectForCorner(config.initialCorner, ...)` 播种。
+- 位置状态 `MovaMiniRect _rect`，首帧由 `rectForCorner(opts.initialCorner, ...)` 播种。
 - `GestureDetector(onPanUpdate:)` → `_rect = clampToBounds(_rect.shift(dx, dy), ...)` → `setState`。
   **用 `GestureDetector` 而非 `Draggable`**：`Draggable`/`DragTarget` 是为"拖到某个目标区域放下"
   设计的，会创建 feedback widget 的**第二棵子树**——对一个持有 `Texture` 的播放器来说等于
   在拖动期间凭空多挂一个渲染面，正是 §1.2 明令禁止的事。
-- `onPanEnd` → `config.effectivePlacement.settle(...)` → `AnimatedPositioned`（
-  `duration: config.settleDuration`）动到目标；`settleDuration == Duration.zero` 时直接跳。
-- `dismissible` 且松手速度超阈值并指向屏幕外 → `ctl.close()`。
-- 内容：`ClipRRect` + `Material(elevation:)` 包 `MovaPlayer(api: api, skin: ctl.skin,
+- `onPanEnd` → `opts.effectivePlacement.settle(...)` → `AnimatedPositioned`（
+  `duration: opts.settleDuration`）动到目标；`settleDuration == Duration.zero` 时直接跳。
+- `dismissible` 且松手速度超阈值并指向屏幕外 → `mini.close()`。
+- 内容：`ClipRRect` + `Material(elevation:)` 包 `MovaPlayer(api: api, uiKit: mini.uiKit,
   autoLoadQualities: false)` —— **`autoLoadQualities: false` 是必须的**，否则每次进小窗都会
   重新探测一次 HLS 档位。
 - `MediaQuery.of(context).padding` → `MovaMiniInsets`；`LayoutBuilder` 约束 → `bounds`。
@@ -1038,8 +1037,8 @@ class MovaMiniWindow extends StatefulWidget { /* ctl / api / config */ }
 - `tester.drag` 100px → `getTopLeft` 相应位移；拖出边界 → 被钳回。
 - 松手后落点 == `effectivePlacement.settle` 的返回值（注入一个固定返回的假 placement，
   断言 widget **确实用了注入的策略**而非内置的 —— 开放性的可执行证明）。
-- 点画面 → `ctl.hide()` 被调，`close()` 未被调。
-- 点关闭按钮 → `ctl.close()` 被调。
+- 点画面 → `mini.hide()` 被调，`close()` 未被调。
+- 点关闭按钮 → `mini.close()` 被调。
 - `dismissible: false` 时高速甩出不关闭，只被钳回。
 - 外部约束变化（模拟转屏 / 承载 Overlay 缩小）→ 小窗仍完全在可用区内。
 - **`bounds` 取自外部约束而非屏幕**：把 `MovaMiniWindow` 放进一个半屏大小的盒子里，
@@ -1051,26 +1050,26 @@ class MovaMiniWindow extends StatefulWidget { /* ctl / api / config */ }
 
 ---
 
-## Task 8: `MovaMiniSkin` + 页面侧 `_MiniHidden`
+## Task 8: `MovaMiniUiKit` + 页面侧 `_MiniHidden`
 
-**`MovaMiniSkin`**：`components()` 只给三个——`CenterPlayComponent()`（中央播放/暂停）、
+**`MovaMiniUiKit`**：`components()` 只给三个——`CenterPlayComponent()`（中央播放/暂停）、
 `BufferingComponent()`、加一个新的极简 `MiniCloseComponent()`（`MovaSlot.top`，一个 ✕）。
 `assemble()` 就是 `Stack([Positioned.fill(video), ...slots[top], ...slots[center]])`。
-**不复用 `MovaDefSkin`**：180px 宽的框里塞进度条/清晰度/全屏按钮毫无意义，且它的
+**不复用 `MovaDefaultUiKit`**：180px 宽的框里塞进度条/清晰度/全屏按钮毫无意义，且它的
 `_BarVisibility` 自动隐藏在小窗里是负担。
 
-**`_MiniHidden`**（`default_skin.dart`，紧挨 `_PipHidden` 放，注释同构）：
+**`_MiniHidden`**（`default_ui_kit.dart`，紧挨 `_PipHidden` 放，注释同构）：
 
 ```dart
 /// Hides [child] outright while [MovaState.mini] is active.
 ///
 /// The picture has been handed to the in-app mini window, which carries its
-/// own minimal chrome ([MovaMiniSkin]); the page-side chrome would otherwise
+/// own minimal chrome ([MovaMiniUiKit]); the page-side chrome would otherwise
 /// keep painting over a surface that is no longer there.
 ///
 /// [MovaState.mini] 生效期间直接隐藏 [child]。
 ///
-/// 画面已交给 App 内小窗，小窗自带极简 chrome（[MovaMiniSkin]）；否则页面侧的
+/// 画面已交给 App 内小窗，小窗自带极简 chrome（[MovaMiniUiKit]）；否则页面侧的
 /// chrome 会继续绘制在一个已经不在那里的画面之上。
 class _MiniHidden extends StatelessWidget { /* 与 _PipHidden 逐字同构 */ }
 ```
@@ -1081,11 +1080,11 @@ class _MiniHidden extends StatelessWidget { /* 与 _PipHidden 逐字同构 */ }
 占位（`ColoredBox` + "正在小窗播放" 文案），**不需要给 `MovaPlayer` 加任何新参数**。
 这条要写进 README：库不替宿主决定占位长什么样。
 
-**Test assertions**（`test/ui/mini/mini_skin_test.dart` 8 项）：
-- `MovaMiniSkin().components()` 恰好三个，`name` 分别为 `centerPlay`/`buffering`/`miniClose`。
+**Test assertions**（`test/ui/mini/mini_ui_kit_test.dart` 8 项）：
+- `MovaMiniUiKit().components()` 恰好三个，`name` 分别为 `centerPlay`/`buffering`/`miniClose`。
 - 小窗树里**没有** seek bar / 清晰度按钮 / 全屏按钮（三条 `findsNothing`）。
 - 点 `miniClose` 触发注入的回调。
-- `mini: true` 时 `MovaDefSkin` 的 top/bottom/gesture 槽位组件全部 `findsNothing`，
+- `mini: true` 时 `MovaDefaultUiKit` 的 top/bottom/gesture 槽位组件全部 `findsNothing`，
   而常驻层的锁定按钮仍在（与 `_PipHidden` 的既有语义一致）。
 - `mini: false` 时一切照旧（**关闭态回归**）。
 
@@ -1093,22 +1092,22 @@ class _MiniHidden extends StatelessWidget { /* 与 _PipHidden 逐字同构 */ }
 
 ## Task 9: 开放性对账 + 契约测试
 
-照抄 `test/core/openness_swap_test.dart` 的写法，做成可执行清单
+照抄 `test/core/openness_cutover_test.dart` 的写法，做成可执行清单
 （`test/core/openness_mini_test.dart`，4 项）：
 
 | 替用户做的决策 | 默认值 | 配置项 | 可注入策略 |
 |---|---|---|---|
 | **小窗挂在哪** | 不替宿主决定 | `show`（方式 B）/ `showInPage`（方式 A） | 宿主可完全绕开两者，自己把 `MovaMiniWindow` 放进任意容器 |
-| 小窗多大 | `width: 180`, `16/9` | `MovaMiniConfig.width/aspectRatio` | —（数值即策略） |
-| 落在哪 | 右下角 | `initialCorner`/`snapToEdge`/`margin` | `MovaMiniPlacement` |
-| 小窗里放什么 chrome | `MovaMiniSkin` | `MovaMiniCtl.show(skin:)` | 任意 `MovaSkin` |
-| 关闭后引擎怎么办 | 不 dispose | `MovaMiniCtl.onClosed` | 宿主回调 |
+| 小窗多大 | `width: 180`, `16/9` | `MovaMiniOpts.width/aspectRatio` | —（数值即策略） |
+| 落在哪 | 右下角 | `initialCorner`/`snapToEdge`/`margin` | `IMovaMiniPlacement` |
+| 小窗里放什么 chrome | `MovaMiniUiKit` | `MovaMini.show(uiKit:)` | 任意 `IMovaUiKit` |
+| 关闭后播放器怎么办 | 不 dispose | `MovaMini.onClosed` | 宿主回调 |
 | 页面侧占位画什么 | 库不决定 | `MovaPlayer.surface` | 任意 `Widget` |
 
 外加两条与 0.4.0/0.5.0 的交叉契约测试（`test/ui/player_test.dart` 增补，2 项）：
 - **同一 api 在两个树位置先后挂载，`renderHandle` 不变**：`_RenderHandleKey` 的值在
   卸载→重挂前后相等（这是"不重新解码"的可执行证明，替代无法在单测里做的真机验证）。
-- **mini 态下发生 swap**：`renderEpoch` 递增能让小窗里的 `_RenderSurface` 重建
+- **mini 态下发生 cutover**：`renderEpoch` 递增能让小窗里的 `_RenderSurface` 重建
   （与页面内的行为一致，断言不回归）。
 
 ---
@@ -1117,17 +1116,17 @@ class _MiniHidden extends StatelessWidget { /* 与 _PipHidden 逐字同构 */ }
 
 `example/lib/mini_window_demo.dart` —— 项目约定"验收 demo 要为该功能单独建一个页面"。
 页面内容：
-- 一个全局 `MovaMiniCtl`（`main.dart` 里建，`MaterialApp.builder` 接 `MovaMiniHost`）。
+- 一个全局 `MovaMini`（`main.dart` 里建，`MaterialApp.builder` 接 `MovaMiniHost`）。
 - **两种挂载方式各演示一遍，页面上用一个分段开关切换**：
   - **方式 A（页内悬浮）**：一个长 `ListView` 页面，点"页内小窗" → `mini.showInPage(context, api)`
     → 滚动列表，小窗纹丝不动、可拖拽；`push` 一个新页面，小窗被盖住（**说明这是期望行为**）；
     `pop` 回来又在。页面 `dispose` 里正确调 `mini.hide()`（示范 §1.7 的必做动作）。
   - **方式 B（跨路由持久）**：播放页点"缩小" → `mini.show(api)` → `Navigator.pop` → 回到列表页，
     小窗仍在播；再 `push` 另一个页面，小窗仍在最上。
-- 屏上事件日志（`MovaMiniChg`/`MovaPipChg`/`MovaFullScreenChg` 三条真实打点，
+- 屏上事件日志（`MovaMiniChange`/`MovaPipChange`/`MovaFullScreenChange` 三条真实打点，
   **不依赖 logcat**——0.4.0/0.5.0 的真机验证吃过 release 下拿不到日志的亏）。
 - 四个开关：`enabled` / `snapToEdge` / `dismissible` / `initialCorner`。
-- 一个"故意错误用法"按钮：页面 dispose 时不检查 `isShowing` 就 dispose engine，
+- 一个"故意错误用法"按钮：页面 dispose 时不检查 `isShowing` 就 dispose 播放器，
   用来在 debug 下亲眼看到 Task 3 那条 assert 触发（教学 + 回归）。
 
 `main.dart` 加入口。**demo 不计入测试数**。
@@ -1139,10 +1138,10 @@ class _MiniHidden extends StatelessWidget { /* 与 _PipHidden 逐字同构 */ }
 - `README.md`：新增"App 内小窗"一节，**按两种挂载方式分两小节**：
   - 方式 A（页内悬浮）：一步接入——页面里 `mini.showInPage(context, api)`，
     `dispose` 里 `mini.hide()`。写明它随页面消失、会被新路由盖住，这是语义不是缺陷。
-  - 方式 B（跨路由持久）：三步接入（建 `MovaMiniCtl` → `MaterialApp.builder` 接
+  - 方式 B（跨路由持久）：三步接入（建 `MovaMini` → `MaterialApp.builder` 接
     `MovaMiniHost` → 页面调 `show`），**并给出不用 `MovaMiniHost` 的等价手写 `Stack` 片段**
     （Task 6b），说明 mova 在这条路上只保证"controller 与路由生命周期解耦"。
-  - 一个显眼的"谁 dispose engine"警告框；一句"`MovaMiniWindow` 挂载无关，你也可以把它
+  - 一个显眼的"谁 dispose 播放器"警告框；一句"`MovaMiniWindow` 挂载无关，你也可以把它
     放进任何自己的容器"。
   - 一段辨析：Flutter 的 `Overlay` ≠ Android `SYSTEM_ALERT_WINDOW` 系统悬浮窗（§0 那张表），
     本功能零权限、不出 App。
@@ -1164,7 +1163,7 @@ class _MiniHidden extends StatelessWidget { /* 与 _PipHidden 逐字同构 */ }
 2. `flutter test` **807 项全绿**，既有 709 项一项未改。
 3. **关闭态逐字节等价**：既不接 `MovaMiniHost`、也不调 `showInPage` 的宿主，
    `MovaState`/事件流/渲染树与 0.5.0 完全一致（`enabled: false` 的回归测试覆盖
-   host/window/skin/`showInPage` 四处）。
+   host/window/uiKit/`showInPage` 四处）。
 4. `test/core/purity_test.dart` 不变且通过（core 未引入 flutter/`dart:ui`）。
 5. **两种挂载方式都能跑通且互斥**：
    - 方式 B：example 里跨两层路由 push/pop 后小窗仍在最上层且仍在播；
@@ -1179,14 +1178,14 @@ class _MiniHidden extends StatelessWidget { /* 与 _PipHidden 逐字同构 */ }
 ## 真机验证 checklist（Task 12，与实现分开一轮）
 
 按项目约定："真机验证前必须先设计基于真实事件的测量方法"——本功能的测量锚点是
-**`MovaMiniChg` 事件时间戳 + `renderEpoch`**，不用墙钟。
+**`MovaMiniChange` 事件时间戳 + `renderEpoch`**，不用墙钟。
 
 **A. 不重新解码（本功能的核心命题）**
-- [ ] 交接前后 `MovaState.position` 连续：在 `MovaMiniChg(true)` 前后各采一次 position，
+- [ ] 交接前后 `MovaState.position` 连续：在 `MovaMiniChange(true)` 前后各采一次 position，
   差值应 ≈ 交接耗时（几十 ms 量级），**不得归零、不得回退**。
-- [ ] 交接前后 `renderEpoch` **不变**（变了就说明发生了引擎重建，命题不成立）。
+- [ ] 交接前后 `renderEpoch` **不变**（变了就说明发生了播放器重建，命题不成立）。
 - [ ] 三阶段内存（`dumpsys meminfo`）：页面播放中 / 小窗中 / 回页面后——三者应在同一量级，
-  小窗态**不得**出现第二份解码 session 的涨幅（对照 0.4.0 swap 预热期约 +26MB 的量级）。
+  小窗态**不得**出现第二份解码 session 的涨幅（对照 0.4.0 cutover 预热期约 +26MB 的量级）。
 
 **B. 交接那一帧**
 - [ ] 逐帧录屏数黑帧：交接处黑帧数应为 0 或 1。若 >1，调整 Task 6 的挂载顺序
@@ -1197,7 +1196,7 @@ class _MiniHidden extends StatelessWidget { /* 与 _PipHidden 逐字同构 */ }
 - [ ] **方式 A**：长列表页内小窗——快速惯性滚动列表 100+ 项，小窗位置零漂移、视频不卡；
   该页 pop 后 entry 干净消失、无 `OverlayEntry not in the Overlay` 崩溃、无内存滞留。
 - [ ] **方式 A**：页内小窗态下 push 新路由 → 小窗被盖住；pop 回来 → 小窗仍在且仍在播
-  （**播放没中断**是关键：被盖住只是不可见，引擎不受影响）。
+  （**播放没中断**是关键：被盖住只是不可见，播放器不受影响）。
 - [ ] **方式 B**：push 两层新路由后小窗仍在最上且可点击（验证 §1.1 的判断）。
 - [ ] **两种方式的互斥**：先 `showInPage`，再在另一页调 `show` → 任一时刻只有一个小窗、
   一个渲染面（真机上双渲染面的典型症状是花屏或黑屏，单测抓不到）。
@@ -1226,7 +1225,7 @@ class _MiniHidden extends StatelessWidget { /* 与 _PipHidden 逐字同构 */ }
 其余候选要么是需要权限的 Android 系统悬浮窗，要么是会把自己交互语言强加给宿主的通用面板壳，
 而本功能的真正难点（播放器实例脱离路由存活）没有任何第三方能代劳。
 **挂载层（2026-09-23 修订，撤销"不用 `OverlayEntry`"的旧结论）**：**两种方式并存，不二选一**——
-方式 A 页内悬浮（`MovaMiniCtl.showInPage` 往 `Overlay.of(context)` 的最近祖先插 `OverlayEntry`，
+方式 A 页内悬浮（`MovaMini.showInPage` 往 `Overlay.of(context)` 的最近祖先插 `OverlayEntry`，
 不受页面滚动影响、可拖拽，随页面生灭；"会被下一次 push 盖住"在这个场景下是期望行为而非缺陷），
 由 mova 实现；方式 B 跨路由持久（`MaterialApp.builder` 下的 `Stack`），mova 只给
 `MovaMiniHost` 这个约 30 行的可选便利壳 + README 等价手写片段——因为只要"controller 与路由
@@ -1234,11 +1233,11 @@ class _MiniHidden extends StatelessWidget { /* 与 _PipHidden 逐字同构 */ }
 `MovaMiniWindow` 挂载无关（自身是撑满外部约束的 `Stack`，`bounds` 取 `LayoutBuilder` 约束而非
 `MediaQuery.size`，绝不自己当 `Positioned`），两种外壳只是"把它放到哪里"的差异，Task 6 有 4 条
 等价性断言守卫；`MovaMiniMount` 枚举保证同一 api 永不出现两个渲染面。
-**分层**：core 只加"一个 bool 字段 + 一个 setter + 一个事件 + 一个 config + 一个纯函数文件"
+**分层**：core 只加"一个 bool 字段 + 一个 setter + 一个事件 + 一个 opts + 一个纯函数文件"
 （与 `fullscreen`/`pip` 完全同构），播放链路一行不动，core 不知道小窗挂在哪；
-挂载/拖拽/皮肤全在 `lib/src/ui/mini/`。
-**不**把小窗做成 `MovaComp`（坐标系与生命周期都不在一个量级），但小窗内部的 chrome 完全复用
-`MovaSkin` 契约（`MovaMiniSkin`）。**共拆 11 个 Task + 1 轮真机**，测试从 **709 推进到 807**。
-两个最大的坑：① "页面 dispose 顺手把刚交接出去的引擎销毁了"——文档 + `isShowing` +
+挂载/拖拽/UI 套件全在 `lib/src/ui/mini/`。
+**不**把小窗做成 `MovaComponent`（坐标系与生命周期都不在一个量级），但小窗内部的 chrome 完全复用
+`IMovaUiKit` 契约（`MovaMiniUiKit`）。**共拆 11 个 Task + 1 轮真机**，测试从 **709 推进到 807**。
+两个最大的坑：① "页面 dispose 顺手把刚交接出去的播放器销毁了"——文档 + `isShowing` +
 debug assert 三重防；② 方式 A 的 `OverlayEntry` 在承载 Overlay 先死时被重复 remove——
 `_detachEntry()` 单点收口 + `entry.mounted` 判据（§1.7）。

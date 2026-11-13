@@ -13,10 +13,10 @@ const frame = MovaFirstFrame(
 );
 
 void main() {
-  test('换指窗口不转发旧引擎暂停态', () async {
+  test('换指窗口不转发旧播放器暂停态', () async {
     final rig = OperationRig();
     addTearDown(rig.api.dispose);
-    final old = rig.engines.first..pushPlayingOnVerbs = true;
+    final old = rig.movas.first..pushPlayingOnVerbs = true;
     await old.play();
     await settleOperations();
     final shadow = await rig.warm('successor');
@@ -31,10 +31,10 @@ void main() {
     gate.complete();
     expect(await committing, isTrue);
   });
-  test('换指窗口不转发旧引擎 MovaPause', () async {
+  test('换指窗口不转发旧播放器 MovaPause', () async {
     final rig = OperationRig();
     addTearDown(rig.api.dispose);
-    final old = rig.engines.first;
+    final old = rig.movas.first;
     await rig.warm('successor');
     final gate = old.pauseGate = Completer<void>();
     final events = <MovaEvent>[];
@@ -47,10 +47,10 @@ void main() {
     gate.complete();
     expect(await committing, isTrue);
   });
-  test('提交放弃补发旧引擎真实状态', () async {
+  test('提交放弃补发旧播放器真实状态', () async {
     final rig = OperationRig();
     addTearDown(rig.api.dispose);
-    final old = rig.engines.first..pushPlayingOnVerbs = true;
+    final old = rig.movas.first..pushPlayingOnVerbs = true;
     await old.play();
     final shadow = await rig.warm('successor');
     final gate = shadow.playGate = Completer<void>();
@@ -72,14 +72,14 @@ void main() {
     expect(rig.api.state.playing, isTrue);
   });
   test('影子 open 内生命周期换指后按顺序各补一次', () async {
-    final engines = <LifecycleApi>[];
-    final api = MovaCutoverEngine(
-      engineFactory: () {
-        final engine = LifecycleApi(
-          options: const MovaOpts(cutover: MovaCutoverConfig(enabled: true)),
+    final movas = <LifecycleApi>[];
+    final api = MovaCutover(
+      movaFactory: () {
+        final mova = LifecycleApi(
+          options: const MovaOpts(cutover: MovaCutoverOpts(enabled: true)),
         );
-        engines.add(engine);
-        return engine;
+        movas.add(mova);
+        return mova;
       },
     );
     addTearDown(api.dispose);
@@ -87,7 +87,7 @@ void main() {
     api.events.listen((e) {
       if (e is MovaSourceChange || e is MovaReady || e is MovaFirstFrame) {
         seen.add(e.runtimeType);
-        expect(api.state.renderEpoch, engines.length - 1);
+        expect(api.state.renderEpoch, movas.length - 1);
         expect(api.state.sourceTitle, 'new title');
       }
     });
@@ -102,16 +102,16 @@ void main() {
       position: Duration(seconds: 1),
       buffer: Duration(seconds: 10),
     );
-    engines.last.pushProgress(tick);
+    movas.last.pushProgress(tick);
     await settleOperations();
-    engines.last.pushProgress(tick);
+    movas.last.pushProgress(tick);
     await settleOperations();
     expect(await api.commit(), isTrue);
     expect(seen, [MovaSourceChange, MovaReady, MovaFirstFrame]);
     // 槽认领后才出现的首帧也属于影子期，不能因为 _slot 已换空而漏记。
     await api.prepare(const MovaSource('https://host/late.mp4', title: 'new title'),
       plan: const MovaWarmPlan(trigger: MovaEagerWarm()));
-    final late = engines.last;
+    final late = movas.last;
     late.pushProgress(tick); await settleOperations();
     late.pushProgress(tick); await settleOperations();
     final gate = late.playGate = Completer<void>();
@@ -168,7 +168,7 @@ void main() {
         ),
       );
       clock.flushMicrotasks();
-      rig.engines.last.pushEvent(const MovaErrorEvent('shadow'));
+      rig.movas.last.pushEvent(const MovaErrorEvent('shadow'));
       clock.flushMicrotasks();
       expect(reasons.last, MovaCutoverEndReason.shadowError);
       unawaited(
@@ -191,7 +191,7 @@ void main() {
         ),
       );
       clock.flushMicrotasks();
-      rig.engines.last.pushProgress(const MovaProg(position: Duration(seconds: 1)));
+      rig.movas.last.pushProgress(const MovaProg(position: Duration(seconds: 1)));
       clock.flushMicrotasks();
       expect(reasons.last, MovaCutoverEndReason.notReady);
       unawaited(rig.api.dispose());
@@ -213,8 +213,8 @@ void main() {
     await rig.api.dispose();
     expect(reasons.last, MovaCutoverEndReason.disposed);
     final muted = <MuteRejectApi>[];
-    final proxy = MovaCutoverEngine(
-      engineFactory: () {
+    final proxy = MovaCutover(
+      movaFactory: () {
         final e = MuteRejectApi();
         muted.add(e);
         return e;
@@ -267,16 +267,16 @@ class LifecycleApi extends FakeMovaApi {
   }
 }
 
-class GiveUpPolicy implements MovaWarmPolicy {
+class GiveUpPolicy implements IMovaWarmPolicy {
   @override
   MovaWarmVerdict onSignal(MovaWarmSignal signal) => MovaWarmVerdict.giveUp;
   @override
   void reset() {}
 }
 
-class MuteRejectApi extends FakeMovaApi implements MovaPlayerMute {
+class MuteRejectApi extends FakeMovaApi implements IMovaPlayerMute {
   MuteRejectApi()
-    : super(options: const MovaOpts(cutover: MovaCutoverConfig(enabled: true)));
+    : super(options: const MovaOpts(cutover: MovaCutoverOpts(enabled: true)));
   @override
   Future<bool> setWarmMute(bool on) async => on;
 }

@@ -4,13 +4,13 @@
 
 /// One recognized text span, with the media-position range it covers.
 ///
-/// Produced by a [MovaSttEngine] as it transcribes; the UI overlay renders
+/// Produced by a [IMovaStt] as it transcribes; the UI overlay renders
 /// whichever cue's `[start, end)` range contains the current playback
 /// position.
 ///
 /// 一条识别出的文本区间，附带其覆盖的媒体位置范围。
 ///
-/// 由 [MovaSttEngine] 边转写边产出；UI 叠层渲染当前播放位置落在
+/// 由 [IMovaStt] 边转写边产出；UI 叠层渲染当前播放位置落在
 /// `[start, end)` 区间内的那一条。
 ///
 /// Example / 示例:

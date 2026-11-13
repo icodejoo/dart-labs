@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mova/src/core/feed/engine_pool.dart';
+import 'package:mova/src/core/feed/feed_pool.dart';
 import 'package:mova/src/core/feed/feed.dart';
 import 'package:mova/src/core/model/feed_item.dart';
 import 'package:mova/src/core/model/source.dart';
@@ -18,14 +18,14 @@ void main() {
       initialLikeCount: 5,
       onLikeChanged: (liked, count) => likedSeen = liked,
     );
-    final controller = MovaFeed(
-      pool: MovaFeedEnginePool(engineFactory: () => api, size: 1),
+    final feed = MovaFeed(
+      pool: MovaFeedPool(movaFactory: () => api, size: 1),
       loader: (i) async => item,
     );
-    await controller.ensure(0);
-    final notifier = ValueNotifier(controller.likeStateOf(0));
+    await feed.ensure(0);
+    final notifier = ValueNotifier(feed.likeStateOf(0));
 
-    await pumpComponent(t, api, MovaLikeButtonComponent(controller: controller, index: 0, likeNotifier: notifier));
+    await pumpComponent(t, api, MovaLikeButtonComponent(feed: feed, index: 0, likeNotifier: notifier));
     expect(find.text('5'), findsOneWidget);
     expect(find.byIcon(Icons.favorite_border_rounded), findsOneWidget);
 

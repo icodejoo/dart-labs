@@ -58,7 +58,7 @@ void main() {
       }, mode);
       expect(single.play?.id.ordinal, 2);
       expect(single.skip, isEmpty);
-      const original = MovaAdConfig();
+      const original = MovaAdOpts();
       final configured = original.copyWith(midRollSnapback: mode);
       expect(configured.midRollSnapback, mode);
       expect(configured.copyWith(), configured);
@@ -71,12 +71,12 @@ void main() {
       final api = FakeMovaApi(
         options: MovaOpts(
           ads: lastOnly
-              ? const MovaAdConfig(
+              ? const MovaAdOpts(
                   enabled: true,
                   breaks: breaks,
                   midRollSnapback: MovaAdSnapback.last,
                 )
-              : const MovaAdConfig(enabled: true, breaks: breaks),
+              : const MovaAdOpts(enabled: true, breaks: breaks),
         ),
       );
       final session = sessionFor(api);

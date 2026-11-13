@@ -15,7 +15,7 @@ typedef MovaFeedLikeChange = void Function(bool liked, int likeCount);
 /// (bilibili/douyin-style "swipe for next video").
 ///
 /// Carries the playable [source] plus the social-chrome metadata
-/// [MovaDouyinSkin] renders (author/music/counts) and the callbacks fired for
+/// [MovaDouyinUiKit] renders (author/music/counts) and the callbacks fired for
 /// actions mova does not own the business logic for (comment/share/
 /// avatar/follow) — see doc/PRD.md ADR: mova owns like state locally
 /// end-to-end (toggle + count + heart animation), everything else is a
@@ -24,7 +24,7 @@ typedef MovaFeedLikeChange = void Function(bool liked, int likeCount);
 /// [MovaFeed] 驱动的纵向 feed（bilibili/douyin 式"上滑下一个视频"）
 /// 中的一条条目。
 ///
-/// 除可播放的 [source] 外，还带 `MovaDouyinSkin` 渲染所需的社交 chrome 元数据
+/// 除可播放的 [source] 外，还带 `MovaDouyinUiKit` 渲染所需的社交 chrome 元数据
 /// （作者/音乐/计数），以及 mova 不持有其业务逻辑的动作回调（评论/分享/
 /// 头像/关注）——见 doc/PRD.md ADR：点赞状态由 mova 端到端本地持有
 /// （切换 + 计数 + 心形动画），其余一律是被动回调。

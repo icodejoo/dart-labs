@@ -2,19 +2,19 @@ import 'dart:async';
 
 import 'fail.dart';
 
-/// Fallback watchdog: arms start-up and stall deadlines for one engine. mpv's own
+/// Fallback watchdog: arms start-up and stall deadlines for one player. mpv's own
 /// error events (END_FILE error) are the primary failure path; this only covers
 /// hangs mpv never reports.
 ///
-/// 兜底看门狗：为一个引擎武装起播与卡顿期限。mpv 自己的错误事件（END_FILE error）是主路径，
+/// 兜底看门狗：为一个播放器武装起播与卡顿期限。mpv 自己的错误事件（END_FILE error）是主路径，
 /// 这里只覆盖 mpv 不报错的卡死。
 ///
-/// Arms start-up and stall deadlines for one engine. Owns its timers; the
-/// engine feeds it playback observations and receives timeouts.
+/// Arms start-up and stall deadlines for one player. Owns its timers; the
+/// player feeds it playback observations and receives timeouts.
 ///
 /// Internal (not exported from the barrel).
 ///
-/// 为一个引擎武装起播与卡顿期限。自持计时器；引擎喂播放观测、接收超时回调。
+/// 为一个播放器武装起播与卡顿期限。自持计时器；播放器喂播放观测、接收超时回调。
 ///
 /// 内部类（不从 barrel 导出）。
 class MovaPlayWatchdog {

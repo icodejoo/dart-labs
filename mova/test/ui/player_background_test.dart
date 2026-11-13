@@ -16,7 +16,7 @@ FakeMovaApi _api({bool playing = false, bool pip = false, bool video = true}) =>
 Widget _player(FakeMovaApi api, {Widget? surface}) => MovaPlayer(
   api: api,
   autoLoadQualities: false,
-  skin: const MovaMinimalSkin(),
+  uiKit: const MovaMinimalUiKit(),
   surface: surface,
 );
 
@@ -61,7 +61,7 @@ void main() {
     await t.pump();
     expect(api.calls.where((c) => c == 'pause'), hasLength(1));
     expect(api.state.playbackIntent, isFalse);
-    // detached 同样经过引擎；用独立播放意图验证这个入口。
+    // detached 同样经过播放器；用独立播放意图验证这个入口。
     await api.play();
     api.calls.clear();
     t.binding.handleAppLifecycleStateChanged(AppLifecycleState.detached);
@@ -101,7 +101,7 @@ void main() {
     await api.play();
     await t.pumpWidget(MaterialApp(home: MovaAutoPause(
       api: api,
-      config: const MovaAutoPauseConfig(background: false),
+      opts: const MovaAutoPauseOpts(background: false),
       child: _player(api),
     )));
     await t.pump();
@@ -117,7 +117,7 @@ void main() {
     final inner = _api(playing: true);
     await _mount(t, MovaAutoPause(
       api: outer,
-      config: const MovaAutoPauseConfig(background: false),
+      opts: const MovaAutoPauseOpts(background: false),
       child: MovaAutoPause(api: inner, child: _player(outer)),
     ), [outer, inner]);
     _background(t);
@@ -131,10 +131,10 @@ void main() {
     final api = _api(playing: true);
     await _mount(t, MovaAutoPause(
       api: api,
-      config: const MovaAutoPauseConfig(background: false),
+      opts: const MovaAutoPauseOpts(background: false),
       child: MovaAutoPause(
         api: api,
-        config: const MovaAutoPauseConfig(background: false),
+        opts: const MovaAutoPauseOpts(background: false),
         child: _player(api),
       ),
     ), [api]);

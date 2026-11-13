@@ -22,7 +22,7 @@ import 'keep_alive_kernel.dart';
 
 /// 弱客户端后端工厂函数定义。
 typedef MovaMpvEventBackendFactory =
-    MovaMpvEventBackend Function(NativePlayer native, int handleAddress);
+    IMovaMpvEventBackend Function(NativePlayer native, int handleAddress);
 
 /// 视频控制器工厂：为给定播放器创建 [VideoController]（测试可替换）。
 typedef MovaVideoControllerFactory = VideoController Function(Player player);
@@ -57,31 +57,31 @@ const _kErrorLevel = 'error';
 const _kFfmpegPrefix = 'ffmpeg';
 const _kFile = 'file';
 
-/// A [MovaKernel] implementation backed by media_kit's `Player`.
+/// A [IMovaKernel] implementation backed by media_kit's `Player`.
 ///
 /// This is the one file in the core layer allowed to depend on
 /// `package:media_kit`; every other file under `lib/src/core/` must stay
-/// engine-agnostic. It also implements [MovaStatsProbe] — the QoE layer's
+/// backend-agnostic. It also implements [IMovaStatsProbe] — the QoE layer's
 /// optional capability for libmpv's own statistics — since that
 /// implementation can only live here too. It also implements
-/// [MovaKeepAliveKernel] (hold a hidden stream with video/sound off).
+/// [IMovaKeepAliveKernel] (hold a hidden stream with video/sound off).
 ///
-/// 基于 media_kit `Player` 实现的 [MovaKernel]。
+/// 基于 media_kit `Player` 实现的 [IMovaKernel]。
 ///
 /// 这是核心层中唯一允许依赖 `package:media_kit` 的文件；`lib/src/core/` 下
-/// 其余所有文件都必须与具体引擎无关。它同时实现 [MovaStatsProbe]——QoE 层用来
+/// 其余所有文件都必须与具体播放后端无关。它同时实现 [IMovaStatsProbe]——QoE 层用来
 /// 拿 libmpv 自身统计量的可选能力——因为这个实现同样只能落在这里。同时实现
-/// [MovaKeepAliveKernel]（在隐藏时关画面/关声音维持流）。
+/// [IMovaKeepAliveKernel]（在隐藏时关画面/关声音维持流）。
 class MovaMpvKernel
     implements
-        MovaAttemptEventKernel,
-        MovaRestartObserver,
-        MovaKernel,
-        MovaClassifiedErrorKernel,
-        MovaStatsProbe,
-        MovaKeepAliveKernel,
-        MovaPlayerMute,
-        MovaSourceOptionsKernel {
+        IMovaAttemptEventKernel,
+        IMovaRestartObserver,
+        IMovaKernel,
+        IMovaClassifiedErrorKernel,
+        IMovaStatsProbe,
+        IMovaKeepAliveKernel,
+        IMovaPlayerMute,
+        IMovaSourceOptionsKernel {
   /// Creates a media_kit-backed kernel.
   ///
   /// [player] lets the caller inject an existing `Player` (e.g. for testing
@@ -201,13 +201,13 @@ class MovaMpvKernel
     if (!observeQoeSignals && !_wantNative) return;
     // Observe mpv's own `paused-for-cache` — the *real* rebuffer signal,
     // distinct from the `buffering` stream's merge of `core-idle` +
-    // `paused-for-cache` (see MovaStatsProbe.stalling doc). Only real
+    // `paused-for-cache` (see IMovaStatsProbe.stalling doc). Only real
     // NativePlayer instances (not web) support observeProperty; anything else
     // degrades `stalling` to an empty stream rather than throwing.
     //
     // 观察 mpv 自己的 `paused-for-cache`——真正的卡顿信号，区别于 `buffering`
     // 流把 `core-idle` 与 `paused-for-cache` 合并后的产物（见
-    // MovaStatsProbe.stalling 文档）。只有真实的 NativePlayer（非 web）支持
+    // IMovaStatsProbe.stalling 文档）。只有真实的 NativePlayer（非 web）支持
     // observeProperty；其余平台把 `stalling` 降级为空流而非抛出。
     final native = _player.platform;
     if (native is NativePlayer) {
@@ -378,7 +378,7 @@ class MovaMpvKernel
   /// 用于事件抽水的泵实例。
   MovaMpvEventPump? _pump;
 
-  /// 当前原生加载对应的引擎尝试。
+  /// 当前原生加载对应的尝试序号。
   int _eventAttempt = 0;
 
   /// 下一次实际 loadfile 才生效的尝试编号。
@@ -401,7 +401,7 @@ class MovaMpvKernel
     _pendingEventAttempt = attempt;
   }
 
-  /// 后端工厂函数，用于创建 MovaMpvEventBackend。
+  /// 后端工厂函数，用于创建 IMovaMpvEventBackend。
   final MovaMpvEventBackendFactory? _backendFactory;
 
   /// 是否转发原生 `PLAYBACK_RESTART`；为 false 时只转发 END_FILE。
@@ -471,7 +471,7 @@ class MovaMpvKernel
     if (_disposed) return;
     if (_backendFactory == null) return;
 
-    MovaMpvEventBackend backend;
+    IMovaMpvEventBackend backend;
     try {
       backend = _backendFactory(native, addr);
     } catch (_) {
@@ -548,13 +548,13 @@ class MovaMpvKernel
   /// (i.e. when a video widget actually mounts) instead of at construction.
   /// A controller that is created but never attached to a surface keeps
   /// `Player.dispose()` waiting for it (real-device: 3/6 disposes hit an 8s
-  /// timeout on Windows, 4/5 on Android), so engines that may never be shown
+  /// timeout on Windows, 4/5 on Android), so players that may never be shown
   /// should be lazy. Ignored when [audioOnly].
   ///
   /// 是否把 [VideoController] 推迟到第一次读取 [renderHandle]（即视频组件真正挂上
   /// 时）才创建，而不是构造时创建。创建了却从未挂到渲染面的控制器会让
   /// `Player.dispose()` 一直等它（真机：Windows 上 3/6 次 dispose 撞 8s 超时，
-  /// Android 上 4/5 次），所以可能从不展示的引擎应设为懒创建。[audioOnly] 时忽略。
+  /// Android 上 4/5 次），所以可能从不展示的播放器应设为懒创建。[audioOnly] 时忽略。
   final bool lazyVideo;
 
   /// The video controller used to attach this kernel to a video widget;
@@ -596,11 +596,11 @@ class MovaMpvKernel
 
   /// Lets one frame pass so a video widget mounting in the same frame can
   /// create the controller before the file opens (it is ready-awaited right
-  /// after). Never creates a controller itself, so never-shown engines keep
+  /// after). Never creates a controller itself, so never-shown players keep
   /// the lazy benefit; a stalled frame loop only costs [kMountGrace].
   ///
   /// 让出一帧，使同帧挂载的视频组件能先创建控制器（随后会等它就绪）再开文件。
-  /// 自己绝不创建控制器，所以从不展示的引擎仍保持懒创建收益；帧停摆时最多等 [kMountGrace]。
+  /// 自己绝不创建控制器，所以从不展示的播放器仍保持懒创建收益；帧停摆时最多等 [kMountGrace]。
   Future<void> _yieldForMount() async {
     final y = mountYield;
     if (y == null) return;
@@ -1015,12 +1015,12 @@ class MovaMpvKernel
   }
 
   // ---------------------------------------------------------------------
-  // MovaStatsProbe — QoE layer's optional window into libmpv's own stats.
+  // IMovaStatsProbe — QoE layer's optional window into libmpv's own stats.
   // See doc/plans/2026-09-29-telemetry-enhancement.md Task 3 for why these
-  // three members must live here rather than behind MovaKernel proper.
+  // three members must live here rather than behind IMovaKernel proper.
   //
-  // MovaStatsProbe——QoE 层用来窥视 libmpv 自身统计量的可选窗口。这三个成员
-  // 为何必须落在这里而非 MovaKernel 本体，见
+  // IMovaStatsProbe——QoE 层用来窥视 libmpv 自身统计量的可选窗口。这三个成员
+  // 为何必须落在这里而非 IMovaKernel 本体，见
   // doc/plans/2026-09-29-telemetry-enhancement.md Task 3。
   // ---------------------------------------------------------------------
 
@@ -1121,12 +1121,12 @@ class MovaMpvKernel
   }
 
   // ---------------------------------------------------------------------
-  // MovaKeepAliveKernel — hold the stream with video/sound off. Only `mute`
+  // IMovaKeepAliveKernel — hold the stream with video/sound off. Only `mute`
   // and `vid` are touched, saved first and restored verbatim; never
   // `volume` (a system-volume port may own it), `vo`/`wid` (media_kit's
   // Android widListener owns them) or the VideoController.
   //
-  // MovaKeepAliveKernel——关掉画面/声音维持流。只碰 `mute` 与 `vid`，先保存、再原样还原；
+  // IMovaKeepAliveKernel——关掉画面/声音维持流。只碰 `mute` 与 `vid`，先保存、再原样还原；
   // 绝不碰 `volume`（可能归系统音量端口管）、`vo`/`wid`（归 media_kit 的 Android
   // widListener 管）以及 VideoController。
   // ---------------------------------------------------------------------

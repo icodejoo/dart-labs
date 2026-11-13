@@ -7,10 +7,10 @@
 ## 基线、构建与设备
 
 - 7NQBB23606003715，STG-AL00 Android12/arm64；测前及各驱动确认亮屏解锁。`rerun-preflight-window/audio/power.txt`、`rerun-device-build.json`。起测USB常亮7、媒体speaker6/20。
-- Flutter3.47.0 / Dart3.13.0。`flutter analyze lib test` **1 error + 1 warning（2 issues），exit1**；`flutter test` **1424通过、1测试文件加载失败，exit1**。已有 `test/core/engine_test.dart` 的 `_RecordingBrightPort` 在1959/1978重复定义，整文件未加载；不是79个测试断言失败，不能把上次1503或文档1510算成本次通过。原始 `rerun-baseline-analyze/test.log`，未改该文件。
+- Flutter3.47.0 / Dart3.13.0。`flutter analyze lib test` **1 error + 1 warning（2 issues），exit1**；`flutter test` **1424通过、1测试文件加载失败，exit1**。已有 `test/core/mova_test.dart` 的 `_RecordingBrightness` 在1959/1978重复定义，整文件未加载；不是79个测试断言失败，不能把上次1503或文档1510算成本次通过。原始 `rerun-baseline-analyze/test.log`，未改该文件。
 - 修改的4个验证页单独analyze **0 issues，exit0**，`rerun-verifier-analyze.log`；额外守卫页变更后he_auto.dart再分析亦0 issues，`rerun-he-extra-analyze.log`。release隔离包构建/安装成功，真实libmpv6357872bytes、SHA256 `798cde9e27e3761dd5f8f065693e4669b5499d5807618f81a74e0d3a88dc230b`。主批次APK SHA256 `d4535851ebe9074860ba9772f501253d2043620655d61f40e320df32b98537ab`，保留原包`rerun-main-release.apk`，元数据`rerun-final-build-manifest.json`。最后安装的独立守卫补测APK见`rerun-guard-build-manifest.json`，该补测因锁屏未启动。
 - 所有媒体/渲染判据来自release真实事件/状态/原生读回；仅N22构造断言用独立debug VM，`rerun-debug-build.log`、`rerun-debug-assert.*`。main库无改动。
-- 编号仍为A33+C17+E37+U9+F16+N23=135。沿用旧编号：E.MovaSwapChange对应现MovaCutoverChange，E.MovaStandbyChange/Resume对应现MovaKeepAliveChange/Resume；只映射名称，不增减编号。
+- 编号仍为A33+C17+E37+U9+F16+N23=135。沿用旧编号：原E.MovaSwapChange对应现E.MovaCutoverChange，原E.MovaStandbyChange/Resume对应现E.MovaKeepAliveChange/Resume；只映射名称，不增减编号。
 
 ## 最终分组汇总
 
@@ -32,20 +32,20 @@
 |---|---|---|
 | A1 | FAIL | 两实现broadcast=[true,false,true,false]；两订阅均收到、八订阅均关闭。标志契约差异。rerun-batch15-basic.json、rerun-batch15-basic-cutover.json。 |
 | A2 | FAIL | 接收事件时state快照仍可不同：Buffer/Size及本次新增Quality对账差异；详见rerun-event-review.json的逐条mismatchExamples。 |
-| A3 | PASS | audioOnly handle=null/size0x0；lazy构造0/open0/首次handle1；真实视频挂树非空、宽高640x360。rerun-batch15-lazy/basic、rerun-batch16-engine-start.json。 |
+| A3 | PASS | audioOnly handle=null/size0x0；lazy构造0/open0/首次handle1；真实视频挂树非空、宽高640x360。rerun-batch15-lazy/basic、rerun-batch16-mova-start.json。 |
 | A4 | PASS | 普通/代理pipSupported=true且state一致。rerun-batch15-basic.json、rerun-batch15-basic-cutover.json CHECK A4。 |
-| A5 | FAIL | 两实现VIDEO_OPEN_SYNC仍640x360/duration40000/rendered=true；404恢复关时accepted=true、不抛，随后error事件。同步/错误契约差异，N8接受语义仍通过。rerun-native-engine-open-sync.json、rerun-native-cutover-open-sync.json、rerun-extra-edges.json。 |
+| A5 | FAIL | 两实现VIDEO_OPEN_SYNC仍640x360/duration40000/rendered=true；404恢复关时accepted=true、不抛，随后error事件。同步/错误契约差异，N8接受语义仍通过。rerun-native-mova-open-sync.json、rerun-native-cutover-open-sync.json、rerun-extra-edges.json。 |
 | A6 | PASS | 两实现play/pause/playOrPause、重复pause与独立intent检查通过，真实事件与进度均保存。rerun-batch15-basic.json、rerun-batch15-basic-cutover.json。 |
 | A7 | PASS | 两实现5个精确seek误差0；负值/seekBy、加载中7s寄存与超时长钳制有实际读数；直播禁seek。rerun-batch15-basic/basic-cutover/live-*.json、rerun-extra-edges.json。超界seek仅测钳制，不用来伪造自然EOF。 |
-| A8 | PASS | 两实现越界state钳0..100；逐值原生媒体音量读回0/中间/20（1%受系统离散级量化）。rerun-batch15-basic.json、rerun-batch15-basic-cutover.json、rerun-native-engine/cutover-volume*.json及.native.txt。 |
+| A8 | PASS | 两实现越界state钳0..100；逐值原生媒体音量读回0/中间/20（1%受系统离散级量化）。rerun-batch15-basic.json、rerun-batch15-basic-cutover.json、rerun-native-mova/cutover-volume*.json及.native.txt。 |
 | A9 | PASS | 两实现clamp全部true；原生brightness：输入-1/0/.25/.75/1/2→0/0/.25/.75/1/1；代理手势窗口sbrt=.7530023。rerun-extra-edges.json、rerun-batch16-cutover-left-check.window.txt。 |
 | A10 | PASS | 0.5/1/1.5/2、非法-1/0拒绝、换源保留；广告1x并恢复2x/1.5x各3轮。rerun-batch15-basic.json、rerun-batch15-basic-cutover.json、rerun-batch11-review.log V13a/b。 |
-| A11 | PASS | 两实现contain/cover/fill状态、事件及真实画面不同；见rerun-batch16-engine/cutover-fit-*.png/json、rerun-safe-contact-1.jpg。 |
+| A11 | PASS | 两实现contain/cover/fill状态、事件及真实画面不同；见rerun-batch16-mova/cutover-fit-*.png/json、rerun-safe-contact-1.jpg。 |
 | A12 | FAIL | setZoom(-1/0/100)仍接受并改变画面，未使用手势maxZoom钳制。矩阵边界假设差异；非法低值可使画面塌缩。rerun-batch3-05-zoom--1.json、rerun-batch3-06-zoom-0.json、rerun-batch3-09-zoom-100.png。 |
 | A13 | PASS | 两实现锁定后左右触摸不改变亮度/音量，解锁后可用，LockChange/state一致。rerun-batch16-checks.json及locked/unlock原始文件。 |
 | A14 | PASS | 两实现进/出全屏状态与事件、系统栏隐藏/恢复，进入按宽高比横屏；退出原生恢复FULL_USER。rerun-batch16-*-fullscreen-*.json/window.txt；方向探针的“自动必竖屏”误判另列。 |
-| A15 | FAIL | 真实MiniHost→enterPip后mini=false但controller仍showing=true/persistent；展开后pip=false/mini=false而小窗仍可见。全新进程复现，真实UI与状态衔接缺口。rerun-mini-pip-repro-show/enter/holding/expanded.json/png/activity.txt。 |
-| A16 | PASS | 两实现landscape/portrait/auto事件及真实窗口尺寸/原生方向有读回。rerun-batch16-*-orientation-*.json/window.txt、rerun-batch3-24..26-orientation-*。自动不承诺强制竖屏。 |
+| A15 | FAIL | 真实MiniHost→enterPip后mini=false但MovaMini仍showing=true/persistent；展开后pip=false/mini=false而小窗仍可见。全新进程复现，真实UI与状态衔接缺口。rerun-mini-pip-repro-show/enter/holding/expanded.json/png/activity.txt。 |
+| A16 | PASS | 两实现landscape/portrait/auto事件及真实窗口尺寸/原生方向有读回。rerun-batch16-*-orient-*.json/window.txt、rerun-batch3-24..26-orient-*。自动不承诺强制竖屏。 |
 | A17 | FAIL | HLS累计39/40切档通过，成功落点误差均0ms；长进程代理run3 target10183→RESTART[23,23]，未续播。ABR真实限速降档通过但不抵消失败。rerun-measured-summary.json、rerun-batch17-hls-playing-cutover.json、rerun-final-hls-cutover/abr.json。 |
 | A18 | PASS | 进入true、原生pinned；展开及真正X关闭均收到PipChange(false)/state复位。rerun-manual-pip-enter/expanded/third/x-confirmed.json/activity.txt/png。先前x-closed只是菜单消失，未当关闭证据。 |
 | A19 | PASS | 两实现reload真实重载，进度归零及事件序列已记录。rerun-batch15-basic.json、rerun-batch15-basic-cutover.json RELOAD。 |
@@ -54,22 +54,22 @@
 | A22 | PASS | custom覆盖probe42与内置play透传probe43，value相等/hash检查通过。rerun-batch15-basic.json、rerun-batch15-basic-cutover.json CHECK A22。 |
 | A23 | FAIL | 两实现第二次dispose仍抛[Player] has been disposed；首次关闭及disposed open=false正常，120轮首次创建/销毁完成。二次调用安全的矩阵契约差异。rerun-batch15-basic.json、rerun-batch15-basic-cutover.json、rerun-batch15-dispose120.json及round*.meminfo.txt。 |
 | A24 | PASS | 关闭直通、开启prepare/commit/abandon、短窗口/超时降级、epoch与影子释放7项检查通过。rerun-batch15-cutover.json；真实视频换指另见rerun-batch11-review.log。 |
-| A25 | PASS | off/holding/fallback/resuming、pause结束、默认maxDuration30s到期、allowHls两分支各3轮；硬解恢复20/20、后台降级/恢复、重载与隐藏换源均完成。rerun-keepalive-core.log、rerun-batch8-keepAlive-native.log、rerun-batch16-checks.json。grace及强制无音轨探针FAIL另列，不隐藏。 |
+| A25 | PASS | off/holding/fallback/resuming、pause结束、默认maxDuration30s到期、allowHls两分支各3轮；硬解恢复20/20、后台降级/恢复、重载与隐藏换源均完成。rerun-keepalive-core.log、rerun-batch8-keep-alive-native.log、rerun-batch16-checks.json。grace及强制无音轨探针FAIL另列，不隐藏。 |
 | A26 | PASS | A/B挂载互斥、hide/close/setRect、回调、真实拖动/吸边/转屏均有证据。安全实触：left12→90ms甩动left231.5294且showing=true，MINI_TAPPED与MINI_CLOSED实际到达。rerun-batch16/22-mini*、rerun-manual2-mini-*.json/png。 |
 | A27 | PASS | 默认关、pre/mid/post/manual、deferred、clicked/skip、pod、waitsFor三层覆盖；两种404失败策略完成。rerun-batch15-ads/adResume.json、rerun-extra-ad-failure.json、rerun-batch11-review.log。 |
 | A28 | PASS | next/previous/jumpTo/边界及自然完播自动下一条3项检查通过；拒绝jumpTo不前进另见hooks。rerun-extra-playlist.json、rerun-batch15-hooks/hooks-cutover.json。 |
-| A29 | PASS | 100次串行+20次并发滑动最终active120、原生池3引擎，回收完成；实际Feed触摸另测。rerun-batch15-feed.json、rerun-batch22-feed*.json/png。 |
+| A29 | PASS | 100次串行+20次并发滑动最终active120、原生池3播放器，回收完成；实际Feed触摸另测。rerun-batch15-feed.json、rerun-batch22-feed*.json/png。 |
 | A30 | PASS | VTT优先/crop不缓存、实际原生抽帧、内存2上限、磁盘/内存命中、cancel/clear、never阻断；真实connectivity与拒连VTT抽帧兜底通过。rerun-batch15-preview-*.json、rerun-extra-preview-probe/offline.json及thumb*.jpg。 |
-| A31 | BLOCKED | 已测disabled/noEngine阻断、注入引擎首启失败回滚/二次重试。未提供真实识别模型/模型下载服务，设备旧seed目录不存在；真实转写、下载失败链、SRT导出/分块落盘未完成。rerun-batch15-stt.json、rerun-stt-device-seed.txt。 |
+| A31 | BLOCKED | 已测disabled/noRecognizer阻断、注入识别器首启失败回滚/二次重试。未提供真实识别模型/模型下载服务，设备旧seed目录不存在；真实转写、下载失败链、SRT导出/分块落盘未完成。rerun-batch15-stt.json、rerun-stt-device-seed.txt。 |
 | A32 | PASS | 普通/代理各9项异步hooks检查通过：放行/拒绝/被取代、pause期间stalePlay、换源staleSeek、异常后继续播放及error隔离。rerun-batch15-hooks/hooks-cutover.json。 |
 | A33 | PASS | 真机安装MovaTesting后平台端口空操作、stagedSourceOptions读回通过；Android实际转场/换指未出现Windows快照路径副作用。rerun-batch15-testing.json、rerun-batch11-review.log及rerun-batch16-view-*.json。 |
 | C1 | PASS | VTT优先/crop不缓存、实际原生抽帧、内存2上限、磁盘/内存命中、cancel/clear、never阻断；真实connectivity与拒连VTT抽帧兜底通过。rerun-batch15-preview-*.json、rerun-extra-preview-probe/offline.json及thumb*.jpg。 |
 | C2 | BLOCKED | 已测真实FLV/HLS durationStep、12s本地DVR、behind/回边缘三轮；未提供按behind URL返回历史且可控卡顿服务。urlBuilder历史语义、自定义windowResolver/autoBackToLiveOnStall完整联动未完成。rerun-live-*.json、rerun-batch15-live-step*.json；条件与上次相同。 |
 | C3 | FAIL | 真实长按1800ms期间仍1x，当前无长按倍速；侧别/轴向改配、seek、默认双击seek、Douyin Feed点击/like及锁定屏蔽已实测。能力假设差异。rerun-batch18-longpress-*.json、rerun-batch22-remap/feed*.json、rerun-batch16-checks.json。 |
 | C4 | PASS | 真实HTTP ts限速触发MovaAbrDownShift，高→低后紧接手切，reset生效；两轮有实际轨迹。rerun-batch15-abr.json、rerun-final-abr.json；使用threshold1门控配置，不宣称默认阈值性能。 |
-| C5 | PASS | showOnStart、800ms自动隐藏、sticky保持与皮肤控件显隐通过；原始uiStates/截图齐全。rerun-batch16-checks.json、rerun-batch18-autohide.json、rerun-safe-visual-*.png。 |
+| C5 | PASS | showOnStart、800ms自动隐藏、sticky保持与 UI 套件控件显隐通过；原始uiStates/截图齐全。rerun-batch16-checks.json、rerun-batch18-autohide.json、rerun-safe-visual-*.png。 |
 | C6 | FAIL | 真实滚动弹幕可见，但发送API/输入框未提供（display-only），矩阵要求的发送不能满足。rerun-safe-visual-danmaku.png/json。 |
-| C7 | BLOCKED | 已测disabled/noEngine阻断、注入引擎首启失败回滚/二次重试。未提供真实识别模型/模型下载服务，设备旧seed目录不存在；真实转写、下载失败链、SRT导出/分块落盘未完成。rerun-batch15-stt.json、rerun-stt-device-seed.txt。 |
+| C7 | BLOCKED | 已测disabled/noRecognizer阻断、注入识别器首启失败回滚/二次重试。未提供真实识别模型/模型下载服务，设备旧seed目录不存在；真实转写、下载失败链、SRT导出/分块落盘未完成。rerun-batch15-stt.json、rerun-stt-device-seed.txt。 |
 | C8 | FAIL | 自动连播、NextUp卡片/取消/立即播放实测；卡片没有数字倒计时。rerun-extra-playlist.json、rerun-safe-visual-nextup.png、rerun-safe-visual-nextup-click.json。 |
 | C9 | PASS | 默认关、pre/mid/post/manual、deferred、clicked/skip、pod、waitsFor三层覆盖；两种404失败策略完成。rerun-batch15-ads/adResume.json、rerun-extra-ad-failure.json、rerun-batch11-review.log。 |
 | C10 | PASS | COVERAGE FIT文案实际可见；60/8/红色spinner及开关、错误层显隐、Minimal无栏无手势通过。rerun-safe-visual-controls/spinner-custom/spinner-disabled/error-visible/error-disabled.png，controls-*.xml与组件清单。 |
@@ -77,7 +77,7 @@
 | C12 | PASS | A/B挂载互斥、hide/close/setRect、回调、真实拖动/吸边/转屏均有证据。安全实触：left12→90ms甩动left231.5294且showing=true，MINI_TAPPED与MINI_CLOSED实际到达。rerun-batch16/22-mini*、rerun-manual2-mini-*.json/png。 |
 | C13 | PASS | qoe:false零QoE；四类结束原因、restart TTFF、cache卡顿/截断均取得真实报告。完整释放卡顿sessionEnd stallCount1/stallMs5496。rerun-batch15-qoe-*.json、rerun-batch17-qoe-failed/qoe-stall-release.json；custom另见A22。 |
 | C14 | PASS | 默认关，有限重试/地址切换、超时和源级mpv选项读回、默认直播持续重连/legacy分支均完成。rerun-batch15-options/recovery*.json、rerun-extra-failover/live-backoff-*.json、rerun-he-recovery.log。 |
-| C15 | PASS | off/holding/fallback/resuming、pause结束、默认maxDuration30s到期、allowHls两分支各3轮；硬解恢复20/20、后台降级/恢复、重载与隐藏换源均完成。rerun-keepalive-core.log、rerun-batch8-keepAlive-native.log、rerun-batch16-checks.json。grace及强制无音轨探针FAIL另列，不隐藏。 |
+| C15 | PASS | off/holding/fallback/resuming、pause结束、默认maxDuration30s到期、allowHls两分支各3轮；硬解恢复20/20、后台降级/恢复、重载与隐藏换源均完成。rerun-keepalive-core.log、rerun-batch8-keep-alive-native.log、rerun-batch16-checks.json。grace及强制无音轨探针FAIL另列，不隐藏。 |
 | C16 | FAIL | 实时戳最终矩阵35/40；合法IP SAN verify=true仍5/5拒绝。独立探针合法DNS6/6通过、合法IP0/6；CA属性正确，OpenSSL两证书OK。原生TLS兼容缺陷，未定位具体责任层。rerun-final-tls.json、rerun-final-tls-probe.json、rerun-openssl-verify.txt。 |
 | C17 | PASS | alternatives/uris/pick/sameAs、headers、sourceIndex；network/cache/demux按源应用并恢复，默认白名单保留，非法项不写error，WHEP微秒选项读回。rerun-batch15-options.json及服务端HEADERS、rerun-extra-failover.json。 |
 | E.MovaReady | PASS | MovaReady：去重283次，同型相邻同值55次；标量对账0条/差异0条；样例payload={}，动作={"group":"basic"}。证据rerun-batch15-basic.json，全部载荷/状态/上下文见rerun-event-review.json。 |
@@ -101,24 +101,24 @@
 | E.MovaZoomChange | PASS | MovaZoomChange：去重6次，同型相邻同值0次；标量对账6条/差异0条；样例payload={"zoom":-1.0}，动作={"group":"video","action":"zoom","value":"-1"}。证据rerun-batch3-05-zoom--1.json，全部载荷/状态/上下文见rerun-event-review.json。 |
 | E.MovaLockChange | PASS | MovaLockChange：去重6次，同型相邻同值0次；标量对账6条/差异0条；样例payload={"value":true}，动作={"group":"video","action":"lock","value":"true"}。证据rerun-batch16-cutover-lock.json，全部载荷/状态/上下文见rerun-event-review.json。 |
 | E.MovaFullScreenChange | PASS | MovaFullScreenChange：去重8次，同型相邻同值0次；标量对账8条/差异0条；样例payload={"value":true}，动作={"group":"new","case":"lifecycle"}。证据rerun-batch15-lifecycle.json，全部载荷/状态/上下文见rerun-event-review.json。 |
-| E.MovaOrientationChange | PASS | MovaOrientationChange：去重33次，同型相邻同值0次；标量对账33条/差异0条；样例payload={"orientation":"landscape"}，动作={"group":"video","action":"orientation","value":"landscape"}。证据rerun-batch16-cutover-mini-landscape.json，全部载荷/状态/上下文见rerun-event-review.json。 |
+| E.MovaOrientChange | PASS | MovaOrientChange：去重33次，同型相邻同值0次；标量对账33条/差异0条；样例payload={"orient":"landscape"}，动作={"group":"video","action":"orient","value":"landscape"}。证据rerun-batch16-cutover-mini-landscape.json，全部载荷/状态/上下文见rerun-event-review.json。 |
 | E.MovaPipChange | PASS | MovaPipChange：去重19次，同型相邻同值0次；标量对账19条/差异0条；样例payload={"value":true}，动作={"group":"video","action":"pip"}。证据rerun-batch18-pip-enter.json，全部载荷/状态/上下文见rerun-event-review.json。 |
 | E.MovaMiniChange | PASS | MovaMiniChange：去重27次，同型相邻同值0次；标量对账27条/差异0条；样例payload={"mini":true}，动作={"group":"video","action":"miniPage"}。证据rerun-batch16-cutover-mini-page.json，全部载荷/状态/上下文见rerun-event-review.json。 |
-| E.MovaTimeShiftChange | PASS | MovaTimeShiftChange：去重63次，同型相邻同值1次；标量对账63条/差异0条；样例payload={"behind":10000}，动作={}。证据rerun-batch16-keepAlive-on.json，全部载荷/状态/上下文见rerun-event-review.json。 |
+| E.MovaTimeShiftChange | PASS | MovaTimeShiftChange：去重63次，同型相邻同值1次；标量对账63条/差异0条；样例payload={"behind":10000}，动作={}。证据rerun-batch16-keep-alive-on.json，全部载荷/状态/上下文见rerun-event-review.json。 |
 | E.MovaLiveEdgeReach | PASS | MovaLiveEdgeReach：去重15次，同型相邻同值5次；标量对账0条/差异0条；样例payload={}，动作={"group":"new","case":"live","step":"0"}。证据rerun-batch15-live-step0-0.json，全部载荷/状态/上下文见rerun-event-review.json。 |
 | E.MovaPreviewBlock | PASS | MovaPreviewBlock：去重4次，同型相邻同值3次；标量对账0条/差异0条；样例payload={"reason":"network"}，动作={"group":"new","case":"preview","mode":"blocked"}。证据rerun-batch15-preview-blocked.json，全部载荷/状态/上下文见rerun-event-review.json。 |
 | E.MovaSttBlock | PASS | MovaSttBlock：去重3次，同型相邻同值0次；标量对账0条/差异0条；样例payload={"reason":"disabled"}，动作={"group":"basic"}。证据rerun-batch15-basic.json，全部载荷/状态/上下文见rerun-event-review.json。 |
-| E.MovaSwapChange | PASS | MovaCutoverChange：去重40次，同型相邻同值0次；标量对账0条/差异0条；样例payload={"phase":"warming"}，动作={"group":"new","case":"cutover"}。证据rerun-batch15-cutover.json，全部载荷/状态/上下文见rerun-event-review.json。 |
+| E.MovaCutoverChange | PASS | MovaCutoverChange：去重40次，同型相邻同值0次；标量对账0条/差异0条；样例payload={"phase":"warming"}，动作={"group":"new","case":"cutover"}。证据rerun-batch15-cutover.json，全部载荷/状态/上下文见rerun-event-review.json。 |
 | E.MovaErrorEvent | PASS | MovaErrorEvent：去重115次，同型相邻同值29次；标量对账0条/差异0条；样例payload={"error":"Failed to open http://127.0.0.1:18080/404.mp4?t=1793093002285605."}，动作={"group":"new","case":"hooks"}。证据rerun-batch15-hooks.json，全部载荷/状态/上下文见rerun-event-review.json。 |
 | E.MovaPlayFailure | PASS | MovaPlayFailure：去重42次，同型相邻同值0次；标量对账0条/差异0条；样例payload={"kind":"nativeEndError","action":"MovaRecoveryAction.retry","attempt":1,"isLive":true,"sourceIndex":0}，动作={"group":"new","case":"recovery","mode":"liveDefault"}。证据rerun-batch15-recovery-liveDefault.json，全部载荷/状态/上下文见rerun-event-review.json。 |
 | E.MovaRecovered | PASS | MovaRecovered：去重1次，同型相邻同值0次；标量对账0条/差异0条；样例payload={"attempts":1}，动作={"group":"new","case":"recovery","mode":"failover"}。证据rerun-extra-failover.json，全部载荷/状态/上下文见rerun-event-review.json。 |
 | E.MovaFailover | PASS | MovaFailover：去重2次，同型相邻同值0次；标量对账0条/差异0条；样例payload={"from":0,"to":1,"uri":"http://127.0.0.1:18080/other404.mp4?t=1793093021692738"}，动作={"group":"new","case":"recovery","mode":"liveAlternatives"}。证据rerun-batch15-recovery-liveAlternatives.json，全部载荷/状态/上下文见rerun-event-review.json。 |
-| E.MovaStandbyChange | PASS | MovaKeepAliveChange：去重6次，同型相邻同值0次；标量对账6条/差异0条；样例payload={"phase":"resuming","reason":"woke","mode":"null"}，动作={"group":"video","action":"keepAlive","value":"false"}。证据rerun-batch16-keepAlive-off.json，全部载荷/状态/上下文见rerun-event-review.json。 |
-| E.MovaStandbyResume | PASS | MovaKeepAliveResume：去重1次，同型相邻同值0次；标量对账0条/差异0条；样例payload={"elapsed":1960,"signal":"MovaFirstFrameSignal.grace"}，动作={}。证据rerun-batch16-keepAlive-on2.json，全部载荷/状态/上下文见rerun-event-review.json。 |
+| E.MovaKeepAliveChange | PASS | MovaKeepAliveChange：去重6次，同型相邻同值0次；标量对账6条/差异0条；样例payload={"phase":"resuming","reason":"woke","mode":"null"}，动作={"group":"video","action":"keepAlive","value":"false"}。证据rerun-batch16-keep-alive-off.json，全部载荷/状态/上下文见rerun-event-review.json。 |
+| E.MovaKeepAliveResume | PASS | MovaKeepAliveResume：去重1次，同型相邻同值0次；标量对账0条/差异0条；样例payload={"elapsed":1960,"signal":"MovaFirstFrameSignal.grace"}，动作={}。证据rerun-batch16-keep-alive-on2.json，全部载荷/状态/上下文见rerun-event-review.json。 |
 | E1 | FAIL | 真实Play意图事件早于Ready/FirstFrame，不满足矩阵示意箭头严格顺序。不是提前出画；自然Done1/无错误的生命周期仍通过F1。rerun-batch15-lifecycle.json。 |
 | E2 | PASS | 两实现默认关闭功能事件count0、qoe:false无QoE。rerun-batch15-basic.json、rerun-batch15-basic-cutover.json。 |
-| U1 | PASS | Player/View/Feed实际挂卸、surface、五皮肤/patch组件，View route/ticker与Impeller渲染均留有设备证据。rerun-batch16-view-*.json、rerun-batch16-*-customSurface/patch.png、rerun-batch22-feed*.json/png及safe视觉。 |
-| U2 | PASS | Player/View/Feed实际挂卸、surface、五皮肤/patch组件，View route/ticker与Impeller渲染均留有设备证据。rerun-batch16-view-*.json、rerun-batch16-*-customSurface/patch.png、rerun-batch22-feed*.json/png及safe视觉。 |
+| U1 | PASS | Player/View/Feed实际挂卸、surface、五 UI 套件/patch组件，View route/ticker与Impeller渲染均留有设备证据。rerun-batch16-view-*.json、rerun-batch16-*-customSurface/patch.png、rerun-batch22-feed*.json/png及safe视觉。 |
+| U2 | PASS | Player/View/Feed实际挂卸、surface、五 UI 套件/patch组件，View route/ticker与Impeller渲染均留有设备证据。rerun-batch16-view-*.json、rerun-batch16-*-customSurface/patch.png、rerun-batch22-feed*.json/png及safe视觉。 |
 | U3 | FAIL | 实际TopBar只有标题及功能按钮，没有返回按钮；Android BACK能退路由。能力假设差异。rerun-safe-visual-route-player.png、rerun-safe-visual-route-back.png及同前缀JSON；PiP/方向另见A16/A18。 |
 | U4 | PASS | 真实live/VOD栏、底栏拖动与悬停彩色预览气泡通过。dragging=true、previewAt25987、previewCurrent20000；UP后释放。rerun-live-*-controls.png、rerun-manual2-preview-held/released.json/png。 |
 | U5 | FAIL | 语义点击1x后直接1.25x、没有倍速菜单；CenterPlay实际点击播放，HUD另有真实手势读回。能力形态差异。rerun-safe-visual-speed-button.json、rerun-safe-visual-center-play.json及PNG、rerun-batch16-*-left/right*.png。 |
@@ -130,15 +130,15 @@
 | F2 | PASS | 真实滑动HLS三轮：DVR窗口12s，seek后behind约8s，backEdge position12000、LiveEdgeReach；点播回边缘无副作用。rerun-live-0/1/2-behind/backedge.json、rerun-batch15-basic.json。此项是本地DVR，不冒充按URL历史服务。 |
 | F3 | FAIL | HLS累计39/40切档通过，成功落点误差均0ms；长进程代理run3 target10183→RESTART[23,23]，未续播。ABR真实限速降档通过但不抵消失败。rerun-measured-summary.json、rerun-batch17-hls-playing-cutover.json、rerun-final-hls-cutover/abr.json。 |
 | F4 | PASS | 广告回正片5次原生续播误差全部0ms、epoch2；pod/失败降级/关闭态已测。rerun-batch15-adResume/cutover.json、rerun-batch11-review.log、rerun-extra-ad-failure.json。 |
-| F5 | FAIL | 真实MiniHost→enterPip后mini=false但controller仍showing=true/persistent；展开后pip=false/mini=false而小窗仍可见。全新进程复现，真实UI与状态衔接缺口。rerun-mini-pip-repro-show/enter/holding/expanded.json/png/activity.txt。 |
-| F6 | PASS | off/holding/fallback/resuming、pause结束、默认maxDuration30s到期、allowHls两分支各3轮；硬解恢复20/20、后台降级/恢复、重载与隐藏换源均完成。rerun-keepalive-core.log、rerun-batch8-keepAlive-native.log、rerun-batch16-checks.json。grace及强制无音轨探针FAIL另列，不隐藏。 |
+| F5 | FAIL | 真实MiniHost→enterPip后mini=false但MovaMini仍showing=true/persistent；展开后pip=false/mini=false而小窗仍可见。全新进程复现，真实UI与状态衔接缺口。rerun-mini-pip-repro-show/enter/holding/expanded.json/png/activity.txt。 |
+| F6 | PASS | off/holding/fallback/resuming、pause结束、默认maxDuration30s到期、allowHls两分支各3轮；硬解恢复20/20、后台降级/恢复、重载与隐藏换源均完成。rerun-keepalive-core.log、rerun-batch8-keep-alive-native.log、rerun-batch16-checks.json。grace及强制无音轨探针FAIL另列，不隐藏。 |
 | F7 | PASS | qoe:false零QoE；四类结束原因、restart TTFF、cache卡顿/截断均取得真实报告。完整释放卡顿sessionEnd stallCount1/stallMs5496。rerun-batch15-qoe-*.json、rerun-batch17-qoe-failed/qoe-stall-release.json；custom另见A22。 |
 | F8 | PASS | 坏地址nativeEndError、三轮failover/giveUp、多地址及卡顿后续播通过。最终V6连续区间5/5，位置误差40/40/0/0/40ms，平均24ms；超时offset1/14/2/1/1ms，平均3.8ms。rerun-he-v6-final.log、rerun-he-recovery.log、rerun-extra-failover.json。旧V6计时/锚点误判已纠正。 |
 | F9 | PASS | audioOnly handle=null、size0x0、进度/AudioTrack；与视频窗口的实际截图和CPU/内存对照已采样。rerun-batch15-basic.json、rerun-batch16-audio/video*.json/png/cpu.txt。未冒充人耳音质评价。 |
 | F10 | PASS | VTT优先/crop不缓存、实际原生抽帧、内存2上限、磁盘/内存命中、cancel/clear、never阻断；真实connectivity与拒连VTT抽帧兜底通过。rerun-batch15-preview-*.json、rerun-extra-preview-probe/offline.json及thumb*.jpg。 |
 | F11 | PASS | 四格式SRT/ASS/WebVTT外挂及mov_text内封：4个CHECK全部true、原生sub-text非空/decoder轨道与实际字幕PNG齐全。rerun-extra-subtitles.json、rerun-extra-subtitles.srt.png、rerun-extra-subtitles.ass.png、rerun-extra-subtitles.vtt.png、rerun-extra-subtitles.movtext.png。 |
-| F12 | PASS | 四模式各3轮top/batterystats及音频模式对照完成。单核均值normal99.64%、muted7.70%、decodeOnly112.67%、pause6.50%。rerun-cpu-review.json、rerun-batch9-keepAlive-cpu-drift.samples.txt、rerun-batch16-audio/video.cpu.txt。USB供电，不推导电池能耗。 |
-| F13 | PASS | feed100+20次最终3引擎，三引擎RESTART互不串扰；销毁最大帧间隔46/55ms<100。rerun-batch15-feed.json、rerun-batch12-pump.log；120轮仅报告资源趋势，不声称绝无泄漏。 |
+| F12 | PASS | 四模式各3轮top/batterystats及音频模式对照完成。单核均值normal99.64%、muted7.70%、decodeOnly112.67%、pause6.50%。rerun-cpu-review.json、rerun-batch9-keep-alive-cpu-drift.samples.txt、rerun-batch16-audio/video.cpu.txt。USB供电，不推导电池能耗。 |
+| F13 | PASS | feed100+20次最终3播放器，三播放器RESTART互不串扰；销毁最大帧间隔46/55ms<100。rerun-batch15-feed.json、rerun-batch12-pump.log；120轮仅报告资源趋势，不声称绝无泄漏。 |
 | F14 | PASS | release RESTART与END_FILE实际到达，qoe:false建客户端0，created14/destroyed14。rerun-batch12-pump.log、rerun-he-recovery.log。 |
 | F15 | BLOCKED | WHEP端点38889/test/whep拒连，相关端口探测不可用；缺publisher/信令/UDP38189及relay38190服务。只完成WHEP选项读回，未完成15s播放。rerun-external-prerequisites.json、rerun-batch15-options.json；与上次条件相同。 |
 | F16 | PASS | 历史PiP退出state已修复，两退出路径到false；广告方向/内容倍速恢复、pod第二条换指已测各3轮。rerun-manual-pip-*.json、rerun-batch11-review.log。此项表示历史缺陷复核完成；新MiniHost/PiP残留另列A15/F5。 |
@@ -153,7 +153,7 @@
 | N9 | PASS | 进入true、原生pinned；展开及真正X关闭均收到PipChange(false)/state复位。rerun-manual-pip-enter/expanded/third/x-confirmed.json/activity.txt/png。先前x-closed只是菜单消失，未当关闭证据。 |
 | N10 | PASS | 广告max1x，回正片2x/1.5x各3轮；pod第二条真正epoch换指，退役未重置继任者的全屏/方向。rerun-batch11-review.log V10/V12/V12b/V13a/b/V14。自动方向不等于竖屏的探针误判另列。 |
 | N11 | PASS | Q13A/B/C各5/5；41份阶段dumpsys audio媒体音量恒6/20，静音只影响mpv mute且退出顺序均还原。rerun-batch10-mute.log、rerun-mute-volume-review.json。 |
-| N12 | FAIL | 精确首帧/换源重置/过期RESTART通过，但两实现open同步快照仍旧640x360；符合异步beforeOpen后再归零的现行行为，不符合矩阵字面同步要求。rerun-native-engine-open-sync.json、rerun-native-cutover-open-sync.json、rerun-he-firstframe.log。 |
+| N12 | FAIL | 精确首帧/换源重置/过期RESTART通过，但两实现open同步快照仍旧640x360；符合异步beforeOpen后再归零的现行行为，不符合矩阵字面同步要求。rerun-native-mova-open-sync.json、rerun-native-cutover-open-sync.json、rerun-he-firstframe.log。 |
 | N13 | PASS | precise on/off各3轮、native弱客户端数量与懒创建实际计数通过。rerun-he-firstframe.log、rerun-batch12-pump.log、rerun-batch15-lazy.json。 |
 | N14 | PASS | declarative cover→用户contain→重建仍contain，两实现CHECK均true。rerun-batch16-checks.json及*-declarativeFit/userFit/rebuild.json。 |
 | N15 | PASS | video换源重盖/实际中间渐隐、audioOnly封面常驻、Feed首帧前封面→视频完成。只用全尺寸前台安全截图。rerun-safe-transition-poster-covered/fade-*.png、rerun-safe-visual-feed-poster-*.png、rerun-batch16-audio-poster.png及对应事件。 |
@@ -161,7 +161,7 @@
 | N17 | PASS | View自建/复用、同源、null暂停、options重建/销毁及onOpenError，sameAs包括alternatives。rerun-batch16-view-*.json、rerun-batch15-options.json、rerun-batch16-widget-unmount.json。 |
 | N18 | BLOCKED | 已测HE前后台/route/Ticker/PiP各3轮，inactive意图及直播隐藏>=3s回边缘LiveEdgeReach、真实Feed滚动和View RouteObserver。小窗连续播放原证据未独立证明MovaAutoPause豁免；新增V11M/V10C补测APK已构建，但起测前isKeyguardShowing=true，驱动拒绝执行，按用户约束停止，缺该联动的真机结论。rerun-he-guard-extra-driver.log、rerun-final-locked-window.txt、rerun-he-recovery.log。 |
 | N19 | PASS | 坏地址nativeEndError、三轮failover/giveUp、多地址及卡顿后续播通过。最终V6连续区间5/5，位置误差40/40/0/0/40ms，平均24ms；超时offset1/14/2/1/1ms，平均3.8ms。rerun-he-v6-final.log、rerun-he-recovery.log、rerun-extra-failover.json。旧V6计时/锚点误判已纠正。 |
-| N20 | PASS | off/holding/fallback/resuming、pause结束、默认maxDuration30s到期、allowHls两分支各3轮；硬解恢复20/20、后台降级/恢复、重载与隐藏换源均完成。rerun-keepalive-core.log、rerun-batch8-keepAlive-native.log、rerun-batch16-checks.json。grace及强制无音轨探针FAIL另列，不隐藏。 |
+| N20 | PASS | off/holding/fallback/resuming、pause结束、默认maxDuration30s到期、allowHls两分支各3轮；硬解恢复20/20、后台降级/恢复、重载与隐藏换源均完成。rerun-keepalive-core.log、rerun-batch8-keep-alive-native.log、rerun-batch16-checks.json。grace及强制无音轨探针FAIL另列，不隐藏。 |
 | N21 | PASS | 真机安装MovaTesting后平台端口空操作、stagedSourceOptions读回通过；Android实际转场/换指未出现Windows快照路径副作用。rerun-batch15-testing.json、rerun-batch11-review.log及rerun-batch16-view-*.json。 |
 | N22 | PASS | 异步hooks两实现、轴向重映射、STT失败回滚、crop零缓存；慢VTT确在换源后完成，晚到非空thumb0。debug真机VM断言开启且两个非法构造均捕获。rerun-batch15-hooks/stt.json、rerun-batch22-remap*.json、rerun-safe-transition-stale-audit.json、rerun-debug-assert.json、rerun-debug-assert.logcat.txt。 |
 | N23 | PASS | qoe:false零QoE；四类结束原因、restart TTFF、cache卡顿/截断均取得真实报告。完整释放卡顿sessionEnd stallCount1/stallMs5496。rerun-batch15-qoe-*.json、rerun-batch17-qoe-failed/qoe-stall-release.json；custom另见A22。 |
@@ -172,17 +172,17 @@
 |---|---|---|---|---|
 | `A1` | FAIL | FAIL | 仍失败 | 两实现broadcast=[true,false,true,false]；两订阅均收到、八订阅均关闭。标志契约差异。rerun-batch15-basic.json、rerun-batch15-basic-cutover.json。 |
 | `A2` | FAIL | FAIL | 仍失败 | 接收事件时state快照仍可不同：Buffer/Size及本次新增Quality对账差异；详见rerun-event-review.json的逐条mismatchExamples。 |
-| `A5` | FAIL | FAIL | 仍失败 | 两实现VIDEO_OPEN_SYNC仍640x360/duration40000/rendered=true；404恢复关时accepted=true、不抛，随后error事件。同步/错误契约差异，N8接受语义仍通过。rerun-native-engine-open-sync.json、rerun-native-cutover-open-sync.json、rerun-extra-edges.json。 |
-| `A8` | FAIL | PASS | 已修复 | 两实现越界state钳0..100；逐值原生媒体音量读回0/中间/20（1%受系统离散级量化）。rerun-batch15-basic.json、rerun-batch15-basic-cutover.json、rerun-native-engine/cutover-volume*.json及.native.txt。 |
+| `A5` | FAIL | FAIL | 仍失败 | 两实现VIDEO_OPEN_SYNC仍640x360/duration40000/rendered=true；404恢复关时accepted=true、不抛，随后error事件。同步/错误契约差异，N8接受语义仍通过。rerun-native-mova-open-sync.json、rerun-native-cutover-open-sync.json、rerun-extra-edges.json。 |
+| `A8` | FAIL | PASS | 已修复 | 两实现越界state钳0..100；逐值原生媒体音量读回0/中间/20（1%受系统离散级量化）。rerun-batch15-basic.json、rerun-batch15-basic-cutover.json、rerun-native-mova/cutover-volume*.json及.native.txt。 |
 | `A9` | FAIL | PASS | 已修复 | 两实现clamp全部true；原生brightness：输入-1/0/.25/.75/1/2→0/0/.25/.75/1/1；代理手势窗口sbrt=.7530023。rerun-extra-edges.json、rerun-batch16-cutover-left-check.window.txt。 |
 | `A12` | FAIL | FAIL | 仍失败 | setZoom(-1/0/100)仍接受并改变画面，未使用手势maxZoom钳制。矩阵边界假设差异；非法低值可使画面塌缩。rerun-batch3-05-zoom--1.json、rerun-batch3-06-zoom-0.json、rerun-batch3-09-zoom-100.png。 |
 | `A17` | FAIL | FAIL | 仍失败 | HLS累计39/40切档通过，成功落点误差均0ms；长进程代理run3 target10183→RESTART[23,23]，未续播。ABR真实限速降档通过但不抵消失败。rerun-measured-summary.json、rerun-batch17-hls-playing-cutover.json、rerun-final-hls-cutover/abr.json。 |
 | `A23` | FAIL | FAIL | 仍失败 | 两实现第二次dispose仍抛[Player] has been disposed；首次关闭及disposed open=false正常，120轮首次创建/销毁完成。二次调用安全的矩阵契约差异。rerun-batch15-basic.json、rerun-batch15-basic-cutover.json、rerun-batch15-dispose120.json及round*.meminfo.txt。 |
-| `A31` | BLOCKED | BLOCKED | 仍阻塞 | 已测disabled/noEngine阻断、注入引擎首启失败回滚/二次重试。未提供真实识别模型/模型下载服务，设备旧seed目录不存在；真实转写、下载失败链、SRT导出/分块落盘未完成。rerun-batch15-stt.json、rerun-stt-device-seed.txt。 |
+| `A31` | BLOCKED | BLOCKED | 仍阻塞 | 已测disabled/noRecognizer阻断、注入识别器首启失败回滚/二次重试。未提供真实识别模型/模型下载服务，设备旧seed目录不存在；真实转写、下载失败链、SRT导出/分块落盘未完成。rerun-batch15-stt.json、rerun-stt-device-seed.txt。 |
 | `C2` | BLOCKED | BLOCKED | 仍阻塞 | 已测真实FLV/HLS durationStep、12s本地DVR、behind/回边缘三轮；未提供按behind URL返回历史且可控卡顿服务。urlBuilder历史语义、自定义windowResolver/autoBackToLiveOnStall完整联动未完成。rerun-live-*.json、rerun-batch15-live-step*.json；条件与上次相同。 |
 | `C3` | FAIL | FAIL | 仍失败 | 真实长按1800ms期间仍1x，当前无长按倍速；侧别/轴向改配、seek、默认双击seek、Douyin Feed点击/like及锁定屏蔽已实测。能力假设差异。rerun-batch18-longpress-*.json、rerun-batch22-remap/feed*.json、rerun-batch16-checks.json。 |
 | `C6` | FAIL | FAIL | 仍失败 | 真实滚动弹幕可见，但发送API/输入框未提供（display-only），矩阵要求的发送不能满足。rerun-safe-visual-danmaku.png/json。 |
-| `C7` | BLOCKED | BLOCKED | 仍阻塞 | 已测disabled/noEngine阻断、注入引擎首启失败回滚/二次重试。未提供真实识别模型/模型下载服务，设备旧seed目录不存在；真实转写、下载失败链、SRT导出/分块落盘未完成。rerun-batch15-stt.json、rerun-stt-device-seed.txt。 |
+| `C7` | BLOCKED | BLOCKED | 仍阻塞 | 已测disabled/noRecognizer阻断、注入识别器首启失败回滚/二次重试。未提供真实识别模型/模型下载服务，设备旧seed目录不存在；真实转写、下载失败链、SRT导出/分块落盘未完成。rerun-batch15-stt.json、rerun-stt-device-seed.txt。 |
 | `C8` | FAIL | FAIL | 仍失败 | 自动连播、NextUp卡片/取消/立即播放实测；卡片没有数字倒计时。rerun-extra-playlist.json、rerun-safe-visual-nextup.png、rerun-safe-visual-nextup-click.json。 |
 | `C16` | FAIL | FAIL | 仍失败 | 实时戳最终矩阵35/40；合法IP SAN verify=true仍5/5拒绝。独立探针合法DNS6/6通过、合法IP0/6；CA属性正确，OpenSSL两证书OK。原生TLS兼容缺陷，未定位具体责任层。rerun-final-tls.json、rerun-final-tls-probe.json、rerun-openssl-verify.txt。 |
 | `E.MovaBufferChange` | FAIL | FAIL | 仍失败 | MovaBufferChange：去重1041次，同型相邻同值1次；标量对账1041条/差异8条；样例payload={"buffering":true}，动作={"group":"basic"}。证据rerun-batch15-basic-cutover.json，全部载荷/状态/上下文见rerun-event-review.json。 |
@@ -195,7 +195,7 @@
 | `F3` | FAIL | FAIL | 仍失败 | HLS累计39/40切档通过，成功落点误差均0ms；长进程代理run3 target10183→RESTART[23,23]，未续播。ABR真实限速降档通过但不抵消失败。rerun-measured-summary.json、rerun-batch17-hls-playing-cutover.json、rerun-final-hls-cutover/abr.json。 |
 | `F8` | FAIL | PASS | 已修复（验证器/判据纠正，真机重测） | 坏地址nativeEndError、三轮failover/giveUp、多地址及卡顿后续播通过。最终V6连续区间5/5，位置误差40/40/0/0/40ms，平均24ms；超时offset1/14/2/1/1ms，平均3.8ms。rerun-he-v6-final.log、rerun-he-recovery.log、rerun-extra-failover.json。旧V6计时/锚点误判已纠正。 |
 | `F15` | BLOCKED | BLOCKED | 仍阻塞 | WHEP端点38889/test/whep拒连，相关端口探测不可用；缺publisher/信令/UDP38189及relay38190服务。只完成WHEP选项读回，未完成15s播放。rerun-external-prerequisites.json、rerun-batch15-options.json；与上次条件相同。 |
-| `N12` | FAIL | FAIL | 仍失败 | 精确首帧/换源重置/过期RESTART通过，但两实现open同步快照仍旧640x360；符合异步beforeOpen后再归零的现行行为，不符合矩阵字面同步要求。rerun-native-engine-open-sync.json、rerun-native-cutover-open-sync.json、rerun-he-firstframe.log。 |
+| `N12` | FAIL | FAIL | 仍失败 | 精确首帧/换源重置/过期RESTART通过，但两实现open同步快照仍旧640x360；符合异步beforeOpen后再归零的现行行为，不符合矩阵字面同步要求。rerun-native-mova-open-sync.json、rerun-native-cutover-open-sync.json、rerun-he-firstframe.log。 |
 | `N19` | FAIL | PASS | 已修复（验证器/判据纠正，真机重测） | 坏地址nativeEndError、三轮failover/giveUp、多地址及卡顿后续播通过。最终V6连续区间5/5，位置误差40/40/0/0/40ms，平均24ms；超时offset1/14/2/1/1ms，平均3.8ms。rerun-he-v6-final.log、rerun-he-recovery.log、rerun-extra-failover.json。旧V6计时/锚点误判已纠正。 |
 | `N22` | BLOCKED | PASS | 已修复/解除阻塞（debug补测） | 异步hooks两实现、轴向重映射、STT失败回滚、crop零缓存；慢VTT确在换源后完成，晚到非空thumb0。debug真机VM断言开启且两个非法构造均捕获。rerun-batch15-hooks/stt.json、rerun-batch22-remap*.json、rerun-safe-transition-stale-audit.json、rerun-debug-assert.json、rerun-debug-assert.logcat.txt。 |
 
@@ -205,9 +205,9 @@
 
 | 编号 | 本次 | 原因与证据 |
 |---|---|---|
-| `A15` | FAIL | 真实MiniHost→enterPip后mini=false但controller仍showing=true/persistent；展开后pip=false/mini=false而小窗仍可见。全新进程复现，真实UI与状态衔接缺口。rerun-mini-pip-repro-show/enter/holding/expanded.json/png/activity.txt。 |
+| `A15` | FAIL | 真实MiniHost→enterPip后mini=false但MovaMini仍showing=true/persistent；展开后pip=false/mini=false而小窗仍可见。全新进程复现，真实UI与状态衔接缺口。rerun-mini-pip-repro-show/enter/holding/expanded.json/png/activity.txt。 |
 | `E.MovaQualityChange` | FAIL | MovaQualityChange：去重56次，同型相邻同值0次；标量对账10条/差异1条；样例payload={"quality":"自动"}，动作={"group":"new","case":"hls"}。证据rerun-final-abr.json，全部载荷/状态/上下文见rerun-event-review.json。 |
-| `F5` | FAIL | 真实MiniHost→enterPip后mini=false但controller仍showing=true/persistent；展开后pip=false/mini=false而小窗仍可见。全新进程复现，真实UI与状态衔接缺口。rerun-mini-pip-repro-show/enter/holding/expanded.json/png/activity.txt。 |
+| `F5` | FAIL | 真实MiniHost→enterPip后mini=false但MovaMini仍showing=true/persistent；展开后pip=false/mini=false而小窗仍可见。全新进程复现，真实UI与状态衔接缺口。rerun-mini-pip-repro-show/enter/holding/expanded.json/png/activity.txt。 |
 
 其中A15/F5是同一个真实组合功能缺口，已在全新进程复现；E.MovaQualityChange是本次补充质量state字段后首次捕获的接收快照不符，旧验证器未记录该标量，因此不能断言其代码引入时间。
 新增阻塞：N18。
@@ -216,12 +216,12 @@
 
 | 涉及编号 | 分类 | 最小复现、实际结果与原因判断 |
 |---|---|---|
-| A15 / F5 | 真实UI集成缺陷 | 全新api进程，`mini.show(api)`→`api.enterPip()`→am start展开。mini=false/pip=false，但controller showing=true/persistent，小窗仍可见。`rerun-mini-pip-repro-expanded.json/png`；Host依据controller api/mount绘制，API清mini位未收起controller。责任衔接点已缩小，未修库。 |
+| A15 / F5 | 真实UI集成缺陷 | 全新api进程，`mini.show(api)`→`api.enterPip()`→am start展开。mini=false/pip=false，但MovaMini showing=true/persistent，小窗仍可见。`rerun-mini-pip-repro-expanded.json/png`；Host依据MovaMini api/mount绘制，API清mini位未收起MovaMini。责任衔接点已缩小，未修库。 |
 | A17 / F3 | 真实续播缺陷（间歇） | `new case=hls cutover=true`，原生进度>=8s后交替360p/180p五次。长进程run3目标10183ms，两次RESTART均23ms，15s无目标附近落点，continued14623ms。`rerun-batch17-hls-playing-cutover.json`。40次合计仅1次失败仍必须FAIL；疑似duration/首呈现竞态仍有未覆盖分支，未插桩定因，不把推测写成已定位根因。 |
 | C16 | 真实原生TLS兼容缺陷（责任层未定） | tlsVerify=true且CA正确，打开带实时戳的合法IP SAN本地MP4/HLS失败；同CA localhost DNS证书成功，OpenSSL两者OK。`rerun-final-tls-probe.json`与`rerun-openssl-verify.txt`。不凭记忆归责某版mbedtls。 |
 | A1 | 矩阵流契约差异 | 两实现读取四流isBroadcast为true/false/true/false；多订阅与关闭实测正常。`rerun-batch15-basic/basic-cutover.json` STREAM_FLAGS。 |
-| A2 / E.MovaBufferChange / E.MovaSizeChange / E.MovaQualityChange | 矩阵接收快照契约差异 | event订阅内立即读state并保留载荷。Buffer、Size与Quality存在不符；Quality在ABR序列收到“自动”时state为360p。`rerun-event-review.json`含原ms/engine/原命令/完整state。差异真实，但不能直接推出画面错误或新的代码回归。 |
-| A5 / N12 | 矩阵同步/错误契约差异 | 可见视频640x360后`f=api.open(other);`立即读仍旧宽高/时长，再await才异步归零；恢复关闭404返回true，error另发事件。`rerun-native-engine/cutover-open-sync.json`、`rerun-extra-edges.json`。与N8 true=接受相容，不应把true当播放成功。 |
+| A2 / E.MovaBufferChange / E.MovaSizeChange / E.MovaQualityChange | 矩阵接收快照契约差异 | event订阅内立即读state并保留载荷。Buffer、Size与Quality存在不符；Quality在ABR序列收到“自动”时state为360p。`rerun-event-review.json`含原ms/mova/原命令/完整state。差异真实，但不能直接推出画面错误或新的代码回归。 |
+| A5 / N12 | 矩阵同步/错误契约差异 | 可见视频640x360后`f=api.open(other);`立即读仍旧宽高/时长，再await才异步归零；恢复关闭404返回true，error另发事件。`rerun-native-mova/cutover-open-sync.json`、`rerun-extra-edges.json`。与N8 true=接受相容，不应把true当播放成功。 |
 | A12 | 边界/能力假设差异 | 在真实画面上setZoom(-1/0/100)，state保留输入，0可塌缩；maxZoom只控制手势。`rerun-batch3-05..10-zoom-*`。保留非法值无保护现象，不将其等同有效输入播放故障。 |
 | A23 | 生命周期契约差异 | audioOnly普通/代理open后连续dispose两次，第二次抛disposed。首次销毁/8流关闭、120轮完成。`rerun-batch15-basic/basic-cutover/dispose120.json`。公开生命周期约定一次销毁，矩阵额外要求幂等。 |
 | C3 / U6 | 能力假设差异 | 全尺寸前台视频长按1800ms，rate仍1，无长按倍速。双击实际seek、左右及重映射有效。`rerun-batch18-longpress-during/after.json`、`rerun-batch22-remap*`。 |
@@ -233,7 +233,7 @@
 
 ## BLOCKED条件与已测子项
 
-- **A31/C7**：仍缺真实识别模型和下载服务；设备旧seed目录不存在。已测noEngine/disabled、失败回滚重试；未测真实识别、模型下载完整失败链、SRT导出/分块存储。未把注入Noop当真实转写。
+- **A31/C7**：仍缺真实识别模型和下载服务；设备旧seed目录不存在。已测noRecognizer/disabled、失败回滚重试；未测真实识别、模型下载完整失败链、SRT导出/分块存储。未把注入Noop当真实转写。
 - **C2**：仍缺按behind URL返回历史且可控卡顿的服务。已测FLV/HLS与本地DVR、12s窗口/behind/backEdge/durationStep；历史urlBuilder、windowResolver与autoBackToLiveOnStall完整联动未完成。
 - **F15**：仍缺可达WHEP publisher/信令和UDP/relay链。`rerun-external-prerequisites.json`记录HTTP拒连和端口探测，TCP探测不冒充UDP可用；选项读回不冒充15s播放。
 - **N22已解除**：当前SDK的debug APK在真机启用断言，两个非法构造均捕获；其余异步hooks/轴向/crop/STT回滚/慢VTT换源竞态均有本次设备证据。不再尝试已知不支持的AOT enable-asserts。
@@ -246,7 +246,7 @@
 - 旧视觉脚本把固定(600,230)点到PiP，之后触点落到其他应用；**rerun-batch25及rerun-batch28在该误触后的视觉/竞态结论全部作废**，未用其截图判PASS。安全重跑改用1x/立即播放/跳过语义，输入前检查原生测试包前台且全尺寸；有效文件为rerun-safe-visual、rerun-safe-transition及rerun-manual2。误触留下的安装提示未作确认，测试包最终返回HOME。
 - 慢VTT必须证明确有在途请求：BEGIN1793097684.006 < 换源1793097684.960 < END1793097686.514；换源后非空旧thumb0。`rerun-service-1.log`、`rerun-safe-transition-stale-audit.json`。不以“没看到图”代替丢弃旧结果验证。
 - 旧subtitle suite只完成部分后未发完成标记/切换停滞，completed=false未用于F11；以已修正的HTTP外挂字幕、先卸载再dispose的rerun-extra-subtitles四格式CHECK/原生sub-text/PNG为准。无screenrecord继续用PNG；驱动已限制只消费当前命令的MEM/SUBTITLE标记，避免重拍历史字幕。
-- S1的9个严格信号探针FAIL均为grace≈5s，但原生解码属性约百余ms恢复；S6强制绕过策略对无音轨流进muted仍EOF/重载，3/3探针FAIL。均如实保留于rerun-keepalive-core.log；它们不等同默认引擎守卫失效。F6按矩阵状态迁移/恢复/后台/位置要求判定，通过同时保留性能/信号缺口。
+- S1的9个严格信号探针FAIL均为grace≈5s，但原生解码属性约百余ms恢复；S6强制绕过策略对无音轨流进muted仍EOF/重载，3/3探针FAIL。均如实保留于rerun-keepalive-core.log；它们不等同默认播放器守卫失效。F6按矩阵状态迁移/恢复/后台/位置要求判定，通过同时保留性能/信号缺口。
 - 20s待机漂移149/625/567ms，均值447ms；无待机对照2/43/-5ms，绝对均值16.7ms。不能据此宣布Windows60s漂移已修。CPU剔除每阶段边界±2s，完整样本与均值见rerun-cpu-review.json；USB供电不推出电池结论。120轮RSS197332992→222294016bytes，尾部仍有增长，仅报告趋势，不声称绝无泄漏。
 - U7纠正的是上一轮把C8数字倒计时要求重复扩展到U7：本次广告倒计时、点击和跳过均实测成功，C8继续FAIL。其余不存在的菜单、返回、长按、发送能力仍按矩阵字面FAIL，没有静态阅读补PASS。
 - CLAUDE中的F3“已修、15/15”不能覆盖本次间歇反例；V6续播已确认；PiP退出state与广告rate/pod旧问题未复现。Darwin瘦身包仍待Mac验证，本次不涉及。
@@ -263,13 +263,13 @@
 
 - 设备 7NQBB23606003715，STG_AL00 Android 12 arm64；已亮屏解锁，原始 window/audio/power 见 `example/tool/coverage_evidence/rerun-preflight-*`。
 - 起测 USB 常亮=7；媒体 speaker 音量=6/20。收尾恢复这两个原值。
-- Flutter 3.47.0 / Dart 3.13.0。保留已有 `test/core/engine_test.dart` 改动；禁止改库和测试。
+- Flutter 3.47.0 / Dart 3.13.0。保留已有 `test/core/mova_test.dart` 改动；禁止改库和测试。
 - 批次0：运行 flutter analyze lib test 与 flutter test，确认实际基线；随后隔离 release 构建。
 
 ## 批次0基线检查点
 
-- analyze exit=1：2 issues（1 error duplicate_definition、1 warning unused_element），test/core/engine_test.dart:1978 与1959重复定义 _RecordingBrightPort；原始日志 rerun-baseline-analyze.log。
-- flutter test exit=1：00:47 +1424 -1，1424通过/1测试文件加载失败；engine_test.dart 编译失败，因此无本次全绿总数；不能用上次1503或CLAUDE的1510替代。本次未修改该文件。原始日志 rerun-baseline-test.log。
+- analyze exit=1：2 issues（1 error duplicate_definition、1 warning unused_element），test/core/mova_test.dart:1978 与1959重复定义 _RecordingBrightness；原始日志 rerun-baseline-analyze.log。
+- flutter test exit=1：00:47 +1424 -1，1424通过/1测试文件加载失败；mova_test.dart 编译失败，因此无本次全绿总数；不能用上次1503或CLAUDE的1510替代。本次未修改该文件。原始日志 rerun-baseline-test.log。
 - 本地源18080/18081、预览/HLS18084、TLS18443–18447已启动，日志 rerun-service-0/1/2.log。
 
 ## 开始 api-launch
@@ -341,7 +341,7 @@
   {
     "ms": 2345,
     "kind": "PREVIEW_THUMB",
-    "engine": 1069834183,
+    "mova": 1069834183,
     "at": null,
     "bytes": null,
     "title": "Coverage vod.mp4"
@@ -351,7 +351,7 @@
     "kind": "CHECK",
     "id": "A5.paused",
     "pass": true,
-    "detail": "{playing: false, intent: false, buffering: false, duration: 40000, position: 0, size: 0x0, volume: 30.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orientation: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: true, hud: none, previewCurrent: null, timeshiftBehind: null, liveSeekable: false, seekableWindow: 40000, hudText: null, dragging: false, previewAt: null}"
+    "detail": "{playing: false, intent: false, buffering: false, duration: 40000, position: 0, size: 0x0, volume: 30.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orient: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: true, hud: none, previewCurrent: null, timeshiftBehind: null, liveSeekable: false, seekableWindow: 40000, hudText: null, dragging: false, previewAt: null}"
   },
   {
     "ms": 4646,
@@ -372,7 +372,7 @@
     "kind": "CHECK",
     "id": "A6.pause",
     "pass": true,
-    "detail": "{playing: false, intent: false, buffering: false, duration: 40000, position: 3144, size: 0x0, volume: 30.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orientation: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, previewCurrent: null, timeshiftBehind: null, liveSeekable: false, seekableWindow: 40000, hudText: null, dragging: false, previewAt: null}"
+    "detail": "{playing: false, intent: false, buffering: false, duration: 40000, position: 3144, size: 0x0, volume: 30.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orient: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, previewCurrent: null, timeshiftBehind: null, liveSeekable: false, seekableWindow: 40000, hudText: null, dragging: false, previewAt: null}"
   },
   {
     "ms": 5922,
@@ -434,7 +434,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -460,7 +460,7 @@
     "kind": "CHECK",
     "id": "A8.clamp",
     "pass": true,
-    "detail": "{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: 0.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orientation: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, previewCurrent: null, timeshiftBehind: null, liveSeekable: false, seekableWindow: 40000, hudText: null, dragging: false, previewAt: null}"
+    "detail": "{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: 0.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orient: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, previewCurrent: null, timeshiftBehind: null, liveSeekable: false, seekableWindow: 40000, hudText: null, dragging: false, previewAt: null}"
   },
   {
     "ms": 6813,
@@ -480,7 +480,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -506,7 +506,7 @@
     "kind": "CHECK",
     "id": "A8.clamp",
     "pass": true,
-    "detail": "{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: 0.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orientation: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, previewCurrent: null, timeshiftBehind: null, liveSeekable: false, seekableWindow: 40000, hudText: null, dragging: false, previewAt: null}"
+    "detail": "{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: 0.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orient: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, previewCurrent: null, timeshiftBehind: null, liveSeekable: false, seekableWindow: 40000, hudText: null, dragging: false, previewAt: null}"
   },
   {
     "ms": 6996,
@@ -526,7 +526,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -552,7 +552,7 @@
     "kind": "CHECK",
     "id": "A8.clamp",
     "pass": true,
-    "detail": "{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: 1.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orientation: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, previewCurrent: null, timeshiftBehind: null, liveSeekable: false, seekableWindow: 40000, hudText: null, dragging: false, previewAt: null}"
+    "detail": "{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: 1.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orient: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, previewCurrent: null, timeshiftBehind: null, liveSeekable: false, seekableWindow: 40000, hudText: null, dragging: false, previewAt: null}"
   },
   {
     "ms": 7202,
@@ -572,7 +572,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -598,7 +598,7 @@
     "kind": "CHECK",
     "id": "A8.clamp",
     "pass": true,
-    "detail": "{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: 50.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orientation: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, previewCurrent: null, timeshiftBehind: null, liveSeekable: false, seekableWindow: 40000, hudText: null, dragging: false, previewAt: null}"
+    "detail": "{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: 50.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orient: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, previewCurrent: null, timeshiftBehind: null, liveSeekable: false, seekableWindow: 40000, hudText: null, dragging: false, previewAt: null}"
   },
   {
     "ms": 7384,
@@ -618,7 +618,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -644,7 +644,7 @@
     "kind": "CHECK",
     "id": "A8.clamp",
     "pass": true,
-    "detail": "{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: 100.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orientation: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, previewCurrent: null, timeshiftBehind: null, liveSeekable: false, seekableWindow: 40000, hudText: null, dragging: false, previewAt: null}"
+    "detail": "{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: 100.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orient: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, previewCurrent: null, timeshiftBehind: null, liveSeekable: false, seekableWindow: 40000, hudText: null, dragging: false, previewAt: null}"
   },
   {
     "ms": 7566,
@@ -664,7 +664,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -690,42 +690,42 @@
     "kind": "CHECK",
     "id": "A8.clamp",
     "pass": true,
-    "detail": "{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: 100.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orientation: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, previewCurrent: null, timeshiftBehind: null, liveSeekable: false, seekableWindow: 40000, hudText: null, dragging: false, previewAt: null}"
+    "detail": "{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: 100.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orient: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, previewCurrent: null, timeshiftBehind: null, liveSeekable: false, seekableWindow: 40000, hudText: null, dragging: false, previewAt: null}"
   },
   {
     "ms": 7790,
     "kind": "CHECK",
     "id": "A9.clamp",
     "pass": true,
-    "detail": "{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: 30.0, brightness: 0.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orientation: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, previewCurrent: null, timeshiftBehind: null, liveSeekable: false, seekableWindow: 40000, hudText: null, dragging: false, previewAt: null}"
+    "detail": "{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: 30.0, brightness: 0.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orient: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, previewCurrent: null, timeshiftBehind: null, liveSeekable: false, seekableWindow: 40000, hudText: null, dragging: false, previewAt: null}"
   },
   {
     "ms": 7944,
     "kind": "CHECK",
     "id": "A9.clamp",
     "pass": true,
-    "detail": "{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: 30.0, brightness: 0.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orientation: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, previewCurrent: null, timeshiftBehind: null, liveSeekable: false, seekableWindow: 40000, hudText: null, dragging: false, previewAt: null}"
+    "detail": "{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: 30.0, brightness: 0.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orient: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, previewCurrent: null, timeshiftBehind: null, liveSeekable: false, seekableWindow: 40000, hudText: null, dragging: false, previewAt: null}"
   },
   {
     "ms": 8101,
     "kind": "CHECK",
     "id": "A9.clamp",
     "pass": true,
-    "detail": "{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: 30.0, brightness: 0.5, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orientation: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, previewCurrent: null, timeshiftBehind: null, liveSeekable: false, seekableWindow: 40000, hudText: null, dragging: false, previewAt: null}"
+    "detail": "{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: 30.0, brightness: 0.5, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orient: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, previewCurrent: null, timeshiftBehind: null, liveSeekable: false, seekableWindow: 40000, hudText: null, dragging: false, previewAt: null}"
   },
   {
     "ms": 8259,
     "kind": "CHECK",
     "id": "A9.clamp",
     "pass": true,
-    "detail": "{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: 30.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orientation: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, previewCurrent: null, timeshiftBehind: null, liveSeekable: false, seekableWindow: 40000, hudText: null, dragging: false, previewAt: null}"
+    "detail": "{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: 30.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orient: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, previewCurrent: null, timeshiftBehind: null, liveSeekable: false, seekableWindow: 40000, hudText: null, dragging: false, previewAt: null}"
   },
   {
     "ms": 8415,
     "kind": "CHECK",
     "id": "A9.clamp",
     "pass": true,
-    "detail": "{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: 30.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orientation: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, previewCurrent: null, timeshiftBehind: null, liveSeekable: false, seekableWindow: 40000, hudText: null, dragging: false, previewAt: null}"
+    "detail": "{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: 30.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orient: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, previewCurrent: null, timeshiftBehind: null, liveSeekable: false, seekableWindow: 40000, hudText: null, dragging: false, previewAt: null}"
   },
   {
     "ms": 8423,
@@ -787,7 +787,7 @@
   {
     "ms": 9262,
     "kind": "PREVIEW_THUMB",
-    "engine": 1069834183,
+    "mova": 1069834183,
     "at": null,
     "bytes": null,
     "title": "Coverage vod.mp4"
@@ -808,7 +808,7 @@
     "zoom": 1.0,
     "locked": false,
     "fullscreen": false,
-    "orientation": "auto",
+    "orient": "auto",
     "pip": false,
     "mini": false,
     "rendered": true,
@@ -831,7 +831,7 @@
   {
     "ms": 9274,
     "kind": "PREVIEW_THUMB",
-    "engine": 1069834183,
+    "mova": 1069834183,
     "at": null,
     "bytes": null,
     "title": "Coverage vod.mp4"
@@ -839,7 +839,7 @@
   {
     "ms": 9274,
     "kind": "PREVIEW_THUMB",
-    "engine": 1069834183,
+    "mova": 1069834183,
     "at": null,
     "bytes": null,
     "title": "Coverage ad.mp4"
@@ -849,12 +849,12 @@
     "kind": "CHECK",
     "id": "A10.persist",
     "pass": true,
-    "detail": "{playing: false, intent: false, buffering: false, duration: 20000, position: 0, size: 0x0, volume: 30.0, brightness: 0.5, rate: 1.5, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orientation: auto, pip: false, mini: false, rendered: false, epoch: 0, sourceIndex: 0, keepAlive: off, type: vod, title: Coverage ad.mp4, pipSupported: true, controls: true, hud: none, previewCurrent: null, timeshiftBehind: null, liveSeekable: false, seekableWindow: 20000, hudText: null, dragging: false, previewAt: null}"
+    "detail": "{playing: false, intent: false, buffering: false, duration: 20000, position: 0, size: 0x0, volume: 30.0, brightness: 0.5, rate: 1.5, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orient: auto, pip: false, mini: false, rendered: false, epoch: 0, sourceIndex: 0, keepAlive: off, type: vod, title: Coverage ad.mp4, pipSupported: true, controls: true, hud: none, previewCurrent: null, timeshiftBehind: null, liveSeekable: false, seekableWindow: 20000, hudText: null, dragging: false, previewAt: null}"
   },
   {
     "ms": 9501,
     "kind": "PREVIEW_THUMB",
-    "engine": 1069834183,
+    "mova": 1069834183,
     "at": null,
     "bytes": null,
     "title": "Coverage ad.mp4"
@@ -875,7 +875,7 @@
     "zoom": 1.0,
     "locked": false,
     "fullscreen": false,
-    "orientation": "auto",
+    "orient": "auto",
     "pip": false,
     "mini": false,
     "rendered": false,
@@ -998,7 +998,7 @@
   {
     "ms": 12983,
     "kind": "PREVIEW_THUMB",
-    "engine": 281003599,
+    "mova": 281003599,
     "at": null,
     "bytes": null,
     "title": null
@@ -1008,7 +1008,7 @@
     "kind": "CHECK",
     "id": "A5.paused",
     "pass": true,
-    "detail": "{playing: false, intent: false, buffering: false, duration: 40000, position: 0, size: 0x0, volume: 30.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orientation: auto, pip: false, mini: false, rendered: false, epoch: 0, sourceIndex: 0, keepAlive: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: true, hud: none, previewCurrent: null, timeshiftBehind: null, liveSeekable: false, seekableWindow: 40000, hudText: null, dragging: false, previewAt: null}"
+    "detail": "{playing: false, intent: false, buffering: false, duration: 40000, position: 0, size: 0x0, volume: 30.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orient: auto, pip: false, mini: false, rendered: false, epoch: 0, sourceIndex: 0, keepAlive: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: true, hud: none, previewCurrent: null, timeshiftBehind: null, liveSeekable: false, seekableWindow: 40000, hudText: null, dragging: false, previewAt: null}"
   },
   {
     "ms": 15489,
@@ -1029,7 +1029,7 @@
     "kind": "CHECK",
     "id": "A6.pause",
     "pass": true,
-    "detail": "{playing: false, intent: false, buffering: false, duration: 40000, position: 3195, size: 0x0, volume: 30.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orientation: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, previewCurrent: null, timeshiftBehind: null, liveSeekable: false, seekableWindow: 40000, hudText: null, dragging: false, previewAt: null}"
+    "detail": "{playing: false, intent: false, buffering: false, duration: 40000, position: 3195, size: 0x0, volume: 30.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orient: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, previewCurrent: null, timeshiftBehind: null, liveSeekable: false, seekableWindow: 40000, hudText: null, dragging: false, previewAt: null}"
   },
   {
     "ms": 16783,
@@ -1091,7 +1091,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -1117,7 +1117,7 @@
     "kind": "CHECK",
     "id": "A8.clamp",
     "pass": true,
-    "detail": "{playing: false, intent: false, buffering: true, duration: 40000, position: 23, size: 0x0, volume: 0.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orientation: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, previewCurrent: null, timeshiftBehind: null, liveSeekable: false, seekableWindow: 40000, hudText: null, dragging: false, previewAt: null}"
+    "detail": "{playing: false, intent: false, buffering: true, duration: 40000, position: 23, size: 0x0, volume: 0.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orient: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, previewCurrent: null, timeshiftBehind: null, liveSeekable: false, seekableWindow: 40000, hudText: null, dragging: false, previewAt: null}"
   },
   {
     "ms": 17625,
@@ -1137,7 +1137,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -1163,7 +1163,7 @@
     "kind": "CHECK",
     "id": "A8.clamp",
     "pass": true,
-    "detail": "{playing: false, intent: false, buffering: true, duration: 40000, position: 23, size: 0x0, volume: 0.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orientation: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, previewCurrent: null, timeshiftBehind: null, liveSeekable: false, seekableWindow: 40000, hudText: null, dragging: false, previewAt: null}"
+    "detail": "{playing: false, intent: false, buffering: true, duration: 40000, position: 23, size: 0x0, volume: 0.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orient: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, previewCurrent: null, timeshiftBehind: null, liveSeekable: false, seekableWindow: 40000, hudText: null, dragging: false, previewAt: null}"
   },
   {
     "ms": 17792,
@@ -1183,7 +1183,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -1209,7 +1209,7 @@
     "kind": "CHECK",
     "id": "A8.clamp",
     "pass": true,
-    "detail": "{playing: false, intent: false, buffering: true, duration: 40000, position: 23, size: 0x0, volume: 1.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orientation: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, previewCurrent: null, timeshiftBehind: null, liveSeekable: false, seekableWindow: 40000, hudText: null, dragging: false, previewAt: null}"
+    "detail": "{playing: false, intent: false, buffering: true, duration: 40000, position: 23, size: 0x0, volume: 1.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orient: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, previewCurrent: null, timeshiftBehind: null, liveSeekable: false, seekableWindow: 40000, hudText: null, dragging: false, previewAt: null}"
   },
   {
     "ms": 17974,
@@ -1229,7 +1229,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -1255,7 +1255,7 @@
     "kind": "CHECK",
     "id": "A8.clamp",
     "pass": true,
-    "detail": "{playing: false, intent: false, buffering: true, duration: 40000, position: 23, size: 0x0, volume: 50.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orientation: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, previewCurrent: null, timeshiftBehind: null, liveSeekable: false, seekableWindow: 40000, hudText: null, dragging: false, previewAt: null}"
+    "detail": "{playing: false, intent: false, buffering: true, duration: 40000, position: 23, size: 0x0, volume: 50.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orient: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, previewCurrent: null, timeshiftBehind: null, liveSeekable: false, seekableWindow: 40000, hudText: null, dragging: false, previewAt: null}"
   },
   {
     "ms": 18146,
@@ -1275,7 +1275,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -1301,7 +1301,7 @@
     "kind": "CHECK",
     "id": "A8.clamp",
     "pass": true,
-    "detail": "{playing: false, intent: false, buffering: true, duration: 40000, position: 23, size: 0x0, volume: 100.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orientation: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, previewCurrent: null, timeshiftBehind: null, liveSeekable: false, seekableWindow: 40000, hudText: null, dragging: false, previewAt: null}"
+    "detail": "{playing: false, intent: false, buffering: true, duration: 40000, position: 23, size: 0x0, volume: 100.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orient: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, previewCurrent: null, timeshiftBehind: null, liveSeekable: false, seekableWindow: 40000, hudText: null, dragging: false, previewAt: null}"
   },
   {
     "ms": 18310,
@@ -1321,7 +1321,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -1347,42 +1347,42 @@
     "kind": "CHECK",
     "id": "A8.clamp",
     "pass": true,
-    "detail": "{playing: false, intent: false, buffering: true, duration: 40000, position: 23, size: 0x0, volume: 100.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orientation: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, previewCurrent: null, timeshiftBehind: null, liveSeekable: false, seekableWindow: 40000, hudText: null, dragging: false, previewAt: null}"
+    "detail": "{playing: false, intent: false, buffering: true, duration: 40000, position: 23, size: 0x0, volume: 100.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orient: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, previewCurrent: null, timeshiftBehind: null, liveSeekable: false, seekableWindow: 40000, hudText: null, dragging: false, previewAt: null}"
   },
   {
     "ms": 18490,
     "kind": "CHECK",
     "id": "A9.clamp",
     "pass": true,
-    "detail": "{playing: false, intent: false, buffering: true, duration: 40000, position: 23, size: 0x0, volume: 30.0, brightness: 0.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orientation: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, previewCurrent: null, timeshiftBehind: null, liveSeekable: false, seekableWindow: 40000, hudText: null, dragging: false, previewAt: null}"
+    "detail": "{playing: false, intent: false, buffering: true, duration: 40000, position: 23, size: 0x0, volume: 30.0, brightness: 0.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orient: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, previewCurrent: null, timeshiftBehind: null, liveSeekable: false, seekableWindow: 40000, hudText: null, dragging: false, previewAt: null}"
   },
   {
     "ms": 18645,
     "kind": "CHECK",
     "id": "A9.clamp",
     "pass": true,
-    "detail": "{playing: false, intent: false, buffering: true, duration: 40000, position: 23, size: 0x0, volume: 30.0, brightness: 0.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orientation: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, previewCurrent: null, timeshiftBehind: null, liveSeekable: false, seekableWindow: 40000, hudText: null, dragging: false, previewAt: null}"
+    "detail": "{playing: false, intent: false, buffering: true, duration: 40000, position: 23, size: 0x0, volume: 30.0, brightness: 0.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orient: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, previewCurrent: null, timeshiftBehind: null, liveSeekable: false, seekableWindow: 40000, hudText: null, dragging: false, previewAt: null}"
   },
   {
     "ms": 18799,
     "kind": "CHECK",
     "id": "A9.clamp",
     "pass": true,
-    "detail": "{playing: false, intent: false, buffering: true, duration: 40000, position: 23, size: 0x0, volume: 30.0, brightness: 0.5, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orientation: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, previewCurrent: null, timeshiftBehind: null, liveSeekable: false, seekableWindow: 40000, hudText: null, dragging: false, previewAt: null}"
+    "detail": "{playing: false, intent: false, buffering: true, duration: 40000, position: 23, size: 0x0, volume: 30.0, brightness: 0.5, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orient: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, previewCurrent: null, timeshiftBehind: null, liveSeekable: false, seekableWindow: 40000, hudText: null, dragging: false, previewAt: null}"
   },
   {
     "ms": 18952,
     "kind": "CHECK",
     "id": "A9.clamp",
     "pass": true,
-    "detail": "{playing: false, intent: false, buffering: true, duration: 40000, position: 23, size: 0x0, volume: 30.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orientation: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, previewCurrent: null, timeshiftBehind: null, liveSeekable: false, seekableWindow: 40000, hudText: null, dragging: false, previewAt: null}"
+    "detail": "{playing: false, intent: false, buffering: true, duration: 40000, position: 23, size: 0x0, volume: 30.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orient: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, previewCurrent: null, timeshiftBehind: null, liveSeekable: false, seekableWindow: 40000, hudText: null, dragging: false, previewAt: null}"
   },
   {
     "ms": 19106,
     "kind": "CHECK",
     "id": "A9.clamp",
     "pass": true,
-    "detail": "{playing: false, intent: false, buffering: true, duration: 40000, position: 23, size: 0x0, volume: 30.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orientation: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, previewCurrent: null, timeshiftBehind: null, liveSeekable: false, seekableWindow: 40000, hudText: null, dragging: false, previewAt: null}"
+    "detail": "{playing: false, intent: false, buffering: true, duration: 40000, position: 23, size: 0x0, volume: 30.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orient: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: false, hud: none, previewCurrent: null, timeshiftBehind: null, liveSeekable: false, seekableWindow: 40000, hudText: null, dragging: false, previewAt: null}"
   },
   {
     "ms": 19110,
@@ -1444,7 +1444,7 @@
   {
     "ms": 19947,
     "kind": "PREVIEW_THUMB",
-    "engine": 281003599,
+    "mova": 281003599,
     "at": null,
     "bytes": null,
     "title": "Coverage vod.mp4"
@@ -1465,7 +1465,7 @@
     "zoom": 1.0,
     "locked": false,
     "fullscreen": false,
-    "orientation": "auto",
+    "orient": "auto",
     "pip": false,
     "mini": false,
     "rendered": true,
@@ -1488,7 +1488,7 @@
   {
     "ms": 19960,
     "kind": "PREVIEW_THUMB",
-    "engine": 281003599,
+    "mova": 281003599,
     "at": null,
     "bytes": null,
     "title": "Coverage vod.mp4"
@@ -1496,7 +1496,7 @@
   {
     "ms": 19960,
     "kind": "PREVIEW_THUMB",
-    "engine": 281003599,
+    "mova": 281003599,
     "at": null,
     "bytes": null,
     "title": "Coverage vod.mp4"
@@ -1506,12 +1506,12 @@
     "kind": "CHECK",
     "id": "A10.persist",
     "pass": true,
-    "detail": "{playing: false, intent: false, buffering: false, duration: 20000, position: 0, size: 0x0, volume: 30.0, brightness: 0.5, rate: 1.5, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orientation: auto, pip: false, mini: false, rendered: false, epoch: 0, sourceIndex: 0, keepAlive: off, type: vod, title: Coverage ad.mp4, pipSupported: true, controls: true, hud: none, previewCurrent: null, timeshiftBehind: null, liveSeekable: false, seekableWindow: 20000, hudText: null, dragging: false, previewAt: null}"
+    "detail": "{playing: false, intent: false, buffering: false, duration: 20000, position: 0, size: 0x0, volume: 30.0, brightness: 0.5, rate: 1.5, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orient: auto, pip: false, mini: false, rendered: false, epoch: 0, sourceIndex: 0, keepAlive: off, type: vod, title: Coverage ad.mp4, pipSupported: true, controls: true, hud: none, previewCurrent: null, timeshiftBehind: null, liveSeekable: false, seekableWindow: 20000, hudText: null, dragging: false, previewAt: null}"
   },
   {
     "ms": 20176,
     "kind": "PREVIEW_THUMB",
-    "engine": 281003599,
+    "mova": 281003599,
     "at": null,
     "bytes": null,
     "title": "Coverage ad.mp4"
@@ -1532,7 +1532,7 @@
     "zoom": 1.0,
     "locked": false,
     "fullscreen": false,
-    "orientation": "auto",
+    "orient": "auto",
     "pip": false,
     "mini": false,
     "rendered": true,
@@ -1667,7 +1667,7 @@
   {
     "ms": 26054,
     "kind": "PREVIEW_THUMB",
-    "engine": 349385964,
+    "mova": 349385964,
     "at": null,
     "bytes": null,
     "title": null
@@ -1682,7 +1682,7 @@
   {
     "ms": 26231,
     "kind": "PREVIEW_THUMB",
-    "engine": 349385964,
+    "mova": 349385964,
     "at": null,
     "bytes": null,
     "title": "Coverage ad.mp4"
@@ -1704,7 +1704,7 @@
   {
     "ms": 26392,
     "kind": "PREVIEW_THUMB",
-    "engine": 349385964,
+    "mova": 349385964,
     "at": null,
     "bytes": null,
     "title": null
@@ -1728,7 +1728,7 @@
   {
     "ms": 26422,
     "kind": "PREVIEW_THUMB",
-    "engine": 349385964,
+    "mova": 349385964,
     "at": null,
     "bytes": null,
     "title": "Coverage vod.mp4"
@@ -1751,7 +1751,7 @@
   },
   {
     "ms": 26549,
-    "kind": "NEW_CONFIG",
+    "kind": "NEW_OPTS",
     "whep": {
       "demuxer-lavf-o": "media_timeout=8000000,handshake_timeout=2000000,first_frame_timeout=3000000"
     },
@@ -1770,7 +1770,7 @@
   {
     "ms": 26549,
     "kind": "PREVIEW_THUMB",
-    "engine": 349385964,
+    "mova": 349385964,
     "at": null,
     "bytes": null,
     "title": null
@@ -1818,7 +1818,7 @@
   {
     "ms": 30349,
     "kind": "PREVIEW_THUMB",
-    "engine": 47672277,
+    "mova": 47672277,
     "at": null,
     "bytes": null,
     "title": "Coverage vod.mp4"
@@ -1835,12 +1835,12 @@
     "kind": "CHECK",
     "id": "N22.stalePlay",
     "pass": true,
-    "detail": "{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: 30.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orientation: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: true, hud: none, previewCurrent: null, timeshiftBehind: null, liveSeekable: false, seekableWindow: 40000, hudText: null, dragging: false, previewAt: null}"
+    "detail": "{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: 30.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orient: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: true, hud: none, previewCurrent: null, timeshiftBehind: null, liveSeekable: false, seekableWindow: 40000, hudText: null, dragging: false, previewAt: null}"
   },
   {
     "ms": 30945,
     "kind": "PREVIEW_THUMB",
-    "engine": 47672277,
+    "mova": 47672277,
     "at": null,
     "bytes": null,
     "title": "Coverage ad.mp4"
@@ -1861,7 +1861,7 @@
     "zoom": 1.0,
     "locked": false,
     "fullscreen": false,
-    "orientation": "auto",
+    "orient": "auto",
     "pip": false,
     "mini": false,
     "rendered": true,
@@ -1896,7 +1896,7 @@
   {
     "ms": 32118,
     "kind": "PREVIEW_THUMB",
-    "engine": 47672277,
+    "mova": 47672277,
     "at": null,
     "bytes": null,
     "title": "Coverage ad.mp4"
@@ -1930,7 +1930,7 @@
   {
     "ms": 32347,
     "kind": "PREVIEW_THUMB",
-    "engine": 47672277,
+    "mova": 47672277,
     "at": null,
     "bytes": null,
     "title": "Coverage 404.mp4"
@@ -1945,7 +1945,7 @@
   {
     "ms": 32428,
     "kind": "PREVIEW_THUMB",
-    "engine": 47672277,
+    "mova": 47672277,
     "at": null,
     "bytes": null,
     "title": "Coverage vod.mp4"
@@ -1996,7 +1996,7 @@
   {
     "ms": 35929,
     "kind": "PREVIEW_THUMB",
-    "engine": 912520638,
+    "mova": 912520638,
     "at": null,
     "bytes": null,
     "title": null
@@ -2013,12 +2013,12 @@
     "kind": "CHECK",
     "id": "N22.stalePlay",
     "pass": true,
-    "detail": "{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: 30.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orientation: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: true, hud: none, previewCurrent: null, timeshiftBehind: null, liveSeekable: false, seekableWindow: 40000, hudText: null, dragging: false, previewAt: null}"
+    "detail": "{playing: false, intent: false, buffering: false, duration: 40000, position: 23, size: 0x0, volume: 30.0, brightness: 1.0, rate: 1.0, fit: contain, zoom: 1.0, locked: false, fullscreen: false, orient: auto, pip: false, mini: false, rendered: true, epoch: 0, sourceIndex: 0, keepAlive: off, type: vod, title: Coverage vod.mp4, pipSupported: true, controls: true, hud: none, previewCurrent: null, timeshiftBehind: null, liveSeekable: false, seekableWindow: 40000, hudText: null, dragging: false, previewAt: null}"
   },
   {
     "ms": 36524,
     "kind": "PREVIEW_THUMB",
-    "engine": 912520638,
+    "mova": 912520638,
     "at": null,
     "bytes": null,
     "title": "Coverage vod.mp4"
@@ -2039,7 +2039,7 @@
     "zoom": 1.0,
     "locked": false,
     "fullscreen": false,
-    "orientation": "auto",
+    "orient": "auto",
     "pip": false,
     "mini": false,
     "rendered": true,
@@ -2074,7 +2074,7 @@
   {
     "ms": 37732,
     "kind": "PREVIEW_THUMB",
-    "engine": 912520638,
+    "mova": 912520638,
     "at": null,
     "bytes": null,
     "title": "Coverage ad.mp4"
@@ -2108,7 +2108,7 @@
   {
     "ms": 37940,
     "kind": "PREVIEW_THUMB",
-    "engine": 912520638,
+    "mova": 912520638,
     "at": null,
     "bytes": null,
     "title": "Coverage ad.mp4"
@@ -2123,7 +2123,7 @@
   {
     "ms": 38019,
     "kind": "PREVIEW_THUMB",
-    "engine": 912520638,
+    "mova": 912520638,
     "at": null,
     "bytes": null,
     "title": "Coverage 404.mp4"
@@ -2167,7 +2167,7 @@
   {
     "ms": 41505,
     "kind": "PREVIEW_THUMB",
-    "engine": 96757936,
+    "mova": 96757936,
     "at": null,
     "bytes": null,
     "title": null
@@ -2230,7 +2230,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": false,
@@ -2284,7 +2284,7 @@
   {
     "ms": 47454,
     "kind": "PREVIEW_THUMB",
-    "engine": 214741108,
+    "mova": 214741108,
     "at": null,
     "bytes": null,
     "title": null
@@ -2338,7 +2338,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": false,
@@ -2392,7 +2392,7 @@
   {
     "ms": 51773,
     "kind": "PREVIEW_THUMB",
-    "engine": 924088001,
+    "mova": 924088001,
     "at": null,
     "bytes": null,
     "title": null
@@ -2482,7 +2482,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": false,
@@ -2536,7 +2536,7 @@
   {
     "ms": 55465,
     "kind": "PREVIEW_THUMB",
-    "engine": 400540436,
+    "mova": 400540436,
     "at": null,
     "bytes": null,
     "title": null
@@ -2581,7 +2581,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": false,
@@ -2635,7 +2635,7 @@
   {
     "ms": 63838,
     "kind": "PREVIEW_THUMB",
-    "engine": 128417599,
+    "mova": 128417599,
     "at": null,
     "bytes": null,
     "title": null
@@ -2680,7 +2680,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": false,
@@ -2734,7 +2734,7 @@
   {
     "ms": 68785,
     "kind": "PREVIEW_THUMB",
-    "engine": 342451355,
+    "mova": 342451355,
     "at": null,
     "bytes": null,
     "title": null
@@ -2779,7 +2779,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": false,
@@ -2833,7 +2833,7 @@
   {
     "ms": 77731,
     "kind": "PREVIEW_THUMB",
-    "engine": 688750727,
+    "mova": 688750727,
     "at": null,
     "bytes": null,
     "title": null
@@ -2878,7 +2878,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": false,
@@ -2932,7 +2932,7 @@
   {
     "ms": 82862,
     "kind": "PREVIEW_THUMB",
-    "engine": 288665010,
+    "mova": 288665010,
     "at": null,
     "bytes": null,
     "title": null
@@ -2977,7 +2977,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": false,
@@ -3031,7 +3031,7 @@
   {
     "ms": 91178,
     "kind": "PREVIEW_THUMB",
-    "engine": 336870188,
+    "mova": 336870188,
     "at": null,
     "bytes": null,
     "title": null
@@ -3076,7 +3076,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": false,
@@ -3133,7 +3133,7 @@
   {
     "ms": 96137,
     "kind": "PREVIEW_THUMB",
-    "engine": 693932308,
+    "mova": 693932308,
     "at": null,
     "bytes": null,
     "title": "Coverage stall.mp4"
@@ -3176,21 +3176,21 @@
   {
     "ms": 107157,
     "kind": "PREVIEW_THUMB",
-    "engine": 670137041,
+    "mova": 670137041,
     "at": null,
     "bytes": null,
     "title": "Coverage vod.mp4"
   },
   {
     "ms": 107218,
-    "kind": "STT_NO_ENGINE",
+    "kind": "STT_NO_RECOGNIZER",
     "running": false,
     "languages": []
   },
   {
     "ms": 107241,
     "kind": "PREVIEW_THUMB",
-    "engine": 507856863,
+    "mova": 507856863,
     "at": null,
     "bytes": null,
     "title": "Coverage vod.mp4"
@@ -3247,7 +3247,7 @@
   {
     "ms": 110365,
     "kind": "PREVIEW_THUMB",
-    "engine": 672154639,
+    "mova": 672154639,
     "at": null,
     "bytes": null,
     "title": null
@@ -3650,7 +3650,7 @@
   {
     "ms": 126652,
     "kind": "PREVIEW_THUMB",
-    "engine": 465614527,
+    "mova": 465614527,
     "at": null,
     "bytes": null,
     "title": null
@@ -3733,7 +3733,7 @@
   {
     "ms": 142952,
     "kind": "PREVIEW_THUMB",
-    "engine": 118091165,
+    "mova": 118091165,
     "at": null,
     "bytes": null,
     "title": null
@@ -4148,7 +4148,7 @@
   {
     "ms": 158779,
     "kind": "PREVIEW_THUMB",
-    "engine": 730181815,
+    "mova": 730181815,
     "at": null,
     "bytes": null,
     "title": null
@@ -4231,7 +4231,7 @@
   {
     "ms": 174998,
     "kind": "PREVIEW_THUMB",
-    "engine": 695974669,
+    "mova": 695974669,
     "at": null,
     "bytes": null,
     "title": null
@@ -4646,7 +4646,7 @@
   {
     "ms": 191477,
     "kind": "PREVIEW_THUMB",
-    "engine": 813098265,
+    "mova": 813098265,
     "at": null,
     "bytes": null,
     "title": null
@@ -4735,7 +4735,7 @@
   {
     "ms": 211382,
     "kind": "PREVIEW_THUMB",
-    "engine": 356332348,
+    "mova": 356332348,
     "at": null,
     "bytes": null,
     "title": "Coverage vod.mp4"
@@ -4785,7 +4785,7 @@
   {
     "ms": 219352,
     "kind": "PREVIEW_THUMB",
-    "engine": 943990159,
+    "mova": 943990159,
     "at": null,
     "bytes": null,
     "title": "Coverage vod.mp4"
@@ -4793,7 +4793,7 @@
   {
     "ms": 223249,
     "kind": "PREVIEW_THUMB",
-    "engine": 943990159,
+    "mova": 943990159,
     "at": null,
     "bytes": null,
     "title": "Coverage ad.mp4"
@@ -4884,35 +4884,35 @@
     "ms": 242043,
     "kind": "FEED_SAMPLE",
     "index": 20,
-    "engines": 3,
+    "movas": 3,
     "rss": 185782272
   },
   {
     "ms": 242566,
     "kind": "FEED_SAMPLE",
     "index": 40,
-    "engines": 3,
+    "movas": 3,
     "rss": 177545216
   },
   {
     "ms": 243071,
     "kind": "FEED_SAMPLE",
     "index": 60,
-    "engines": 3,
+    "movas": 3,
     "rss": 177819648
   },
   {
     "ms": 243475,
     "kind": "FEED_SAMPLE",
     "index": 80,
-    "engines": 3,
+    "movas": 3,
     "rss": 176373760
   },
   {
     "ms": 244053,
     "kind": "FEED_SAMPLE",
     "index": 100,
-    "engines": 3,
+    "movas": 3,
     "rss": 186179584
   },
   {
@@ -4920,11 +4920,11 @@
     "kind": "CHECK",
     "id": "A29.final",
     "pass": true,
-    "detail": "active=120 engines=3"
+    "detail": "active=120 movas=3"
   },
   {
     "ms": 244071,
-    "kind": "FEED_ENGINES",
+    "kind": "FEED_MOVAS",
     "states": [
       {
         "playing": false,
@@ -4940,7 +4940,7 @@
         "zoom": 1.0,
         "locked": false,
         "fullscreen": false,
-        "orientation": "auto",
+        "orient": "auto",
         "pip": false,
         "mini": false,
         "rendered": false,
@@ -4974,7 +4974,7 @@
         "zoom": 1.0,
         "locked": false,
         "fullscreen": false,
-        "orientation": "auto",
+        "orient": "auto",
         "pip": false,
         "mini": false,
         "rendered": false,
@@ -5008,7 +5008,7 @@
         "zoom": 1.0,
         "locked": false,
         "fullscreen": false,
-        "orientation": "auto",
+        "orient": "auto",
         "pip": false,
         "mini": false,
         "rendered": true,
@@ -5035,7 +5035,7 @@
     "kind": "CHECK",
     "id": "A29.dispose",
     "pass": true,
-    "detail": "controller and 3 native engines disposed"
+    "detail": "feed and 3 native players disposed"
   },
   {
     "ms": 244131,
@@ -5068,7 +5068,7 @@
   {
     "ms": 248150,
     "kind": "PREVIEW_THUMB",
-    "engine": 805244138,
+    "mova": 805244138,
     "at": null,
     "bytes": null,
     "title": null
@@ -5076,7 +5076,7 @@
   {
     "ms": 248294,
     "kind": "PREVIEW_THUMB",
-    "engine": 805244138,
+    "mova": 805244138,
     "at": null,
     "bytes": null,
     "title": "Coverage vod.mp4"
@@ -5086,12 +5086,12 @@
     "kind": "CHECK",
     "id": "C11.off",
     "pass": true,
-    "detail": "engines=1 epoch=0"
+    "detail": "movas=1 epoch=0"
   },
   {
     "ms": 248402,
     "kind": "PREVIEW_THUMB",
-    "engine": 762969307,
+    "mova": 762969307,
     "at": null,
     "bytes": null,
     "title": null
@@ -5108,14 +5108,14 @@
     "kind": "CHECK",
     "id": "A24.retired",
     "pass": true,
-    "detail": "retired engine rejects open"
+    "detail": "retired player rejects open"
   },
   {
     "ms": 249639,
     "kind": "CHECK",
     "id": "A24.short",
     "pass": true,
-    "detail": "short warm declined engines=2"
+    "detail": "short warm declined movas=2"
   },
   {
     "ms": 249715,
@@ -5184,7 +5184,7 @@
   {
     "ms": 256693,
     "kind": "PREVIEW_THUMB",
-    "engine": 285312042,
+    "mova": 285312042,
     "at": null,
     "bytes": null,
     "title": "PRE"
@@ -5208,7 +5208,7 @@
   {
     "ms": 256743,
     "kind": "PREVIEW_THUMB",
-    "engine": 285312042,
+    "mova": 285312042,
     "at": null,
     "bytes": null,
     "title": "Coverage ad.mp4"
@@ -5224,7 +5224,7 @@
   {
     "ms": 257732,
     "kind": "PREVIEW_THUMB",
-    "engine": 285312042,
+    "mova": 285312042,
     "at": null,
     "bytes": null,
     "title": "MANUAL"
@@ -5240,7 +5240,7 @@
   {
     "ms": 257782,
     "kind": "PREVIEW_THUMB",
-    "engine": 285312042,
+    "mova": 285312042,
     "at": null,
     "bytes": null,
     "title": "Coverage ad.mp4"
@@ -5256,7 +5256,7 @@
   {
     "ms": 260377,
     "kind": "PREVIEW_THUMB",
-    "engine": 285312042,
+    "mova": 285312042,
     "at": null,
     "bytes": null,
     "title": "MID"
@@ -5272,7 +5272,7 @@
   {
     "ms": 261572,
     "kind": "PREVIEW_THUMB",
-    "engine": 285312042,
+    "mova": 285312042,
     "at": null,
     "bytes": null,
     "title": "Coverage ad.mp4"
@@ -5288,7 +5288,7 @@
   {
     "ms": 278250,
     "kind": "PREVIEW_THUMB",
-    "engine": 285312042,
+    "mova": 285312042,
     "at": null,
     "bytes": null,
     "title": "POST"
@@ -5339,7 +5339,7 @@
   {
     "ms": 283542,
     "kind": "PREVIEW_THUMB",
-    "engine": 448484005,
+    "mova": 448484005,
     "at": null,
     "bytes": null,
     "title": null
@@ -5354,7 +5354,7 @@
   {
     "ms": 293361,
     "kind": "PREVIEW_THUMB",
-    "engine": 832592713,
+    "mova": 832592713,
     "at": null,
     "bytes": null,
     "title": null
@@ -5369,7 +5369,7 @@
   {
     "ms": 302914,
     "kind": "PREVIEW_THUMB",
-    "engine": 994313695,
+    "mova": 994313695,
     "at": null,
     "bytes": null,
     "title": null
@@ -5384,7 +5384,7 @@
   {
     "ms": 312958,
     "kind": "PREVIEW_THUMB",
-    "engine": 137468596,
+    "mova": 137468596,
     "at": null,
     "bytes": null,
     "title": null
@@ -5399,7 +5399,7 @@
   {
     "ms": 322774,
     "kind": "PREVIEW_THUMB",
-    "engine": 757993282,
+    "mova": 757993282,
     "at": null,
     "bytes": null,
     "title": null
@@ -5513,7 +5513,7 @@
   {
     "ms": 351727,
     "kind": "PREVIEW_THUMB",
-    "engine": 29813514,
+    "mova": 29813514,
     "at": null,
     "bytes": null,
     "title": "Coverage vod.mp4"
@@ -5521,7 +5521,7 @@
   {
     "ms": 354450,
     "kind": "PREVIEW_THUMB",
-    "engine": 29813514,
+    "mova": 29813514,
     "at": 4000,
     "bytes": 8001,
     "title": "Coverage vod.mp4"
@@ -5538,7 +5538,7 @@
   {
     "ms": 354475,
     "kind": "PREVIEW_THUMB",
-    "engine": 29813514,
+    "mova": 29813514,
     "at": null,
     "bytes": null,
     "title": "Coverage vod.mp4"
@@ -5546,7 +5546,7 @@
   {
     "ms": 354600,
     "kind": "PREVIEW_THUMB",
-    "engine": 29813514,
+    "mova": 29813514,
     "at": 8000,
     "bytes": 8001,
     "title": "Coverage vod.mp4"
@@ -5563,7 +5563,7 @@
   {
     "ms": 354649,
     "kind": "PREVIEW_THUMB",
-    "engine": 29813514,
+    "mova": 29813514,
     "at": null,
     "bytes": null,
     "title": "Coverage vod.mp4"
@@ -5571,7 +5571,7 @@
   {
     "ms": 354773,
     "kind": "PREVIEW_THUMB",
-    "engine": 29813514,
+    "mova": 29813514,
     "at": 12000,
     "bytes": 8001,
     "title": "Coverage vod.mp4"
@@ -5588,7 +5588,7 @@
   {
     "ms": 354785,
     "kind": "PREVIEW_THUMB",
-    "engine": 29813514,
+    "mova": 29813514,
     "at": null,
     "bytes": null,
     "title": "Coverage vod.mp4"
@@ -5596,7 +5596,7 @@
   {
     "ms": 354908,
     "kind": "PREVIEW_THUMB",
-    "engine": 29813514,
+    "mova": 29813514,
     "at": 4000,
     "bytes": 8001,
     "title": "Coverage vod.mp4"
@@ -5631,7 +5631,7 @@
   {
     "ms": 354915,
     "kind": "PREVIEW_THUMB",
-    "engine": 29813514,
+    "mova": 29813514,
     "at": null,
     "bytes": null,
     "title": "Coverage vod.mp4"
@@ -5639,7 +5639,7 @@
   {
     "ms": 354919,
     "kind": "PREVIEW_THUMB",
-    "engine": 29813514,
+    "mova": 29813514,
     "at": null,
     "bytes": null,
     "title": "Coverage vod.mp4"
@@ -5676,7 +5676,7 @@
   {
     "ms": 361070,
     "kind": "PREVIEW_THUMB",
-    "engine": 355190718,
+    "mova": 355190718,
     "at": null,
     "bytes": null,
     "title": "Coverage vod.mp4"
@@ -5684,7 +5684,7 @@
   {
     "ms": 362170,
     "kind": "PREVIEW_THUMB",
-    "engine": 355190718,
+    "mova": 355190718,
     "at": 4000,
     "bytes": 99796,
     "title": "Coverage vod.mp4"
@@ -5701,7 +5701,7 @@
   {
     "ms": 362182,
     "kind": "PREVIEW_THUMB",
-    "engine": 355190718,
+    "mova": 355190718,
     "at": null,
     "bytes": null,
     "title": "Coverage vod.mp4"
@@ -5709,7 +5709,7 @@
   {
     "ms": 363001,
     "kind": "PREVIEW_THUMB",
-    "engine": 355190718,
+    "mova": 355190718,
     "at": 8000,
     "bytes": 98103,
     "title": "Coverage vod.mp4"
@@ -5726,7 +5726,7 @@
   {
     "ms": 363041,
     "kind": "PREVIEW_THUMB",
-    "engine": 355190718,
+    "mova": 355190718,
     "at": null,
     "bytes": null,
     "title": "Coverage vod.mp4"
@@ -5734,7 +5734,7 @@
   {
     "ms": 363868,
     "kind": "PREVIEW_THUMB",
-    "engine": 355190718,
+    "mova": 355190718,
     "at": 12000,
     "bytes": 95382,
     "title": "Coverage vod.mp4"
@@ -5751,7 +5751,7 @@
   {
     "ms": 363904,
     "kind": "PREVIEW_THUMB",
-    "engine": 355190718,
+    "mova": 355190718,
     "at": null,
     "bytes": null,
     "title": "Coverage vod.mp4"
@@ -5759,7 +5759,7 @@
   {
     "ms": 364031,
     "kind": "PREVIEW_THUMB",
-    "engine": 355190718,
+    "mova": 355190718,
     "at": 4000,
     "bytes": 99796,
     "title": "Coverage vod.mp4"
@@ -5794,7 +5794,7 @@
   {
     "ms": 364086,
     "kind": "PREVIEW_THUMB",
-    "engine": 355190718,
+    "mova": 355190718,
     "at": null,
     "bytes": null,
     "title": "Coverage vod.mp4"
@@ -5802,7 +5802,7 @@
   {
     "ms": 364100,
     "kind": "PREVIEW_THUMB",
-    "engine": 355190718,
+    "mova": 355190718,
     "at": null,
     "bytes": null,
     "title": "Coverage vod.mp4"
@@ -5839,7 +5839,7 @@
   {
     "ms": 369250,
     "kind": "PREVIEW_THUMB",
-    "engine": 338532246,
+    "mova": 338532246,
     "at": null,
     "bytes": null,
     "title": "Coverage vod.mp4"
@@ -5847,7 +5847,7 @@
   {
     "ms": 374918,
     "kind": "PREVIEW_THUMB",
-    "engine": 338532246,
+    "mova": 338532246,
     "at": 4000,
     "bytes": 86894,
     "title": "Coverage vod.mp4"
@@ -5864,7 +5864,7 @@
   {
     "ms": 374937,
     "kind": "PREVIEW_THUMB",
-    "engine": 338532246,
+    "mova": 338532246,
     "at": null,
     "bytes": null,
     "title": "Coverage vod.mp4"
@@ -5872,7 +5872,7 @@
   {
     "ms": 375683,
     "kind": "PREVIEW_THUMB",
-    "engine": 338532246,
+    "mova": 338532246,
     "at": 8000,
     "bytes": 98103,
     "title": "Coverage vod.mp4"
@@ -5889,7 +5889,7 @@
   {
     "ms": 375709,
     "kind": "PREVIEW_THUMB",
-    "engine": 338532246,
+    "mova": 338532246,
     "at": null,
     "bytes": null,
     "title": "Coverage vod.mp4"
@@ -5897,7 +5897,7 @@
   {
     "ms": 376592,
     "kind": "PREVIEW_THUMB",
-    "engine": 338532246,
+    "mova": 338532246,
     "at": 12000,
     "bytes": 95382,
     "title": "Coverage vod.mp4"
@@ -5914,7 +5914,7 @@
   {
     "ms": 376623,
     "kind": "PREVIEW_THUMB",
-    "engine": 338532246,
+    "mova": 338532246,
     "at": null,
     "bytes": null,
     "title": "Coverage vod.mp4"
@@ -5922,7 +5922,7 @@
   {
     "ms": 376751,
     "kind": "PREVIEW_THUMB",
-    "engine": 338532246,
+    "mova": 338532246,
     "at": 4000,
     "bytes": 86894,
     "title": "Coverage vod.mp4"
@@ -5957,7 +5957,7 @@
   {
     "ms": 376783,
     "kind": "PREVIEW_THUMB",
-    "engine": 338532246,
+    "mova": 338532246,
     "at": null,
     "bytes": null,
     "title": "Coverage vod.mp4"
@@ -5965,7 +5965,7 @@
   {
     "ms": 376792,
     "kind": "PREVIEW_THUMB",
-    "engine": 338532246,
+    "mova": 338532246,
     "at": null,
     "bytes": null,
     "title": "Coverage vod.mp4"
@@ -6002,7 +6002,7 @@
   {
     "ms": 380901,
     "kind": "PREVIEW_THUMB",
-    "engine": 820238060,
+    "mova": 820238060,
     "at": null,
     "bytes": null,
     "title": "Coverage vod.mp4"
@@ -6021,7 +6021,7 @@
   {
     "ms": 383006,
     "kind": "PREVIEW_THUMB",
-    "engine": 820238060,
+    "mova": 820238060,
     "at": null,
     "bytes": null,
     "title": "Coverage vod.mp4"
@@ -6058,7 +6058,7 @@
   {
     "ms": 391119,
     "kind": "PREVIEW_THUMB",
-    "engine": 824880966,
+    "mova": 824880966,
     "at": null,
     "bytes": null,
     "title": "Coverage ad.mp4"
@@ -6071,7 +6071,7 @@
       "uri": "http://127.0.0.1:18080/ad.mp4?t=1793093360991914",
       "streamType": "vod",
       "audioOnly": true,
-      "swapEnabled": false,
+      "cutoverEnabled": false,
       "title": "Coverage ad.mp4"
     }
   },
@@ -6169,7 +6169,7 @@
   {
     "ms": 415241,
     "kind": "PREVIEW_THUMB",
-    "engine": 145271063,
+    "mova": 145271063,
     "at": null,
     "bytes": null,
     "title": "Coverage ad.mp4"
@@ -6182,7 +6182,7 @@
       "uri": "http://127.0.0.1:18080/ad.mp4?t=1793093385118290",
       "streamType": "vod",
       "audioOnly": true,
-      "swapEnabled": false,
+      "cutoverEnabled": false,
       "title": "Coverage ad.mp4"
     }
   },
@@ -6268,7 +6268,7 @@
   {
     "ms": 424353,
     "kind": "PREVIEW_THUMB",
-    "engine": 979904940,
+    "mova": 979904940,
     "at": null,
     "bytes": null,
     "title": "Coverage 404.mp4"
@@ -6281,7 +6281,7 @@
       "uri": "http://127.0.0.1:18080/404.mp4?t=1793093394243946",
       "streamType": "vod",
       "audioOnly": true,
-      "swapEnabled": false,
+      "cutoverEnabled": false,
       "title": "Coverage 404.mp4"
     }
   },
@@ -6374,7 +6374,7 @@
   {
     "ms": 429702,
     "kind": "PREVIEW_THUMB",
-    "engine": 554992176,
+    "mova": 554992176,
     "at": null,
     "bytes": null,
     "title": "Coverage hang"
@@ -6408,7 +6408,7 @@
       "uri": "http://127.0.0.1:18080/hang?t=1793093399580347",
       "streamType": "vod",
       "audioOnly": true,
-      "swapEnabled": false,
+      "cutoverEnabled": false,
       "title": "Coverage hang"
     }
   },
@@ -6450,7 +6450,7 @@
   {
     "ms": 435703,
     "kind": "PREVIEW_THUMB",
-    "engine": 986106147,
+    "mova": 986106147,
     "at": null,
     "bytes": null,
     "title": "Coverage stall.mp4"
@@ -6463,7 +6463,7 @@
       "uri": "http://127.0.0.1:18080/stall.mp4?t=1793093405582195",
       "streamType": "vod",
       "audioOnly": true,
-      "swapEnabled": false,
+      "cutoverEnabled": false,
       "title": "Coverage stall.mp4"
     }
   },
@@ -6549,7 +6549,7 @@
   {
     "ms": 465094,
     "kind": "PREVIEW_THUMB",
-    "engine": 978559549,
+    "mova": 978559549,
     "at": null,
     "bytes": null,
     "title": null
@@ -6562,7 +6562,7 @@
       "uri": "http://127.0.0.1:18084/truncated.mp4?t=1793093434968890",
       "streamType": "vod",
       "audioOnly": true,
-      "swapEnabled": false
+      "cutoverEnabled": false
     }
   },
   {
@@ -6668,7 +6668,7 @@
   {
     "ms": 487867,
     "kind": "PREVIEW_THUMB",
-    "engine": 915145668,
+    "mova": 915145668,
     "at": null,
     "bytes": null,
     "title": null
@@ -6732,7 +6732,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -6802,7 +6802,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -6872,7 +6872,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -6942,7 +6942,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -7012,7 +7012,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -7058,7 +7058,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -7111,7 +7111,7 @@
   {
     "ms": 514915,
     "kind": "PREVIEW_THUMB",
-    "engine": 216200820,
+    "mova": 216200820,
     "at": null,
     "bytes": null,
     "title": null
@@ -7137,7 +7137,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -7196,7 +7196,7 @@
   {
     "ms": 528047,
     "kind": "PREVIEW_THUMB",
-    "engine": 813662117,
+    "mova": 813662117,
     "at": null,
     "bytes": null,
     "title": null
@@ -7211,7 +7211,7 @@
   {
     "ms": 528698,
     "kind": "PREVIEW_THUMB",
-    "engine": 895311553,
+    "mova": 895311553,
     "at": null,
     "bytes": null,
     "title": null
@@ -7226,7 +7226,7 @@
   {
     "ms": 529288,
     "kind": "PREVIEW_THUMB",
-    "engine": 975868354,
+    "mova": 975868354,
     "at": null,
     "bytes": null,
     "title": null
@@ -7241,7 +7241,7 @@
   {
     "ms": 529857,
     "kind": "PREVIEW_THUMB",
-    "engine": 825100223,
+    "mova": 825100223,
     "at": null,
     "bytes": null,
     "title": null
@@ -7256,7 +7256,7 @@
   {
     "ms": 530383,
     "kind": "PREVIEW_THUMB",
-    "engine": 729194666,
+    "mova": 729194666,
     "at": null,
     "bytes": null,
     "title": null
@@ -7271,7 +7271,7 @@
   {
     "ms": 530610,
     "kind": "PREVIEW_THUMB",
-    "engine": 177384795,
+    "mova": 177384795,
     "at": null,
     "bytes": null,
     "title": null
@@ -7286,7 +7286,7 @@
   {
     "ms": 530793,
     "kind": "PREVIEW_THUMB",
-    "engine": 787018244,
+    "mova": 787018244,
     "at": null,
     "bytes": null,
     "title": null
@@ -7301,7 +7301,7 @@
   {
     "ms": 531032,
     "kind": "PREVIEW_THUMB",
-    "engine": 150809037,
+    "mova": 150809037,
     "at": null,
     "bytes": null,
     "title": null
@@ -7316,7 +7316,7 @@
   {
     "ms": 531273,
     "kind": "PREVIEW_THUMB",
-    "engine": 996995537,
+    "mova": 996995537,
     "at": null,
     "bytes": null,
     "title": null
@@ -7331,7 +7331,7 @@
   {
     "ms": 531811,
     "kind": "PREVIEW_THUMB",
-    "engine": 374728603,
+    "mova": 374728603,
     "at": null,
     "bytes": null,
     "title": null
@@ -7346,7 +7346,7 @@
   {
     "ms": 532577,
     "kind": "PREVIEW_THUMB",
-    "engine": 980627285,
+    "mova": 980627285,
     "at": null,
     "bytes": null,
     "title": null
@@ -7361,7 +7361,7 @@
   {
     "ms": 533238,
     "kind": "PREVIEW_THUMB",
-    "engine": 188313957,
+    "mova": 188313957,
     "at": null,
     "bytes": null,
     "title": null
@@ -7376,7 +7376,7 @@
   {
     "ms": 533760,
     "kind": "PREVIEW_THUMB",
-    "engine": 304730950,
+    "mova": 304730950,
     "at": null,
     "bytes": null,
     "title": null
@@ -7391,7 +7391,7 @@
   {
     "ms": 534033,
     "kind": "PREVIEW_THUMB",
-    "engine": 156357078,
+    "mova": 156357078,
     "at": null,
     "bytes": null,
     "title": null
@@ -7406,7 +7406,7 @@
   {
     "ms": 534250,
     "kind": "PREVIEW_THUMB",
-    "engine": 786953540,
+    "mova": 786953540,
     "at": null,
     "bytes": null,
     "title": null
@@ -7421,7 +7421,7 @@
   {
     "ms": 534410,
     "kind": "PREVIEW_THUMB",
-    "engine": 769648350,
+    "mova": 769648350,
     "at": null,
     "bytes": null,
     "title": null
@@ -7436,7 +7436,7 @@
   {
     "ms": 534649,
     "kind": "PREVIEW_THUMB",
-    "engine": 1031347235,
+    "mova": 1031347235,
     "at": null,
     "bytes": null,
     "title": null
@@ -7451,7 +7451,7 @@
   {
     "ms": 535215,
     "kind": "PREVIEW_THUMB",
-    "engine": 887620649,
+    "mova": 887620649,
     "at": null,
     "bytes": null,
     "title": null
@@ -7466,7 +7466,7 @@
   {
     "ms": 535860,
     "kind": "PREVIEW_THUMB",
-    "engine": 383165350,
+    "mova": 383165350,
     "at": null,
     "bytes": null,
     "title": null
@@ -7481,7 +7481,7 @@
   {
     "ms": 536481,
     "kind": "PREVIEW_THUMB",
-    "engine": 757789051,
+    "mova": 757789051,
     "at": null,
     "bytes": null,
     "title": null
@@ -7496,7 +7496,7 @@
   {
     "ms": 537139,
     "kind": "PREVIEW_THUMB",
-    "engine": 614050088,
+    "mova": 614050088,
     "at": null,
     "bytes": null,
     "title": null
@@ -7511,7 +7511,7 @@
   {
     "ms": 537323,
     "kind": "PREVIEW_THUMB",
-    "engine": 910313021,
+    "mova": 910313021,
     "at": null,
     "bytes": null,
     "title": null
@@ -7526,7 +7526,7 @@
   {
     "ms": 537473,
     "kind": "PREVIEW_THUMB",
-    "engine": 394177630,
+    "mova": 394177630,
     "at": null,
     "bytes": null,
     "title": null
@@ -7541,7 +7541,7 @@
   {
     "ms": 537724,
     "kind": "PREVIEW_THUMB",
-    "engine": 949006384,
+    "mova": 949006384,
     "at": null,
     "bytes": null,
     "title": null
@@ -7556,7 +7556,7 @@
   {
     "ms": 537910,
     "kind": "PREVIEW_THUMB",
-    "engine": 233397588,
+    "mova": 233397588,
     "at": null,
     "bytes": null,
     "title": null
@@ -7571,7 +7571,7 @@
   {
     "ms": 538479,
     "kind": "PREVIEW_THUMB",
-    "engine": 499521753,
+    "mova": 499521753,
     "at": null,
     "bytes": null,
     "title": null
@@ -7586,7 +7586,7 @@
   {
     "ms": 539081,
     "kind": "PREVIEW_THUMB",
-    "engine": 771428849,
+    "mova": 771428849,
     "at": null,
     "bytes": null,
     "title": null
@@ -7601,7 +7601,7 @@
   {
     "ms": 539699,
     "kind": "PREVIEW_THUMB",
-    "engine": 855602923,
+    "mova": 855602923,
     "at": null,
     "bytes": null,
     "title": null
@@ -7616,7 +7616,7 @@
   {
     "ms": 540359,
     "kind": "PREVIEW_THUMB",
-    "engine": 503397449,
+    "mova": 503397449,
     "at": null,
     "bytes": null,
     "title": null
@@ -7631,7 +7631,7 @@
   {
     "ms": 540529,
     "kind": "PREVIEW_THUMB",
-    "engine": 1066765856,
+    "mova": 1066765856,
     "at": null,
     "bytes": null,
     "title": null
@@ -7646,7 +7646,7 @@
   {
     "ms": 540710,
     "kind": "PREVIEW_THUMB",
-    "engine": 478178193,
+    "mova": 478178193,
     "at": null,
     "bytes": null,
     "title": null
@@ -7661,7 +7661,7 @@
   {
     "ms": 540951,
     "kind": "PREVIEW_THUMB",
-    "engine": 436574506,
+    "mova": 436574506,
     "at": null,
     "bytes": null,
     "title": null
@@ -7676,7 +7676,7 @@
   {
     "ms": 541151,
     "kind": "PREVIEW_THUMB",
-    "engine": 707761057,
+    "mova": 707761057,
     "at": null,
     "bytes": null,
     "title": null
@@ -7691,7 +7691,7 @@
   {
     "ms": 541686,
     "kind": "PREVIEW_THUMB",
-    "engine": 1003648510,
+    "mova": 1003648510,
     "at": null,
     "bytes": null,
     "title": null
@@ -7706,7 +7706,7 @@
   {
     "ms": 542359,
     "kind": "PREVIEW_THUMB",
-    "engine": 492796793,
+    "mova": 492796793,
     "at": null,
     "bytes": null,
     "title": null
@@ -7721,7 +7721,7 @@
   {
     "ms": 542942,
     "kind": "PREVIEW_THUMB",
-    "engine": 856295574,
+    "mova": 856295574,
     "at": null,
     "bytes": null,
     "title": null
@@ -7736,7 +7736,7 @@
   {
     "ms": 543653,
     "kind": "PREVIEW_THUMB",
-    "engine": 799836349,
+    "mova": 799836349,
     "at": null,
     "bytes": null,
     "title": null
@@ -7751,7 +7751,7 @@
   {
     "ms": 543871,
     "kind": "PREVIEW_THUMB",
-    "engine": 472213397,
+    "mova": 472213397,
     "at": null,
     "bytes": null,
     "title": null
@@ -7766,7 +7766,7 @@
   {
     "ms": 544019,
     "kind": "PREVIEW_THUMB",
-    "engine": 880446719,
+    "mova": 880446719,
     "at": null,
     "bytes": null,
     "title": null
@@ -7781,7 +7781,7 @@
   {
     "ms": 544211,
     "kind": "PREVIEW_THUMB",
-    "engine": 781660965,
+    "mova": 781660965,
     "at": null,
     "bytes": null,
     "title": null
@@ -7828,7 +7828,7 @@
   {
     "ms": 548486,
     "kind": "PREVIEW_THUMB",
-    "engine": 292556440,
+    "mova": 292556440,
     "at": null,
     "bytes": null,
     "title": "Coverage 404.mp4"
@@ -7841,7 +7841,7 @@
       "uri": "http://127.0.0.1:18080/404.mp4?t=1793093518351942",
       "streamType": "vod",
       "audioOnly": true,
-      "swapEnabled": false,
+      "cutoverEnabled": false,
       "title": "Coverage 404.mp4"
     }
   },
@@ -7928,7 +7928,7 @@
   {
     "ms": 553857,
     "kind": "PREVIEW_THUMB",
-    "engine": 499436268,
+    "mova": 499436268,
     "at": null,
     "bytes": null,
     "title": "Coverage stall.mp4"
@@ -7941,7 +7941,7 @@
       "uri": "http://127.0.0.1:18080/stall.mp4?t=1793093523713419",
       "streamType": "vod",
       "audioOnly": true,
-      "swapEnabled": false,
+      "cutoverEnabled": false,
       "title": "Coverage stall.mp4"
     }
   },
@@ -8031,7 +8031,7 @@
   {
     "ms": 566807,
     "kind": "PREVIEW_THUMB",
-    "engine": 964885028,
+    "mova": 964885028,
     "at": null,
     "bytes": null,
     "title": null
@@ -8095,7 +8095,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -8165,7 +8165,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -8235,7 +8235,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -8305,7 +8305,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -8375,7 +8375,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -8421,7 +8421,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -8470,7 +8470,7 @@
   {
     "ms": 594109,
     "kind": "PREVIEW_THUMB",
-    "engine": 768294718,
+    "mova": 768294718,
     "at": null,
     "bytes": null,
     "title": null
@@ -8534,7 +8534,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -8604,7 +8604,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -8674,7 +8674,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -8744,7 +8744,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -8814,7 +8814,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -8860,7 +8860,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -8909,7 +8909,7 @@
   {
     "ms": 636645,
     "kind": "PREVIEW_THUMB",
-    "engine": 664777085,
+    "mova": 664777085,
     "at": null,
     "bytes": null,
     "title": null
@@ -8973,7 +8973,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -9043,7 +9043,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -9113,7 +9113,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -9183,7 +9183,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -9253,7 +9253,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -9299,7 +9299,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -9347,7 +9347,7 @@
   {
     "ms": 663321,
     "kind": "PREVIEW_THUMB",
-    "engine": 374902173,
+    "mova": 374902173,
     "at": null,
     "bytes": null,
     "title": null
@@ -9389,7 +9389,7 @@
   {
     "ms": 663506,
     "kind": "PREVIEW_THUMB",
-    "engine": 519743829,
+    "mova": 519743829,
     "at": null,
     "bytes": null,
     "title": null
@@ -9425,7 +9425,7 @@
   {
     "ms": 663755,
     "kind": "PREVIEW_THUMB",
-    "engine": 537122699,
+    "mova": 537122699,
     "at": null,
     "bytes": null,
     "title": null
@@ -9461,7 +9461,7 @@
   {
     "ms": 665040,
     "kind": "PREVIEW_THUMB",
-    "engine": 623642523,
+    "mova": 623642523,
     "at": null,
     "bytes": null,
     "title": null
@@ -9497,7 +9497,7 @@
   {
     "ms": 665637,
     "kind": "PREVIEW_THUMB",
-    "engine": 600879732,
+    "mova": 600879732,
     "at": null,
     "bytes": null,
     "title": null
@@ -9533,7 +9533,7 @@
   {
     "ms": 665854,
     "kind": "PREVIEW_THUMB",
-    "engine": 847112254,
+    "mova": 847112254,
     "at": null,
     "bytes": null,
     "title": null
@@ -9569,7 +9569,7 @@
   {
     "ms": 666033,
     "kind": "PREVIEW_THUMB",
-    "engine": 504431100,
+    "mova": 504431100,
     "at": null,
     "bytes": null,
     "title": null
@@ -9605,7 +9605,7 @@
   {
     "ms": 666300,
     "kind": "PREVIEW_THUMB",
-    "engine": 578018056,
+    "mova": 578018056,
     "at": null,
     "bytes": null,
     "title": null
@@ -9641,7 +9641,7 @@
   {
     "ms": 666876,
     "kind": "PREVIEW_THUMB",
-    "engine": 71959820,
+    "mova": 71959820,
     "at": null,
     "bytes": null,
     "title": null
@@ -9677,7 +9677,7 @@
   {
     "ms": 667027,
     "kind": "PREVIEW_THUMB",
-    "engine": 35043428,
+    "mova": 35043428,
     "at": null,
     "bytes": null,
     "title": null
@@ -9713,7 +9713,7 @@
   {
     "ms": 667185,
     "kind": "PREVIEW_THUMB",
-    "engine": 269044235,
+    "mova": 269044235,
     "at": null,
     "bytes": null,
     "title": null
@@ -9749,7 +9749,7 @@
   {
     "ms": 667560,
     "kind": "PREVIEW_THUMB",
-    "engine": 576202300,
+    "mova": 576202300,
     "at": null,
     "bytes": null,
     "title": null
@@ -9820,7 +9820,7 @@
   {
     "ms": 3369,
     "kind": "PREVIEW_THUMB",
-    "engine": 192246473,
+    "mova": 192246473,
     "at": null,
     "bytes": null,
     "title": null
@@ -9884,7 +9884,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -9954,7 +9954,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -10024,7 +10024,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -10094,7 +10094,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -10164,7 +10164,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -10210,7 +10210,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -10259,7 +10259,7 @@
   {
     "ms": 4298,
     "kind": "PREVIEW_THUMB",
-    "engine": 693416108,
+    "mova": 693416108,
     "at": null,
     "bytes": null,
     "title": null
@@ -10323,7 +10323,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -10393,7 +10393,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -10463,7 +10463,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -10533,7 +10533,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -10603,7 +10603,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -10649,7 +10649,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -10698,7 +10698,7 @@
   {
     "ms": 6808,
     "kind": "PREVIEW_THUMB",
-    "engine": 202682970,
+    "mova": 202682970,
     "at": null,
     "bytes": null,
     "title": null
@@ -10762,7 +10762,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -10832,7 +10832,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -10902,7 +10902,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -10972,7 +10972,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -11042,7 +11042,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -11088,7 +11088,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -11155,63 +11155,63 @@
 
 - 复用现有验证器，检查真实事件/状态/原生读回；命令：`python example/tool/rerun_batch.py coverage_followup_batches.py`。完成后仅按实际证据回填编号。
 
-## 开始 rerun-batch8-keepAlive-native
+## 开始 rerun-batch8-keep-alive-native
 
 - 复用 keepAlive 页面，核验事件与设备状态；多轮计时取平均。
 
-## rerun-batch8-keepAlive-native 自动检查点
+## rerun-batch8-keep-alive-native 自动检查点
 
 - 复用页运行；逐编号最终结论需结合下面原始断言复核。
 - driver exit=0；`{"selector": "keepAlive|S7,S8,S8B,S14|1", "completed": true, "lines": 1832, "pid": "5116"}`。
-- 日志：`example/tool/coverage_evidence/rerun-batch8-keepAlive-native.log`；截图/系统读回/采样同前缀。
+- 日志：`example/tool/coverage_evidence/rerun-batch8-keep-alive-native.log`；截图/系统读回/采样同前缀。
 ```text
-10-27 17:50:01.581  5116  5116 I flutter : [STANDBY] 17:50:01.581   17560ms VERDICT S14 PASS screenshots taken by the external script (normal / holding1 / holding2 / restored)
-10-27 17:53:15.349  5116  5116 I flutter : [STANDBY] 17:53:15.349  211328ms VERDICT S7 PASS videoCameBack=20/20 signalLanded=0/20
-10-27 17:53:36.603  5116  5116 I flutter : [STANDBY] 17:53:36.603  232582ms VERDICT S8 PASS fact: playing=true advance=3040ms
-10-27 17:53:52.016  5116  5116 I flutter : [STANDBY] 17:53:52.016  247995ms VERDICT S8B PASS fact recorded
-10-27 17:53:52.817  5116  5116 I flutter : [STANDBY] 17:53:52.816  248795ms === SUMMARY (samples in ms) ===
-10-27 17:53:52.817  5116  5116 I flutter : [STANDBY] 17:53:52.817  248796ms SUMMARY S14 pass=1 fail=0
-10-27 17:53:52.817  5116  5116 I flutter : [STANDBY] 17:53:52.817  248796ms SUMMARY S7 pass=1 fail=0
-10-27 17:53:52.817  5116  5116 I flutter : [STANDBY] 17:53:52.817  248796ms SUMMARY S8 pass=1 fail=0
-10-27 17:53:52.817  5116  5116 I flutter : [STANDBY] 17:53:52.817  248796ms SUMMARY S8B pass=1 fail=0
-10-27 17:53:52.817  5116  5116 I flutter : [STANDBY] 17:53:52.817  248796ms AUTORUN DONE
+10-27 17:50:01.581  5116  5116 I flutter : [KEEP_ALIVE] 17:50:01.581   17560ms VERDICT S14 PASS screenshots taken by the external script (normal / holding1 / holding2 / restored)
+10-27 17:53:15.349  5116  5116 I flutter : [KEEP_ALIVE] 17:53:15.349  211328ms VERDICT S7 PASS videoCameBack=20/20 signalLanded=0/20
+10-27 17:53:36.603  5116  5116 I flutter : [KEEP_ALIVE] 17:53:36.603  232582ms VERDICT S8 PASS fact: playing=true advance=3040ms
+10-27 17:53:52.016  5116  5116 I flutter : [KEEP_ALIVE] 17:53:52.016  247995ms VERDICT S8B PASS fact recorded
+10-27 17:53:52.817  5116  5116 I flutter : [KEEP_ALIVE] 17:53:52.816  248795ms === SUMMARY (samples in ms) ===
+10-27 17:53:52.817  5116  5116 I flutter : [KEEP_ALIVE] 17:53:52.817  248796ms SUMMARY S14 pass=1 fail=0
+10-27 17:53:52.817  5116  5116 I flutter : [KEEP_ALIVE] 17:53:52.817  248796ms SUMMARY S7 pass=1 fail=0
+10-27 17:53:52.817  5116  5116 I flutter : [KEEP_ALIVE] 17:53:52.817  248796ms SUMMARY S8 pass=1 fail=0
+10-27 17:53:52.817  5116  5116 I flutter : [KEEP_ALIVE] 17:53:52.817  248796ms SUMMARY S8B pass=1 fail=0
+10-27 17:53:52.817  5116  5116 I flutter : [KEEP_ALIVE] 17:53:52.817  248796ms AUTORUN DONE
 ```
 
-## 开始 rerun-batch9-keepAlive-cpu-drift
+## 开始 rerun-batch9-keep-alive-cpu-drift
 
 - 复用 keepAlive 页面，核验事件与设备状态；多轮计时取平均。
 
-## rerun-batch9-keepAlive-cpu-drift 自动检查点
+## rerun-batch9-keep-alive-cpu-drift 自动检查点
 
 - 复用页运行；逐编号最终结论需结合下面原始断言复核。
 - driver exit=0；`{"selector": "keepAlive|S4,S5,S5C|3", "completed": true, "lines": 3406, "pid": "5123"}`。
-- 日志：`example/tool/coverage_evidence/rerun-batch9-keepAlive-cpu-drift.log`；截图/系统读回/采样同前缀。
+- 日志：`example/tool/coverage_evidence/rerun-batch9-keep-alive-cpu-drift.log`；截图/系统读回/采样同前缀。
 ```text
-10-27 17:54:28.404  5123  5123 I flutter : [STANDBY] 17:54:28.404   32186ms VERDICT S5 PASS drift=149ms
-10-27 17:55:01.966  5123  5123 I flutter : [STANDBY] 17:55:01.966   65748ms VERDICT S5 PASS drift=625ms
-10-27 17:55:35.530  5123  5123 I flutter : [STANDBY] 17:55:35.529   99311ms VERDICT S5 PASS drift=567ms
-10-27 17:56:08.907  5123  5123 I flutter : [STANDBY] 17:56:08.907  132689ms VERDICT S5C PASS control drift=2ms
-10-27 17:56:42.326  5123  5123 I flutter : [STANDBY] 17:56:42.326  166108ms VERDICT S5C PASS control drift=43ms
-10-27 17:57:16.106  5123  5123 I flutter : [STANDBY] 17:57:16.106  199888ms VERDICT S5C PASS control drift=-5ms
-10-27 17:57:37.594  5123  5123 I flutter : [STANDBY] 17:57:37.594  221376ms VERDICT S4 PASS normal recorded (see PHASE lines + external CPU/traffic)
-10-27 17:57:59.171  5123  5123 I flutter : [STANDBY] 17:57:59.171  242953ms VERDICT S4 PASS B recorded (see PHASE lines + external CPU/traffic)
-10-27 17:58:23.279  5123  5123 I flutter : [STANDBY] 17:58:23.279  267061ms VERDICT S4 PASS C recorded (see PHASE lines + external CPU/traffic)
-10-27 17:58:44.476  5123  5123 I flutter : [STANDBY] 17:58:44.476  288258ms VERDICT S4 PASS D recorded (see PHASE lines + external CPU/traffic)
-10-27 17:59:05.881  5123  5123 I flutter : [STANDBY] 17:59:05.881  309663ms VERDICT S4 PASS normal recorded (see PHASE lines + external CPU/traffic)
-10-27 17:59:27.163  5123  5123 I flutter : [STANDBY] 17:59:27.162  330944ms VERDICT S4 PASS B recorded (see PHASE lines + external CPU/traffic)
-10-27 17:59:51.217  5123  5123 I flutter : [STANDBY] 17:59:51.216  354998ms VERDICT S4 PASS C recorded (see PHASE lines + external CPU/traffic)
-10-27 18:00:12.594  5123  5123 I flutter : [STANDBY] 18:00:12.594  376376ms VERDICT S4 PASS D recorded (see PHASE lines + external CPU/traffic)
-10-27 18:00:33.820  5123  5123 I flutter : [STANDBY] 18:00:33.820  397602ms VERDICT S4 PASS normal recorded (see PHASE lines + external CPU/traffic)
-10-27 18:00:55.277  5123  5123 I flutter : [STANDBY] 18:00:55.277  419059ms VERDICT S4 PASS B recorded (see PHASE lines + external CPU/traffic)
-10-27 18:01:19.359  5123  5123 I flutter : [STANDBY] 18:01:19.359  443141ms VERDICT S4 PASS C recorded (see PHASE lines + external CPU/traffic)
-10-27 18:01:40.811  5123  5123 I flutter : [STANDBY] 18:01:40.811  464593ms VERDICT S4 PASS D recorded (see PHASE lines + external CPU/traffic)
-10-27 18:01:41.613  5123  5123 I flutter : [STANDBY] 18:01:41.613  465395ms === SUMMARY (samples in ms) ===
-10-27 18:01:41.613  5123  5123 I flutter : [STANDBY] 18:01:41.613  465395ms SUMMARY S5.driftMs values=[149,625,567] n=3 min=149 max=625 avg=447.0 median=567.0
-10-27 18:01:41.614  5123  5123 I flutter : [STANDBY] 18:01:41.614  465395ms SUMMARY S5C.driftMs values=[2,43,5] n=3 min=2 max=43 avg=16.7 median=5.0
-10-27 18:01:41.614  5123  5123 I flutter : [STANDBY] 18:01:41.614  465396ms SUMMARY S4 pass=12 fail=0
-10-27 18:01:41.614  5123  5123 I flutter : [STANDBY] 18:01:41.614  465396ms SUMMARY S5 pass=3 fail=0
-10-27 18:01:41.614  5123  5123 I flutter : [STANDBY] 18:01:41.614  465396ms SUMMARY S5C pass=3 fail=0
-10-27 18:01:41.614  5123  5123 I flutter : [STANDBY] 18:01:41.614  465396ms AUTORUN DONE
+10-27 17:54:28.404  5123  5123 I flutter : [KEEP_ALIVE] 17:54:28.404   32186ms VERDICT S5 PASS drift=149ms
+10-27 17:55:01.966  5123  5123 I flutter : [KEEP_ALIVE] 17:55:01.966   65748ms VERDICT S5 PASS drift=625ms
+10-27 17:55:35.530  5123  5123 I flutter : [KEEP_ALIVE] 17:55:35.529   99311ms VERDICT S5 PASS drift=567ms
+10-27 17:56:08.907  5123  5123 I flutter : [KEEP_ALIVE] 17:56:08.907  132689ms VERDICT S5C PASS control drift=2ms
+10-27 17:56:42.326  5123  5123 I flutter : [KEEP_ALIVE] 17:56:42.326  166108ms VERDICT S5C PASS control drift=43ms
+10-27 17:57:16.106  5123  5123 I flutter : [KEEP_ALIVE] 17:57:16.106  199888ms VERDICT S5C PASS control drift=-5ms
+10-27 17:57:37.594  5123  5123 I flutter : [KEEP_ALIVE] 17:57:37.594  221376ms VERDICT S4 PASS normal recorded (see PHASE lines + external CPU/traffic)
+10-27 17:57:59.171  5123  5123 I flutter : [KEEP_ALIVE] 17:57:59.171  242953ms VERDICT S4 PASS B recorded (see PHASE lines + external CPU/traffic)
+10-27 17:58:23.279  5123  5123 I flutter : [KEEP_ALIVE] 17:58:23.279  267061ms VERDICT S4 PASS C recorded (see PHASE lines + external CPU/traffic)
+10-27 17:58:44.476  5123  5123 I flutter : [KEEP_ALIVE] 17:58:44.476  288258ms VERDICT S4 PASS D recorded (see PHASE lines + external CPU/traffic)
+10-27 17:59:05.881  5123  5123 I flutter : [KEEP_ALIVE] 17:59:05.881  309663ms VERDICT S4 PASS normal recorded (see PHASE lines + external CPU/traffic)
+10-27 17:59:27.163  5123  5123 I flutter : [KEEP_ALIVE] 17:59:27.162  330944ms VERDICT S4 PASS B recorded (see PHASE lines + external CPU/traffic)
+10-27 17:59:51.217  5123  5123 I flutter : [KEEP_ALIVE] 17:59:51.216  354998ms VERDICT S4 PASS C recorded (see PHASE lines + external CPU/traffic)
+10-27 18:00:12.594  5123  5123 I flutter : [KEEP_ALIVE] 18:00:12.594  376376ms VERDICT S4 PASS D recorded (see PHASE lines + external CPU/traffic)
+10-27 18:00:33.820  5123  5123 I flutter : [KEEP_ALIVE] 18:00:33.820  397602ms VERDICT S4 PASS normal recorded (see PHASE lines + external CPU/traffic)
+10-27 18:00:55.277  5123  5123 I flutter : [KEEP_ALIVE] 18:00:55.277  419059ms VERDICT S4 PASS B recorded (see PHASE lines + external CPU/traffic)
+10-27 18:01:19.359  5123  5123 I flutter : [KEEP_ALIVE] 18:01:19.359  443141ms VERDICT S4 PASS C recorded (see PHASE lines + external CPU/traffic)
+10-27 18:01:40.811  5123  5123 I flutter : [KEEP_ALIVE] 18:01:40.811  464593ms VERDICT S4 PASS D recorded (see PHASE lines + external CPU/traffic)
+10-27 18:01:41.613  5123  5123 I flutter : [KEEP_ALIVE] 18:01:41.613  465395ms === SUMMARY (samples in ms) ===
+10-27 18:01:41.613  5123  5123 I flutter : [KEEP_ALIVE] 18:01:41.613  465395ms SUMMARY S5.driftMs values=[149,625,567] n=3 min=149 max=625 avg=447.0 median=567.0
+10-27 18:01:41.614  5123  5123 I flutter : [KEEP_ALIVE] 18:01:41.614  465395ms SUMMARY S5C.driftMs values=[2,43,5] n=3 min=2 max=43 avg=16.7 median=5.0
+10-27 18:01:41.614  5123  5123 I flutter : [KEEP_ALIVE] 18:01:41.614  465396ms SUMMARY S4 pass=12 fail=0
+10-27 18:01:41.614  5123  5123 I flutter : [KEEP_ALIVE] 18:01:41.614  465396ms SUMMARY S5 pass=3 fail=0
+10-27 18:01:41.614  5123  5123 I flutter : [KEEP_ALIVE] 18:01:41.614  465396ms SUMMARY S5C pass=3 fail=0
+10-27 18:01:41.614  5123  5123 I flutter : [KEEP_ALIVE] 18:01:41.614  465396ms AUTORUN DONE
 ```
 
 ## 开始 rerun-batch10-mute
@@ -11224,21 +11224,21 @@
 - driver exit=0；`{"selector": "mute|Q13A,Q13B,Q13C|5", "completed": true, "lines": 7921, "pid": "5126"}`。
 - 日志：`example/tool/coverage_evidence/rerun-batch10-mute.log`；截图/系统读回/采样同前缀。
 ```text
-10-27 18:02:02.154  5126  5126 I flutter : [Q13] 18:02:02.154   16106ms VERDICT Q13A PASS warming: active(k1).mute=no shadow(k2).mute=yes swapped=true committed(live k2).mute=no
-10-27 18:02:18.741  5126  5126 I flutter : [Q13] 18:02:18.741   32693ms VERDICT Q13A PASS warming: active(k1).mute=no shadow(k2).mute=yes swapped=true committed(live k2).mute=no
-10-27 18:02:35.005  5126  5126 I flutter : [Q13] 18:02:35.005   48956ms VERDICT Q13A PASS warming: active(k1).mute=no shadow(k2).mute=yes swapped=true committed(live k2).mute=no
-10-27 18:02:51.318  5126  5126 I flutter : [Q13] 18:02:51.318   65270ms VERDICT Q13A PASS warming: active(k1).mute=no shadow(k2).mute=yes swapped=true committed(live k2).mute=no
-10-27 18:03:07.730  5126  5126 I flutter : [Q13] 18:03:07.730   81682ms VERDICT Q13A PASS warming: active(k1).mute=no shadow(k2).mute=yes swapped=true committed(live k2).mute=no
-10-27 18:03:30.901  5126  5126 I flutter : [Q13] 18:03:30.901  104853ms VERDICT Q13B PASS shadow.mute while warming=yes swapped=true committed(live k2).mute=yes live.vid=no keepAlive=holding afterWake.mute=no
-10-27 18:03:54.181  5126  5126 I flutter : [Q13] 18:03:54.181  128133ms VERDICT Q13B PASS shadow.mute while warming=yes swapped=true committed(live k2).mute=yes live.vid=no keepAlive=holding afterWake.mute=no
-10-27 18:04:17.688  5126  5126 I flutter : [Q13] 18:04:17.688  151640ms VERDICT Q13B PASS shadow.mute while warming=yes swapped=true committed(live k2).mute=yes live.vid=no keepAlive=holding afterWake.mute=no
-10-27 18:04:41.313  5126  5126 I flutter : [Q13] 18:04:41.313  175265ms VERDICT Q13B PASS shadow.mute while warming=yes swapped=true committed(live k2).mute=yes live.vid=no keepAlive=holding afterWake.mute=no
-10-27 18:05:04.464  5126  5126 I flutter : [Q13] 18:05:04.464  198415ms VERDICT Q13B PASS shadow.mute while warming=yes swapped=true committed(live k2).mute=yes live.vid=no keepAlive=holding afterWake.mute=no
-10-27 18:05:20.910  5126  5126 I flutter : [Q13] 18:05:20.910  214862ms VERDICT Q13C PASS shadow.mute while warming=yes swapped=true committed(live k2).mute=no shadow.mute after wake=yes
-10-27 18:05:37.368  5126  5126 I flutter : [Q13] 18:05:37.368  231320ms VERDICT Q13C PASS shadow.mute while warming=yes swapped=true committed(live k2).mute=no shadow.mute after wake=yes
-10-27 18:05:53.593  5126  5126 I flutter : [Q13] 18:05:53.593  247545ms VERDICT Q13C PASS shadow.mute while warming=yes swapped=true committed(live k2).mute=no shadow.mute after wake=yes
-10-27 18:06:09.446  5126  5126 I flutter : [Q13] 18:06:09.446  263398ms VERDICT Q13C PASS shadow.mute while warming=yes swapped=true committed(live k2).mute=no shadow.mute after wake=yes
-10-27 18:06:23.903  5126  5126 I flutter : [Q13] 18:06:23.903  277854ms VERDICT Q13C PASS shadow.mute while warming=yes swapped=true committed(live k2).mute=no shadow.mute after wake=yes
+10-27 18:02:02.154  5126  5126 I flutter : [Q13] 18:02:02.154   16106ms VERDICT Q13A PASS warming: active(k1).mute=no shadow(k2).mute=yes cutover=true committed(live k2).mute=no
+10-27 18:02:18.741  5126  5126 I flutter : [Q13] 18:02:18.741   32693ms VERDICT Q13A PASS warming: active(k1).mute=no shadow(k2).mute=yes cutover=true committed(live k2).mute=no
+10-27 18:02:35.005  5126  5126 I flutter : [Q13] 18:02:35.005   48956ms VERDICT Q13A PASS warming: active(k1).mute=no shadow(k2).mute=yes cutover=true committed(live k2).mute=no
+10-27 18:02:51.318  5126  5126 I flutter : [Q13] 18:02:51.318   65270ms VERDICT Q13A PASS warming: active(k1).mute=no shadow(k2).mute=yes cutover=true committed(live k2).mute=no
+10-27 18:03:07.730  5126  5126 I flutter : [Q13] 18:03:07.730   81682ms VERDICT Q13A PASS warming: active(k1).mute=no shadow(k2).mute=yes cutover=true committed(live k2).mute=no
+10-27 18:03:30.901  5126  5126 I flutter : [Q13] 18:03:30.901  104853ms VERDICT Q13B PASS shadow.mute while warming=yes cutover=true committed(live k2).mute=yes live.vid=no keepAlive=holding afterWake.mute=no
+10-27 18:03:54.181  5126  5126 I flutter : [Q13] 18:03:54.181  128133ms VERDICT Q13B PASS shadow.mute while warming=yes cutover=true committed(live k2).mute=yes live.vid=no keepAlive=holding afterWake.mute=no
+10-27 18:04:17.688  5126  5126 I flutter : [Q13] 18:04:17.688  151640ms VERDICT Q13B PASS shadow.mute while warming=yes cutover=true committed(live k2).mute=yes live.vid=no keepAlive=holding afterWake.mute=no
+10-27 18:04:41.313  5126  5126 I flutter : [Q13] 18:04:41.313  175265ms VERDICT Q13B PASS shadow.mute while warming=yes cutover=true committed(live k2).mute=yes live.vid=no keepAlive=holding afterWake.mute=no
+10-27 18:05:04.464  5126  5126 I flutter : [Q13] 18:05:04.464  198415ms VERDICT Q13B PASS shadow.mute while warming=yes cutover=true committed(live k2).mute=yes live.vid=no keepAlive=holding afterWake.mute=no
+10-27 18:05:20.910  5126  5126 I flutter : [Q13] 18:05:20.910  214862ms VERDICT Q13C PASS shadow.mute while warming=yes cutover=true committed(live k2).mute=no shadow.mute after wake=yes
+10-27 18:05:37.368  5126  5126 I flutter : [Q13] 18:05:37.368  231320ms VERDICT Q13C PASS shadow.mute while warming=yes cutover=true committed(live k2).mute=no shadow.mute after wake=yes
+10-27 18:05:53.593  5126  5126 I flutter : [Q13] 18:05:53.593  247545ms VERDICT Q13C PASS shadow.mute while warming=yes cutover=true committed(live k2).mute=no shadow.mute after wake=yes
+10-27 18:06:09.446  5126  5126 I flutter : [Q13] 18:06:09.446  263398ms VERDICT Q13C PASS shadow.mute while warming=yes cutover=true committed(live k2).mute=no shadow.mute after wake=yes
+10-27 18:06:23.903  5126  5126 I flutter : [Q13] 18:06:23.903  277854ms VERDICT Q13C PASS shadow.mute while warming=yes cutover=true committed(live k2).mute=no shadow.mute after wake=yes
 10-27 18:06:24.987  5126  5126 I flutter : [Q13] 18:06:24.987  278939ms SUMMARY Q13A pass=5 fail=0
 10-27 18:06:24.988  5126  5126 I flutter : [Q13] 18:06:24.988  278939ms SUMMARY Q13B pass=5 fail=0
 10-27 18:06:24.988  5126  5126 I flutter : [Q13] 18:06:24.988  278939ms SUMMARY Q13C pass=5 fail=0
@@ -11258,31 +11258,31 @@
 10-27 18:06:30.949  8701  8701 I flutter : RFV2|1793095590949|START|group=all win=1080x2376 padTop=110 viewPadTop=110 viewPadBot=0
 10-27 18:06:30.949  8701  8701 I flutter : RFV2|1793095590949|GROUP|begin v10
 10-27 18:06:33.865  8701  8701 I flutter : RFV2|1793095593865|V10|run1 before: fs=true ori=auto video=640x360 epoch=0 win=2266x1080 padTop=0 viewPadTop=0 viewPadBot=0
-10-27 18:06:33.866  8701  8701 I flutter : RFV2|1793095593866|SAMPLE|V10_run1_before_swap
-10-27 18:06:36.068  8701  8701 I flutter : RFV2|1793095596068|WIN|V10_run1_before_swap 2266x1080 padTop=0 viewPadTop=0 viewPadBot=0
+10-27 18:06:33.866  8701  8701 I flutter : RFV2|1793095593866|SAMPLE|V10_run1_before_cutover
+10-27 18:06:36.068  8701  8701 I flutter : RFV2|1793095596068|WIN|V10_run1_before_cutover 2266x1080 padTop=0 viewPadTop=0 viewPadBot=0
 10-27 18:06:38.318  8701  8701 I flutter : RFV2|1793095598318|V10|run1 cutoverTo=true in 1048ms; successor fs=true ori=auto title=B epoch=1 landscape=true immersive=true
-10-27 18:06:38.318  8701  8701 I flutter : RFV2|1793095598318|SAMPLE|V10_run1_after_swap
-10-27 18:06:40.520  8701  8701 I flutter : RFV2|1793095600520|WIN|V10_run1_after_swap 2266x1080 padTop=0 viewPadTop=0 viewPadBot=0
+10-27 18:06:38.318  8701  8701 I flutter : RFV2|1793095598318|SAMPLE|V10_run1_after_cutover
+10-27 18:06:40.520  8701  8701 I flutter : RFV2|1793095600520|WIN|V10_run1_after_cutover 2266x1080 padTop=0 viewPadTop=0 viewPadBot=0
 10-27 18:06:41.943  8701  8701 I flutter : RFV2|1793095601943|V10|run1 after dispose: landscape=true immersive=false
 10-27 18:06:41.943  8701  8701 I flutter : RFV2|1793095601943|SAMPLE|V10_run1_after_dispose
 10-27 18:06:44.146  8701  8701 I flutter : RFV2|1793095604146|WIN|V10_run1_after_dispose 2266x1080 padTop=110 viewPadTop=110 viewPadBot=0
 10-27 18:06:44.148  8701  8701 I flutter : RFV2|1793095604147|RESULT|V10|run1|FAIL|preFsLandscapeImmersive=true cutoverTo=true successorFs=true landscapeAfterCutover=true immersiveAfterCutover=true restoredPortrait=false barsRestored=true
 10-27 18:06:47.312  8701  8701 I flutter : RFV2|1793095607312|V10|run2 before: fs=true ori=auto video=640x360 epoch=0 win=2266x1080 padTop=0 viewPadTop=0 viewPadBot=0
-10-27 18:06:47.313  8701  8701 I flutter : RFV2|1793095607313|SAMPLE|V10_run2_before_swap
-10-27 18:06:49.515  8701  8701 I flutter : RFV2|1793095609515|WIN|V10_run2_before_swap 2266x1080 padTop=0 viewPadTop=0 viewPadBot=0
+10-27 18:06:47.313  8701  8701 I flutter : RFV2|1793095607313|SAMPLE|V10_run2_before_cutover
+10-27 18:06:49.515  8701  8701 I flutter : RFV2|1793095609515|WIN|V10_run2_before_cutover 2266x1080 padTop=0 viewPadTop=0 viewPadBot=0
 10-27 18:06:51.588  8701  8701 I flutter : RFV2|1793095611588|V10|run2 cutoverTo=true in 871ms; successor fs=true ori=auto title=B epoch=1 landscape=true immersive=true
-10-27 18:06:51.588  8701  8701 I flutter : RFV2|1793095611588|SAMPLE|V10_run2_after_swap
-10-27 18:06:53.792  8701  8701 I flutter : RFV2|1793095613792|WIN|V10_run2_after_swap 2266x1080 padTop=0 viewPadTop=0 viewPadBot=0
+10-27 18:06:51.588  8701  8701 I flutter : RFV2|1793095611588|SAMPLE|V10_run2_after_cutover
+10-27 18:06:53.792  8701  8701 I flutter : RFV2|1793095613792|WIN|V10_run2_after_cutover 2266x1080 padTop=0 viewPadTop=0 viewPadBot=0
 10-27 18:06:55.221  8701  8701 I flutter : RFV2|1793095615221|V10|run2 after dispose: landscape=true immersive=false
 10-27 18:06:55.222  8701  8701 I flutter : RFV2|1793095615222|SAMPLE|V10_run2_after_dispose
 10-27 18:06:57.424  8701  8701 I flutter : RFV2|1793095617424|WIN|V10_run2_after_dispose 2266x1080 padTop=110 viewPadTop=110 viewPadBot=0
 10-27 18:06:57.425  8701  8701 I flutter : RFV2|1793095617425|RESULT|V10|run2|FAIL|preFsLandscapeImmersive=true cutoverTo=true successorFs=true landscapeAfterCutover=true immersiveAfterCutover=true restoredPortrait=false barsRestored=true
 10-27 18:07:00.890  8701  8701 I flutter : RFV2|1793095620890|V10|run3 before: fs=true ori=auto video=640x360 epoch=0 win=2266x1080 padTop=0 viewPadTop=0 viewPadBot=0
-10-27 18:07:00.890  8701  8701 I flutter : RFV2|1793095620890|SAMPLE|V10_run3_before_swap
-10-27 18:07:03.092  8701  8701 I flutter : RFV2|1793095623092|WIN|V10_run3_before_swap 2266x1080 padTop=0 viewPadTop=0 viewPadBot=0
+10-27 18:07:00.890  8701  8701 I flutter : RFV2|1793095620890|SAMPLE|V10_run3_before_cutover
+10-27 18:07:03.092  8701  8701 I flutter : RFV2|1793095623092|WIN|V10_run3_before_cutover 2266x1080 padTop=0 viewPadTop=0 viewPadBot=0
 10-27 18:07:05.195  8701  8701 I flutter : RFV2|1793095625195|V10|run3 cutoverTo=true in 901ms; successor fs=true ori=auto title=B epoch=1 landscape=true immersive=true
-10-27 18:07:05.196  8701  8701 I flutter : RFV2|1793095625195|SAMPLE|V10_run3_after_swap
-10-27 18:07:07.397  8701  8701 I flutter : RFV2|1793095627397|WIN|V10_run3_after_swap 2266x1080 padTop=0 viewPadTop=0 viewPadBot=0
+10-27 18:07:05.196  8701  8701 I flutter : RFV2|1793095625195|SAMPLE|V10_run3_after_cutover
+10-27 18:07:07.397  8701  8701 I flutter : RFV2|1793095627397|WIN|V10_run3_after_cutover 2266x1080 padTop=0 viewPadTop=0 viewPadBot=0
 10-27 18:07:08.883  8701  8701 I flutter : RFV2|1793095628883|V10|run3 after dispose: landscape=true immersive=false
 10-27 18:07:08.883  8701  8701 I flutter : RFV2|1793095628883|SAMPLE|V10_run3_after_dispose
 10-27 18:07:11.086  8701  8701 I flutter : RFV2|1793095631085|WIN|V10_run3_after_dispose 2266x1080 padTop=110 viewPadTop=110 viewPadBot=0
@@ -11290,21 +11290,21 @@
 10-27 18:07:11.087  8701  8701 I flutter : RFV2|1793095631087|GROUP|end v10 uncaught=0
 10-27 18:07:11.087  8701  8701 I flutter : RFV2|1793095631087|GROUP|begin v10x
 10-27 18:07:14.585  8701  8701 I flutter : RFV2|1793095634585|V10x|run1 before: fs=true ori=auto video=640x360 epoch=0 win=2266x1080 padTop=0 viewPadTop=0 viewPadBot=0
-10-27 18:07:14.585  8701  8701 I flutter : RFV2|1793095634585|SAMPLE|V10x_run1_before_swap
-10-27 18:07:16.787  8701  8701 I flutter : RFV2|1793095636787|WIN|V10x_run1_before_swap 2266x1080 padTop=0 viewPadTop=0 viewPadBot=0
+10-27 18:07:14.585  8701  8701 I flutter : RFV2|1793095634585|SAMPLE|V10x_run1_before_cutover
+10-27 18:07:16.787  8701  8701 I flutter : RFV2|1793095636787|WIN|V10x_run1_before_cutover 2266x1080 padTop=0 viewPadTop=0 viewPadBot=0
 10-27 18:07:18.824  8701  8701 I flutter : RFV2|1793095638824|V10x|run1 cutoverTo=true in 835ms; successor fs=true ori=auto title=B epoch=1 landscape=true immersive=true
-10-27 18:07:18.824  8701  8701 I flutter : RFV2|1793095638824|SAMPLE|V10x_run1_after_swap
-10-27 18:07:21.025  8701  8701 I flutter : RFV2|1793095641025|WIN|V10x_run1_after_swap 2266x1080 padTop=0 viewPadTop=0 viewPadBot=0
+10-27 18:07:18.824  8701  8701 I flutter : RFV2|1793095638824|SAMPLE|V10x_run1_after_cutover
+10-27 18:07:21.025  8701  8701 I flutter : RFV2|1793095641025|WIN|V10x_run1_after_cutover 2266x1080 padTop=0 viewPadTop=0 viewPadBot=0
 10-27 18:07:22.239  8701  8701 I flutter : RFV2|1793095642239|V10x|run1 after setFullscreen(false): fs=false landscape=true immersive=false
 10-27 18:07:22.240  8701  8701 I flutter : RFV2|1793095642239|SAMPLE|V10x_run1_after_exit
 10-27 18:07:24.441  8701  8701 I flutter : RFV2|1793095644441|WIN|V10x_run1_after_exit 2266x1080 padTop=110 viewPadTop=110 viewPadBot=0
 10-27 18:07:24.706  8701  8701 I flutter : RFV2|1793095644706|RESULT|V10x|run1|FAIL|preFsLandscapeImmersive=true cutoverTo=true successorFs=true landscapeAfterCutover=true immersiveAfterCutover=true restoredPortrait=false barsRestored=true
 10-27 18:07:28.036  8701  8701 I flutter : RFV2|1793095648036|V10x|run2 before: fs=true ori=auto video=640x360 epoch=0 win=2266x1080 padTop=0 viewPadTop=0 viewPadBot=0
-10-27 18:07:28.036  8701  8701 I flutter : RFV2|1793095648036|SAMPLE|V10x_run2_before_swap
-10-27 18:07:30.242  8701  8701 I flutter : RFV2|1793095650242|WIN|V10x_run2_before_swap 2266x1080 padTop=0 viewPadTop=0 viewPadBot=0
+10-27 18:07:28.036  8701  8701 I flutter : RFV2|1793095648036|SAMPLE|V10x_run2_before_cutover
+10-27 18:07:30.242  8701  8701 I flutter : RFV2|1793095650242|WIN|V10x_run2_before_cutover 2266x1080 padTop=0 viewPadTop=0 viewPadBot=0
 10-27 18:07:32.496  8701  8701 I flutter : RFV2|1793095652496|V10x|run2 cutoverTo=true in 1051ms; successor fs=true ori=auto title=B epoch=1 landscape=true immersive=true
-10-27 18:07:32.496  8701  8701 I flutter : RFV2|1793095652496|SAMPLE|V10x_run2_after_swap
-10-27 18:07:34.698  8701  8701 I flutter : RFV2|1793095654698|WIN|V10x_run2_after_swap 2266x1080 padTop=0 viewPadTop=0 viewPadBot=0
+10-27 18:07:32.496  8701  8701 I flutter : RFV2|1793095652496|SAMPLE|V10x_run2_after_cutover
+10-27 18:07:34.698  8701  8701 I flutter : RFV2|1793095654698|WIN|V10x_run2_after_cutover 2266x1080 padTop=0 viewPadTop=0 viewPadBot=0
 10-27 18:07:35.910  8701  8701 I flutter : RFV2|1793095655910|V10x|run2 after setFullscreen(false): fs=false landscape=true immersive=false
 10-27 18:07:35.910  8701  8701 I flutter : RFV2|1793095655910|SAMPLE|V10x_run2_after_exit
 10-27 18:07:38.111  8701  8701 I flutter : RFV2|1793095658111|WIN|V10x_run2_after_exit 2266x1080 padTop=110 viewPadTop=110 viewPadBot=0
@@ -11317,46 +11317,46 @@
 10-27 18:07:45.120  8701  8701 I flutter : RFV2|1793095665120|V10c|run1 after plain dispose of E1: landscape=true immersive=false e2.fs=true
 10-27 18:07:45.121  8701  8701 I flutter : RFV2|1793095665121|SAMPLE|V10c_run1_after_plain_dispose
 10-27 18:07:47.324  8701  8701 I flutter : RFV2|1793095667324|WIN|V10c_run1_after_plain_dispose 2266x1080 padTop=110 viewPadTop=110 viewPadBot=0
-10-27 18:07:47.325  8701  8701 I flutter : RFV2|1793095667325|RESULT|V10c|run1|PASS|baselineFsOk=true platformResetByPlainDispose=true (PASS 表示"确认旧引擎普通 dispose 会复位", 即退役标记确有必要)
+10-27 18:07:47.325  8701  8701 I flutter : RFV2|1793095667325|RESULT|V10c|run1|PASS|baselineFsOk=true platformResetByPlainDispose=true (PASS 表示"确认旧播放器普通 dispose 会复位", 即退役标记确有必要)
 10-27 18:07:51.523  8701  8701 I flutter : RFV2|1793095671523|V10c|run2 before plain dispose of E1: landscape=true immersive=true e2.fs=true
 10-27 18:07:51.524  8701  8701 I flutter : RFV2|1793095671524|SAMPLE|V10c_run2_before
 10-27 18:07:53.725  8701  8701 I flutter : RFV2|1793095673725|WIN|V10c_run2_before 2266x1080 padTop=0 viewPadTop=0 viewPadBot=0
 10-27 18:07:55.026  8701  8701 I flutter : RFV2|1793095675025|V10c|run2 after plain dispose of E1: landscape=true immersive=false e2.fs=true
 10-27 18:07:55.026  8701  8701 I flutter : RFV2|1793095675026|SAMPLE|V10c_run2_after_plain_dispose
 10-27 18:07:57.227  8701  8701 I flutter : RFV2|1793095677227|WIN|V10c_run2_after_plain_dispose 2266x1080 padTop=110 viewPadTop=110 viewPadBot=0
-10-27 18:07:57.227  8701  8701 I flutter : RFV2|1793095677227|RESULT|V10c|run2|PASS|baselineFsOk=true platformResetByPlainDispose=true (PASS 表示"确认旧引擎普通 dispose 会复位", 即退役标记确有必要)
+10-27 18:07:57.227  8701  8701 I flutter : RFV2|1793095677227|RESULT|V10c|run2|PASS|baselineFsOk=true platformResetByPlainDispose=true (PASS 表示"确认旧播放器普通 dispose 会复位", 即退役标记确有必要)
 10-27 18:07:58.300  8701  8701 I flutter : RFV2|1793095678300|GROUP|end v10c uncaught=0
 10-27 18:07:58.301  8701  8701 I flutter : RFV2|1793095678300|GROUP|begin v11
 10-27 18:08:01.677  8701  8701 I flutter : RFV2|1793095681677|V11|run1 before: fs=false ori=landscape landscape=true win=2266x1080 padTop=110 viewPadTop=110 viewPadBot=0
-10-27 18:08:01.677  8701  8701 I flutter : RFV2|1793095681677|SAMPLE|V11_run1_before_swap
-10-27 18:08:03.878  8701  8701 I flutter : RFV2|1793095683878|WIN|V11_run1_before_swap 2266x1080 padTop=110 viewPadTop=110 viewPadBot=0
+10-27 18:08:01.677  8701  8701 I flutter : RFV2|1793095681677|SAMPLE|V11_run1_before_cutover
+10-27 18:08:03.878  8701  8701 I flutter : RFV2|1793095683878|WIN|V11_run1_before_cutover 2266x1080 padTop=110 viewPadTop=110 viewPadBot=0
 10-27 18:08:05.935  8701  8701 I flutter : RFV2|1793095685935|V11|run1 cutoverTo=true successor ori=landscape fs=false title=B landscape=true
-10-27 18:08:05.935  8701  8701 I flutter : RFV2|1793095685935|SAMPLE|V11_run1_after_swap
-10-27 18:08:08.138  8701  8701 I flutter : RFV2|1793095688138|WIN|V11_run1_after_swap 2266x1080 padTop=110 viewPadTop=110 viewPadBot=0
+10-27 18:08:05.935  8701  8701 I flutter : RFV2|1793095685935|SAMPLE|V11_run1_after_cutover
+10-27 18:08:08.138  8701  8701 I flutter : RFV2|1793095688138|WIN|V11_run1_after_cutover 2266x1080 padTop=110 viewPadTop=110 viewPadBot=0
 10-27 18:08:09.540  8701  8701 I flutter : RFV2|1793095689540|V11|run1 after dispose: landscape=true
 10-27 18:08:09.541  8701  8701 I flutter : RFV2|1793095689540|SAMPLE|V11_run1_after_dispose
 10-27 18:08:11.743  8701  8701 I flutter : RFV2|1793095691743|WIN|V11_run1_after_dispose 2266x1080 padTop=110 viewPadTop=110 viewPadBot=0
-10-27 18:08:11.745  8701  8701 I flutter : RFV2|1793095691745|RESULT|V11|run1|FAIL|preLandscape=true cutoverTo=true successorOrientation=landscape landscapeAfterCutover=true restoredPortrait=false
+10-27 18:08:11.745  8701  8701 I flutter : RFV2|1793095691745|RESULT|V11|run1|FAIL|preLandscape=true cutoverTo=true successorOrient=landscape landscapeAfterCutover=true restoredPortrait=false
 10-27 18:08:15.205  8701  8701 I flutter : RFV2|1793095695205|V11|run2 before: fs=false ori=landscape landscape=true win=2266x1080 padTop=110 viewPadTop=110 viewPadBot=0
-10-27 18:08:15.205  8701  8701 I flutter : RFV2|1793095695205|SAMPLE|V11_run2_before_swap
-10-27 18:08:17.408  8701  8701 I flutter : RFV2|1793095697408|WIN|V11_run2_before_swap 2266x1080 padTop=110 viewPadTop=110 viewPadBot=0
+10-27 18:08:15.205  8701  8701 I flutter : RFV2|1793095695205|SAMPLE|V11_run2_before_cutover
+10-27 18:08:17.408  8701  8701 I flutter : RFV2|1793095697408|WIN|V11_run2_before_cutover 2266x1080 padTop=110 viewPadTop=110 viewPadBot=0
 10-27 18:08:19.489  8701  8701 I flutter : RFV2|1793095699489|V11|run2 cutoverTo=true successor ori=landscape fs=false title=B landscape=true
-10-27 18:08:19.489  8701  8701 I flutter : RFV2|1793095699489|SAMPLE|V11_run2_after_swap
-10-27 18:08:21.690  8701  8701 I flutter : RFV2|1793095701690|WIN|V11_run2_after_swap 2266x1080 padTop=110 viewPadTop=110 viewPadBot=0
+10-27 18:08:19.489  8701  8701 I flutter : RFV2|1793095699489|SAMPLE|V11_run2_after_cutover
+10-27 18:08:21.690  8701  8701 I flutter : RFV2|1793095701690|WIN|V11_run2_after_cutover 2266x1080 padTop=110 viewPadTop=110 viewPadBot=0
 10-27 18:08:23.164  8701  8701 I flutter : RFV2|1793095703164|V11|run2 after dispose: landscape=true
 10-27 18:08:23.165  8701  8701 I flutter : RFV2|1793095703164|SAMPLE|V11_run2_after_dispose
 10-27 18:08:25.368  8701  8701 I flutter : RFV2|1793095705367|WIN|V11_run2_after_dispose 2266x1080 padTop=110 viewPadTop=110 viewPadBot=0
-10-27 18:08:25.369  8701  8701 I flutter : RFV2|1793095705369|RESULT|V11|run2|FAIL|preLandscape=true cutoverTo=true successorOrientation=landscape landscapeAfterCutover=true restoredPortrait=false
+10-27 18:08:25.369  8701  8701 I flutter : RFV2|1793095705369|RESULT|V11|run2|FAIL|preLandscape=true cutoverTo=true successorOrient=landscape landscapeAfterCutover=true restoredPortrait=false
 10-27 18:08:28.474  8701  8701 I flutter : RFV2|1793095708474|V11|run3 before: fs=false ori=landscape landscape=true win=2266x1080 padTop=110 viewPadTop=110 viewPadBot=0
-10-27 18:08:28.474  8701  8701 I flutter : RFV2|1793095708474|SAMPLE|V11_run3_before_swap
-10-27 18:08:30.675  8701  8701 I flutter : RFV2|1793095710675|WIN|V11_run3_before_swap 2266x1080 padTop=110 viewPadTop=110 viewPadBot=0
+10-27 18:08:28.474  8701  8701 I flutter : RFV2|1793095708474|SAMPLE|V11_run3_before_cutover
+10-27 18:08:30.675  8701  8701 I flutter : RFV2|1793095710675|WIN|V11_run3_before_cutover 2266x1080 padTop=110 viewPadTop=110 viewPadBot=0
 10-27 18:08:32.763  8701  8701 I flutter : RFV2|1793095712763|V11|run3 cutoverTo=true successor ori=landscape fs=false title=B landscape=true
-10-27 18:08:32.764  8701  8701 I flutter : RFV2|1793095712764|SAMPLE|V11_run3_after_swap
-10-27 18:08:34.965  8701  8701 I flutter : RFV2|1793095714965|WIN|V11_run3_after_swap 2266x1080 padTop=110 viewPadTop=110 viewPadBot=0
+10-27 18:08:32.764  8701  8701 I flutter : RFV2|1793095712764|SAMPLE|V11_run3_after_cutover
+10-27 18:08:34.965  8701  8701 I flutter : RFV2|1793095714965|WIN|V11_run3_after_cutover 2266x1080 padTop=110 viewPadTop=110 viewPadBot=0
 10-27 18:08:36.363  8701  8701 I flutter : RFV2|1793095716363|V11|run3 after dispose: landscape=true
 10-27 18:08:36.364  8701  8701 I flutter : RFV2|1793095716364|SAMPLE|V11_run3_after_dispose
 10-27 18:08:38.566  8701  8701 I flutter : RFV2|1793095718566|WIN|V11_run3_after_dispose 2266x1080 padTop=110 viewPadTop=110 viewPadBot=0
-10-27 18:08:38.567  8701  8701 I flutter : RFV2|1793095718567|RESULT|V11|run3|FAIL|preLandscape=true cutoverTo=true successorOrientation=landscape landscapeAfterCutover=true restoredPortrait=false
+10-27 18:08:38.567  8701  8701 I flutter : RFV2|1793095718567|RESULT|V11|run3|FAIL|preLandscape=true cutoverTo=true successorOrient=landscape landscapeAfterCutover=true restoredPortrait=false
 10-27 18:08:38.567  8701  8701 I flutter : RFV2|1793095718567|GROUP|end v11 uncaught=0
 10-27 18:08:38.567  8701  8701 I flutter : RFV2|1793095718567|GROUP|begin v12
 10-27 18:08:38.713  8701  8701 I flutter : RFV2|1793095718713|V12|run1 st title=C epoch=0 rendered=false playing=true buffering=true phase=idle
@@ -11726,13 +11726,13 @@
 
 - 复用现有验证器，检查真实事件/状态/原生读回；命令：`python example/tool/rerun_batch.py coverage_widgets_ui.py`。完成后仅按实际证据回填编号。
 
-## rerun-batch16-engine 可视/API阶段检查点
+## rerun-batch16-mova 可视/API阶段检查点
 
 - 逐动作原始状态/事件及截图见同前缀；控件/手势断言：
 ```json
 [
   {
-    "id": "rerun-batch16-engine.fit.contain",
+    "id": "rerun-batch16-mova.fit.contain",
     "pass": true,
     "detail": {
       "playing": false,
@@ -11748,7 +11748,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -11770,7 +11770,7 @@
     }
   },
   {
-    "id": "rerun-batch16-engine.fit.cover",
+    "id": "rerun-batch16-mova.fit.cover",
     "pass": true,
     "detail": {
       "playing": false,
@@ -11786,7 +11786,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -11808,7 +11808,7 @@
     }
   },
   {
-    "id": "rerun-batch16-engine.fit.fill",
+    "id": "rerun-batch16-mova.fit.fill",
     "pass": true,
     "detail": {
       "playing": false,
@@ -11824,7 +11824,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -11846,7 +11846,7 @@
     }
   },
   {
-    "id": "rerun-batch16-engine.sticky",
+    "id": "rerun-batch16-mova.sticky",
     "pass": true,
     "detail": {
       "playing": false,
@@ -11862,7 +11862,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -11884,7 +11884,7 @@
     }
   },
   {
-    "id": "rerun-batch16-engine.autohide",
+    "id": "rerun-batch16-mova.autohide",
     "pass": true,
     "detail": {
       "playing": false,
@@ -11900,7 +11900,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -11922,7 +11922,7 @@
     }
   },
   {
-    "id": "rerun-batch16-engine.lock",
+    "id": "rerun-batch16-mova.lock",
     "pass": true,
     "detail": {
       "before": {
@@ -11939,7 +11939,7 @@
         "zoom": 1.0,
         "locked": true,
         "fullscreen": false,
-        "orientation": "auto",
+        "orient": "auto",
         "pip": false,
         "mini": false,
         "rendered": true,
@@ -11973,7 +11973,7 @@
         "zoom": 1.0,
         "locked": true,
         "fullscreen": false,
-        "orientation": "auto",
+        "orient": "auto",
         "pip": false,
         "mini": false,
         "rendered": true,
@@ -11996,7 +11996,7 @@
     }
   },
   {
-    "id": "rerun-batch16-engine.doubletap",
+    "id": "rerun-batch16-mova.doubletap",
     "pass": false,
     "detail": {
       "playing": false,
@@ -12012,7 +12012,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -12034,7 +12034,7 @@
     }
   },
   {
-    "id": "rerun-batch16-engine.leftBrightness",
+    "id": "rerun-batch16-mova.leftBrightness",
     "pass": true,
     "detail": {
       "playing": false,
@@ -12050,7 +12050,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -12072,7 +12072,7 @@
     }
   },
   {
-    "id": "rerun-batch16-engine.rightVolume",
+    "id": "rerun-batch16-mova.rightVolume",
     "pass": true,
     "detail": {
       "playing": false,
@@ -12088,7 +12088,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -12110,7 +12110,7 @@
     }
   },
   {
-    "id": "rerun-batch16-engine.horizontalSeek",
+    "id": "rerun-batch16-mova.horizontalSeek",
     "pass": true,
     "detail": {
       "playing": false,
@@ -12126,7 +12126,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -12148,7 +12148,7 @@
     }
   },
   {
-    "id": "rerun-batch16-engine.longpress",
+    "id": "rerun-batch16-mova.longpress",
     "pass": false,
     "detail": {
       "during": {
@@ -12165,7 +12165,7 @@
         "zoom": 1.0,
         "locked": false,
         "fullscreen": false,
-        "orientation": "auto",
+        "orient": "auto",
         "pip": false,
         "mini": false,
         "rendered": true,
@@ -12199,7 +12199,7 @@
         "zoom": 1.0,
         "locked": false,
         "fullscreen": false,
-        "orientation": "auto",
+        "orient": "auto",
         "pip": false,
         "mini": false,
         "rendered": true,
@@ -12222,7 +12222,7 @@
     }
   },
   {
-    "id": "rerun-batch16-engine.fullscreen.true",
+    "id": "rerun-batch16-mova.fullscreen.true",
     "pass": true,
     "detail": {
       "playing": false,
@@ -12238,7 +12238,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": true,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -12260,7 +12260,7 @@
     }
   },
   {
-    "id": "rerun-batch16-engine.fullscreen.false",
+    "id": "rerun-batch16-mova.fullscreen.false",
     "pass": true,
     "detail": {
       "playing": false,
@@ -12276,7 +12276,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -12298,7 +12298,7 @@
     }
   },
   {
-    "id": "rerun-batch16-engine.fitRebuild",
+    "id": "rerun-batch16-mova.fitRebuild",
     "pass": true,
     "detail": {
       "playing": false,
@@ -12314,7 +12314,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -12360,7 +12360,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -12398,7 +12398,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -12436,7 +12436,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -12474,7 +12474,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -12512,7 +12512,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -12551,7 +12551,7 @@
         "zoom": 1.0,
         "locked": true,
         "fullscreen": false,
-        "orientation": "auto",
+        "orient": "auto",
         "pip": false,
         "mini": false,
         "rendered": true,
@@ -12585,7 +12585,7 @@
         "zoom": 1.0,
         "locked": true,
         "fullscreen": false,
-        "orientation": "auto",
+        "orient": "auto",
         "pip": false,
         "mini": false,
         "rendered": true,
@@ -12624,7 +12624,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -12662,7 +12662,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -12700,7 +12700,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -12738,7 +12738,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -12777,7 +12777,7 @@
         "zoom": 1.0,
         "locked": false,
         "fullscreen": false,
-        "orientation": "auto",
+        "orient": "auto",
         "pip": false,
         "mini": false,
         "rendered": true,
@@ -12811,7 +12811,7 @@
         "zoom": 1.0,
         "locked": false,
         "fullscreen": false,
-        "orientation": "auto",
+        "orient": "auto",
         "pip": false,
         "mini": false,
         "rendered": true,
@@ -12850,7 +12850,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": true,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -12888,7 +12888,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -12926,7 +12926,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -12956,7 +12956,7 @@
 ```json
 [
   {
-    "id": "rerun-batch16-engine.fit.contain",
+    "id": "rerun-batch16-mova.fit.contain",
     "pass": true,
     "detail": {
       "playing": false,
@@ -12972,7 +12972,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -12994,7 +12994,7 @@
     }
   },
   {
-    "id": "rerun-batch16-engine.fit.cover",
+    "id": "rerun-batch16-mova.fit.cover",
     "pass": true,
     "detail": {
       "playing": false,
@@ -13010,7 +13010,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -13032,7 +13032,7 @@
     }
   },
   {
-    "id": "rerun-batch16-engine.fit.fill",
+    "id": "rerun-batch16-mova.fit.fill",
     "pass": true,
     "detail": {
       "playing": false,
@@ -13048,7 +13048,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -13070,7 +13070,7 @@
     }
   },
   {
-    "id": "rerun-batch16-engine.sticky",
+    "id": "rerun-batch16-mova.sticky",
     "pass": true,
     "detail": {
       "playing": false,
@@ -13086,7 +13086,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -13108,7 +13108,7 @@
     }
   },
   {
-    "id": "rerun-batch16-engine.autohide",
+    "id": "rerun-batch16-mova.autohide",
     "pass": true,
     "detail": {
       "playing": false,
@@ -13124,7 +13124,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -13146,7 +13146,7 @@
     }
   },
   {
-    "id": "rerun-batch16-engine.lock",
+    "id": "rerun-batch16-mova.lock",
     "pass": true,
     "detail": {
       "before": {
@@ -13163,7 +13163,7 @@
         "zoom": 1.0,
         "locked": true,
         "fullscreen": false,
-        "orientation": "auto",
+        "orient": "auto",
         "pip": false,
         "mini": false,
         "rendered": true,
@@ -13197,7 +13197,7 @@
         "zoom": 1.0,
         "locked": true,
         "fullscreen": false,
-        "orientation": "auto",
+        "orient": "auto",
         "pip": false,
         "mini": false,
         "rendered": true,
@@ -13220,7 +13220,7 @@
     }
   },
   {
-    "id": "rerun-batch16-engine.doubletap",
+    "id": "rerun-batch16-mova.doubletap",
     "pass": false,
     "detail": {
       "playing": false,
@@ -13236,7 +13236,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -13258,7 +13258,7 @@
     }
   },
   {
-    "id": "rerun-batch16-engine.leftBrightness",
+    "id": "rerun-batch16-mova.leftBrightness",
     "pass": true,
     "detail": {
       "playing": false,
@@ -13274,7 +13274,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -13296,7 +13296,7 @@
     }
   },
   {
-    "id": "rerun-batch16-engine.rightVolume",
+    "id": "rerun-batch16-mova.rightVolume",
     "pass": true,
     "detail": {
       "playing": false,
@@ -13312,7 +13312,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -13334,7 +13334,7 @@
     }
   },
   {
-    "id": "rerun-batch16-engine.horizontalSeek",
+    "id": "rerun-batch16-mova.horizontalSeek",
     "pass": true,
     "detail": {
       "playing": false,
@@ -13350,7 +13350,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -13372,7 +13372,7 @@
     }
   },
   {
-    "id": "rerun-batch16-engine.longpress",
+    "id": "rerun-batch16-mova.longpress",
     "pass": false,
     "detail": {
       "during": {
@@ -13389,7 +13389,7 @@
         "zoom": 1.0,
         "locked": false,
         "fullscreen": false,
-        "orientation": "auto",
+        "orient": "auto",
         "pip": false,
         "mini": false,
         "rendered": true,
@@ -13423,7 +13423,7 @@
         "zoom": 1.0,
         "locked": false,
         "fullscreen": false,
-        "orientation": "auto",
+        "orient": "auto",
         "pip": false,
         "mini": false,
         "rendered": true,
@@ -13446,7 +13446,7 @@
     }
   },
   {
-    "id": "rerun-batch16-engine.fullscreen.true",
+    "id": "rerun-batch16-mova.fullscreen.true",
     "pass": true,
     "detail": {
       "playing": false,
@@ -13462,7 +13462,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": true,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -13484,7 +13484,7 @@
     }
   },
   {
-    "id": "rerun-batch16-engine.fullscreen.false",
+    "id": "rerun-batch16-mova.fullscreen.false",
     "pass": true,
     "detail": {
       "playing": false,
@@ -13500,7 +13500,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -13522,7 +13522,7 @@
     }
   },
   {
-    "id": "rerun-batch16-engine.fitRebuild",
+    "id": "rerun-batch16-mova.fitRebuild",
     "pass": true,
     "detail": {
       "playing": false,
@@ -13538,7 +13538,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -13576,7 +13576,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -13614,7 +13614,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -13652,7 +13652,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -13690,7 +13690,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -13728,7 +13728,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -13767,7 +13767,7 @@
         "zoom": 1.0,
         "locked": true,
         "fullscreen": false,
-        "orientation": "auto",
+        "orient": "auto",
         "pip": false,
         "mini": false,
         "rendered": true,
@@ -13801,7 +13801,7 @@
         "zoom": 1.0,
         "locked": true,
         "fullscreen": false,
-        "orientation": "auto",
+        "orient": "auto",
         "pip": false,
         "mini": false,
         "rendered": true,
@@ -13840,7 +13840,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -13878,7 +13878,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -13916,7 +13916,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -13954,7 +13954,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -13993,7 +13993,7 @@
         "zoom": 1.0,
         "locked": false,
         "fullscreen": false,
-        "orientation": "auto",
+        "orient": "auto",
         "pip": false,
         "mini": false,
         "rendered": true,
@@ -14027,7 +14027,7 @@
         "zoom": 1.0,
         "locked": false,
         "fullscreen": false,
-        "orientation": "auto",
+        "orient": "auto",
         "pip": false,
         "mini": false,
         "rendered": true,
@@ -14066,7 +14066,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": true,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -14104,7 +14104,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -14142,7 +14142,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -14180,7 +14180,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -14218,7 +14218,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -14439,7 +14439,7 @@
     "zoom": 1.0,
     "locked": false,
     "fullscreen": false,
-    "orientation": "auto",
+    "orient": "auto",
     "pip": false,
     "mini": false,
     "rendered": false,
@@ -14478,7 +14478,7 @@
     "zoom": 1.0,
     "locked": false,
     "fullscreen": false,
-    "orientation": "auto",
+    "orient": "auto",
     "pip": false,
     "mini": false,
     "rendered": true,
@@ -14517,7 +14517,7 @@
     "zoom": 1.0,
     "locked": false,
     "fullscreen": false,
-    "orientation": "auto",
+    "orient": "auto",
     "pip": false,
     "mini": false,
     "rendered": true,
@@ -14556,7 +14556,7 @@
     "zoom": 1.0,
     "locked": false,
     "fullscreen": false,
-    "orientation": "auto",
+    "orient": "auto",
     "pip": false,
     "mini": false,
     "rendered": true,
@@ -14703,7 +14703,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -14829,7 +14829,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": false,
@@ -14891,7 +14891,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": false,
@@ -15139,7 +15139,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -15191,7 +15191,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -15243,7 +15243,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -15295,7 +15295,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": true,
@@ -15450,7 +15450,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": false,
@@ -15606,7 +15606,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": false,
@@ -15762,7 +15762,7 @@
       "zoom": 1.0,
       "locked": false,
       "fullscreen": false,
-      "orientation": "auto",
+      "orient": "auto",
       "pip": false,
       "mini": false,
       "rendered": false,
@@ -15814,7 +15814,7 @@
 
 ## 结束 rerun-live-0
 
-- seek后state={"playing": true, "intent": true, "buffering": false, "duration": 17998, "position": 3000, "size": "640x360", "volume": 75.0, "brightness": 1.0, "rate": 1.0, "fit": "contain", "zoom": 1.0, "locked": false, "fullscreen": false, "orientation": "auto", "pip": false, "mini": false, "rendered": true, "epoch": 0, "sourceIndex": 0, "keepAlive": "off", "quality": null, "qualities": [], "error": null, "type": "live", "title": null, "pipSupported": true, "controls": true, "hud": "none", "previewCurrent": null, "timeshiftBehind": 8000, "liveSeekable": true, "seekableWindow": 12000, "hudText": null, "dragging": false, "previewAt": null}；backEdge后state={"playing": true, "intent": true, "buffering": false, "duration": 20320, "position": 12000, "size": "640x360", "volume": 75.0, "brightness": 1.0, "rate": 1.0, "fit": "contain", "zoom": 1.0, "locked": false, "fullscreen": false, "orientation": "auto", "pip": false, "mini": false, "rendered": true, "epoch": 0, "sourceIndex": 0, "keepAlive": "off", "quality": null, "qualities": [], "error": null, "type": "live", "title": null, "pipSupported": true, "controls": true, "hud": "none", "previewCurrent": null, "timeshiftBehind": null, "liveSeekable": true, "seekableWindow": 12000, "hudText": null, "dragging": false, "previewAt": null}。原始事件/载荷见同前缀JSON。
+- seek后state={"playing": true, "intent": true, "buffering": false, "duration": 17998, "position": 3000, "size": "640x360", "volume": 75.0, "brightness": 1.0, "rate": 1.0, "fit": "contain", "zoom": 1.0, "locked": false, "fullscreen": false, "orient": "auto", "pip": false, "mini": false, "rendered": true, "epoch": 0, "sourceIndex": 0, "keepAlive": "off", "quality": null, "qualities": [], "error": null, "type": "live", "title": null, "pipSupported": true, "controls": true, "hud": "none", "previewCurrent": null, "timeshiftBehind": 8000, "liveSeekable": true, "seekableWindow": 12000, "hudText": null, "dragging": false, "previewAt": null}；backEdge后state={"playing": true, "intent": true, "buffering": false, "duration": 20320, "position": 12000, "size": "640x360", "volume": 75.0, "brightness": 1.0, "rate": 1.0, "fit": "contain", "zoom": 1.0, "locked": false, "fullscreen": false, "orient": "auto", "pip": false, "mini": false, "rendered": true, "epoch": 0, "sourceIndex": 0, "keepAlive": "off", "quality": null, "qualities": [], "error": null, "type": "live", "title": null, "pipSupported": true, "controls": true, "hud": "none", "previewCurrent": null, "timeshiftBehind": null, "liveSeekable": true, "seekableWindow": 12000, "hudText": null, "dragging": false, "previewAt": null}。原始事件/载荷见同前缀JSON。
 
 ## 开始 rerun-live-1
 
@@ -15822,7 +15822,7 @@
 
 ## 结束 rerun-live-1
 
-- seek后state={"playing": true, "intent": true, "buffering": false, "duration": 21978, "position": 3080, "size": "640x360", "volume": 75.0, "brightness": 1.0, "rate": 1.0, "fit": "contain", "zoom": 1.0, "locked": false, "fullscreen": false, "orientation": "auto", "pip": false, "mini": false, "rendered": true, "epoch": 0, "sourceIndex": 0, "keepAlive": "off", "quality": null, "qualities": [], "error": null, "type": "live", "title": null, "pipSupported": true, "controls": true, "hud": "none", "previewCurrent": null, "timeshiftBehind": 8000, "liveSeekable": true, "seekableWindow": 12000, "hudText": null, "dragging": false, "previewAt": null}；backEdge后state={"playing": true, "intent": true, "buffering": false, "duration": 23999, "position": 12000, "size": "640x360", "volume": 75.0, "brightness": 1.0, "rate": 1.0, "fit": "contain", "zoom": 1.0, "locked": false, "fullscreen": false, "orientation": "auto", "pip": false, "mini": false, "rendered": true, "epoch": 0, "sourceIndex": 0, "keepAlive": "off", "quality": null, "qualities": [], "error": null, "type": "live", "title": null, "pipSupported": true, "controls": true, "hud": "none", "previewCurrent": null, "timeshiftBehind": null, "liveSeekable": true, "seekableWindow": 12000, "hudText": null, "dragging": false, "previewAt": null}。原始事件/载荷见同前缀JSON。
+- seek后state={"playing": true, "intent": true, "buffering": false, "duration": 21978, "position": 3080, "size": "640x360", "volume": 75.0, "brightness": 1.0, "rate": 1.0, "fit": "contain", "zoom": 1.0, "locked": false, "fullscreen": false, "orient": "auto", "pip": false, "mini": false, "rendered": true, "epoch": 0, "sourceIndex": 0, "keepAlive": "off", "quality": null, "qualities": [], "error": null, "type": "live", "title": null, "pipSupported": true, "controls": true, "hud": "none", "previewCurrent": null, "timeshiftBehind": 8000, "liveSeekable": true, "seekableWindow": 12000, "hudText": null, "dragging": false, "previewAt": null}；backEdge后state={"playing": true, "intent": true, "buffering": false, "duration": 23999, "position": 12000, "size": "640x360", "volume": 75.0, "brightness": 1.0, "rate": 1.0, "fit": "contain", "zoom": 1.0, "locked": false, "fullscreen": false, "orient": "auto", "pip": false, "mini": false, "rendered": true, "epoch": 0, "sourceIndex": 0, "keepAlive": "off", "quality": null, "qualities": [], "error": null, "type": "live", "title": null, "pipSupported": true, "controls": true, "hud": "none", "previewCurrent": null, "timeshiftBehind": null, "liveSeekable": true, "seekableWindow": 12000, "hudText": null, "dragging": false, "previewAt": null}。原始事件/载荷见同前缀JSON。
 
 ## 开始 rerun-live-2
 
@@ -15830,7 +15830,7 @@
 
 ## 结束 rerun-live-2
 
-- seek后state={"playing": true, "intent": true, "buffering": false, "duration": 19988, "position": 3000, "size": "640x360", "volume": 75.0, "brightness": 1.0, "rate": 1.0, "fit": "contain", "zoom": 1.0, "locked": false, "fullscreen": false, "orientation": "auto", "pip": false, "mini": false, "rendered": true, "epoch": 0, "sourceIndex": 0, "keepAlive": "off", "quality": null, "qualities": [], "error": null, "type": "live", "title": null, "pipSupported": true, "controls": true, "hud": "none", "previewCurrent": null, "timeshiftBehind": 8000, "liveSeekable": true, "seekableWindow": 12000, "hudText": null, "dragging": false, "previewAt": null}；backEdge后state={"playing": true, "intent": true, "buffering": true, "duration": 19988, "position": 12000, "size": "640x360", "volume": 75.0, "brightness": 1.0, "rate": 1.0, "fit": "contain", "zoom": 1.0, "locked": false, "fullscreen": false, "orientation": "auto", "pip": false, "mini": false, "rendered": true, "epoch": 0, "sourceIndex": 0, "keepAlive": "off", "quality": null, "qualities": [], "error": null, "type": "live", "title": null, "pipSupported": true, "controls": true, "hud": "none", "previewCurrent": null, "timeshiftBehind": null, "liveSeekable": true, "seekableWindow": 12000, "hudText": null, "dragging": false, "previewAt": null}。原始事件/载荷见同前缀JSON。
+- seek后state={"playing": true, "intent": true, "buffering": false, "duration": 19988, "position": 3000, "size": "640x360", "volume": 75.0, "brightness": 1.0, "rate": 1.0, "fit": "contain", "zoom": 1.0, "locked": false, "fullscreen": false, "orient": "auto", "pip": false, "mini": false, "rendered": true, "epoch": 0, "sourceIndex": 0, "keepAlive": "off", "quality": null, "qualities": [], "error": null, "type": "live", "title": null, "pipSupported": true, "controls": true, "hud": "none", "previewCurrent": null, "timeshiftBehind": 8000, "liveSeekable": true, "seekableWindow": 12000, "hudText": null, "dragging": false, "previewAt": null}；backEdge后state={"playing": true, "intent": true, "buffering": true, "duration": 19988, "position": 12000, "size": "640x360", "volume": 75.0, "brightness": 1.0, "rate": 1.0, "fit": "contain", "zoom": 1.0, "locked": false, "fullscreen": false, "orient": "auto", "pip": false, "mini": false, "rendered": true, "epoch": 0, "sourceIndex": 0, "keepAlive": "off", "quality": null, "qualities": [], "error": null, "type": "live", "title": null, "pipSupported": true, "controls": true, "hud": "none", "previewCurrent": null, "timeshiftBehind": null, "liveSeekable": true, "seekableWindow": 12000, "hudText": null, "dragging": false, "previewAt": null}。原始事件/载荷见同前缀JSON。
 
 ## 结束 live-inputs
 
@@ -15840,11 +15840,11 @@
 
 - 命令：`python example/tool/rerun_native_inputs.py`。补齐编号剩余子项；按真实状态/事件判断。
 
-## 开始 rerun-native-engine
+## 开始 rerun-native-mova
 
 - 逐个音量边界读回Android媒体音量；在非audioOnly画面尺寸就绪后立即读open同步状态，补齐A8/A5/N12。
 
-## 结束 rerun-native-engine
+## 结束 rerun-native-mova
 
 - 同前缀JSON中VIDEO_OPEN_BEFORE/VIDEO_OPEN_SYNC/VIDEO_OPEN_ACCEPTED保存真实宽高；*.native.txt保存媒体音量读回，截图/window/audio旁证均保留。
 

@@ -63,27 +63,27 @@
     {
       "variant": "Q13A",
       "status": "PASS",
-      "detail": "warming: active(k0).mute=no shadow(k2).mute=yes swapped=true committed(live k2).mute=no | DIAGSUM contentDelay=3000ms target=3143ms firstPos=2815ms ready=3749ms gone=nullms"
+      "detail": "warming: active(k0).mute=no shadow(k2).mute=yes cutover=true committed(live k2).mute=no | DIAGSUM contentDelay=3000ms target=3143ms firstPos=2815ms ready=3749ms gone=nullms"
     },
     {
       "variant": "Q13A",
       "status": "PASS",
-      "detail": "warming: active(k0).mute=no shadow(k2).mute=yes swapped=true committed(live k2).mute=no | DIAGSUM contentDelay=3000ms target=3023ms firstPos=3562ms ready=3864ms gone=nullms"
+      "detail": "warming: active(k0).mute=no shadow(k2).mute=yes cutover=true committed(live k2).mute=no | DIAGSUM contentDelay=3000ms target=3023ms firstPos=3562ms ready=3864ms gone=nullms"
     },
     {
       "variant": "Q13A",
       "status": "PASS",
-      "detail": "warming: active(k0).mute=no shadow(k2).mute=yes swapped=true committed(live k2).mute=no | DIAGSUM contentDelay=3000ms target=3063ms firstPos=2849ms ready=3780ms gone=nullms"
+      "detail": "warming: active(k0).mute=no shadow(k2).mute=yes cutover=true committed(live k2).mute=no | DIAGSUM contentDelay=3000ms target=3063ms firstPos=2849ms ready=3780ms gone=nullms"
     },
     {
       "variant": "Q13A",
       "status": "PASS",
-      "detail": "warming: active(k0).mute=no shadow(k2).mute=yes swapped=true committed(live k2).mute=no | DIAGSUM contentDelay=3000ms target=2943ms firstPos=3576ms ready=3576ms gone=nullms"
+      "detail": "warming: active(k0).mute=no shadow(k2).mute=yes cutover=true committed(live k2).mute=no | DIAGSUM contentDelay=3000ms target=2943ms firstPos=3576ms ready=3576ms gone=nullms"
     },
     {
       "variant": "Q13A",
       "status": "PASS",
-      "detail": "warming: active(k0).mute=no shadow(k2).mute=yes swapped=true committed(live k2).mute=no | DIAGSUM contentDelay=3000ms target=3063ms firstPos=2860ms ready=3850ms gone=nullms"
+      "detail": "warming: active(k0).mute=no shadow(k2).mute=yes cutover=true committed(live k2).mute=no | DIAGSUM contentDelay=3000ms target=3063ms firstPos=2860ms ready=3850ms gone=nullms"
     },
     {
       "variant": "Q13B",
@@ -163,7 +163,7 @@
       "id": "CP2.warmmute.Q13A.0",
       "status": "BLOCKED",
       "numbers": {
-        "sourceVerdict": "warming: active(k0).mute=no shadow(k2).mute=yes swapped=true committed(live k2).mute=no | DIAGSUM contentDelay=3000ms target=3143ms firstPos=2815ms ready=3749ms gone=nullms",
+        "sourceVerdict": "warming: active(k0).mute=no shadow(k2).mute=yes cutover=true committed(live k2).mute=no | DIAGSUM contentDelay=3000ms target=3143ms firstPos=2815ms ready=3749ms gone=nullms",
         "source": [
           "mute",
           "Q13A,Q13B,Q13C"
@@ -226,7 +226,7 @@
       "id": "CP2.warmmute.Q13A.1",
       "status": "BLOCKED",
       "numbers": {
-        "sourceVerdict": "warming: active(k0).mute=no shadow(k2).mute=yes swapped=true committed(live k2).mute=no | DIAGSUM contentDelay=3000ms target=3023ms firstPos=3562ms ready=3864ms gone=nullms",
+        "sourceVerdict": "warming: active(k0).mute=no shadow(k2).mute=yes cutover=true committed(live k2).mute=no | DIAGSUM contentDelay=3000ms target=3023ms firstPos=3562ms ready=3864ms gone=nullms",
         "source": [
           "mute",
           "Q13A,Q13B,Q13C"
@@ -289,7 +289,7 @@
       "id": "CP2.warmmute.Q13A.2",
       "status": "BLOCKED",
       "numbers": {
-        "sourceVerdict": "warming: active(k0).mute=no shadow(k2).mute=yes swapped=true committed(live k2).mute=no | DIAGSUM contentDelay=3000ms target=3063ms firstPos=2849ms ready=3780ms gone=nullms",
+        "sourceVerdict": "warming: active(k0).mute=no shadow(k2).mute=yes cutover=true committed(live k2).mute=no | DIAGSUM contentDelay=3000ms target=3063ms firstPos=2849ms ready=3780ms gone=nullms",
         "source": [
           "mute",
           "Q13A,Q13B,Q13C"
@@ -352,7 +352,7 @@
       "id": "CP2.warmmute.Q13A.3",
       "status": "BLOCKED",
       "numbers": {
-        "sourceVerdict": "warming: active(k0).mute=no shadow(k2).mute=yes swapped=true committed(live k2).mute=no | DIAGSUM contentDelay=3000ms target=2943ms firstPos=3576ms ready=3576ms gone=nullms",
+        "sourceVerdict": "warming: active(k0).mute=no shadow(k2).mute=yes cutover=true committed(live k2).mute=no | DIAGSUM contentDelay=3000ms target=2943ms firstPos=3576ms ready=3576ms gone=nullms",
         "source": [
           "mute",
           "Q13A,Q13B,Q13C"
@@ -415,7 +415,7 @@
       "id": "CP2.warmmute.Q13A.4",
       "status": "BLOCKED",
       "numbers": {
-        "sourceVerdict": "warming: active(k0).mute=no shadow(k2).mute=yes swapped=true committed(live k2).mute=no | DIAGSUM contentDelay=3000ms target=3063ms firstPos=2860ms ready=3850ms gone=nullms",
+        "sourceVerdict": "warming: active(k0).mute=no shadow(k2).mute=yes cutover=true committed(live k2).mute=no | DIAGSUM contentDelay=3000ms target=3063ms firstPos=2860ms ready=3850ms gone=nullms",
         "source": [
           "mute",
           "Q13A,Q13B,Q13C"
@@ -1109,7 +1109,7 @@
       "case": "CP2.warmmute.Q13A.0",
       "status": "BLOCKED",
       "numbers": {
-        "sourceVerdict": "warming: active(k0).mute=no shadow(k2).mute=yes swapped=true committed(live k2).mute=no | DIAGSUM contentDelay=3000ms target=3143ms firstPos=2815ms ready=3749ms gone=nullms",
+        "sourceVerdict": "warming: active(k0).mute=no shadow(k2).mute=yes cutover=true committed(live k2).mute=no | DIAGSUM contentDelay=3000ms target=3143ms firstPos=2815ms ready=3749ms gone=nullms",
         "source": [
           "mute",
           "Q13A,Q13B,Q13C"
@@ -1171,7 +1171,7 @@
       "case": "CP2.warmmute.Q13A.1",
       "status": "BLOCKED",
       "numbers": {
-        "sourceVerdict": "warming: active(k0).mute=no shadow(k2).mute=yes swapped=true committed(live k2).mute=no | DIAGSUM contentDelay=3000ms target=3023ms firstPos=3562ms ready=3864ms gone=nullms",
+        "sourceVerdict": "warming: active(k0).mute=no shadow(k2).mute=yes cutover=true committed(live k2).mute=no | DIAGSUM contentDelay=3000ms target=3023ms firstPos=3562ms ready=3864ms gone=nullms",
         "source": [
           "mute",
           "Q13A,Q13B,Q13C"
@@ -1233,7 +1233,7 @@
       "case": "CP2.warmmute.Q13A.2",
       "status": "BLOCKED",
       "numbers": {
-        "sourceVerdict": "warming: active(k0).mute=no shadow(k2).mute=yes swapped=true committed(live k2).mute=no | DIAGSUM contentDelay=3000ms target=3063ms firstPos=2849ms ready=3780ms gone=nullms",
+        "sourceVerdict": "warming: active(k0).mute=no shadow(k2).mute=yes cutover=true committed(live k2).mute=no | DIAGSUM contentDelay=3000ms target=3063ms firstPos=2849ms ready=3780ms gone=nullms",
         "source": [
           "mute",
           "Q13A,Q13B,Q13C"
@@ -1295,7 +1295,7 @@
       "case": "CP2.warmmute.Q13A.3",
       "status": "BLOCKED",
       "numbers": {
-        "sourceVerdict": "warming: active(k0).mute=no shadow(k2).mute=yes swapped=true committed(live k2).mute=no | DIAGSUM contentDelay=3000ms target=2943ms firstPos=3576ms ready=3576ms gone=nullms",
+        "sourceVerdict": "warming: active(k0).mute=no shadow(k2).mute=yes cutover=true committed(live k2).mute=no | DIAGSUM contentDelay=3000ms target=2943ms firstPos=3576ms ready=3576ms gone=nullms",
         "source": [
           "mute",
           "Q13A,Q13B,Q13C"
@@ -1357,7 +1357,7 @@
       "case": "CP2.warmmute.Q13A.4",
       "status": "BLOCKED",
       "numbers": {
-        "sourceVerdict": "warming: active(k0).mute=no shadow(k2).mute=yes swapped=true committed(live k2).mute=no | DIAGSUM contentDelay=3000ms target=3063ms firstPos=2860ms ready=3850ms gone=nullms",
+        "sourceVerdict": "warming: active(k0).mute=no shadow(k2).mute=yes cutover=true committed(live k2).mute=no | DIAGSUM contentDelay=3000ms target=3063ms firstPos=2860ms ready=3850ms gone=nullms",
         "source": [
           "mute",
           "Q13A,Q13B,Q13C"

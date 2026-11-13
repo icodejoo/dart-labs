@@ -15,7 +15,7 @@ class MovaRawEvent {
 }
 
 /// 原生事件后端端口；FFI 实现与测试假实现共用。
-abstract class MovaMpvEventBackend {
+abstract class IMovaMpvEventBackend {
   /// mpv 的 SHUTDOWN 事件 ID。
   static const int eventShutdown = 1;
 
@@ -36,7 +36,7 @@ abstract class MovaMpvEventBackend {
   ///
   /// [keep] 是要保留的事件 ID 集合。
   /// 返回是否全部成功（部分失败返回 false）。
-  /// 示例：`backend.restrictEvents({MovaMpvEventBackend.eventEndFile})`
+  /// 示例：`backend.restrictEvents({IMovaMpvEventBackend.eventEndFile})`
   bool restrictEvents(Set<int> keep);
 
   /// 注册"有新事件"的通知。

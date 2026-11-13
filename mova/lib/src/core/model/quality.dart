@@ -19,7 +19,7 @@ final RegExp _resolution = RegExp(r'(\d+)x(\d+)');
 /// A selectable video quality variant.
 ///
 /// For adaptive sources (HLS), "auto" delegates bitrate selection to the
-/// engine; a concrete variant pins playback to one rendition.
+/// player; a concrete variant pins playback to one rendition.
 ///
 /// 可选择的视频清晰度档位。
 ///
@@ -67,7 +67,7 @@ class MovaQuality {
     this.isAuto = false,
   });
 
-  /// The adaptive "auto" entry (engine picks the bitrate).
+  /// The adaptive "auto" entry (player picks the bitrate).
   ///
   /// 自适应"自动"档（内核自动选码率）。
   factory MovaQuality.auto() =>

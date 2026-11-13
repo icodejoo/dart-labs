@@ -13,14 +13,14 @@ import '../support/pump.dart';
 const _content = MovaSource('https://host/content.m3u8');
 
 void main() {
-  testWidgets('replacement ads controller removes its finished overlay', (t) async {
+  testWidgets('replacement MovaAds removes its finished overlay', (t) async {
     const pre = MovaAdBreak(
       kind: MovaAdBreakKind.pre,
       source: MovaSource('https://host/pre.mp4'),
       skippableAfter: Duration.zero,
     );
     final api = FakeMovaApi(options: const MovaOpts(
-      ads: MovaAdConfig(enabled: true, breaks: [pre]),
+      ads: MovaAdOpts(enabled: true, breaks: [pre]),
     ));
     final first = MovaAds(api);
     await first.load(_content);
@@ -38,10 +38,10 @@ void main() {
     second.dispose();
     await api.dispose();
   });
-  /// Builds a fake API + ad controller with a single [break_], collecting ad
+  /// Builds a fake API + [MovaAds] with a single [break_], collecting ad
   /// events into the returned list.
   ///
-  /// 用单个 [break_] 构造假 API + 广告控制器，把广告事件收集进返回的列表。
+  /// 用单个 [break_] 构造假 API + MovaAds，把广告事件收集进返回的列表。
   (FakeMovaApi, MovaAds, List<MovaAdEvent>) build(
     MovaAdBreak break_, {
     bool enabled = true,
@@ -49,7 +49,7 @@ void main() {
     final events = <MovaAdEvent>[];
     final api = FakeMovaApi(
       options: MovaOpts(
-        ads: MovaAdConfig(
+        ads: MovaAdOpts(
           enabled: enabled,
           breaks: [break_],
           onAdEvent: events.add,
@@ -136,15 +136,15 @@ void main() {
     await api.dispose();
   });
 
-  /// Builds a fake API + controller whose single mid-roll carries [delay],
-  /// with the cutover ctl needed for the readiness-wait paths.
+  /// Builds a fake API + [MovaAds] whose single mid-roll carries [delay],
+  /// with the cutover needed for the readiness-wait paths.
   ///
-  /// 构造假 API + 控制器，其唯一的中插带有 [delay]，并带上就绪等待路径所需的
+  /// 构造假 API + MovaAds，其唯一的中插带有 [delay]，并带上就绪等待路径所需的
   /// 切换能力面。
   (FakeMovaApi, MovaAds, List<MovaAdEvent>) pendingBuild({
     required Duration delay,
-    MovaAdWaitPolicy? wait,
-    FakeCutoverCtl? cutover,
+    IMovaAdWaitPolicy? wait,
+    FakeCutover? cutover,
   }) {
     final mid = MovaAdBreak(
       kind: MovaAdBreakKind.mid,
@@ -155,7 +155,7 @@ void main() {
     final events = <MovaAdEvent>[];
     final api = FakeMovaApi(
       options: MovaOpts(
-        ads: MovaAdConfig(
+        ads: MovaAdOpts(
           enabled: true,
           breaks: [mid],
           onAdEvent: events.add,
@@ -271,7 +271,7 @@ void main() {
     // Waiting silently for readiness must stay imperceptible.
     //
     // 静默等待就绪必须保持用户无感。
-    final cutover = FakeCutoverCtl();
+    final cutover = FakeCutover();
     final (api, c, pendEvents) = pendingBuild(delay: Duration.zero, cutover: cutover);
     await c.load(_content);
     await pumpComponent(t, api, MovaAdOverlayComponent(c));

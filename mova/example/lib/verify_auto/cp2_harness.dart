@@ -18,7 +18,7 @@ typedef Cp2Script = Future<void> Function(Cp2Harness h);
 
 void cp2Main(String scene, Cp2Script script, {bool automatic = false}) {
   WidgetsFlutterBinding.ensureInitialized();
-  MovaEngine.ensureInitialized();
+  Mova.ensureInitialized();
   runApp(
     MaterialApp(
       home: Cp2Page(
@@ -47,17 +47,17 @@ class Cp2Page extends StatefulWidget {
 
 class Cp2Harness extends State<Cp2Page> with WidgetsBindingObserver {
   final kernelReleases = <Future<void> Function()>[];
-  final nativePlayers = <MovaApi, Player>{};
+  final nativePlayers = <IMovaApi, Player>{};
   bool guarded = false;
   final clock = Stopwatch()..start();
   final records = <Map<String, Object?>>[];
   final subscriptions = <StreamSubscription<dynamic>>[];
   final acks = <String>{};
-  final positions = <MovaApi, Duration>{};
-  Duration position(MovaApi a) => positions[a] ?? Duration.zero;
+  final positions = <IMovaApi, Duration>{};
+  Duration position(IMovaApi a) => positions[a] ?? Duration.zero;
   final videoKey = GlobalKey();
   HttpServer? server;
-  MovaApi? api;
+  IMovaApi? api;
   bool rawVideo = false;
   bool backgroundPause = true;
   Axis? outerAxis;
@@ -103,7 +103,7 @@ class Cp2Harness extends State<Cp2Page> with WidgetsBindingObserver {
     });
   }
 
-  Map<String, Object?> snapshot([MovaApi? a]) {
+  Map<String, Object?> snapshot([IMovaApi? a]) {
     final s = (a ?? api)!.state;
     return {
       'positionMs': position(a ?? api!).inMilliseconds,
@@ -165,7 +165,7 @@ class Cp2Harness extends State<Cp2Page> with WidgetsBindingObserver {
   }
 
   final cleanup = <Future<void> Function()>[];
-  final sourceUris = <MovaApi, String>{};
+  final sourceUris = <IMovaApi, String>{};
   Timer? posterWatch;
   Widget? poster;
   Widget? customSurface;
@@ -257,7 +257,7 @@ class Cp2Harness extends State<Cp2Page> with WidgetsBindingObserver {
     }
   }
 
-  void observe(MovaApi a) {
+  void observe(IMovaApi a) {
     final controller = a.renderHandle;
     if (controller is VideoController) {
       subscriptions.add(
@@ -297,7 +297,7 @@ class Cp2Harness extends State<Cp2Page> with WidgetsBindingObserver {
           MovaZoomChange() => {'zoom': e.zoom},
           MovaLockChange() => {'value': e.value},
           MovaFullScreenChange() => {'value': e.value},
-          MovaOrientationChange() => {'orientation': e.orientation.name},
+          MovaOrientChange() => {'orient': e.orient.name},
           MovaMiniChange() => {'mini': e.mini},
           MovaPipChange() => {'value': e.value},
           MovaQualityListChange() => {
@@ -364,7 +364,7 @@ class Cp2Harness extends State<Cp2Page> with WidgetsBindingObserver {
   );
 
   Future<void> mount(
-    MovaApi a, {
+    IMovaApi a, {
     bool raw = false,
     bool pause = true,
     Axis? axis,
@@ -399,7 +399,7 @@ class Cp2Harness extends State<Cp2Page> with WidgetsBindingObserver {
   }
 
   /// Inspect the actual mounted surface, rather than the requested config.
-  bool hasMountedGuard(MovaApi target) {
+  bool hasMountedGuard(IMovaApi target) {
     var found = false;
     void visit(Element element) {
       final widget = element.widget;
@@ -438,8 +438,8 @@ class Cp2Harness extends State<Cp2Page> with WidgetsBindingObserver {
   Future<Map<String, Object?>> native() async {
     final deadline = clock.elapsedMilliseconds + 10000;
     while (true) {
-      final active = api is MovaCutoverEngine
-          ? (api as MovaCutoverEngine).active
+      final active = api is MovaCutover
+          ? (api as MovaCutover).active
           : api!;
       final epoch = api!.state.renderEpoch;
       final owner = nativePlayers[active] ?? (active.renderHandle as VideoController).player;
@@ -458,8 +458,8 @@ class Cp2Harness extends State<Cp2Page> with WidgetsBindingObserver {
         ].map(player.getProperty),
       );
       final stable =
-          api is! MovaCutoverEngine ||
-          identical((api as MovaCutoverEngine).active, active);
+          api is! MovaCutover ||
+          identical((api as MovaCutover).active, active);
       if (stable && epoch == api!.state.renderEpoch &&
           values[0].isNotEmpty &&
           double.tryParse(values[1]) != null) {
@@ -473,7 +473,7 @@ class Cp2Harness extends State<Cp2Page> with WidgetsBindingObserver {
           'seeking': values[6],
           'audioCodec': values[7],
           'nativeVolume': values[8],
-          'engine': identityHashCode(active),
+          'mova': identityHashCode(active),
           'epochAtRead': epoch,
           'state': snapshot(),
         };
@@ -510,7 +510,7 @@ class Cp2Harness extends State<Cp2Page> with WidgetsBindingObserver {
     mark('HOST_ACK', {'id': id});
   }
 
-  Future<void> release({bool disposeEngine = true}) async {
+  Future<void> release({bool disposeMova = true}) async {
     if (api == null) return;
     posterWatch?.cancel();
     posterWatch = null;
@@ -519,7 +519,7 @@ class Cp2Harness extends State<Cp2Page> with WidgetsBindingObserver {
     }
     cleanup.clear();
     // Keep the real surface mounted until disposal completes.
-    if (disposeEngine) {
+    if (disposeMova) {
       await call(
         'dispose',
         null,

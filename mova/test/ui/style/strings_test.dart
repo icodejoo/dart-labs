@@ -8,7 +8,7 @@ Future<FakeMovaApi> mount(
   WidgetTester t, {
   MovaStrs strings = const MovaStrs(),
   MovaQuality? quality,
-  MovaSkin skin = const MovaDefaultSkin(),
+  IMovaUiKit uiKit = const MovaDefaultUiKit(),
 }) async {
   final api = FakeMovaApi();
   final q = quality ?? MovaQuality.auto();
@@ -17,7 +17,7 @@ Future<FakeMovaApi> mount(
     MaterialApp(
       home: MovaPlayer(
         api: api,
-        skin: skin,
+        uiKit: uiKit,
         style: MovaPlayerStyle(strings: strings),
       ),
     ),
@@ -95,7 +95,7 @@ void main() {
     final api = await mount(
       t,
       strings: const MovaStrs(play: 'Play', pause: 'Pause', closeMini: 'Close'),
-      skin: const MovaMiniSkin(),
+      uiKit: const MovaMiniUiKit(),
     );
     expect(find.byTooltip('Close'), findsOneWidget);
     expect(

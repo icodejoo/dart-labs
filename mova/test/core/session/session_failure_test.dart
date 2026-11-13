@@ -23,7 +23,7 @@ const giveUp = MovaPlayFailure(
 );
 
 class TerminalOpenApi extends FakeMovaApi {
-  TerminalOpenApi() : super(options: const MovaOpts(recovery: MovaRecoveryConfig(enabled: true)));
+  TerminalOpenApi() : super(options: const MovaOpts(recovery: MovaRecoveryOpts(enabled: true)));
   @override
   Future<bool> open(MovaSource source, {bool autoPlay = true}) async {
     final accepted = await super.open(source, autoPlay: autoPlay);
@@ -52,15 +52,15 @@ void main() {
     expect(session.cursor.phase, MovaSessionPhase.idle);
   });
 
-  test('落地窗口真实引擎首次加载 giveUp 正常返回仍结算正片失败', () async {
+  test('落地窗口真实播放器首次加载 giveUp 正常返回仍结算正片失败', () async {
     final kernel = FakeKernel()..openError = StateError('initial load');
-    final api = createMovaEngine(
-      kernel: kernel, brightness: MovaFallbackBrightnessPort(),
-      pip: MovaNoopPipPort(), orientation: MovaNoopOrientationPort(),
+    final api = createMova(
+      kernel: kernel, brightness: MovaFallbackBrightness(),
+      pip: MovaNoopPip(), orient: MovaNoopOrient(),
       options: const MovaOpts(
-        controls: MovaCtrlsConfig(autoHide: false),
-        abr: MovaAbrConfig(probeVariants: false),
-        recovery: MovaRecoveryConfig(enabled: true, policy: MovaRetryThenFailover(maxRetries: 0)),
+        controls: MovaCtrlsOpts(autoHide: false),
+        abr: MovaAbrOpts(probeVariants: false),
+        recovery: MovaRecoveryOpts(enabled: true, policy: MovaRetryThenFailover(maxRetries: 0)),
       ),
     );
     final session = MovaSession(api);
@@ -81,7 +81,7 @@ void main() {
       final policy = RecordingAdPolicy();
       final api = FakeMovaApi(
         options: MovaOpts(
-          ads: MovaAdConfig(
+          ads: MovaAdOpts(
             enabled: true,
             breaks: const [pre],
             failPolicy: policy,
@@ -134,8 +134,8 @@ void main() {
     final policy = RecordingAdPolicy();
     final api = FakeMovaApi(
       options: MovaOpts(
-        recovery: const MovaRecoveryConfig(enabled: true),
-        ads: MovaAdConfig(
+        recovery: const MovaRecoveryOpts(enabled: true),
+        ads: MovaAdOpts(
           enabled: true,
           breaks: const [pre],
           failPolicy: policy,
@@ -164,8 +164,8 @@ void main() {
     fakeAsync((clock) {
       final api = FakeMovaApi(
         options: const MovaOpts(
-          recovery: MovaRecoveryConfig(enabled: true),
-          ads: MovaAdConfig(enabled: true, breaks: [pre]),
+          recovery: MovaRecoveryOpts(enabled: true),
+          ads: MovaAdOpts(enabled: true, breaks: [pre]),
         ),
       );
       final session = MovaSession(api);
@@ -189,7 +189,7 @@ void main() {
   test('正片终结错误发失败与 contentError 后 idle，不发 contentEnded', () async {
     for (final recovery in [false, true]) {
       final api = FakeMovaApi(
-        options: MovaOpts(recovery: MovaRecoveryConfig(enabled: recovery)),
+        options: MovaOpts(recovery: MovaRecoveryOpts(enabled: recovery)),
       );
       final session = sessionFor(api);
       final errors = <Object>[];

@@ -25,19 +25,19 @@ const _mid = MovaAdBreak(
   offset: Duration(seconds: 30),
 );
 
-/// Lets the controller's async chains settle inside a [fakeAsync] zone.
+/// Lets the [MovaAds] async chains settle inside a [fakeAsync] zone.
 ///
-/// 在 [fakeAsync] 区域内让控制器的异步链结算完毕。
+/// 在 [fakeAsync] 区域内让 MovaAds 的异步链结算完毕。
 void _flush(FakeAsync async) => async.elapse(const Duration(milliseconds: 1));
 
-/// Builds api + controller around one pre-roll with a 8s load deadline.
+/// Builds api + [MovaAds] around one pre-roll with a 8s load deadline.
 ///
-/// 围绕一条前贴片、8 秒加载期限构造 api + 控制器。
+/// 围绕一条前贴片、8 秒加载期限构造 api + MovaAds。
 (FakeMovaApi, MovaAds, _RecordingFail) _build({bool fromFirstFrame = true}) {
   final policy = _RecordingFail();
   final api = FakeMovaApi(
     options: MovaOpts(
-      ads: MovaAdConfig(
+      ads: MovaAdOpts(
         enabled: true,
         breaks: const [_pre],
         failPolicy: policy,
@@ -138,10 +138,10 @@ void main() {
       fakeAsync((async) {
         final api = FakeMovaApi(
           options: const MovaOpts(
-            ads: MovaAdConfig(enabled: true, breaks: [_mid], waitForAdReady: MovaAdWaitByKind(mid: false)),
+            ads: MovaAdOpts(enabled: true, breaks: [_mid], waitForAdReady: MovaAdWaitByKind(mid: false)),
           ),
         );
-        final cutover = FakeCutoverCtl()..commitResult = true;
+        final cutover = FakeCutover()..commitResult = true;
         final c = MovaAds(api, cutover: cutover);
         c.load(_content);
         _flush(async);
@@ -158,11 +158,11 @@ void main() {
       });
     });
 
-    test('ad-engine progress during the return hand-off does not overwrite the saved content rate', () {
+    test('ad-player progress during the return hand-off does not overwrite the saved content rate', () {
       fakeAsync((async) {
         final api = FakeMovaApi(
           options: const MovaOpts(
-            ads: MovaAdConfig(enabled: true, breaks: [_mid], waitForAdReady: MovaAdWaitByKind(mid: false)),
+            ads: MovaAdOpts(enabled: true, breaks: [_mid], waitForAdReady: MovaAdWaitByKind(mid: false)),
           ),
         );
         final cutover = _GatedCommitCutover();
@@ -176,12 +176,12 @@ void main() {
         api.pushProgress(const MovaProg(position: Duration(seconds: 31)));
         _flush(async);
         expect(c.isShowingAd, isTrue);
-        // 广告引擎 1x；广告结束，commit 卡住（影子未就绪）。
+        // 广告播放器 1x；广告结束，commit 卡住（影子未就绪）。
         api.push(api.state.copyWith(rate: 1.0));
         api.pushEvent(const MovaDone());
         _flush(async);
         expect(cutover.pending, isTrue);
-        // 过渡期内活动引擎仍是广告，其 progress 不得覆盖已保存的 2x。
+        // 过渡期内活动播放器仍是广告，其 progress 不得覆盖已保存的 2x。
         api.pushProgress(const MovaProg(position: Duration(seconds: 4)));
         _flush(async);
         cutover.release(true);
@@ -195,10 +195,10 @@ void main() {
       fakeAsync((async) {
         final api = FakeMovaApi(
           options: const MovaOpts(
-            ads: MovaAdConfig(enabled: true, breaks: [_mid], waitForAdReady: MovaAdWaitByKind(mid: false)),
+            ads: MovaAdOpts(enabled: true, breaks: [_mid], waitForAdReady: MovaAdWaitByKind(mid: false)),
           ),
         );
-        final cutover = FakeCutoverCtl()..commitResult = true;
+        final cutover = FakeCutover()..commitResult = true;
         final c = MovaAds(api, cutover: cutover);
         c.load(_content);
         _flush(async);
@@ -227,7 +227,7 @@ void main() {
 /// Cutover fake whose `commit` blocks until [release] is called.
 ///
 /// `commit` 阻塞到调用 [release] 的 cutover 替身。
-class _GatedCommitCutover extends FakeCutoverCtl {
+class _GatedCommitCutover extends FakeCutover {
   /// Completer of the in-flight commit, or null when none is pending.
   ///
   /// 在途 commit 的 completer；没有挂起的则为 null。
@@ -258,7 +258,7 @@ class _GatedCommitCutover extends FakeCutoverCtl {
 /// A fail policy that records every failure it is shown and skips the break.
 ///
 /// 记录所有被告知的失败并跳过广告位的失败策略。
-class _RecordingFail implements MovaAdFailPolicy {
+class _RecordingFail implements IMovaAdFailPolicy {
   /// Every failure passed to [onFailure], in order.
   ///
   /// 依次传给 [onFailure] 的所有失败记录。

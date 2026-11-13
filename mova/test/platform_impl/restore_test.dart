@@ -6,7 +6,7 @@ import 'package:mova/mova.dart';
 import 'package:mova/testing.dart';
 
 /// 可控制初值读取和写入完成时机的旧亮度端口。
-class _Brightness implements MovaBrightPort {
+class _Brightness implements IMovaBrightness {
   /// 用 [initial] 指定读取结果，可选 [writeGate] 延迟写入。
   _Brightness(this.initial, {this.writeGate});
   /// 亮度读取结果。
@@ -27,7 +27,7 @@ class _Brightness implements MovaBrightPort {
 }
 
 /// 提供可选还原能力的端口，区分还原与普通写入。
-class _Restorable extends _Brightness implements MovaBrightRestore {
+class _Restorable extends _Brightness implements IMovaBrightnessRestore {
   /// 用 [initial] 指定初始亮度。
   _Restorable(super.initial);
   /// 记录被还原的初值。
@@ -44,13 +44,13 @@ void main() {
 
   test('异步播种真实亮度，销毁后迟到读取不再写状态', () async {
     final ready = Completer<double>();
-    final api = createMovaEngine(brightness: _Brightness(ready.future));
+    final api = createMova(brightness: _Brightness(ready.future));
     ready.complete(0.35);
     await Future<void>.delayed(Duration.zero);
     expect(api.state.brightness, 0.35);
     await api.dispose();
     final late = Completer<double>();
-    final other = createMovaEngine(brightness: _Brightness(late.future));
+    final other = createMova(brightness: _Brightness(late.future));
     await other.dispose();
     late.complete(0.2);
     await Future<void>.delayed(Duration.zero);
@@ -60,7 +60,7 @@ void main() {
   test('先请求手势后返回初值不覆盖用户值，旧端口离场写回初值', () async {
     final ready = Completer<double>();
     final port = _Brightness(ready.future);
-    final api = createMovaEngine(brightness: port);
+    final api = createMova(brightness: port);
     final change = api.setBrightness(0.8);
     ready.complete(0.3);
     await change;
@@ -74,7 +74,7 @@ void main() {
   test('离场还原等待在途写入，避免迟到写入再次改变亮度', () async {
     final gate = Completer<void>();
     final port = _Brightness(Future.value(0.4), writeGate: gate.future);
-    final api = createMovaEngine(brightness: port);
+    final api = createMova(brightness: port);
     final change = api.setBrightness(0.9);
     await Future<void>.delayed(Duration.zero);
     final dispose = api.dispose();
@@ -89,7 +89,7 @@ void main() {
   test('可选还原能力、opt-out、未修改及退役的控制权规则', () async {
     for (final mode in ['restore', 'optOut', 'untouched', 'retired']) {
       final port = _Restorable(Future.value(0.4));
-      final api = createMovaEngine(brightness: port, restoreBrightness: mode != 'optOut');
+      final api = createMova(brightness: port, restoreBrightness: mode != 'optOut');
       if (mode != 'untouched') await api.setBrightness(0.8);
       if (mode == 'retired') api.markRetired();
       await api.dispose();
@@ -97,13 +97,13 @@ void main() {
     }
   });
 
-  test('连续换指后由最终引擎还原最初亮度，旧引擎不抢还原权', () async {
+  test('连续换指后由最终播放器还原最初亮度，旧播放器不抢还原权', () async {
     final ports = <_Restorable>[];
-    final api = MovaCutoverEngine(engineFactory: () {
+    final api = MovaCutover(movaFactory: () {
       final port = _Restorable(Future.value(ports.isEmpty ? 0.3 : 0.8));
       ports.add(port);
-      return createMovaEngine(brightness: port,
-        options: const MovaOpts(cutover: MovaCutoverConfig(enabled: true)));
+      return createMova(brightness: port,
+        options: const MovaOpts(cutover: MovaCutoverOpts(enabled: true)));
     });
     await api.setBrightness(0.8);
     for (var i = 0; i < 2; i++) {
@@ -125,10 +125,10 @@ void main() {
 
   test('初值失败或非有限时不写回猜测值，仍可调节及销毁', () async {
     for (final invalid in [double.nan, double.infinity, null]) {
-      // 延迟生成错误 Future，确保引擎已安装错误处理。
+      // 延迟生成错误 Future，确保播放器已安装错误处理。
       final ready = Completer<double>();
       final port = _Brightness(ready.future);
-      final api = createMovaEngine(brightness: port);
+      final api = createMova(brightness: port);
       if (invalid == null) {
         ready.completeError(StateError('read failed'));
       } else {
@@ -152,7 +152,7 @@ void main() {
         if (call.method == 'getApplicationScreenBrightness') return 0.45;
         return null;
       });
-      final port = MovaScreenBrightnessPort();
+      final port = MovaBrightness();
       expect(await port.get(), 0.45);
       await port.set(0.8);
       await port.restore(0.45);
@@ -170,14 +170,14 @@ void main() {
     final messenger = TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
     messenger.setMockMethodCallHandler(SystemChannels.platform, (call) async { calls.add(call); return null; });
     addTearDown(() => messenger.setMockMethodCallHandler(SystemChannels.platform, null));
-    final api = createMovaEngine(kernel: MovaTestKernel(), brightness: _Brightness(Future.value(0.4)), orientationConfig: const MovaOrientationConfig(
-      allowedOrientations: [DeviceOrientation.portraitUp], systemUiMode: SystemUiMode.manual, systemUiOverlays: [SystemUiOverlay.top],
+    final api = createMova(kernel: MovaTestKernel(), brightness: _Brightness(Future.value(0.4)), orientOpts: const MovaOrientOpts(
+      allowedOrients: [DeviceOrientation.portraitUp], systemUiMode: SystemUiMode.manual, systemUiOverlays: [SystemUiOverlay.top],
     ));
     await api.setFullscreen(true);
-    await api.setOrientation(MovaOrientation.landscape);
+    await api.setOrient(MovaOrientMode.landscape);
     calls.clear();
     await api.setFullscreen(false);
-    expect(api.state.orientation, MovaOrientation.landscape);
+    expect(api.state.orient, MovaOrientMode.landscape);
     expect(calls.first.method, 'SystemChrome.setPreferredOrientations');
     expect(calls.first.arguments, [
       'DeviceOrientation.landscapeLeft',
@@ -201,16 +201,16 @@ void main() {
       return null;
     });
     addTearDown(() => messenger.setMockMethodCallHandler(SystemChannels.platform, null));
-    final api = createMovaEngine(
+    final api = createMova(
       kernel: MovaTestKernel(),
       brightness: _Brightness(Future.value(0.4)),
-      orientationConfig: const MovaOrientationConfig(
-        allowedOrientations: [DeviceOrientation.portraitUp],
+      orientOpts: const MovaOrientOpts(
+        allowedOrients: [DeviceOrientation.portraitUp],
         systemUiMode: SystemUiMode.manual,
         systemUiOverlays: [SystemUiOverlay.top],
       ),
     );
-    expect(api.state.orientation, MovaOrientation.auto);
+    expect(api.state.orient, MovaOrientMode.auto);
     await api.setFullscreen(true);
     calls.clear();
     await api.setFullscreen(false);
@@ -227,12 +227,12 @@ void main() {
     expect(calls.last.arguments, ['SystemUiOverlay.top']);
   });
 
-  test('方向默认仍允许全部方向，退役引擎离场不复位系统栏', () async {
+  test('方向默认仍允许全部方向，退役播放器离场不复位系统栏', () async {
     final calls = <MethodCall>[];
     final messenger = TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
     messenger.setMockMethodCallHandler(SystemChannels.platform, (call) async { calls.add(call); return null; });
     addTearDown(() => messenger.setMockMethodCallHandler(SystemChannels.platform, null));
-    final api = createMovaEngine(orientation: const MovaSystemChromeOrientationPort());
+    final api = createMova(orient: const MovaOrient());
     await api.setFullscreen(true);
     calls.clear();
     await api.setFullscreen(false);

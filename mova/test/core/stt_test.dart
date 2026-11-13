@@ -5,13 +5,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mova/src/core/model/source.dart';
 import 'package:mova/src/core/options/options.dart';
 import 'package:mova/src/core/stt/cue.dart';
-import 'package:mova/src/core/stt/port.dart';
+import 'package:mova/src/core/stt/stt.dart';
 import 'package:mova/src/core/stt/service.dart';
 
-/// An engine whose first `start` throws, later ones succeed.
+/// A recognizer whose first `start` throws, later ones succeed.
 ///
-/// 第一次 `start` 抛错、之后成功的引擎。
-class _FlakyEngine extends MovaNoopSttEngine {
+/// 第一次 `start` 抛错、之后成功的识别器。
+class _FlakyRecognizer extends MovaNoopStt {
   /// Number of `start` calls so far.
   ///
   /// 目前为止 `start` 的调用次数。
@@ -24,10 +24,10 @@ class _FlakyEngine extends MovaNoopSttEngine {
   }
 }
 
-/// A scripted engine: pushes cues on demand and records how it is driven.
+/// A scripted recognizer: pushes cues on demand and records how it is driven.
 ///
-/// 可编排的引擎：按需推送字幕块，并记录被如何驱动。
-class _ScriptedEngine extends MovaNoopSttEngine {
+/// 可编排的识别器：按需推送字幕块，并记录被如何驱动。
+class _ScriptedRecognizer extends MovaNoopStt {
   final StreamController<MovaSttCue> _out = StreamController<MovaSttCue>.broadcast();
 
   /// The position of every `start` call, in order.
@@ -78,7 +78,7 @@ MovaSttCue _cue(String text, int from, int to) =>
 /// Holds the first start until a newer run has succeeded.
 ///
 /// 挂起第一次启动，直到新一轮启动成功。
-class _DelayedFailureEngine extends _ScriptedEngine {
+class _DelayedFailureRecognizer extends _ScriptedRecognizer {
   final first = Completer<void>();
 
   @override
@@ -90,34 +90,34 @@ class _DelayedFailureEngine extends _ScriptedEngine {
 
 void main() {
   test('D2 stale start failure cannot stop a newer successful run', () async {
-    final engine = _DelayedFailureEngine();
-    final svc = MovaSttService(config: MovaSttConfig(enabled: true, engine: engine))
+    final recognizer = _DelayedFailureRecognizer();
+    final svc = MovaSttService(opts: MovaSttOpts(enabled: true, recognizer: recognizer))
       ..attach(const MovaSource('https://host/a.mp4'));
     final oldStart = svc.start();
     await svc.stop();
     await svc.start();
-    engine.first.completeError(StateError('old start failed'));
+    recognizer.first.completeError(StateError('old start failed'));
     await oldStart;
     expect(svc.isRunning, isTrue);
     await svc.stop();
     expect(svc.isRunning, isFalse);
-    expect(engine.stops, 2);
+    expect(recognizer.stops, 2);
     await svc.dispose();
-    await engine.dispose();
+    await recognizer.dispose();
   });
 
   test('C02 missing recognizer warns once and remains stopped', () async {
     final messages = <String>[];
     final reasons = <MovaSttBlockReason>[];
     await runZoned(() async {
-      final service = MovaSttService(config: const MovaSttConfig(enabled: true), onBlocked: reasons.add);
+      final service = MovaSttService(opts: const MovaSttOpts(enabled: true), onBlocked: reasons.add);
       expect(messages, isEmpty);
       await service.start();
       await service.start();
-      expect(service.config.hasEngine, isFalse);
+      expect(service.opts.hasRecognizer, isFalse);
       expect(service.isRunning, isFalse);
-      expect(reasons, [MovaSttBlockReason.noEngine, MovaSttBlockReason.noEngine]);
-      expect(messages.where((m) => m.contains('stt.engine')), hasLength(1));
+      expect(reasons, [MovaSttBlockReason.noRecognizer, MovaSttBlockReason.noRecognizer]);
+      expect(messages.where((m) => m.contains('stt.recognizer')), hasLength(1));
       await service.dispose();
     }, zoneSpecification: ZoneSpecification(print: (_, _, _, m) => messages.add(m)));
   });
@@ -140,27 +140,27 @@ void main() {
     });
   });
 
-  group('MovaNoopSttEngine', () {
+  group('MovaNoopStt', () {
     test('reports no languages and emits no cues', () async {
-      final engine = MovaNoopSttEngine();
-      expect(engine.languages, isEmpty);
-      await expectLater(engine.cues, emitsDone);
-      await engine.start(Duration.zero);
-      await engine.stop();
-      await engine.dispose();
+      final recognizer = MovaNoopStt();
+      expect(recognizer.languages, isEmpty);
+      await expectLater(recognizer.cues, emitsDone);
+      await recognizer.start(Duration.zero);
+      await recognizer.stop();
+      await recognizer.dispose();
     });
   });
 
   group('MovaSttService', () {
-    test('a failed engine start is rolled back so start() can be retried', () async {
-      final engine = _FlakyEngine();
-      final svc = MovaSttService(config: MovaSttConfig(enabled: true, engine: engine))
+    test('a failed recognizer start is rolled back so start() can be retried', () async {
+      final recognizer = _FlakyRecognizer();
+      final svc = MovaSttService(opts: MovaSttOpts(enabled: true, recognizer: recognizer))
         ..attach(const MovaSource('https://host/a.mp4'));
       // 旧断言要求 rethrow，会让可选识别故障泄漏到播放链；失败现在仅回滚。
       await svc.start();
       expect(svc.isRunning, isFalse);
       await svc.start();
-      expect(engine.starts, 2);
+      expect(recognizer.starts, 2);
       expect(svc.isRunning, isTrue);
     });
   });
@@ -168,67 +168,67 @@ void main() {
   group('MovaSttService lifecycle', () {
     const src = MovaSource('https://host/a.mp4');
 
-    /// A service over a [_ScriptedEngine], enabled and attached to [src].
+    /// A service over a [_ScriptedRecognizer], enabled and attached to [src].
     ///
-    /// 基于 [_ScriptedEngine] 的服务，已启用并挂到 [src] 上。
-    (MovaSttService, _ScriptedEngine) ready() {
-      final engine = _ScriptedEngine();
-      final svc = MovaSttService(config: MovaSttConfig(enabled: true, engine: engine))..attach(src);
-      return (svc, engine);
+    /// 基于 [_ScriptedRecognizer] 的服务，已启用并挂到 [src] 上。
+    (MovaSttService, _ScriptedRecognizer) ready() {
+      final recognizer = _ScriptedRecognizer();
+      final svc = MovaSttService(opts: MovaSttOpts(enabled: true, recognizer: recognizer))..attach(src);
+      return (svc, recognizer);
     }
 
-    test('start hands the engine the latest known position', () async {
-      final (svc, engine) = ready();
+    test('start hands the recognizer the latest known position', () async {
+      final (svc, recognizer) = ready();
       svc.updatePosition(const Duration(seconds: 30));
       await svc.start();
-      expect(engine.starts, [const Duration(seconds: 30)]);
+      expect(recognizer.starts, [const Duration(seconds: 30)]);
       expect(svc.isRunning, isTrue);
     });
 
     test('a second start while running is a no-op', () async {
-      final (svc, engine) = ready();
+      final (svc, recognizer) = ready();
       await svc.start();
       await svc.start();
-      expect(engine.starts, hasLength(1));
+      expect(recognizer.starts, hasLength(1));
     });
 
-    test('stop ends the run and stops the engine once; a stop without a run does nothing', () async {
-      final (svc, engine) = ready();
+    test('stop ends the run and stops the recognizer once; a stop without a run does nothing', () async {
+      final (svc, recognizer) = ready();
       await svc.stop();
-      expect(engine.stops, 0);
+      expect(recognizer.stops, 0);
       await svc.start();
       await svc.stop();
       await svc.stop();
       expect(svc.isRunning, isFalse);
-      expect(engine.stops, 1);
+      expect(recognizer.stops, 1);
     });
 
     test('start works again after stop, from the then-current position', () async {
-      final (svc, engine) = ready();
+      final (svc, recognizer) = ready();
       await svc.start();
       await svc.stop();
       svc.updatePosition(const Duration(seconds: 90));
       await svc.start();
-      expect(engine.starts, [Duration.zero, const Duration(seconds: 90)]);
+      expect(recognizer.starts, [Duration.zero, const Duration(seconds: 90)]);
     });
 
-    test('cues from the engine are forwarded to every subscriber', () async {
-      final (svc, engine) = ready();
+    test('cues from the recognizer are forwarded to every subscriber', () async {
+      final (svc, recognizer) = ready();
       final a = <String>[];
       final b = <String>[];
       svc.cues.listen((c) => a.add(c.text));
       svc.cues.listen((c) => b.add(c.text));
-      engine.say(_cue('one', 0, 2));
-      engine.say(_cue('two', 2, 4));
+      recognizer.say(_cue('one', 0, 2));
+      recognizer.say(_cue('two', 2, 4));
       await Future<void>.delayed(Duration.zero);
       expect(a, ['one', 'two']);
       expect(b, a);
     });
 
     test('current is the cue covering the playhead, null in a gap, and follows updatePosition', () async {
-      final (svc, engine) = ready();
-      engine.say(_cue('one', 0, 2));
-      engine.say(_cue('two', 4, 6));
+      final (svc, recognizer) = ready();
+      recognizer.say(_cue('one', 0, 2));
+      recognizer.say(_cue('two', 4, 6));
       await Future<void>.delayed(Duration.zero);
       svc.updatePosition(const Duration(seconds: 1));
       expect(svc.current?.text, 'one');
@@ -239,18 +239,18 @@ void main() {
     });
 
     test('with overlapping cues the most recent one wins', () async {
-      final (svc, engine) = ready();
-      engine.say(_cue('old', 0, 10));
-      engine.say(_cue('new', 0, 10));
+      final (svc, recognizer) = ready();
+      recognizer.say(_cue('old', 0, 10));
+      recognizer.say(_cue('new', 0, 10));
       await Future<void>.delayed(Duration.zero);
       svc.updatePosition(const Duration(seconds: 5));
       expect(svc.current?.text, 'new');
     });
 
     test('only the 50 most recent cues are remembered', () async {
-      final (svc, engine) = ready();
+      final (svc, recognizer) = ready();
       for (var i = 0; i < 51; i++) {
-        engine.say(_cue('c$i', i * 10, i * 10 + 5));
+        recognizer.say(_cue('c$i', i * 10, i * 10 + 5));
       }
       await Future<void>.delayed(Duration.zero);
       svc.updatePosition(const Duration(seconds: 1));
@@ -262,8 +262,8 @@ void main() {
     });
 
     test('attach clears the remembered cues and resets the position to zero', () async {
-      final (svc, engine) = ready();
-      engine.say(_cue('one', 0, 100));
+      final (svc, recognizer) = ready();
+      recognizer.say(_cue('one', 0, 100));
       await Future<void>.delayed(Duration.zero);
       svc.updatePosition(const Duration(seconds: 50));
       expect(svc.current?.text, 'one');
@@ -272,76 +272,76 @@ void main() {
       // A fresh start after attach begins from zero again.
       // attach 之后重新 start 从零开始。
       await svc.start();
-      expect(engine.starts.last, Duration.zero);
+      expect(recognizer.starts.last, Duration.zero);
     });
 
-    test('blocked reasons: disabled, no engine and no source each report once', () async {
+    test('blocked reasons: disabled, no recognizer and no source each report once', () async {
       final reasons = <MovaSttBlockReason>[];
       final disabled = MovaSttService(
-        config: MovaSttConfig(enabled: false, engine: _ScriptedEngine()),
+        opts: MovaSttOpts(enabled: false, recognizer: _ScriptedRecognizer()),
         onBlocked: reasons.add,
       )..attach(src);
       await disabled.start();
-      final noEngine = MovaSttService(config: const MovaSttConfig(enabled: true), onBlocked: reasons.add)..attach(src);
-      await noEngine.start();
+      final noRecognizer = MovaSttService(opts: const MovaSttOpts(enabled: true), onBlocked: reasons.add)..attach(src);
+      await noRecognizer.start();
       final noSource = MovaSttService(
-        config: MovaSttConfig(enabled: true, engine: _ScriptedEngine()),
+        opts: MovaSttOpts(enabled: true, recognizer: _ScriptedRecognizer()),
         onBlocked: reasons.add,
       );
       await noSource.start();
-      expect(reasons, [MovaSttBlockReason.disabled, MovaSttBlockReason.noEngine, MovaSttBlockReason.noSource]);
-      expect(disabled.isRunning || noEngine.isRunning || noSource.isRunning, isFalse);
+      expect(reasons, [MovaSttBlockReason.disabled, MovaSttBlockReason.noRecognizer, MovaSttBlockReason.noSource]);
+      expect(disabled.isRunning || noRecognizer.isRunning || noSource.isRunning, isFalse);
     });
 
-    test('languages mirror the engine, empty without one', () {
-      expect(MovaSttService(config: const MovaSttConfig()).languages, isEmpty);
+    test('languages mirror the recognizer, empty without one', () {
+      expect(MovaSttService(opts: const MovaSttOpts()).languages, isEmpty);
       expect(ready().$1.languages, isEmpty);
     });
 
-    test('dispose closes the cue stream and cancels subscriptions while borrowing the engine', () async {
-      final (svc, engine) = ready();
+    test('dispose closes the cue stream and cancels subscriptions while borrowing the recognizer', () async {
+      final (svc, recognizer) = ready();
       final done = Completer<void>();
       svc.cues.listen((_) {}, onDone: done.complete);
       await svc.dispose();
       await done.future.timeout(const Duration(seconds: 2));
       // 旧断言销毁宿主对象，违背借用关系。
-      expect(engine.disposed, isFalse);
-      await engine.dispose();
+      expect(recognizer.disposed, isFalse);
+      await recognizer.dispose();
     });
   });
 
-  group('MovaSttConfig', () {
-    test('defaults to disabled with no engine', () {
-      const config = MovaSttConfig();
-      expect(config.enabled, isFalse);
-      expect(config.engine, isNull);
+  group('MovaSttOpts', () {
+    test('defaults to disabled with no recognizer', () {
+      const opts = MovaSttOpts();
+      expect(opts.enabled, isFalse);
+      expect(opts.recognizer, isNull);
     });
 
     test('copyWith replaces only given fields', () {
-      final engine = MovaNoopSttEngine();
-      const config = MovaSttConfig();
-      final updated = config.copyWith(enabled: true, engine: engine);
+      final recognizer = MovaNoopStt();
+      const opts = MovaSttOpts();
+      final updated = opts.copyWith(enabled: true, recognizer: recognizer);
       expect(updated.enabled, isTrue);
-      expect(updated.engine, same(engine));
-      expect(config.enabled, isFalse, reason: 'original unchanged');
+      expect(updated.recognizer, same(recognizer));
+      expect(opts.enabled, isFalse, reason: 'original unchanged');
     });
 
-    test('equality compares engine by identity', () {
-      final engine = MovaNoopSttEngine();
-      final a = MovaSttConfig(enabled: true, engine: engine);
-      final b = MovaSttConfig(enabled: true, engine: engine);
-      final c = MovaSttConfig(enabled: true, engine: MovaNoopSttEngine());
+    test('equality compares recognizer by identity', () {
+      final recognizer = MovaNoopStt();
+      final a = MovaSttOpts(enabled: true, recognizer: recognizer);
+      final b = MovaSttOpts(enabled: true, recognizer: recognizer);
+      final c = MovaSttOpts(enabled: true, recognizer: MovaNoopStt());
       expect(a, b);
       expect(a, isNot(c));
     });
   });
 
   group('MovaOpts', () {
-    test('carries a default MovaSttConfig and includes it in equality', () {
+    test('carries a default MovaSttOpts and includes it in equality', () {
       const options = MovaOpts();
-      expect(options.stt, const MovaSttConfig());
+      expect(options.stt, const MovaSttOpts());
 
-      final withStt = options.copyWith(stt: const MovaSttConfig(enabled: true));
+      final withStt = options.copyWith(stt: const MovaSttOpts(enabled: true));
       expect(withStt, isNot(options));
       expect(withStt.stt.enabled, isTrue);
     });

@@ -27,10 +27,10 @@ void main() {
         session.contentEnded.listen(ended.add);
         session.events.listen(nodes.add);
         await session.load(a);
-        final content = rig.engines.first;
+        final content = rig.movas.first;
         content.pushProgress(const MovaProg(position: Duration(seconds: 2)));
         await settleOperations();
-        final shadow = rig.engines.last;
+        final shadow = rig.movas.last;
         final gate = content.pauseGate = Completer<void>();
         addTearDown(() {
           if (!gate.isCompleted) gate.complete();
@@ -82,11 +82,11 @@ void main() {
     () async {
       final api = FakeMovaApi(
         options: const MovaOpts(
-          recovery: MovaRecoveryConfig(enabled: true),
-          ads: MovaAdConfig(enabled: true, breaks: [mid]),
+          recovery: MovaRecoveryOpts(enabled: true),
+          ads: MovaAdOpts(enabled: true, breaks: [mid]),
         ),
       );
-      final cutover = FakeCutoverCtl();
+      final cutover = FakeCutover();
       final ads = MovaAds(api, cutover: cutover);
       final gate = Completer<void>();
       addTearDown(() async {
@@ -123,11 +123,11 @@ void main() {
     session.contentEnded.listen(ends.add);
     session.events.listen(nodes.add);
     await session.load(a);
-    final content = rig.engines.first;
+    final content = rig.movas.first;
     content.push(content.state.copyWith(duration: const Duration(seconds: 10)));
     content.pushProgress(const MovaProg(position: Duration(seconds: 9)));
     await settleOperations();
-    final shadow = rig.engines.last;
+    final shadow = rig.movas.last;
     final gate = content.pauseGate = Completer<void>();
     addTearDown(() {
       if (!gate.isCompleted) gate.complete();
@@ -158,11 +158,11 @@ void main() {
       if (!gate.isCompleted) gate.complete();
     });
     await rig.ads.load(a);
-    final content = rig.engines.first;
+    final content = rig.movas.first;
     content.push(content.state.copyWith(duration: const Duration(seconds: 10)));
     content.pushProgress(const MovaProg(position: Duration(seconds: 9)));
     await settleOperations();
-    final shadow = rig.engines.last;
+    final shadow = rig.movas.last;
     expect(shadow, isNot(same(content)));
     content.pushEvent(const MovaDone());
     await settleOperations();
@@ -176,9 +176,9 @@ void main() {
 
   test('late legacy commit cannot revive ad / 旧式提交迟到不激活广告', () async {
     final api = FakeMovaApi(
-      options: const MovaOpts(ads: MovaAdConfig(enabled: true, breaks: [mid])),
+      options: const MovaOpts(ads: MovaAdOpts(enabled: true, breaks: [mid])),
     );
-    final cutover = FakeCutoverCtl();
+    final cutover = FakeCutover();
     final gate = Completer<void>();
     final ads = MovaAds(api, cutover: cutover);
     addTearDown(() async {
@@ -210,7 +210,7 @@ void main() {
       late final MovaAds ads;
       final api = FakeMovaApi(
         options: MovaOpts(
-          ads: MovaAdConfig(
+          ads: MovaAdOpts(
             enabled: true,
             breaks: [
               MovaAdBreak(
@@ -228,7 +228,7 @@ void main() {
           ),
         ),
       );
-      final cutover = FakeCutoverCtl();
+      final cutover = FakeCutover();
       ads = MovaAds(api, cutover: cutover);
       addTearDown(() async {
         await ads.dispose();
@@ -253,14 +253,14 @@ void main() {
       addTearDown(rig.dispose);
       await rig.ads.load(a);
       await rig.api.open(b);
-      rig.engines.first.pushEvent(const MovaSourceChange(b));
+      rig.movas.first.pushEvent(const MovaSourceChange(b));
       await settleOperations();
       expect(rig.ads.session.cursor.phase, MovaSessionPhase.idle);
       final ticket = (await rig.api.prepareOwned(
         mid.source,
         plan: const MovaWarmPlan(trigger: MovaEagerWarm()),
       ))!;
-      final hostShadow = rig.engines.last;
+      final hostShadow = rig.movas.last;
       await rig.ready(hostShadow);
       await rig.ads.dispose();
       expect(hostShadow.disposeCount, 0);

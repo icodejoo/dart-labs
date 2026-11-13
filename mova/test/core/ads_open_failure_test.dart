@@ -14,7 +14,7 @@ import '../support/fake_api.dart';
 import 'cutover/cutover_operation_test.dart' show settleOperations;
 
 /// 记录广告失败裁决；可要求重试以确认拒绝路径不会调用策略。
-class RecordingAdPolicy implements MovaAdFailPolicy {
+class RecordingAdPolicy implements IMovaAdFailPolicy {
   /// 创建返回 [action] 的记录策略。
   RecordingAdPolicy([this.action = MovaAdFailAction.skipBreak]);
 
@@ -33,7 +33,7 @@ class RecordingAdPolicy implements MovaAdFailPolicy {
 }
 
 /// 在指定广告切换动词上只抛一次，覆盖调用方的异常汇流。
-class ThrowingAdCutover extends FakeCutoverCtl {
+class ThrowingAdCutover extends FakeCutover {
   /// [stage] 选择 prepare、commit 或 cutoverTo。
   ThrowingAdCutover(this.stage);
 
@@ -107,7 +107,7 @@ void main() {
       );
       final api = FakeMovaApi(
         options: MovaOpts(
-          ads: MovaAdConfig(enabled: true, breaks: [ad], failPolicy: policy),
+          ads: MovaAdOpts(enabled: true, breaks: [ad], failPolicy: policy),
         ),
       );
       final ads = MovaAds(api, cutover: cutover);
@@ -139,7 +139,7 @@ void main() {
     );
     final api = FakeMovaApi(
       options: MovaOpts(
-        ads: MovaAdConfig(enabled: true, breaks: const [ad], failPolicy: policy),
+        ads: MovaAdOpts(enabled: true, breaks: const [ad], failPolicy: policy),
       ),
     );
     final ads = MovaAds(api, cutover: cutover);
@@ -161,7 +161,7 @@ void main() {
     late FakeMovaApi api;
     api = FakeMovaApi(
       options: MovaOpts(
-        ads: MovaAdConfig(
+        ads: MovaAdOpts(
           enabled: true,
           breaks: const [ad],
           failPolicy: policy,
@@ -187,7 +187,7 @@ void main() {
   test('正片 open 抛出经 contentError 上报并 idle，不触发后续中插或 contentEnded', () async {
     final boom = StateError('content failed');
     final api = FakeMovaApi(
-      options: const MovaOpts(ads: MovaAdConfig(enabled: true, breaks: [mid])),
+      options: const MovaOpts(ads: MovaAdOpts(enabled: true, breaks: [mid])),
     )..openThrows = boom;
     final ads = MovaAds(api);
     final errors = <Object>[];
@@ -209,7 +209,7 @@ void main() {
 
   test('正片被宿主拒绝不报错且进入 idle', () async {
     final api = FakeMovaApi(
-      options: const MovaOpts(ads: MovaAdConfig(enabled: true, breaks: [mid])),
+      options: const MovaOpts(ads: MovaAdOpts(enabled: true, breaks: [mid])),
     )..acceptOpens = false;
     final ads = MovaAds(api);
     final errors = <Object>[];

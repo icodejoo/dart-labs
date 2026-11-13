@@ -87,7 +87,7 @@ Stream<T> throttleStream<T>(Stream<T> source, Duration window) {
     timer = Timer(window, flush);
   }
 
-  // Must be a broadcast controller, not a single-subscription one: `MovaEngine`
+  // Must be a broadcast controller, not a single-subscription one: `Mova`
   // wraps this stream's output in `.asBroadcastStream()` so both the seek bar
   // and the gesture layer can each hold their own subscription. If the
   // listener count here ever drops to zero and rises again (e.g. a widget
@@ -98,7 +98,7 @@ Stream<T> throttleStream<T>(Stream<T> source, Duration window) {
   // controller supports being listened to across repeated zero-to-one
   // transitions, so this class of failure cannot happen.
   //
-  // 必须是广播型 controller，不能是单订阅型：`MovaEngine` 会把本函数的输出流再包一层
+  // 必须是广播型 controller，不能是单订阅型：`Mova` 会把本函数的输出流再包一层
   // `.asBroadcastStream()`，让进度条与手势层各自持有独立订阅。若这里的监听数一度
   // 降到零、随后又有新订阅（例如一次 widget 重建短暂拆掉又重建了订阅者），
   // `asBroadcastStream` 会对底层流重新调用一次 `listen()`——而单订阅 controller

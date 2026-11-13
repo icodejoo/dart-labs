@@ -22,7 +22,7 @@ enum MovaPreviewNet {
 /// non-essential traffic such as sprite sheets and frame extraction.
 ///
 /// 判断当前连接是否适合承载雪碧图、抽帧这类"非必要且吃带宽"的流量。
-abstract class MovaNetProbe {
+abstract class IMovaNetProbe {
   /// Whether heavy, optional traffic is currently acceptable.
   ///
   /// 当前是否可以接受重量级的可选流量。
@@ -43,17 +43,17 @@ abstract class MovaNetProbe {
   Future<void> dispose();
 }
 
-/// A [MovaNetProbe] that always permits heavy traffic.
+/// A [IMovaNetProbe] that always permits heavy traffic.
 ///
 /// The core-layer default so a host that never wires a real probe still gets
 /// working previews; the plugin-backed probe lives in
 /// `lib/src/platform_impl/net_probe_impl.dart`.
 ///
-/// 恒定允许重量级流量的 [MovaNetProbe]。
+/// 恒定允许重量级流量的 [IMovaNetProbe]。
 ///
 /// 作为 core 层默认值，让未接入真实探针的宿主也能用上预览；基于插件的探针放在
 /// `lib/src/platform_impl/net_probe_impl.dart`。
-class MovaAlwaysAllowNetProbe implements MovaNetProbe {
+class MovaAlwaysAllowNetProbe implements IMovaNetProbe {
   @override
   Future<bool> allowHeavy() async => true;
 
@@ -81,7 +81,7 @@ class MovaAlwaysAllowNetProbe implements MovaNetProbe {
 /// Returns whether networked preview sources may run.
 ///
 /// 返回是否允许运行需要联网的预览来源。
-Future<bool> previewAllowedOn(MovaPreviewNet policy, MovaNetProbe probe) async {
+Future<bool> previewAllowedOn(MovaPreviewNet policy, IMovaNetProbe probe) async {
   switch (policy) {
     case MovaPreviewNet.never:
       return false;
@@ -98,13 +98,13 @@ Future<bool> previewAllowedOn(MovaPreviewNet policy, MovaNetProbe probe) async {
 
 /// 按需创建真实探针；仅调用 [allowHeavy] 或读取 [changes] 才调用 [factory]。
 /// 未使用便销毁时不会创建探针。示例：`MovaLazyNetProbe(makeProbe)`。
-class MovaLazyNetProbe implements MovaNetProbe {
+class MovaLazyNetProbe implements IMovaNetProbe {
   /// 保存探针工厂 [factory]，返回延迟创建的探针包装器。
   MovaLazyNetProbe(this.factory);
 
   /// 首次需要网络判定时调用的工厂；每个包装器最多创建一个实例。
-  final MovaNetProbe Function() factory;
-  MovaNetProbe? _inner;
+  final IMovaNetProbe Function() factory;
+  IMovaNetProbe? _inner;
   bool _disposed = false;
 
   @override

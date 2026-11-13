@@ -30,20 +30,20 @@ const Duration kWhepDefaultFirstFrame = Duration(seconds: 10);
 const Duration kWhepDefaultMedia = Duration(seconds: 5);
 
 /// 统一超时配置，每次 open 前透传给 libmpv/ffmpeg；`null` 表示不动 mpv 侧默认值。超时由
-/// mpv/ffmpeg 负责，失败（END_FILE error）触发重连；`MovaRecoveryConfig` 里的 Dart 看门狗
+/// mpv/ffmpeg 负责，失败（END_FILE error）触发重连；`MovaRecoveryOpts` 里的 Dart 看门狗
 /// 只是由这些窗口派生出的兜底。按源的 `mpvOptions`/`demuxerOptions`/`whepMediaTimeout`
 /// 对同一选项的显式设置优先于本配置。
 ///
 /// Unified timeout settings, forwarded to libmpv/ffmpeg before each open;
 /// `null` leaves the mpv-side default untouched. mpv/ffmpeg own the timeouts
 /// and report failures (END_FILE error) that drive reconnects; the Dart
-/// watchdog in `MovaRecoveryConfig` is only a fallback derived from these
+/// watchdog in `MovaRecoveryOpts` is only a fallback derived from these
 /// windows. A per-source `mpvOptions` / `demuxerOptions` / `whepMediaTimeout`
-/// entry for the same option wins over this config.
+/// entry for the same option wins over these options.
 ///
 /// Example / 示例:
 /// ```dart
-/// const MovaOpts(recovery: MovaRecoveryConfig(
+/// const MovaOpts(recovery: MovaRecoveryOpts(
 ///   enabled: true,
 ///   timeouts: MovaTimeouts(network: Duration(seconds: 12), whepMedia: Duration(seconds: 8)),
 /// ));

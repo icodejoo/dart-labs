@@ -23,7 +23,7 @@ void main() {
     addTearDown(rig.dispose);
     await rig.ads.load(content);
     final shadow = await rig.warmContent();
-    final old = rig.engines.first;
+    final old = rig.movas.first;
     old.pauseGate = Completer<void>();
     old.emitDone();
     await settleOperations();
@@ -32,7 +32,7 @@ void main() {
     await settleOperations();
     expect(rig.ads.isAdPending, isFalse);
     expect(rig.ads.currentBreak, isNull);
-    expect(rig.engines, hasLength(2));
+    expect(rig.movas, hasLength(2));
     old.pauseGate!.complete();
     await settleOperations();
     expect(rig.api.active, same(shadow));
@@ -49,7 +49,7 @@ void main() {
     addTearDown(sub.cancel);
     await rig.ads.load(content);
     await rig.warmContent();
-    final old = rig.engines.first;
+    final old = rig.movas.first;
     old.pauseGate = Completer<void>();
     old.emitDone();
     await settleOperations();
@@ -68,7 +68,7 @@ void main() {
     addTearDown(rig.dispose);
     await rig.ads.load(content);
     final shadow = await rig.warmContent();
-    final old = rig.engines.first;
+    final old = rig.movas.first;
     old.pauseGate = Completer<void>();
     old.emitDone();
     await settleOperations();
@@ -77,7 +77,7 @@ void main() {
     await rig.ads.playAdNow(mid);
     expect(rig.ads.currentBreak, isNull);
     expect(rig.ads.isAdPending, isFalse);
-    expect(rig.engines, hasLength(2));
+    expect(rig.movas, hasLength(2));
     old.pauseGate!.complete();
     await settleOperations();
     expect(rig.api.active, same(shadow));

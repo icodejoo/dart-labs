@@ -14,10 +14,10 @@ import '../events/events.dart';
 import '../model/ad.dart';
 import '../model/rate.dart';
 import '../model/source.dart';
-import '../options/ad_config.dart';
+import '../options/ad_opts.dart';
 import '../state/progress.dart';
-import '../cutover/ctl.dart';
-import '../cutover/cutover_engine.dart';
+import '../cutover/api.dart';
+import '../cutover/cutover.dart';
 import '../cutover/acceptance.dart';
 import '../cutover/plan.dart';
 import '../cutover/trigger.dart';
@@ -46,7 +46,7 @@ enum MovaLoadOutcome {
 }
 
 /// 按旧广告入口构造，只使用显式 [cutover]，返回借用 [api] 的会话。
-MovaSession movaSessionForAds(MovaApi api, MovaCutover? cutover) =>
+MovaSession movaSessionForAds(IMovaApi api, IMovaCutover? cutover) =>
     MovaSession._(api, cutover: cutover);
 
 /// 广告薄适配器直接映射首段结果，不增加异步包装或 then 链。
@@ -114,11 +114,11 @@ class _SessionWarm {
 class MovaSession {
   /// 创建会话。[api] 为播放器，[ads] 默认取播放器配置；[items] 是条目列表，
   /// [initialIndex] 为初始下标，[autoAdvance] 默认关闭，开启后在全部后贴片结束时换集。
-  /// 返回新会话；自动识别 [MovaCutover]，仍遵守其开关。
+  /// 返回新会话；自动识别 [IMovaCutover]，仍遵守其开关。
   /// 示例：`final session = MovaSession(api, items: episodes, autoAdvance: true);`。
   MovaSession(
-    MovaApi api, {
-    MovaAdConfig? ads,
+    IMovaApi api, {
+    MovaAdOpts? ads,
     List<MovaPlaylistItem> items = const [],
     int initialIndex = 0,
     bool autoAdvance = false,
@@ -128,18 +128,18 @@ class MovaSession {
          items: items,
          initialIndex: initialIndex,
          autoAdvance: autoAdvance,
-         cutover: api is MovaCutover ? api as MovaCutover : null,
+         cutover: api is IMovaCutover ? api as IMovaCutover : null,
        );
 
   /// 两个入口共用配置与订阅；广告适配器不自动识别切换能力。
   MovaSession._(
     this._api, {
     this._cutover,
-    MovaAdConfig? ads,
+    MovaAdOpts? ads,
     List<MovaPlaylistItem> items = const [],
     int initialIndex = 0,
     bool autoAdvance = false,
-  }) : _cfg = ads ?? _api.options.ads,
+  }) : _opts = ads ?? _api.options.ads,
        _breaks = (ads ?? _api.options.ads).breaks,
        _onAdEvent = (ads ?? _api.options.ads).onAdEvent,
        _enabled = (ads ?? _api.options.ads).enabled {
@@ -155,13 +155,13 @@ class MovaSession {
     _stateSub = _api.states.listen(_onState);
   }
 
-  final MovaApi _api;
-  final MovaCutover? _cutover;
+  final IMovaApi _api;
+  final IMovaCutover? _cutover;
 
-  /// The ad configuration snapshot this controller runs on.
+  /// The ad options snapshot this session runs on.
   ///
-  /// 本控制器运行所依据的广告配置快照。
-  final MovaAdConfig _cfg;
+  /// 本会话运行所依据的广告配置快照。
+  final MovaAdOpts _opts;
   List<MovaAdBreak> _breaks;
   final void Function(MovaAdEvent)? _onAdEvent;
   final bool _enabled;
@@ -229,9 +229,9 @@ class MovaSession {
   int _adRises = 0;
 
   /// The user's playback rate while content was on screen; restored after an
-  /// ad on the cutover path, where the shadow engine would otherwise reset it.
+  /// ad on the cutover path, where the shadow player would otherwise reset it.
   ///
-  /// 正片在屏时的用户倍速；走无缝切换路径时影子引擎会把它重置，广告后据此恢复。
+  /// 正片在屏时的用户倍速；走无缝切换路径时影子播放器会把它重置，广告后据此恢复。
   double _contentRate = kMovaNormalRate;
 
   /// The most recent content position seen on the progress stream; the resume
@@ -300,9 +300,9 @@ class MovaSession {
     final tickets = _warmTickets.toList();
     _warmTickets.clear();
     final owner = _cutover;
-    if (owner is! MovaWarmOwner) return Future<void>.value();
+    if (owner is! IMovaWarmOwner) return Future<void>.value();
     return Future.wait(
-      tickets.map((ticket) => (owner as MovaWarmOwner).cancelOwned(ticket)),
+      tickets.map((ticket) => (owner as IMovaWarmOwner).cancelOwned(ticket)),
     );
   }
 
@@ -316,7 +316,7 @@ class MovaSession {
   /// 取消会话凭据，并清理残留的旧式无主预热。
   Future<void> _abandonSessionWarm() {
     final cutover = _cutover;
-    if (cutover is! MovaWarmOwner) {
+    if (cutover is! IMovaWarmOwner) {
       return cutover?.abandon() ?? Future<void>.value();
     }
     final cancelling = _cancelWarmTickets();
@@ -324,7 +324,7 @@ class MovaSession {
     // can create a new host-owned shadow while native disposal is pending.
     //
     // 取走自己的槽后同步判定，避免等待原生释放时误清宿主后来新建的影子。
-    if (cutover is MovaCutoverEngine && !cutover.hasOwnedWarm) {
+    if (cutover is MovaCutover && !cutover.hasOwnedWarm) {
       return Future.wait([cancelling, cutover.abandon()]);
     }
     return cancelling;
@@ -344,8 +344,8 @@ class MovaSession {
     final warmGeneration = _warmGeneration;
     final itemsGeneration = _itemsGeneration;
     final cutover = _cutover!;
-    if (cutover is MovaWarmOwner) {
-      final ticket = await (cutover as MovaWarmOwner).prepareOwned(
+    if (cutover is IMovaWarmOwner) {
+      final ticket = await (cutover as IMovaWarmOwner).prepareOwned(
         source,
         at: at,
         cue: cue,
@@ -357,7 +357,7 @@ class MovaSession {
             gen != _gen ||
             itemsGeneration != _itemsGeneration ||
             warmGeneration != _warmGeneration) {
-          await (cutover as MovaWarmOwner).cancelOwned(ticket);
+          await (cutover as IMovaWarmOwner).cancelOwned(ticket);
         } else {
           _warmTickets.add(ticket);
         }
@@ -368,8 +368,8 @@ class MovaSession {
         owned: true,
       );
     }
-    if (cutover is MovaCutoverAcceptance) {
-      final accepted = await (cutover as MovaCutoverAcceptance).prepareAccepted(
+    if (cutover is IMovaCutoverAcceptance) {
+      final accepted = await (cutover as IMovaCutoverAcceptance).prepareAccepted(
         source,
         at: at,
         cue: cue,
@@ -386,7 +386,7 @@ class MovaSession {
     if (warm.owned) {
       final ticket = warm.ticket;
       if (ticket == null) return MovaWarmCommit.notReady;
-      return (_cutover as MovaWarmOwner).commitOwned(
+      return (_cutover as IMovaWarmOwner).commitOwned(
         ticket,
         waitForReady: true,
       );
@@ -476,9 +476,9 @@ class MovaSession {
   /// 当前广告未能及时产出首帧时触发。
   Timer? _loadTimer;
 
-  /// Attempt counter per break, fed to [MovaAdFailPolicy]; cleared per load.
+  /// Attempt counter per break, fed to [IMovaAdFailPolicy]; cleared per load.
   ///
-  /// 每条广告位的尝试次数计数，喂给 [MovaAdFailPolicy]；每次加载时清空。
+  /// 每条广告位的尝试次数计数，喂给 [IMovaAdFailPolicy]；每次加载时清空。
   final Map<MovaNodeId, int> _attempts = <MovaNodeId, int>{};
 
   /// 返回广告是否在屏；示例：`session.isShowingAd`。
@@ -558,7 +558,7 @@ class MovaSession {
     _resolving = null;
     _content = content;
     _resolve = resolve;
-    _breaks = List.unmodifiable(breaks ?? _cfg.breaks);
+    _breaks = List.unmodifiable(breaks ?? _opts.breaks);
     _nodes = movaBuildNodes(_epochItem, _breaks);
     await _beginLoad();
     while (gen == _gen && !_disposed) {
@@ -782,10 +782,10 @@ class MovaSession {
     _contentResumeAt = _lastContentPosition;
     // Snapshot the user's rate now: it is otherwise only refreshed by content
     // progress ticks, so a change made since the last tick would be lost.
-    // Skipped while returning from an ad, when the engine may still be the 1x ad.
+    // Skipped while returning from an ad, when the player may still be the 1x ad.
     //
     // 此刻同步快照用户倍速：它平时只由正片进度 tick 刷新，上一个 tick 之后的改动
-    // 会丢。从广告返回的过渡期内活动引擎可能仍是 1x 的广告，因此跳过。
+    // 会丢。从广告返回的过渡期内活动播放器可能仍是 1x 的广告，因此跳过。
     if (!_resuming) _contentRate = _api.state.rate;
     if (ad.delay > Duration.zero || _wantsWait(ad)) {
       _beginDelay(node);
@@ -835,22 +835,22 @@ class MovaSession {
 
   /// Whether [b] should be warmed up and cut to only once it is ready.
   ///
-  /// Waiting needs somewhere to warm up in; with no cutover engine the whole
+  /// Waiting needs somewhere to warm up in; with no cutover player the whole
   /// question is moot and the per-kind default never even gets consulted. The
   /// three-layer override (break → injected policy → per-kind default) lives
-  /// entirely inside [MovaAdConfig.waitsFor] — this controller must never
+  /// entirely inside [MovaAdOpts.waitsFor] — this session must never
   /// branch on [MovaAdBreakKind] itself, or the host's override would become
   /// unreachable.
   ///
   /// [b] 是否应当先预热、待其就绪后才切入。
   ///
-  /// 等待需要一个可供预热之处；没有切换引擎时这个问题根本不成立，按类型的
+  /// 等待需要一个可供预热之处；没有切换播放器时这个问题根本不成立，按类型的
   /// 默认值压根不会被查询。三层覆盖（广告位 → 注入策略 → 按 kind 默认）完全封在
-  /// [MovaAdConfig.waitsFor] 里——本控制器绝不自行对 [MovaAdBreakKind] 分支，
+  /// [MovaAdOpts.waitsFor] 里——本会话绝不自行对 [MovaAdBreakKind] 分支，
   /// 否则宿主的覆盖就绕不过去了。
   bool _wantsWait(MovaAdBreak b) {
     final cutover = _cutover;
-    return cutover != null && cutover.cutoverEnabled && _cfg.waitsFor(b);
+    return cutover != null && cutover.cutoverEnabled && _opts.waitsFor(b);
   }
 
   /// Enters [MovaSessionPhase.pending] for [b]: the content plays on while the countdown
@@ -909,7 +909,7 @@ class MovaSession {
   /// the way it always has.
   ///
   /// When the commit fails (nothing was warm, or the readiness policy timed
-  /// out), [MovaAdConfig.notReadyAction] decides between a hard cut — today's
+  /// out), [MovaAdOpts.notReadyAction] decides between a hard cut — today's
   /// behaviour, which the fallback must reproduce — and dropping the break so
   /// the content is never interrupted.
   ///
@@ -917,7 +917,7 @@ class MovaSession {
   /// 按一贯方式直接切入。
   ///
   /// 提交失败（压根没预热上，或就绪判据超时）时，由
-  /// [MovaAdConfig.notReadyAction] 在硬切（今天的行为，降级必须重现它）与丢弃该
+  /// [MovaAdOpts.notReadyAction] 在硬切（今天的行为，降级必须重现它）与丢弃该
   /// 广告位（正片完全不被打断）之间裁决。
   Future<void> _beginAd(MovaTimelineNode node) async {
     final b = node.adBreak!;
@@ -949,7 +949,7 @@ class MovaSession {
       _landingSource = b.source;
       final warm = await (_adWarm ??= _warm(
         b.source,
-        plan: movaAdWarmPlan(_cfg),
+        plan: movaAdWarmPlan(_opts),
       ));
       if (gen != _gen || _disposed || !identical(_adAttempt, attempt)) return;
       if (warm?.accepted == false) {
@@ -978,7 +978,7 @@ class MovaSession {
       await _playAd(node, alreadyOnScreen: true, ownedAttempt: attempt);
       return;
     }
-    switch (_cfg.notReadyAction) {
+    switch (_opts.notReadyAction) {
       case MovaAdNotReady.hardCut:
         _pending = null;
         await _playAd(node, ownedAttempt: attempt);
@@ -1008,7 +1008,7 @@ class MovaSession {
 
   /// Switches playback to ad break [b].
   ///
-  /// [alreadyOnScreen] means a warmed shadow engine has just been promoted and
+  /// [alreadyOnScreen] means a warmed shadow player has just been promoted and
   /// is already showing [b], so no `open()` is issued and the shadow is not
   /// abandoned — but every piece of phase bookkeeping still runs, because
   /// taking the seamless path must never silently skip an event or a state
@@ -1016,7 +1016,7 @@ class MovaSession {
   ///
   /// 把播放切换到广告位 [b]。
   ///
-  /// [alreadyOnScreen] 表示一个预热好的影子引擎刚刚转正、画面上已经是 [b]，因此
+  /// [alreadyOnScreen] 表示一个预热好的影子播放器刚刚转正、画面上已经是 [b]，因此
   /// 不下发 `open()`、也不拆掉该影子——但所有阶段簿记照常执行，因为走了无缝路径
   /// 绝不能悄悄漏掉任何一个事件或状态更新。
   Future<void> _playAd(
@@ -1082,7 +1082,7 @@ class MovaSession {
         unawaited(_cutover!.abandon());
         final warm = await _warm(
           b.source,
-          plan: movaAdWarmPlan(_cfg),
+          plan: movaAdWarmPlan(_opts),
           play: _playIntent(attempt.command, play),
         );
         if (!current()) return;
@@ -1137,12 +1137,12 @@ class MovaSession {
     // open() 落定之前收到的 tick 是上一段媒体的残留。
     //
     // Same for first-frame signals: while open()/prepare→commit was awaiting, the old
-    // engine could still tick (phase is already `ad`) and flip [_adFramed], which
+    // player could still tick (phase is already `ad`) and flip [_adFramed], which
     // would make the ad's real first frame a no-op and orphan the load timer.
     // Drop that verdict (and any slot clock it started), then re-read the
     // settled state: already rendered → first frame now, else arm the deadline.
     //
-    // 首帧信号同理：open()/prepare→commit 等待期间旧引擎仍可能 tick（此时阶段已是 `ad`）
+    // 首帧信号同理：open()/prepare→commit 等待期间旧播放器仍可能 tick（此时阶段已是 `ad`）
     // 并把 [_adFramed] 置位，导致广告真正的首帧被忽略、加载计时器无人取消。丢弃该判定
     // （及由它起的广告位时钟），再读落定后的状态：已渲染则立即判首帧，否则起期限。
     if (!current()) return;
@@ -1159,11 +1159,11 @@ class MovaSession {
     }
     // An ad must not play sped up. Cutover landings already start the ad at 1x
     // (MovaWarmPlan.rate); this is the safety net for the paths that bypass it
-    // — prepare/commit falling back to a plain open() on the user's engine, or a host
+    // — prepare/commit falling back to a plain open() on the user's player, or a host
     // adWarmPlan without a rate.
     //
     // 广告不应变速。走无缝落地时广告已按 1x 起步（MovaWarmPlan.rate）；这里是
-    // 绕过它的路径的兜底——prepare/commit 回落成在用户引擎上的普通 open()，或宿主自定义
+    // 绕过它的路径的兜底——prepare/commit 回落成在用户播放器上的普通 open()，或宿主自定义
     // 的 adWarmPlan 没带 rate。
     final cutover = _cutover;
     if (cutover != null &&
@@ -1176,7 +1176,7 @@ class MovaSession {
     //
     // durationFromFirstFrame 关闭时广告位从 open() 起算；开启时改由第一个进度
     // tick 起表。
-    if (!_cfg.durationFromFirstFrame) _armSlotTimer(node);
+    if (!_opts.durationFromFirstFrame) _armSlotTimer(node);
   }
 
   /// Starts the fixed-length slot timer for [b], if it has a
@@ -1226,7 +1226,7 @@ class MovaSession {
   void _armLoadTimer(MovaTimelineNode node) {
     final seq = _adAttempt!.seq;
     _cancelLoadTimer();
-    _loadTimer = Timer(_cfg.loadTimeout, () {
+    _loadTimer = Timer(_opts.loadTimeout, () {
       if (_phase != MovaSessionPhase.ad ||
           (_current?.id != node.id || _adAttempt?.seq != seq)) {
         return;
@@ -1273,7 +1273,7 @@ class MovaSession {
     await _resumeAfterAd(node, attemptSeq: attempt.seq);
   }
 
-  /// Applies [MovaAdConfig.failPolicy] to a break that would not play.
+  /// Applies [MovaAdOpts.failPolicy] to a break that would not play.
   ///
   /// Every failure route — a throwing `open()`, a player error during the ad,
   /// and a missing first frame — converges here, so the host's policy sees one
@@ -1281,7 +1281,7 @@ class MovaSession {
   /// [MovaAdBreak.duration]: what the advertiser bought is that many *visible*
   /// seconds, and the failed attempt showed none of them.
   ///
-  /// 对一条播不出来的广告位施加 [MovaAdConfig.failPolicy]。
+  /// 对一条播不出来的广告位施加 [MovaAdOpts.failPolicy]。
   ///
   /// 每一条失败路径——open() 抛出、广告期间播放器报错、始终没有首帧——都汇流到
   /// 这里，使宿主的策略看到的是一串一致的尝试记录。重试的广告位会重新获得完整的
@@ -1321,8 +1321,8 @@ class MovaSession {
         error: error,
         adBreak: b,
       ),
-      ads: _cfg,
-      engineRecovering: _api.options.recovery.enabled,
+      ads: _opts,
+      movaRecovering: _api.options.recovery.enabled,
     );
     _sessionEvents.add(MovaNodeFail(gen, node.id, verdict, error: error));
     _fire(MovaAdEventType.failed, node, error: error);
@@ -1373,7 +1373,7 @@ class MovaSession {
 
   /// Switches playback to the content, optionally resuming at [at]. Tries a
   /// seamless cutover first when [_cutover] is configured; falls back to the plain
-  /// `open()`/`seek()` path when swapping is disabled, was never warmed, or
+  /// `open()`/`seek()` path when cutover is disabled, was never warmed, or
   /// failed.
   ///
   /// Uses `commit(waitForReady: true)` rather than a bare `commit()` — a bare
@@ -1417,7 +1417,7 @@ class MovaSession {
       final warming = _contentWarm;
       final result = warming != null
           ? await _commit(await warming)
-          : cutover != null && cutover is! MovaWarmOwner
+          : cutover != null && cutover is! IMovaWarmOwner
           ? await _commit(_SessionWarm(null))
           : MovaWarmCommit.notReady;
       if (gen != _gen || _disposed) return;
@@ -1524,9 +1524,9 @@ class MovaSession {
         _phase == MovaSessionPhase.pending &&
         _api.state.renderEpoch == _pendingContentEpoch) {
       // Only a *natural* end counts: the content position must have reached the
-      // tail. The swap itself can emit a stray MovaDone from the retiring engine,
+      // tail. The cutover itself can emit a stray MovaDone from the retiring player,
       // which must keep being swallowed.
-      // 只认「自然结束」：正片位置必须已到片尾；换指本身会让退役引擎发出一个多余的
+      // 只认「自然结束」：正片位置必须已到片尾；换指本身会让退役播放器发出一个多余的
       // MovaDone，那个仍然要吞掉。
       final duration = _api.state.duration;
       final atTail =
@@ -1596,8 +1596,8 @@ class MovaSession {
             giveUp: giveUp,
             error: error,
           ),
-          ads: _cfg,
-          engineRecovering: _api.options.recovery.enabled,
+          ads: _opts,
+          movaRecovering: _api.options.recovery.enabled,
         );
         if (verdict == MovaNodeFailVerdict.failItem) {
           _contentUnavailable(error ?? StateError('正片恢复已放弃'));
@@ -1749,11 +1749,11 @@ class MovaSession {
   }
 
   /// Marks the current ad's first frame as landed: the load deadline has been
-  /// met, and with [MovaAdConfig.durationFromFirstFrame] the slot clock starts
+  /// met, and with [MovaAdOpts.durationFromFirstFrame] the slot clock starts
   /// now. Idempotent per ad.
   ///
   /// 标记当前广告首帧已落地：加载期限达成；开启
-  /// [MovaAdConfig.durationFromFirstFrame] 时广告位时钟从此刻起算。每条广告只生效
+  /// [MovaAdOpts.durationFromFirstFrame] 时广告位时钟从此刻起算。每条广告只生效
   /// 一次。
   void _onAdFirstFrame() {
     if (_adFramed ||
@@ -1764,7 +1764,7 @@ class MovaSession {
     _adFramed = true;
     _cancelLoadTimer();
     final playing = _current;
-    if (_cfg.durationFromFirstFrame && playing != null) {
+    if (_opts.durationFromFirstFrame && playing != null) {
       _armSlotTimer(playing);
     }
   }
@@ -1792,11 +1792,11 @@ class MovaSession {
       //
       // 这条广告的首个已渲染帧：广告主买的是*可见*秒数，加载慢不应该吃掉这段时长。
       if (!_adFramed) {
-        // `rendered` is the precise signal (always maintained by MovaEngine);
+        // `rendered` is the precise signal (always maintained by Mova);
         // without it fall back to two consecutive rising non-zero positions —
         // a single tick may be residue of the previous media.
         //
-        // `rendered` 是精确信号（MovaEngine 一直维护）；没有它时回退为"位置>0
+        // `rendered` 是精确信号（Mova 一直维护）；没有它时回退为"位置>0
         // 且连续两次递增"——单个 tick 可能是上一段媒体的残留。
         if (p.position > Duration.zero && p.position > _adLastPos) {
           _adRises++;
@@ -1807,11 +1807,11 @@ class MovaSession {
         if (_api.state.rendered || _adRises >= 2) _onAdFirstFrame();
       }
       // Ask the configured trigger whether it is time to start warming the
-      // content up in the background; the trigger (not this controller)
+      // content up in the background; the trigger (not this session)
       // decides based on how much of the ad is left and how long it is.
       //
       // 询问已配置的触发策略此刻是否该开始在后台预热正片；由触发策略（而非
-      // 本控制器）根据广告剩余时长与广告总时长决定。
+      // 本会话）根据广告剩余时长与广告总时长决定。
       final cutover = _cutover;
       if (cutover != null && cutover.cutoverEnabled) {
         final adDuration = _api.state.duration;
@@ -1855,7 +1855,7 @@ class MovaSession {
         unawaited(
           _adWarm = _warm(
             waiting.adBreak!.source,
-            plan: movaAdWarmPlan(_cfg),
+            plan: movaAdWarmPlan(_opts),
             cue: MovaWarmCue(
               remaining: delayRemaining,
               total: waiting.adBreak!.delay > Duration.zero
@@ -1869,10 +1869,10 @@ class MovaSession {
     }
     if (_phase != MovaSessionPhase.content) return;
     _lastContentPosition = p.position;
-    // While returning from an ad (`_resuming`) the active engine may still be
+    // While returning from an ad (`_resuming`) the active player may still be
     // the 1x ad, so its rate must not overwrite the content rate saved earlier.
     //
-    // 从广告返回的过渡期（`_resuming`）内，活动引擎可能仍是 1x 的广告，其倍速
+    // 从广告返回的过渡期（`_resuming`）内，活动播放器可能仍是 1x 的广告，其倍速
     // 不能覆盖此前保存的正片倍速。
     if (!_resuming) _contentRate = _api.state.rate;
     if (!_enabled) return;
@@ -1880,7 +1880,7 @@ class MovaSession {
       _nodes,
       p.position,
       _played,
-      _cfg.midRollSnapback,
+      _opts.midRollSnapback,
     );
     _played.addAll(selection.skip);
     final due = selection.play;

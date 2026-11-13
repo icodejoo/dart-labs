@@ -3,7 +3,7 @@
 > 2026-09-29 · 落地计划 · 承接调研笔记
 > [doc/notes/2026-09-29-player-telemetry-best-practices.md](../notes/2026-09-29-player-telemetry-best-practices.md)
 
-**Goal:** 把 `MovaReporter` 从"UI 动作流水"补成"播放质量数据源"——补齐业界必测四件套
+**Goal:** 把 `IMovaReporter` 从"UI 动作流水"补成"播放质量数据源"——补齐业界必测四件套
 （**TTFF 首帧耗时 / 卡顿次数与时长 / 播放失败（fatal 区分）/ 会话开始与结束（含结束原因四分）**），
 并把 `MovaReportName` 从纯枚举改成"内置 + 自定义"双轨。
 
@@ -75,7 +75,7 @@ and then only one event per changed property is returned."
 
 ### D1 — TTFF：起点 `open()` 入口，终点 `core-idle` 转 false，**不新增任何 libmpv 观察**
 
-**为什么不用 `MovaReady`：** `engine.dart:688` 的 `MovaReady` 是在
+**为什么不用 `MovaReady`：** `mova.dart:688` 的 `MovaReady` 是在
 `await _kernel.open()` 返回后立刻发的，而 media_kit 的 `Player.open()` 完成于
 `loadfile` 命令下发/初始化完毕，**离首帧还差整个网络握手 + 解封装 + 解码**。
 把它当 TTFF 终点会系统性地把首帧耗时低估成接近 0。调研笔记 A2 建议"用首个
@@ -89,8 +89,8 @@ media_kit 或自己写 FFI 事件循环——代价远超收益，且会把"core
 **为什么 `core-idle` 是合格的替身：** 手册原文 "it's only `no`/`false` if there's
 actually video playing"——即它转 false 的那一刻，核心确实已经在输出画面了，
 语义上与 PLAYBACK_RESTART 高度重合（后者本就是"核心重新开始输出"）。
-它已经被 media_kit 内建观察，并经 `Player.stream.buffering` → `MovaKernel.buffering`
-一路透传到 `MovaEngine`，**因此 TTFF 的实现是纯 Dart 边沿检测，零新增原生观察**。
+它已经被 media_kit 内建观察，并经 `Player.stream.buffering` → `IMovaKernel.buffering`
+一路透传到 `Mova`，**因此 TTFF 的实现是纯 Dart 边沿检测，零新增原生观察**。
 
 **为什么不用 `vo-configured`：** 手册明确它只表示"VO 当前是否已配置 / 视频窗口是否
 可见"，不是逐帧精确信号；且 `audioOnly` 模式下根本没有 VO。
@@ -101,7 +101,7 @@ actually video playing"——即它转 false 的那一刻，核心确实已经�
 **定义（对齐 CMCD `msd` / 腾讯云"首帧耗时"）：**
 
 ```
-ttffMs = t(首个 buffering==false 边沿) − t(MovaApi.open() 进入的第一行)
+ttffMs = t(首个 buffering==false 边沿) − t(IMovaApi.open() 进入的第一行)
 ```
 
 - 起点取 `open()` **方法体第一行**（在 `_chain.beforeOpen` 拦截器之前），因为
@@ -126,7 +126,7 @@ ttffMs = t(首个 buffering==false 边沿) − t(MovaApi.open() 进入的第一�
 接受"暂时无法发布到 pub.dev"的已知代价（与 `CLAUDE.md` 记录的现状一致）。
 
 **新实现**：`MovaMpvKernel`（唯一允许碰 media_kit 的文件）新增
-`implements MovaStatsProbe` 的 `playbackRestarts`（`Stream<void>`）与
+`implements IMovaStatsProbe` 的 `playbackRestarts`（`Stream<void>`）与
 `endFiles`（见 D3），构造期用 `native.observeEvent(MPV_EVENT_PLAYBACK_RESTART, …)`
 订阅；`MovaTtffTracker` 新增 `onNativeRestart(DateTime at)`，语义与
 `onBuffering` 的下降沿相同（落地即武装态转已落地），返回武装到落地的耗时。
@@ -152,15 +152,15 @@ ttffMs = t(首个 buffering==false 边沿) − t(MovaApi.open() 进入的第一�
 （§0 已核实）。这正是 ExoPlayer `PlaybackStatsListener` 存在的理由——官方把它拆成
 "事件解释（区分首次缓冲 vs 再缓冲）→ 状态追踪 → 聚合 → 汇总"四步。mova 照抄这个
 分层，但按本仓库既有范式落地：**抽象策略 + 默认实现 + 可注入**，与
-`MovaAbrPolicy`/`MovaBufferAbr`（`options/abr_config.dart`）逐字同构。
+`IMovaAbrPolicy`/`MovaBufferAbr`（`options/abr_opts.dart`）逐字同构。
 
 ```dart
 /// Turns a stream of "stalled right now" observations into completed stall
-/// records. Mirrors [MovaAbrPolicy]: mova ships a default, hosts can inject.
+/// records. Mirrors [IMovaAbrPolicy]: mova ships a default, hosts can inject.
 ///
 /// 把一连串"此刻是否卡住"的观测，转换成一条条"已结束的卡顿"记录。
-/// 与 [MovaAbrPolicy] 同一范式：mova 给默认实现，宿主可注入替换。
-abstract class MovaStallPolicy {
+/// 与 [IMovaAbrPolicy] 同一范式：mova 给默认实现，宿主可注入替换。
+abstract class IMovaStallPolicy {
   /// Feeds one observation; returns the finished stall when [stalled] just
   /// fell back to false, otherwise `null`.
   ///
@@ -180,11 +180,11 @@ abstract class MovaStallPolicy {
 ///
 /// 默认的边沿策略：从上升沿计到下降沿，吞掉短于 [minStall] 的抖动
 /// （mpv 会合并属性变更通知，亚帧级翻转是噪声而非卡顿）。
-class MovaEdgeStall implements MovaStallPolicy { ... }
+class MovaEdgeStall implements IMovaStallPolicy { ... }
 ```
 
 **"首次缓冲 vs 再缓冲"的判据**：`MovaQoeCollector` 只在 **TTFF 已落地之后**才把观测
-喂给 `MovaStallPolicy`——首帧之前的等待属于起播耗时，不计入卡顿，否则同一段时间会
+喂给 `IMovaStallPolicy`——首帧之前的等待属于起播耗时，不计入卡顿，否则同一段时间会
 被两个指标重复计费（ExoPlayer 官方文档点名的第一步"事件解释"就是这件事）。
 
 **为什么单次卡顿仍然出事件**：调研笔记 §2 的担心（高频）指的是 `buffering` 布尔抖动，
@@ -279,7 +279,7 @@ MovaSessionEnd resolveSessionEndNative({
 completed"这条优先级——这是一处严格增强，不是替换，旧函数与其全部既有单测
 原样保留。`MovaEndFileReason` 定义在 `stats_probe.dart`（`stop`/`quit`/`error`/
 `redirect`，刻意不含 `eof`，理由同上）。`MovaQoeCollector` 新增对
-`MovaStatsProbe.endFiles` 的订阅：收到 `error` 原因时直接置位 `_fatalSeen`，
+`IMovaStatsProbe.endFiles` 的订阅：收到 `error` 原因时直接置位 `_fatalSeen`，
 其余原因记入 `_lastEndFileReason` 供 `_emitSessionEnd` 调用
 `resolveSessionEndNative` 时使用。
 
@@ -306,7 +306,7 @@ completed"这条优先级——这是一处严格增强，不是替换，旧函�
 /// Decides whether a playback error is fatal and what stable code it carries.
 ///
 /// 判定一次播放错误是否致命、以及它对应的稳定错误码。
-abstract class MovaErrorPolicy {
+abstract class IMovaErrorPolicy {
   /// [subsystem] is mpv's own log prefix when known (`vd`/`ad`/`stream`/…),
   /// `null` when the error did not come from the log stream.
   /// [afterFirstFrame] says whether playback had already started.
@@ -321,7 +321,7 @@ abstract class MovaErrorPolicy {
 ///
 /// 基于 mpv 日志 prefix 的默认策略；映射表见
 /// `doc/plans/2026-09-29-telemetry-enhancement.md` §D4。
-class MovaPrefixError implements MovaErrorPolicy { ... }
+class MovaPrefixError implements IMovaErrorPolicy { ... }
 ```
 
 `MovaErrorEvent` 的上报改为：`params: {'error': …, 'fatal': bool, 'code': String}`；
@@ -406,7 +406,7 @@ class MovaReportName {
 
 **破坏面**（必须写进 CHANGELOG）：① 不再有 `MovaReportName.values.byName()`；
 ② 不能再把它用作 `switch` 的常量模式（改 switch `.value`）；③ `.index` 消失。
-`MovaApi.report(MovaReportName name, …)` 签名不变，既有调用点一行不改。
+`IMovaApi.report(MovaReportName name, …)` 签名不变，既有调用点一行不改。
 
 ### D6 — 会话级不变字段：只加 `sessionId` 一个顶层字段，其余留给宿主
 
@@ -414,43 +414,43 @@ class MovaReportName {
 到本会话的每一条事件上）。理由：CMCD 把 `sid` 列为 Session 类必备；而它是宿主
 **唯一无法自行重建**的字段——攒批发送时，宿主手上只有一堆 `MovaReportEvent`，没有
 会话边界信息。生成用纯 Dart（时间戳 + `Random` 十六进制），**不引入 `uuid` 依赖**，
-与本仓库此前 sha1→FNV-1a 的取舍一脉相承；工厂函数可经 `MovaReportConfig` 注入，
+与本仓库此前 sha1→FNV-1a 的取舍一脉相承；工厂函数可经 `MovaReportOpts` 注入，
 单测得以拿到确定值。
 
 **放进 `sessionStart.params` 的会话常量**（一次性，不随每条事件重复）：
-`streamType`（vod/live）、`audioOnly`、`swapEnabled`、`uri`、`title`、
-以及从 `MovaStatsProbe.sample()` 取到的 `hwdec`/`viaNetwork`/`fileFormat`。
+`streamType`（vod/live）、`audioOnly`、`cutoverEnabled`、`uri`、`title`、
+以及从 `IMovaStatsProbe.sample()` 取到的 `hwdec`/`viaNetwork`/`fileFormat`。
 
 **明确不加、留给宿主**：`viewerId`/`deviceId`（身份信息，插件不该采集）、
 `networkType`/`osVersion`/`deviceModel`/`isp`/`地域`（宿主的分析 SDK 本来就有；
 为它们把 `connectivity_plus`/`device_info_plus` 变成 mova 的硬依赖，违反本仓库
 "引入新依赖需用户同意"与 preview 模块刻意做的 tree-shaking 取舍）。
-宿主要带就在自己的 `MovaReporter.onReport` 里往 `params` 合并——这正是
+宿主要带就在自己的 `IMovaReporter.onReport` 里往 `params` 合并——这正是
 "mova 只标准化不发送"分层的好处。
 
 ### D7 — 默认开关：维持"新功能默认关闭"约定（2026-09-29 用户拍板：`qoe` 默认 `false`）
 
-规划阶段曾建议 `MovaReportConfig.qoe` 默认 `true`（理由：上报子系统本身已是
+规划阶段曾建议 `MovaReportOpts.qoe` 默认 `true`（理由：上报子系统本身已是
 opt-in，`reporter == null` 时连订阅都不创建；再加一层默认关闭会让宿主接了
 reporter 仍拿不到四大指标）。**用户已否决该建议，改回项目一贯的默认关闭约定**：
 
-- **`MovaReportConfig.qoe` 默认 `false`**——宿主须显式
-  `MovaOpts(report: MovaReportConfig(qoe: true))` 才会启用 TTFF/卡顿/会话/致命
+- **`MovaReportOpts.qoe` 默认 `false`**——宿主须显式
+  `MovaOpts(report: MovaReportOpts(qoe: true))` 才会启用 TTFF/卡顿/会话/致命
   错误四大指标；默认状态下事件流与本计划落地前逐字节相同。
   **每个 Task 都要有一条"`qoe` 默认值（不传该参数）时事件流与基线逐条相同"的测试**。
 - 心跳 `heartbeat` 默认 `null`（关闭），同样遵循默认关闭约定。
 - `reporter == null` 时整条链路仍然一个订阅都不建、一个 `Timer` 都不起（两层
   开关叠加，任一层关闭都是零开销）。
 
-### D8 — `MovaSwapEngine` 下的会话边界：明确不跨引擎合并
+### D8 — `MovaCutover` 下的会话边界：明确不跨播放器合并
 
-`MovaSwapEngine` 是 `MovaApi` 代理，真实 `MovaEngine` 由宿主的 `MovaEngineFact`
-创建；无缝切换会把生效引擎整个换掉。本计划**不做跨引擎会话合并**：
-QoE 会话的边界恒等于"**一个 `MovaEngine` 的一次 `open()`**"，广告→正片的无缝切换
-因此产生两段会话。关联手段：`sessionStart.params` 带 `swapEnabled` 与
+`MovaCutover` 是 `IMovaApi` 代理，真实 `Mova` 由宿主的 `MovaFact`
+创建；无缝切换会把生效播放器整个换掉。本计划**不做跨播放器会话合并**：
+QoE 会话的边界恒等于"**一个 `Mova` 的一次 `open()`**"，广告→正片的无缝切换
+因此产生两段会话。关联手段：`sessionStart.params` 带 `cutoverEnabled` 与
 `renderEpoch`，宿主按 `sessionId` + 时间相邻性自行串联。
-理由：跨引擎合并要求 `MovaSwapEngine` 自己持有一份聚合状态并在换指时迁移，这会把
-`swap_engine.dart` 从"纯代理"变成"有状态的指标持有者"，与它现有设计冲突，风险面
+理由：跨播放器合并要求 `MovaCutover` 自己持有一份聚合状态并在换指时迁移，这会把
+`cutover.dart` 从"纯代理"变成"有状态的指标持有者"，与它现有设计冲突，风险面
 远大于收益。**列为明确排除项**，如确有需求单独立项。
 
 ---
@@ -462,13 +462,13 @@ QoE 会话的边界恒等于"**一个 `MovaEngine` 的一次 `open()`**"，广�
 | 文件 | 职责 | Task |
 |---|---|---|
 | `report/session_id.dart` | `newMovaSessionId()` 纯函数 + `MovaSessionIdFactory` typedef | 2 |
-| `report/stats_probe.dart` | `MovaStatsProbe` 可选内核能力 + `MovaStatsSnapshot` + `MovaLogLine` | 3 |
+| `report/stats_probe.dart` | `IMovaStatsProbe` 可选内核能力 + `MovaStatsSnapshot` + `MovaLogLine` | 3 |
 | `report/collector.dart` | `MovaQoeCollector`（取代 `MovaReportTranslator` 的持有位，内部仍复用 `translateMovaEvent`） | 4 |
 | `report/ttff.dart` | `MovaTtffTracker` 纯逻辑 | 5 |
-| `report/stall.dart` | `MovaStallPolicy` / `MovaEdgeStall` / `MovaStall` | 6 |
+| `report/stall.dart` | `IMovaStallPolicy` / `MovaEdgeStall` / `MovaStall` | 6 |
 | `report/session.dart` | `MovaSessionEnd` + `resolveSessionEnd()` 纯函数 + `MovaSessionTally` | 7 |
-| `report/error_policy.dart` | `MovaErrorPolicy` / `MovaPrefixError` / `MovaErrorVerdict` | 8 |
-| `options/report_config.dart` | `MovaReportConfig` | 2 |
+| `report/error_policy.dart` | `IMovaErrorPolicy` / `MovaPrefixError` / `MovaErrorVerdict` | 8 |
+| `options/report_opts.dart` | `MovaReportOpts` | 2 |
 
 **修改**
 
@@ -476,15 +476,15 @@ QoE 会话的边界恒等于"**一个 `MovaEngine` 的一次 `open()`**"，广�
 |---|---|---|
 | `lib/src/core/report/report.dart` | `MovaReportName` 枚举→值类 + 6 个新内置；`MovaReportEvent` 加 `sessionId` | 1, 2 |
 | `lib/src/core/options/options.dart` | 加 `report` 节 + `copyWith`/`==`/`hashCode` + export | 2 |
-| `lib/src/core/kernel/mpv_kernel.dart` | `implements MovaStatsProbe`：观察 `paused-for-cache`、转发 `stream.log`、实现 `sample()` | 3 |
-| `lib/src/core/engine.dart` | `_reportTranslator` → `_qoe`；`open()` 首行打点；首帧/错误/完成/dispose 喂给 collector | 4–8 |
+| `lib/src/core/kernel/mpv_kernel.dart` | `implements IMovaStatsProbe`：观察 `paused-for-cache`、转发 `stream.log`、实现 `sample()` | 3 |
+| `lib/src/core/mova.dart` | `_reportTranslator` → `_qoe`；`open()` 首行打点；首帧/错误/完成/dispose 喂给 collector | 4–8 |
 | `lib/src/core/report/translator.dart` | `MovaErrorEvent` 分支改由 collector 决定 fatal/code；`MovaQualityChange`/`MovaAbrDownShift` 补码率 | 8, 9 |
 | `lib/mova.dart` | barrel 增补导出 | 1–8 |
 | `test/support/fake_api.dart` | `FakeMovaApi.report` 适配新 `MovaReportName`；加 `FakeStatsProbe` | 1, 3 |
 | `README.md` / `CHANGELOG.md` / `doc/SPEC.md` / `CLAUDE.md` | 文档 + 测试基线回写 | 11 |
 
-**测试**：`test/core/report/{name,config,session_id,stats_probe,collector,ttff,stall,session,error_policy,bitrate,heartbeat}_test.dart`
-+ 既有 `report_engine_test.dart`/`report_swap_test.dart`/`translator_test.dart` 增补
+**测试**：`test/core/report/{name,opts,session_id,stats_probe,collector,ttff,stall,session,error_policy,bitrate,heartbeat}_test.dart`
++ 既有 `report_mova_test.dart`/`report_cutover_test.dart`/`translator_test.dart` 增补
 + `test/core/openness_report_test.dart`（三件套对账）。
 
 **测试数量推进**（基线 **859**）：
@@ -498,7 +498,7 @@ Task 1 → 869、2 → 879、3 → 886、4 → 894、5 → 906、6 → 920、7 �
 - 包名 `mova`，公开类前缀 `Mova`；`src/` 内文件名不带前缀。
 - **`lib/src/core/**` 禁止 `import 'package:flutter/...'`；`test/core/purity_test.dart`
   的 `_mediaKitExceptions` 必须恒等于 `{'kernel/mpv_kernel.dart'}`，本计划任何 Task
-  都不许改它。** 这直接决定了 Task 3 的形态：`MovaStatsProbe` **抽象**放在
+  都不许改它。** 这直接决定了 Task 3 的形态：`IMovaStatsProbe` **抽象**放在
   `core/report/`（纯 Dart），**实现**只能在 `mpv_kernel.dart` 里。
 - 注释规则（`CLAUDE.md`）：每个类/方法/getter/字段都要注释，**先英文一句、空行、
   后中文**；公开 API 带参数/返回/示例。本计划代码块里的注释按原样抄。
@@ -542,23 +542,23 @@ Test: `test/core/report/name_test.dart`（新建）+ 既有 `translator_test.dar
 
 ---
 
-## Task 2：`MovaReportConfig`、`MovaOpts.report`、`sessionId`
+## Task 2：`MovaReportOpts`、`MovaOpts.report`、`sessionId`
 
-**Files:** Create `lib/src/core/options/report_config.dart`、
+**Files:** Create `lib/src/core/options/report_opts.dart`、
 `lib/src/core/report/session_id.dart`；Modify `report.dart`（`MovaReportEvent.sessionId`）、
 `options/options.dart`、`lib/mova.dart`；
-Test: `test/core/report/config_test.dart`、`session_id_test.dart`、`test/core/options_test.dart`（增补）。
+Test: `test/core/report/opts_test.dart`、`session_id_test.dart`、`test/core/options_test.dart`（增补）。
 
 **Produces:**
 
 ```dart
-/// Telemetry configuration: what mova computes on-device before handing
-/// events to [MovaReporter]. Everything here is pure in-memory aggregation —
+/// Telemetry options: what mova computes on-device before handing
+/// events to [IMovaReporter]. Everything here is pure in-memory aggregation —
 /// mova still never sends, batches, or schedules anything.
 ///
-/// 埋点配置：mova 在把事件交给 [MovaReporter] 之前，在端上算哪些东西。
+/// 埋点配置：mova 在把事件交给 [IMovaReporter] 之前，在端上算哪些东西。
 /// 这里的一切都是纯内存聚合——mova 依然从不发送、不攒批、不调度。
-class MovaReportConfig {
+class MovaReportOpts {
   /// Master switch for the QoE layer (TTFF / rebuffer / session / fatal).
   /// `true` by default: the whole reporting subsystem is already opt-in
   /// behind a `null` reporter, so a second default-off layer would just
@@ -588,19 +588,19 @@ class MovaReportConfig {
   /// [minStall].
   ///
   /// 可注入的卡顿聚合器；为 `null` 时选用由 [minStall] 构造的 [MovaEdgeStall]。
-  final MovaStallPolicy? stallPolicy;
+  final IMovaStallPolicy? stallPolicy;
 
   /// Injectable fatal/code classifier; `null` selects [MovaPrefixError].
   ///
   /// 可注入的致命性/错误码判据；为 `null` 时选用 [MovaPrefixError]。
-  final MovaErrorPolicy? errorPolicy;
+  final IMovaErrorPolicy? errorPolicy;
 
   /// Injectable session-id factory; `null` selects [newMovaSessionId].
   ///
   /// 可注入的会话 ID 工厂；为 `null` 时选用 [newMovaSessionId]。
   final MovaSessionIdFactory? sessionId;
 
-  const MovaReportConfig({
+  const MovaReportOpts({
     this.qoe = false,
     this.minStall = const Duration(milliseconds: 200),
     this.heartbeat,
@@ -612,14 +612,14 @@ class MovaReportConfig {
   /// A fresh stall policy instance; policies carry per-session state.
   ///
   /// 新建一个卡顿策略实例；策略带有每会话的累积状态。
-  MovaStallPolicy newStallPolicy() => stallPolicy ?? MovaEdgeStall(minStall: minStall);
+  IMovaStallPolicy newStallPolicy() => stallPolicy ?? MovaEdgeStall(minStall: minStall);
 
   /// The error policy actually in effect.
   ///
   /// 实际生效的错误判据。
-  MovaErrorPolicy get effectiveErrorPolicy => errorPolicy ?? const MovaPrefixError();
+  IMovaErrorPolicy get effectiveErrorPolicy => errorPolicy ?? const MovaPrefixError();
 
-  MovaReportConfig copyWith({...});
+  MovaReportOpts copyWith({...});
 }
 ```
 
@@ -631,7 +631,7 @@ class MovaReportConfig {
 **不引入 `uuid`**。
 
 **断言：** 默认值全覆盖；`newStallPolicy()` 每次返回不同实例；
-`MovaOpts().report == const MovaReportConfig()`；`copyWith` 单字段替换；
+`MovaOpts().report == const MovaReportOpts()`；`copyWith` 单字段替换；
 `MovaOpts.copyWith(report: …)` 不影响其他节；`newMovaSessionId()` 连续 1000 次无重复；
 注入的工厂被真正使用。
 
@@ -639,12 +639,12 @@ class MovaReportConfig {
 
 ---
 
-## Task 3：`MovaStatsProbe` 可选内核能力
+## Task 3：`IMovaStatsProbe` 可选内核能力
 
-**为什么做成"可选接口"而不是给 `MovaKernel` 加抽象成员：** `MovaKernel` 是 core 层
+**为什么做成"可选接口"而不是给 `IMovaKernel` 加抽象成员：** `IMovaKernel` 是 core 层
 的核心抽象，所有测试假内核都实现它——加抽象成员会一次性打断数十个测试替身。
-改用 `implements MovaStatsProbe` 的**可选能力**，`MovaEngine` 做
-`final p = _kernel; if (p is MovaStatsProbe) …`，既有假内核一行不动。
+改用 `implements IMovaStatsProbe` 的**可选能力**，`Mova` 做
+`final p = _kernel; if (p is IMovaStatsProbe) …`，既有假内核一行不动。
 （这是本仓库既有范式的延伸：`renderHandle` 放宽为 `Object?` 时用的也是"不加必选
 契约"的思路。）
 
@@ -661,7 +661,7 @@ Test: `test/core/report/stats_probe_test.dart`、既有 `test/core/purity_test.d
 ///
 /// 可选的内核能力，暴露 libmpv 自己的统计量。未实现它的内核只会让 QoE 层降级，
 /// 绝不构成错误。
-abstract class MovaStatsProbe {
+abstract class IMovaStatsProbe {
   /// True exactly while playback is stopped waiting for the cache — mpv's
   /// `paused-for-cache`. This is the *real* rebuffer signal; the kernel's
   /// `buffering` stream is media_kit's merge of `core-idle` and
@@ -746,7 +746,7 @@ class MovaStatsSnapshot {
    一次、上报差值；差值为负（说明确实清零过）时退化为上报末次绝对值。
 
 **断言（用 `FakeStatsProbe`，不碰真 mpv）：**
-- `MovaStatsProbe` 未实现时 collector 正常降级、无异常；
+- `IMovaStatsProbe` 未实现时 collector 正常降级、无异常；
 - `stalling` 的 `'yes'`/`'no'` 解析；
 - `logs` 只透传 `level == 'error'`；
 - `sample()` 单项失败不影响其余项（返回带 `null` 字段的快照，而非整体 `null`）；
@@ -760,36 +760,36 @@ class MovaStatsSnapshot {
 ## Task 4：`MovaQoeCollector` 骨架接线（空指标，关闭态零改变）
 
 **Files:** Create `lib/src/core/report/collector.dart`；
-Modify `lib/src/core/engine.dart`、`lib/mova.dart`；
-Test: `test/core/report/collector_test.dart`、既有 `report_engine_test.dart`（增补）。
+Modify `lib/src/core/mova.dart`、`lib/mova.dart`；
+Test: `test/core/report/collector_test.dart`、既有 `report_mova_test.dart`（增补）。
 
-**Produces:** `MovaQoeCollector` 取代 `MovaEngine._reportTranslator` 的持有位。
+**Produces:** `MovaQoeCollector` 取代 `Mova._reportTranslator` 的持有位。
 它**内部仍然复用 `translateMovaEvent()`**（白名单逻辑一行不动），只是在外面套上
-会话状态：持有 `sessionId`、`MovaStallPolicy`、`MovaTtffTracker`、`MovaSessionTally`，
+会话状态：持有 `sessionId`、`IMovaStallPolicy`、`MovaTtffTracker`、`MovaSessionTally`，
 并给每一条出站事件补上 `sessionId`。
 
 ```dart
 /// Owns one playback session's QoE state and turns raw signals into report
-/// events. Constructed by [MovaEngine] only when a reporter is present;
-/// `MovaReportConfig.qoe == false` makes it a pure passthrough that behaves
+/// events. Constructed by [Mova] only when a reporter is present;
+/// `MovaReportOpts.qoe == false` makes it a pure passthrough that behaves
 /// byte-for-byte like the old `MovaReportTranslator`.
 ///
 /// 持有一次播放会话的 QoE 状态，把原始信号转成上报事件。仅当存在 reporter 时
-/// 由 [MovaEngine] 构造；`MovaReportConfig.qoe` 为 `false` 时它退化为纯直通，
+/// 由 [Mova] 构造；`MovaReportOpts.qoe` 为 `false` 时它退化为纯直通，
 /// 行为与旧的 `MovaReportTranslator` 逐字节一致。
 class MovaQoeCollector {
   MovaQoeCollector({
     required Stream<MovaEvent> events,
-    required MovaReporter reporter,
-    required MovaReportConfig config,
-    MovaStatsProbe? probe,
+    required IMovaReporter reporter,
+    required MovaReportOpts opts,
+    IMovaStatsProbe? probe,
     DateTime Function() now = DateTime.now,
   });
 
   /// Marks the start of a new session; called from the first line of
-  /// [MovaEngine.open].
+  /// [Mova.open].
   ///
-  /// 标记一次新会话的开始；由 [MovaEngine.open] 的第一行调用。
+  /// 标记一次新会话的开始；由 [Mova.open] 的第一行调用。
   void onOpen(MovaSource source, {required bool autoPlay});
 
   /// Terminates the current session (new `open()` or `dispose()`).
@@ -801,13 +801,13 @@ class MovaQoeCollector {
 }
 ```
 
-`engine.dart` 改动（全部是增量，不动既有语句顺序）：
+`mova.dart` 改动（全部是增量，不动既有语句顺序）：
 - `open()` **第一行**（`final gen = ++_openGen;` 之前）插 `_qoe?.onOpen(source, autoPlay: autoPlay)`；
 - `open()` 在 `onOpen` 之前先 `_qoe?.onTeardown()`（上一段会话的终结）；
 - `dispose()` 里 `_qoe?.onTeardown()` 后再 `cancel()`。
 
 **断言：**
-- `reporter == null` 时 collector 不被构造、`MovaStatsProbe` 不被订阅（用一个会在
+- `reporter == null` 时 collector 不被构造、`IMovaStatsProbe` 不被订阅（用一个会在
   被订阅时置位的假 probe 断言）；
 - `qoe: false` 时，一段"open→play→pause→seek→done"的事件序列产出的
   `MovaReportEvent` 列表与 Task 0 基线**逐条相同**（名称/kind/priority/params 全等），
@@ -822,7 +822,7 @@ class MovaQoeCollector {
 
 ## Task 5：TTFF（`firstFrame` / `startupFail`）
 
-**Files:** Create `lib/src/core/report/ttff.dart`；Modify `collector.dart`、`engine.dart`、`lib/mova.dart`；
+**Files:** Create `lib/src/core/report/ttff.dart`；Modify `collector.dart`、`mova.dart`、`lib/mova.dart`；
 Test: `test/core/report/ttff_test.dart`。
 
 **Produces:** `MovaTtffTracker` 纯逻辑（无 `Timer`、无 `DateTime.now()` 内部调用，
@@ -873,10 +873,10 @@ class MovaTtffTracker {
 **Files:** Create `lib/src/core/report/stall.dart`；Modify `collector.dart`、`lib/mova.dart`；
 Test: `test/core/report/stall_test.dart`。
 
-**Produces:** §D2 的 `MovaStallPolicy` / `MovaEdgeStall` / `MovaStall{durationMs, at}`。
+**Produces:** §D2 的 `IMovaStallPolicy` / `MovaEdgeStall` / `MovaStall{durationMs, at}`。
 
 信号源优先级（collector 内）：
-1. `MovaStatsProbe.stalling`（`paused-for-cache`）——**首选**，语义精确；
+1. `IMovaStatsProbe.stalling`（`paused-for-cache`）——**首选**，语义精确；
 2. probe 不可用时退化到 `MovaBufferChange`，并在 `params` 打
    `'signal': 'buffering'` 标明精度较低（会把暂停/seek 误算进去），
    便于分析侧分桶——**宁可标注降级，也不悄悄给出一个口径不同的数**。
@@ -889,7 +889,7 @@ Test: `test/core/report/stall_test.dart`。
 - 短于 `minStall` 的整段卡顿被吞掉、`index` 不递增；
 - **首帧落地之前的卡顿一律不计**（属于 TTFF），`index` 从 1 开始于首帧之后；
 - 换源 / `switchQuality` 后 `reset()`，`index` 归零；
-- 注入自定义 `MovaStallPolicy` 时默认实现不被构造；
+- 注入自定义 `IMovaStallPolicy` 时默认实现不被构造；
 - probe 缺席时 `signal` 为 `'buffering'`，probe 在场时为 `'cache'`；
 - 连续两次卡顿的 `durationMs` 各自独立、不累加。
 
@@ -933,7 +933,7 @@ MovaSessionEnd resolveSessionEnd({
 
 事件：
 - `sessionStart`：`kind: event`，`priority: batched`，
-  `params: {'uri', 'streamType', 'audioOnly', 'swapEnabled', 'title'?, 'hwdec'?,
+  `params: {'uri', 'streamType', 'audioOnly', 'cutoverEnabled', 'title'?, 'hwdec'?,
   'viaNetwork'?, 'fileFormat'?}`（后三项来自 `sample()`，取不到就不放键）；
 - `sessionEnd`：`kind: event`，**`priority: immediate`**（宿主进程随时可能被杀，
   必须立刻冲刷），`params: {'reason', 'watchedMs', 'completionPercent',
@@ -962,14 +962,14 @@ MovaSessionEnd resolveSessionEnd({
 Modify `collector.dart`、`translator.dart`、`lib/mova.dart`；
 Test: `test/core/report/error_policy_test.dart`、既有 `translator_test.dart`（增补）。
 
-**Produces:** §D4 的 `MovaErrorPolicy` / `MovaPrefixError` / `MovaErrorVerdict{fatal, code}`。
+**Produces:** §D4 的 `IMovaErrorPolicy` / `MovaPrefixError` / `MovaErrorVerdict{fatal, code}`。
 
 `MovaErrorEvent` 的上报从 translator 里**移出**（translator 不再为它产出事件，
 改由 collector 出，因为 fatal 判定需要"首帧是否已落地"这一会话状态）。
 产出：`kind: error`，`params: {'error': String, 'fatal': bool, 'code': String}`，
 `priority: fatal ? immediate : batched`。
 
-collector 通过 `MovaStatsProbe.logs` 与 `MovaErrorEvent` 做**时间近邻配对**
+collector 通过 `IMovaStatsProbe.logs` 与 `MovaErrorEvent` 做**时间近邻配对**
 （同一次错误既会进 mpv 日志流也会进 `stream.error`，媒体内容相同、prefix 只在日志流里），
 配对窗口 200ms；配不上就以 `subsystem: null` 调用策略。
 
@@ -978,7 +978,7 @@ collector 通过 `MovaStatsProbe.logs` 与 `MovaErrorEvent` 做**时间近邻配
 - `ffmpeg`+`tcp:` 在首帧前判 fatal、首帧后判非 fatal；
 - 非 fatal 的 `priority` 是 `batched`（这是本 Task 的降噪目的）；
 - fatal 错误会让 `MovaSessionEnd` 变 `failed`（与 Task 7 的联动）；
-- 注入自定义 `MovaErrorPolicy` 时默认实现不被构造；
+- 注入自定义 `IMovaErrorPolicy` 时默认实现不被构造；
 - 日志流缺席（无 probe）时仍产出事件，`code == 'unknown'`、按首帧状态判 fatal；
 - `qoe: false` 时 `MovaErrorEvent` 仍走**旧**路径（`params` 只有 `error`、恒
   `immediate`）——关闭态零改变。
@@ -995,7 +995,7 @@ Test: `test/core/report/bitrate_test.dart`、既有 `translator_test.dart`（增
 `qualityChange` 的 `params` 从 `{'quality': label}` 增补为
 `{'quality', 'toBps'?, 'fromBps'?, 'width'?, 'height'?, 'reason': 'manual'}`；
 `abrDownShift` 同构、`reason: 'abr'`。数值来自切换前后各一次
-`MovaStatsProbe.sample()` 的 `videoBps`（mpv `video-bitrate`，CMCD `br`）。
+`IMovaStatsProbe.sample()` 的 `videoBps`（mpv `video-bitrate`，CMCD `br`）。
 `inputBps`（CMCD `mtp`）随 `heartbeat`/`sessionEnd` 走，不挂在切换事件上——
 它是"请求级"量，挂在离散切换点上没有统计意义。
 
@@ -1012,7 +1012,7 @@ probe 在场时 `fromBps`/`toBps` 取自切换前后两次采样；
 **Files:** Modify `collector.dart`；Test: `test/core/report/heartbeat_test.dart`、
 `test/core/openness_report_test.dart`（新建）。
 
-`MovaReportConfig.heartbeat` 非空时起一个 `Timer.periodic`，产出 `heartbeat`：
+`MovaReportOpts.heartbeat` 非空时起一个 `Timer.periodic`，产出 `heartbeat`：
 `kind: event`，`priority: batched`，`params: {'watchedMs', 'positionMs', 'stallCount',
 'stallMs', 'videoBps'?, 'inputBps'?}`。**暂停期间不发**（没有新信息，纯噪声）。
 `dispose()` 必须取消 Timer。
@@ -1074,7 +1074,7 @@ probe 在场时 `fromBps`/`toBps` 取自切换前后两次采样；
 2. **设备/网络/系统/地域维度采集**（`networkType`/`osVersion`/`deviceModel`/`isp`/
    `viewerId`/`deviceId`）——见 §D6，采集它们要么引新依赖、要么触及身份信息，
    宿主的分析 SDK 本来就有。
-3. **广告四分位（25/50/75%）与广告段边界事件**（调研 B5）——`MovaAdController` 已有
+3. **广告四分位（25/50/75%）与广告段边界事件**（调研 B5）——`MovaAds` 已有
    全部时序信息，接线不难，但它是**广告计费**域、有 VAST/IMA 自己的规范约束，
    与 QoE 指标正交，单独立项更干净。
 4. **CMCD/CMSD 线格式的生成与发送**（`CMCD-Request` 头、Event Mode POST）——
@@ -1083,9 +1083,9 @@ probe 在场时 `fromBps`/`toBps` 取自切换前后两次采样；
    维度，硬塞进 kind 会把它撑成七八个值。要补就另加可选字段，不在本轮。
 6. **高频手势事件放开**（音量/亮度/缩放/锁定/fit/rate/时移）——继续排除。
    唯一可考虑的语义点是静音/取消静音（CMCD `e=m`/`e=um`），本轮也不做。
-7. **跨 `MovaSwapEngine` 的会话合并**——见 §D8，会话边界恒为"一个 `MovaEngine` 的
+7. **跨 `MovaCutover` 的会话合并**——见 §D8，会话边界恒为"一个 `Mova` 的
    一次 `open()`"，广告切换产生两段会话。
-8. **`feed` 引擎池的会话归属**——引擎池是"多引擎同时在场"模型，与单会话模型结构性
+8. **`feed` 播放器池的会话归属**——播放器池是"多播放器同时在场"模型，与单会话模型结构性
    不匹配，与无缝切换计划当初排除 feed 的理由相同。
 9. **fork media_kit 以拿到 `MPV_EVENT_PLAYBACK_RESTART` / `MPV_EVENT_END_FILE`**——
    §D1/§D3 已论证代价远超收益。若将来自建 libmpv 的 FFI 层（见 `CLAUDE.md` 里

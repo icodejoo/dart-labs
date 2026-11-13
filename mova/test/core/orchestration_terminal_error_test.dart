@@ -6,7 +6,7 @@ import '../support/fake_api.dart';
 Future<void> _settle() async => pumpEventQueue();
 
 /// 广告失败策略的观察替身，不复用或修改生产尝试结算逻辑。
-class _Policy implements MovaAdFailPolicy {
+class _Policy implements IMovaAdFailPolicy {
   /// 收到的广告失败。
   final failures = <MovaAdFail>[];
   /// 记录 [fail] 并跳过此广告位。
@@ -23,7 +23,7 @@ void main() {
     test('A15 ad firstFrame=$firstFrame ignores diagnostic then settles terminal error once', () async {
       final policy = _Policy();
       const ad = MovaAdBreak(kind: MovaAdBreakKind.pre, source: MovaSource('https://h/ad.mp4'));
-      final api = FakeMovaApi(options: MovaOpts(ads: MovaAdConfig(
+      final api = FakeMovaApi(options: MovaOpts(ads: MovaAdOpts(
         enabled: true, breaks: const [ad], failPolicy: policy,
       )));
       final ads = MovaAds(api);
@@ -52,17 +52,17 @@ void main() {
 
   for (final fatal in [false, true]) {
     test('A15 shadow fatal=$fatal only terminal abandons an awaiting commit without public error', () async {
-      final engines = <FakeMovaApi>[];
-      final proxy = MovaCutoverEngine(engineFactory: () {
-        final e = FakeMovaApi(options: const MovaOpts(cutover: MovaCutoverConfig(enabled: true)));
-        engines.add(e);
+      final movas = <FakeMovaApi>[];
+      final proxy = MovaCutover(movaFactory: () {
+        final e = FakeMovaApi(options: const MovaOpts(cutover: MovaCutoverOpts(enabled: true)));
+        movas.add(e);
         return e;
       });
       final errors = <MovaErrorEvent>[];
       final sub = proxy.events.where((v) => v is MovaErrorEvent).cast<MovaErrorEvent>().listen(errors.add);
       await proxy.prepare(const MovaSource('https://h/next.mp4'),
         plan: MovaWarmPlan(trigger: const MovaEagerWarm(), policy: MovaBufferWarm(stableTicks: 1)));
-      final shadow = engines.last;
+      final shadow = movas.last;
       bool? result;
       final commit = proxy.commit(waitForReady: true).then((value) => result = value);
       await _settle();
@@ -71,7 +71,7 @@ void main() {
       if (fatal) {
         expect(result, isFalse);
         expect(shadow.calls, contains('dispose'));
-        expect(proxy.active, same(engines.first));
+        expect(proxy.active, same(movas.first));
       } else {
         expect(result, isNull, reason: '非终结日志不解除就绪等待');
         expect(shadow.calls, isNot(contains('dispose')));

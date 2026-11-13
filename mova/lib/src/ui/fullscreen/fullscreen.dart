@@ -19,7 +19,7 @@ class MovaFullscreenHost extends StatefulWidget {
     required this.child,
   });
 
-  final MovaApi api;
+  final IMovaApi api;
   final Widget fullscreen;
   final VoidCallback onExit;
   final Widget child;

@@ -13,13 +13,13 @@
 ## 编排会话（MovaSession）
 
 模块：`core/session/`，纯 Dart；依赖 API、cutover 能力、广告/列表模型与失败策略，
-不导入 UI/平台实现。`MovaApi` 是播放能力，`MovaSession` 是编排，UI 消费各自状态。
-`MovaAds`/`MovaPlaylist` 是长期保留的薄适配器；引擎不拥有这些宿主对象。
+不导入 UI/平台实现。`IMovaApi` 是播放能力，`MovaSession` 是编排，UI 消费各自状态。
+`MovaAds`/`MovaPlaylist` 是长期保留的薄适配器；播放器不拥有这些宿主对象。
 
 ```dart
 final session = MovaSession(
   api,
-  ads: const MovaAdConfig(enabled: true),
+  ads: const MovaAdOpts(enabled: true),
   items: episodes, // List<MovaPlaylistItem>
   initialIndex: 0,
   autoAdvance: false,
@@ -31,7 +31,7 @@ final outcome = await session.jumpTo(0);
 
 `load/loadDeferred/jumpTo/next/previous` 返回 `Future<MovaLoadOutcome>`：
 `accepted/rejected/failed/superseded/disposed`。accepted 只保证首段接受，不保证首帧。
-直接构造自动识别 `api is MovaCutover`，仍遵守 cutover 开关；
+直接构造自动识别 `api is IMovaCutover`，仍遵守 cutover 开关；
 `MovaAds(api, cutover: cutover)` 继续只使用显式能力，`MovaAds.session` 可共享。
 `MovaAds.load/loadDeferred` 现返回 `Future<bool>`（首段是否接受），覆写者需同步返回类型。
 
@@ -50,7 +50,7 @@ phase 为 `idle/pending/ad/toContent/content`。节点身份不等于素材地�
 | 自动连播 | `autoAdvance` 默认 false；等待正片及全部后贴片，消费结束通知时检查 epoch |
 | 旧广告/列表组合 | `MovaPlaylist(api, ads: ads)` 共享会话，遵守 playlist.enabled；旧直连构造保留原行为 |
 | 宿主抢源 | 会话让位，已开始节点补一次 `MovaNodeEnd(superseded)`，不报节点失败 |
-| 暂停后跳广告/换指 | 继承最新 `playbackIntent`，不能自动恢复为播放；自定义引擎须维护意图 |
+| 暂停后跳广告/换指 | 继承最新 `playbackIntent`，不能自动恢复为播放；自定义播放器须维护意图 |
 | 正片失败 | 不自动换集，不发 contentEnded，回 idle，由宿主显式重试 |
 | 销毁 | 只释放会话订阅、时钟与自身凭据，不销毁借用 api |
 
@@ -58,7 +58,7 @@ phase 为 `idle/pending/ad/toContent/content`。节点身份不等于素材地�
 
 不能把所有动词放入等待网络的全局队列；同一原生 player 的属性操作仍由内核串行器保证。
 
-| 类别 | 会话 | cutover / engine |
+| 类别 | 会话 | cutover / 播放器 |
 |---|---|---|
 | 短迁移（同步，无 await） | tick 判中插、pod 簿记、游标/阶段、广告时钟、失败裁决 | 影子认领/换指、尝试认领、seek 寄存、首帧与相位更新 |
 | 长操作（令牌 + await 后复查） | resolver、open、prepare/commit、STT start/stop，绑定 epoch/尝试 | 影子 open/seek 绑定槽，提交绑定操作代际；钩子/加载/探测/恢复绑定会话、尝试或修订 |
@@ -76,7 +76,7 @@ Mini hide 不暂停，close 先 pause 再退出小窗并通知；宿主持有 AP
 首帧加载期限另用墙钟。`midRollSnapback` 为 all（默认，补播跨过的全部点）、
 last（仅最后插入点完整 pod）、none（略过并记已播），同点 pod 正常播放。
 
-非终结诊断由引擎处理，恢复中等待 giveUp；按 epoch/节点/尝试只裁决一次。
+非终结诊断由播放器处理，恢复中等待 giveUp；按 epoch/节点/尝试只裁决一次。
 广告由广告失败策略决定 retryNode/skipNode/abandonPod；
 正片终结失败为 failItem，恢复过程中的非终结观测为 ignore。
 `MovaAds.contentError` 与 `MovaSession.contentError` 汇入解析失败、正片 open/切换异常、
@@ -94,13 +94,13 @@ END_FILE(error)、已知终结文本、open 异常和 recovery giveUp 进入终�
 无事件泵时，仅包含当前主文件地址且来自 stream/cplayer/ffmpeg 的打开失败启用兜底；
 外挂字幕、外部音轨和 HLS 分片错误继续为诊断。
 
-引擎记录已接受会话与每次实际加载尝试，END_FILE 在加载前排空旧队列并带尝试编号。
+播放器记录已接受会话与每次实际加载尝试，END_FILE 在加载前排空旧队列并带尝试编号。
 **已知限制（已评估，不修）**：排空队列至 `Player.open` 的 stop 生效之间，旧文件恰好到达的 `END_FILE(error)` 仍可能误归新尝试并多触发一次重试；START_FILE 闸门与 open 后读取 `playlist_entry_id` 的方案均被真机证伪并撤销（分别破坏 HE V9 与恢复时序），详见 [未修项设计 §1](plans/2026-11-06-review-unfixed-design.md)。
 有效加载规格包含当前地址/档位、时移落后量、续播目标和播放意图；内部重试重放规格，
 不重新触发 beforeOpen、不新建 QoE 会话。新 seek（含零）取代旧寄存目标；
 时移重试按当前时间重建 URL，failover 清旧时移及档列表。
 
-## 每视图交互态（MovaChrome / MovaUiBridge）
+## 每视图交互态（MovaChrome / IMovaUiBridge）
 
 `ui/chrome/chrome.dart` 的 `MovaChrome` 实现 `ValueListenable<MovaUiState>`，
 `MovaPlayer(chrome:)` 可显式注入；未传时支持桥接的 API 每视图自动创建。
@@ -108,13 +108,13 @@ END_FILE(error)、已知终结文本、open 异常和 recovery giveUp 进入终�
 `MovaChrome.of(context)` 取得当前视图实例，使用 show/hide/showHud/setDragging。
 宿主注入的 chrome 由宿主销毁，一个实例同一时刻只能挂一个视图。
 
-`core/state/ui_bridge.dart` 的 `MovaUiBridge/uiReady/linkUi` 是包内可选过渡能力，
-**不增加 MovaApi 必需成员，不经公开 barrel 导出**。普通引擎和 cutover 代理支持；
+`core/state/ui_bridge.dart` 的 `IMovaUiBridge/uiReady/linkUi` 是包内可选过渡能力，
+**不增加 IMovaApi 必需成员，不经公开 barrel 导出**。普通播放器和 cutover 代理支持；
 自定义 API 无此能力时保留旧路径，也可显式传 chrome。
-旧 UI 动词向全部视图广播，旧 uiState/uiStates 镜像取最后变化的视图；普通引擎 Ready 后
+旧 UI 动词向全部视图广播，旧 uiState/uiStates 镜像取最后变化的视图；普通播放器 Ready 后
 镜像晚一个微任务。换指的 Ready 重放不重置视图状态和计时。
-末次解绑把 HUD/控制条剩余计时责任交还引擎；清拖动/预览，常显不新建隐藏计时。
-内置预览每视图独立会话，共享缓存和串行来源；自定义服务可实现 MovaPreviewSessions。
+末次解绑把 HUD/控制条剩余计时责任交还播放器；清拖动/预览，常显不新建隐藏计时。
+内置预览每视图独立会话，共享缓存和串行来源；自定义服务可实现 IMovaPreviewSessions。
 旧 UI 接口下版计划弃用，本版仅 dartdoc/CHANGELOG 公告，尚未加成员级注解。
 
 ## 视图样式（MovaPlayerStyle）
@@ -123,22 +123,22 @@ END_FILE(error)、已知终结文本、open 异常和 recovery giveUp 进入终�
 `theme/strings/gesture/controls/danmaku/icons`。每节整体替换，优先级：
 视图参数 > ThemeExtension > 旧 options > 默认（icons 无旧值）。
 `MovaDanmakuStyle` 仅五项展示字段，enabled/items 仍在 options。
-颜色、文案、手势、控制条、弹幕样式只更新视图，MovaView 不为它们重建引擎；
-引擎 options 保留构造快照。`MovaOpts.engineSectionsEqual` 比较实际引擎配置，
+颜色、文案、手势、控制条、弹幕样式只更新视图，MovaView 不为它们重建播放器；
+播放器 options 保留构造快照。`MovaOpts.movaSectionsEqual` 比较实际播放器配置，
 ads/playlist/mini 变化也不重建。旧 UI 配置字段只公告下版弃用，本版作为回落。
 `MovaIcons` 提供 20 个控制图标，MovaStrs 提供动作标签与 labelWithValue，
 质量的旧中文常量 kMovaAutoQualityLabel/kMovaUnknownQualityLabel 下版计划中性化。
 
 ## 导出面与能力分入口
 
-`mova.dart` 继续兼容主入口，新增 `skin.dart/ads.dart/feed.dart/mini.dart/extend.dart/stt.dart`。
-`skin` 提供组件/chrome/style，`extend` 提供会话、cutover、预览与平台端口。
-STT 主入口转导出仅保留一个版本，建议独立 import stt.dart；MovaApi.stt 保留。
+`mova.dart` 继续兼容主入口，新增 `ui_kit.dart/ads.dart/feed.dart/mini.dart/extend.dart/stt.dart`。
+`uiKit` 提供组件/chrome/style，`extend` 提供会话、cutover、预览与平台端口。
+STT 主入口转导出仅保留一个版本，建议独立 import stt.dart；IMovaApi.stt 保留。
 导出级公告的 hash/platform kind/service、平台适配实现、feed 池、上报 session id 等 helper
-计划下版隐藏，本版不增加成员级 @Deprecated。MovaWarmOwner 等内部能力不因此公开。
+计划下版隐藏，本版不增加成员级 @Deprecated。IMovaWarmOwner 等内部能力不因此公开。
 
 `test/public_api/export_surface_test.dart` 固定完整导出源路径与 show/hide 约束并递归转导出，
-主入口兼容快照 143 条；分入口快照 skin 30、ads 5、feed 6、mini 6、extend 45、stt 16 条。
+主入口兼容快照 143 条；分入口快照 ui_kit 30、ads 5、feed 6、mini 6、extend 45、stt 16 条。
 这些是导出指令条数，**不是声明总数**；更新入口必须同步审视快照及迁移公告。
 
 ## C 块宿主契约补充
@@ -151,14 +151,14 @@ STT 主入口转导出仅保留一个版本，建议独立 import stt.dart；Mov
   pauseUponEnteringBackgroundMode 已关闭，surface 回收并非已证实的唯一归因。
 - `MovaSource(headers:, userAgent:, start:)` 及 requestHeaders，sameAs/pick 均纳入；
   显式 UA 优先，mpv http-header-fields 使用长度前缀转义，start 只对点播寄存 seek。
-  旁路 `MovaHeaderedHttpFetch.getWithHeaders(Uri, Map<String, String>)` 为可选能力，
-  老 get(Uri) 保留但丢头，debug 每实例提示一次；抽帧对应 MovaHeaderedFramePuller。
-- MovaFeedPlayer 的 controller 为宿主持有的 MovaFeedPlayerController（ChangeNotifier），
-  feed/activeIndex/activeApi 可查询，jumpToPage/pause/play 可控制；池/引擎仍归组件。
+  旁路 `IMovaHeaderedHttpFetch.getWithHeaders(Uri, Map<String, String>)` 为可选能力，
+  老 get(Uri) 保留但丢头，debug 每实例提示一次；抽帧对应 IMovaHeaderedFramePuller。
+- MovaFeedPlayer 的 `ctrl:` 为宿主持有的 MovaFeedPlayerCtrl（ChangeNotifier），
+  feed/activeIndex/activeApi 可查询，jumpToPage/pause/play 可控制；池/播放器仍归组件。
   autoPause（null 禁用）/routeObservers 管整条 feed；errorBuilder(context,index,error,retry)
   覆盖 loader/open 拒绝或抛错/运行中终结错误，显式重试只作用于该页。
-- 注入的 kernel/cache/probe/source/extractor/fetcher/STT 识别器由宿主释放，自建资源归引擎；
-  ownsKernel:true 可显式移交。MovaAbrConfig.policyFactory 每引擎独立策略，优先旧 policy。
+- 注入的 kernel/cache/probe/source/extractor/fetcher/STT 识别器由宿主释放，自建资源归播放器；
+  ownsKernel:true 可显式移交。MovaAbrOpts.policyFactory 每播放器独立策略，优先旧 policy。
   STT start 失败回滚且不再向播放链抛出；模型下载实验实现、无校验和，识别引擎由宿主注入。
 
 ## 架构分层
@@ -170,10 +170,10 @@ lib/
 ├─ mova_method_channel.dart       # MethodChannel 实现
 └─ src/
    ├─ core/                           # 内核层：无 Flutter/media_kit UI 依赖
-   │  ├─ api.dart                     # MovaApi：UI 层唯一依赖的抽象能力面
-   │  ├─ engine.dart                  # MovaEngine implements MovaApi，生产实现
-   │  ├─ compat.dart                  # MovaCtrl（@Deprecated，包一层 MovaEngine，0.3.0 移除）
-   │  ├─ kernel/kernel.dart           # MovaKernel 抽象（可 fake）
+   │  ├─ api.dart                     # IMovaApi：UI 层唯一依赖的抽象能力面
+   │  ├─ mova.dart                  # Mova implements IMovaApi，生产实现
+   │  ├─ （compat.dart）              # 最早的门面类（已删除）
+   │  ├─ kernel/kernel.dart           # IMovaKernel 抽象（可 fake）
    │  ├─ kernel/mpv_kernel.dart       # 唯一 import media_kit 的文件
    │  ├─ bus/bus.dart                 # MovaBus：broadcast + throttle/distinct
    │  ├─ events/events.dart           # sealed MovaEvent 事件表
@@ -182,31 +182,31 @@ lib/
    │  ├─ state/ui_state.dart          # MovaUiState（控制条可见/HUD/预览位置）
    │  ├─ interceptor/interceptor.dart # MovaHook + MovaHookChain
    │  ├─ options/options.dart         # MovaOpts 聚合（live/gesture/abr/controls/strings/theme）
-   │  ├─ options/abr_config.dart      # MovaAbrConfig（含 MovaAbrPolicy 抽象；未落在 model/abr.dart）
-   │  ├─ options/gesture_config.dart  # MovaGestureConfig（自 0.1.0 迁入，字段不变）
-   │  ├─ options/controls_config.dart # MovaCtrlsConfig
-   │  ├─ options/live_config.dart     # MovaLiveConfig（含 urlBuilder/backToLive/windowResolver）
+   │  ├─ options/abr_opts.dart      # MovaAbrOpts（含 IMovaAbrPolicy 抽象；未落在 model/abr.dart）
+   │  ├─ options/gesture_opts.dart  # MovaGestureOpts（自 0.1.0 迁入，字段不变）
+   │  ├─ options/controls_opts.dart # MovaCtrlsOpts
+   │  ├─ options/live_opts.dart     # MovaLiveOpts（含 urlBuilder/backToLive/windowResolver）
    │  ├─ live/timeshift.dart          # resolveWindow/behindOf/atLiveEdge 纯函数
    │  ├─ options/strings.dart         # MovaStrs（文案外置，默认简体中文）
    │  ├─ options/theme.dart           # MovaTheme（配色/尺寸外置，ARGB int 存储）
    │  ├─ model/source.dart            # MovaSource / MovaStreamType
    │  ├─ model/quality.dart           # MovaQuality + parseHlsMasterPlaylist（纯函数）
    │  ├─ model/fit.dart               # MovaFit(contain/cover/fill)
-   │  └─ platform/ports.dart          # MovaBrightPort / MovaVolumePort / MovaPipPort / MovaOrientationPort
-   ├─ platform_impl/                  # ports 的具体实现（screen_brightness / MethodChannel / SystemChrome）
-   └─ ui/                             # UI 层：组件树 + 皮肤 + 手势，纯 Flutter widget
-      ├─ player.dart                  # MovaPlayer 门面：接 MovaApi，渲染画面，用 MovaSkin 出树
+   │  └─ platform/platform.dart          # IMovaBrightness / IMovaVolume / IMovaPip / IMovaOrient
+   ├─ platform_impl/                  # 平台接口（IMovaBrightness 等）的具体实现（screen_brightness / MethodChannel / SystemChrome）
+   └─ ui/                             # UI 层：组件树 + UI 套件 + 手势，纯 Flutter widget
+      ├─ player.dart                  # MovaPlayer 门面：接 IMovaApi，渲染画面，用 IMovaUiKit 出树
       ├─ fit_ext.dart                 # movaBoxFit()
       ├─ format.dart                  # formatDuration()
-      ├─ scope/scope.dart             # MovaScope：InheritedWidget 发布 MovaApi
+      ├─ scope/scope.dart             # MovaScope：InheritedWidget 发布 IMovaApi
       ├─ scope/selector.dart          # MovaSelect<T> / MovaUiSelect<T>：按选择器重建
       ├─ slots/slot.dart              # MovaSlot 枚举 + MovaSlotBundle
       ├─ slots/component.dart         # MovaComponent 抽象（name/slot/children/build）
       ├─ slots/tree.dart              # buildSlots()：组件树 → MovaSlotBundle
       ├─ slots/patch.dart             # MovaPatch（replace/remove/insertAfter/add，路径寻址）+ applyPatches()
       ├─ scope/plugin.dart            # MovaPlugin：副作用型组件的能力 mixin（api + bind）
-      ├─ skins/skin.dart              # MovaSkin 抽象（无参 components()/assemble()）
-      ├─ skins/default_skin.dart      # MovaDefaultSkin：静态树 + 三层可覆写骨架
+      ├─ ui_kits/ui_kit.dart              # IMovaUiKit 抽象（无参 components()/assemble()）
+      ├─ ui_kits/default_ui_kit.dart      # MovaDefaultUiKit：静态树 + 三层可覆写骨架
       └─ components/                  # 叶子/组合组件：top_bar/bottom_bar（自适应 VOD/直播）/
                                        # center_play/gesture_layer/hud_layer/overlays/common
 android/src/main/kotlin/.../MovaPlugin.kt  # 原生 PiP：ActivityAware + enterPictureInPictureMode
@@ -214,36 +214,36 @@ android/src/main/kotlin/.../MovaPlugin.kt  # 原生 PiP：ActivityAware + enterP
 
 Slint 无关；纯 Flutter/Dart + 少量 Kotlin。`core/` 目录不 import
 `package:flutter/*`（`purity_test.dart` 断言此约束）；`ui/` 是唯一可以
-import Flutter widget 与直接依赖 `MovaApi` 的地方。
+import Flutter widget 与直接依赖 `IMovaApi` 的地方。
 
 ## 关键 API 与不变式
 
-- `MovaApi` 是 `ui/` 唯一依赖的抽象；`MovaEngine implements MovaApi` 是生产实现，
+- `IMovaApi` 是 `ui/` 唯一依赖的抽象；`Mova implements IMovaApi` 是生产实现，
   测试用 `FakeMovaApi`（`test/support/fake_api.dart`）。
-- `MovaApi.renderHandle`：底层渲染句柄（生产环境是 media_kit 的
+- `IMovaApi.renderHandle`：底层渲染句柄（生产环境是 media_kit 的
   `VideoController`），`MovaPlayer` 仅当其 `is VideoController` 时渲染真实
   `Video`，否则渲染占位符——这是 widget 测试无需真实播放内核的关键。
   **默认内核对它做懒创建**（`MovaMpvKernel.lazyVideo`）：第一次读取 `renderHandle`（即
   `MovaPlayer` 挂上树）时才创建 `VideoController`，因为创建了却从未挂到界面的控制器会让
-  `Player.dispose()` 一直等待；无缝切换的影子引擎例外，创建后立即读一次以提前建好画面管线。
-- `MovaState.sourceTitle` 是 `MovaState` 上的可空字段（不是 `MovaApi` 的独立
+  `Player.dispose()` 一直等待；无缝切换的影子播放器例外，创建后立即读一次以提前建好画面管线。
+- `MovaState.sourceTitle` 是 `MovaState` 上的可空字段（不是 `IMovaApi` 的独立
   getter）；`copyWith` 用 `clearSourceTitle` 标志区分"不改"与"清空"。
-- 直播下 `seek()` 受 `state.liveSeekable` 门控（`MovaLiveConfig.seekMode !=
+- 直播下 `seek()` 受 `state.liveSeekable` 门控（`MovaLiveOpts.seekMode !=
   off` 且可拖窗口 > 0）：`dvr` 走内核原生 seek（clamp 到 `seekableWindow`）；
-  `timeshift` 走 `MovaLiveConfig.urlBuilder` 重开源（没有 `urlBuilder` 则整个
-  seek 是空操作）。`backToLiveEdge()` 按 `MovaLiveConfig.effectiveBackToLive`
+  `timeshift` 走 `MovaLiveOpts.urlBuilder` 重开源（没有 `urlBuilder` 则整个
+  seek 是空操作）。`backToLiveEdge()` 按 `MovaLiveOpts.effectiveBackToLive`
   执行——`seekEnd` 直接 seek 到窗口末端，`reopen` 重开**原始**直播地址
   （绕过 `open()`，因为回边缘是位置变化不是换源，也不该清空清晰度列表）。
-- `MovaPlayer` 组合渲染画面 + `MovaSkin.components()` 出的**静态**组件树
-  （经 `buildSlots()` 分槽，只构建一次）+ `MovaSkin.assemble()` 拼装 `Stack`；默认皮肤
-  `MovaDefaultSkin` 复刻 0.1.0 的分栏布局与"隐藏时可穿透点击"规则。
+- `MovaPlayer` 组合渲染画面 + `IMovaUiKit.components()` 出的**静态**组件树
+  （经 `buildSlots()` 分槽，只构建一次）+ `IMovaUiKit.assemble()` 拼装 `Stack`；默认 UI 套件
+  `MovaDefaultUiKit` 复刻 0.1.0 的分栏布局与"隐藏时可穿透点击"规则。
 
-## 组件树 / 皮肤 / 补丁
+## 组件树 / UI 套件 / 补丁
 
 - `MovaComponent`：`name`（树内寻址用）+ `slot`（归属的 `MovaSlot`）+
   `children` + `build(context, api, children)`。叶子组件 `children` 为空；
   组合组件（如 `MovaTopBarComponent`）持有多个子组件。
-- `MovaSkin.components()`（0.3.0 起无参）返回**静态**顶层组件列表——树不随状态
+- `IMovaUiKit.components()`（0.3.0 起无参）返回**静态**顶层组件列表——树不随状态
   变化，显隐由组件各自的 `MovaSelect` 响应式决定。VOD/直播底栏合并为一个自适应
   `MovaBottomBarComponent`：暴露两套布局子组件的并集（顶层 `name` 恒为 `bottomBar`，
   patch 路径不随流类型错位），只挂载与当前 `state.type` 相关的那些。
@@ -252,11 +252,11 @@ import Flutter widget 与直接依赖 `MovaApi` 的地方。
   `dispose` 自动回收）。纯渲染组件走 `MovaSelect`，不需要它。
 - `MovaSlot`：`gesture`/`hud`/`top`/`center`/`bottomAbove`/`bottom`/`overlay` +
   `left`/`right`（0.3.0 新增的左右垂直边带，供侧栏等；HUD 维持居中不落两侧）。
-- `MovaDefaultSkin.assemble` 是三层骨架（播放/操作/常驻），0.3.0 起拆为受保护的
+- `MovaDefaultUiKit.assemble` 是三层骨架（播放/操作/常驻），0.3.0 起拆为受保护的
   `buildPlaybackLayer`/`buildOperableLayer`/`buildPersistentLayer`，子类可只覆写一层。
   三层各自包一层 `RepaintBoundary`：操作层重绘最频繁（进度条 tick/HUD 淡出/栏显隐
   动画），隔离后不牵连播放层（视频画面）与常驻层一起重新光栅化，反之亦然；对宿主
-  App 也一样，外部重绘不会牵连进这棵子树。`test/ui/skin_test.dart` 用
+  App 也一样，外部重绘不会牵连进这棵子树。`test/ui/ui_kit_test.dart` 用
   `find.descendant(of: find.byType(MovaScope), ...)` 断言恰好 3 个（不能用全局
   `find.byType(RepaintBoundary)`——`MaterialApp`/测试绑定在外层还有框架级的）。
 - `MovaPatch` 是数据不是动作，只有 `applyPatches()` 解释它们（纯函数、可测）：
@@ -266,8 +266,8 @@ import Flutter widget 与直接依赖 `MovaApi` 的地方。
   - `MovaPatch.add(slot, component, {order = 0})`：向树追加一个新顶层组件，
     按 `order` 在该 `slot` 内排序（阶段 A 落地时修过这里的排序/挂载逻辑，
     以 `applyPatches` 的实现与 `tree_test.dart` 为准）。
-- 定制无需继承旧版 `VodControls`/`LiveControls`/`MovaGestDetect`：给
-  `MovaDefaultSkin(patches: [...])` 传补丁，或整体实现 `MovaSkin`。
+- 定制无需继承旧版控制条与手势组件（均已删除）：给
+  `MovaDefaultUiKit(patches: [...])` 传补丁，或整体实现 `IMovaUiKit`。
 
 ## 文案 / 主题外置
 
@@ -282,46 +282,46 @@ import Flutter widget 与直接依赖 `MovaApi` 的地方。
   零 Flutter 依赖；`ui/` 层用处转 `Color(...)`。
 - 二者都经 `MovaOpts.strings`/`MovaOpts.theme` 注入，组件通过
   `api.options.strings`/`api.options.theme` 读取，不再有散落的中文字面量
-  或 `Colors.*`/`Color(0x...)` 硬编码（`components/`、`skins/` 下）。
+  或 `Colors.*`/`Color(0x...)` 硬编码（`components/`、`ui_kits/` 下）。
 
 ## 拦截点
 
 `MovaHook`：`beforeOpen`/`beforeSeek`/`beforePlay`/`onError` 四个钩子，
 `MovaHookChain` 按注册顺序依次咨询、遇否决/取消即短路；`onError` 对
 每个拦截器独立 try/catch，一个抛异常不影响其余拦截器收到通知。经
-`MovaEngine(interceptors: [...])` 注入。
+`Mova(interceptors: [...])` 注入。
 
 ## 手势数学（gesture_layer.dart）
 
 - 横滑进度：`seconds = dx / width * hSeekSpanPerScreen.inSeconds`（默认
-  90s 满屏宽，来自 `MovaGestureConfig.hSeekSpanPerScreen`，可配）；直播下受
-  `state.liveSeekable && MovaGestureConfig.allowWhenLive`（默认开）门控，
+  90s 满屏宽，来自 `MovaGestureOpts.hSeekSpanPerScreen`，可配）；直播下受
+  `state.liveSeekable && MovaGestureOpts.allowWhenLive`（默认开）门控，
   非 `off` 模式的可拖直播允许横滑 seek，其余禁用。
-- 竖滑：侧别→动作经 `MovaGestureConfig` 的 `leftVertical`/`rightVertical`
+- 竖滑：侧别→动作经 `MovaGestureOpts` 的 `leftVertical`/`rightVertical`
   （`MovaGestureAction`）配置，0.3.0 起默认**左亮度、右音量**（对齐主流，翻转自
   0.1.0/0.2.0 的左音量/右亮度）；音量 0–100、亮度 0–1，系数 `vSensitivity`。
   横滑动作由 `horizontal`（默认 `seek`）决定；`MovaGestureAction.none` 可禁用某方向。
   volume/brightness 拖动均会 `showHud(...)`，HUD 徽标带图标 + 百分比（如 `🔊40%`）。
-- 音量落点：`setVolume` 经 `MovaVolumePort` 路由——接了端口走它（系统音量/宿主回调），
-  否则经内核走播放器音量。`createMovaEngine` 默认仅 Android 接 `MovaSystemVolumePort`
+- 音量落点：`setVolume` 经 `IMovaVolume` 路由——接了端口走它（系统音量/宿主回调），
+  否则经内核走播放器音量。`createMova` 默认仅 Android 接 `MovaSystemVolume`
   （原生 `AudioManager` 调系统媒体音量，无新依赖），iOS/桌面回退播放器音量；任意
-  平台可传 `MovaCallbackVolumePort` 接管。构造时从端口 `get()` 播种 `state.volume` 作手势基线。
-- 亮度：经 `MovaBrightPort`（生产实现用 `screen_brightness`）调系统屏幕亮度，
+  平台可传 `MovaCallbackVolume` 接管。构造时从端口 `get()` 播种 `state.volume` 作手势基线。
+- 亮度：经 `IMovaBrightness`（生产实现用 `screen_brightness`）调系统屏幕亮度，
   平台不支持时兜底 1.0。
 - 双指缩放：`onScaleUpdate` 进入 zoom，`clamp(1, maxZoom)`。
-- 双击：按 `MovaGestureConfig.doubleTapStep`（默认 10s）快进退。
+- 双击：按 `MovaGestureOpts.doubleTapStep`（默认 10s）快进退。
 
 ## 清晰度 / ABR
 
-现行默认：`probeVariants: true` 时就绪后引擎自探测；UI 还需 autoLoadQualities，
+现行默认：`probeVariants: true` 时就绪后播放器自探测；UI 还需 autoLoadQualities，
 显式 loadQualities 不受这两个自动开关影响。按会话及有效地址下标去重，迟到结果不覆盖手选。
 `manageAuto: false` 默认保留 mpv auto；实验性开启时，auto 卡顿由 mova 从次高档开始降档。
 seek/换档 ABR 租约绑定加载尝试，直播待本次 buffering true→false 释放，10s 兜底。
 
 
-- **清晰度切换 = 按档位 URL 重开内核**，不走 media_kit 同会话切轨（`MovaKernel` 没有
+- **清晰度切换 = 按档位 URL 重开内核**，不走 media_kit 同会话切轨（`IMovaKernel` 没有
   `videoTracks`/`setVideoTrack`）。`loadQualities()` 只对 URL 含 `.m3u8` 的源生效：
-  引擎自己拉取 master 并用 `parseHlsMasterPlaylist(content, base:)` 解析，成功后发
+  播放器自己拉取 master 并用 `parseHlsMasterPlaylist(content, base:)` 解析，成功后发
   `MovaQualityListChange`，并把列表首项（自动档）设为当前档、发 `MovaQualityChange`；
   非 m3u8、拉取失败或会话已过期都会清空列表。
 - `switchQuality(q)`：目标 URL 是 `q.uri`（自动档用当前 `_activeUri`），经 `_loadKernel`
@@ -329,18 +329,18 @@ seek/换档 ABR 租约绑定加载尝试，直播待本次 buffering true→fals
   重开命令下发后发 `MovaQualityChange`（不发 `MovaSourceChange`）。保留播放态；点播且
   已有进度时，续播位置经 `_seekOrPark` 寄存到新档位落地后再下发（带校验与最多 3 次
   重发），直播不续播 seek。
-- ABR 策略是 `MovaAbrConfig.policy`（类型 `MovaAbrPolicy`，位于
-  `core/options/abr_config.dart`，不是 DESIGN 文档原设想的
+- ABR 策略是 `MovaAbrOpts.policy`（类型 `IMovaAbrPolicy`，位于
+  `core/options/abr_opts.dart`，不是 DESIGN 文档原设想的
   `core/model/abr.dart`）；省略时默认 `MovaBufferAbr(threshold: stallThreshold)`。
   自动档不降档（交给 libmpv 原生 ABR）；`downshiftQuality()` 现在按
   `uri` 定位当前档在 `state.qualities` 里的下标。
 
 ## 直播时移（阶段 C）
 
-- 三种模式（`MovaLiveConfig.seekMode`）：`off`（默认，禁拖）、`dvr`（服务端滑动
+- 三种模式（`MovaLiveOpts.seekMode`）：`off`（默认，禁拖）、`dvr`（服务端滑动
   窗口内拖，复用内核原生 seek）、`timeshift`（拖动即用 `urlBuilder` 重开源）。
 - 窗口解析优先级（`resolveWindow`，`lib/src/core/live/timeshift.dart`）：
-  `MovaLiveConfig.windowResolver` > `dvrWindow` > 内核报告的 `duration`。结果
+  `MovaLiveOpts.windowResolver` > `dvrWindow` > 内核报告的 `duration`。结果
   clamp 到非负。
 - `behindOf(position, window, edgeThreshold)`：落后边缘的时长在 `edgeThreshold`
   （默认 10s）以内、或窗口未知/为零、或 `position` 已到/超过窗口末端时一律返回
@@ -349,7 +349,7 @@ seek/换档 ABR 租约绑定加载尝试，直播待本次 buffering true→fals
   不量化会让去重后的 `states` 流退化成高频流（阶段 A 特意把 position 排除在
   `MovaState` 之外的初衷）。落后量归零/变化时分别发 `MovaLiveEdgeReach`/
   `MovaTimeShiftChange`。
-- `backToLiveEdge()` 的行为由 `MovaLiveConfig.effectiveBackToLive` 决定：显式配置
+- `backToLiveEdge()` 的行为由 `MovaLiveOpts.effectiveBackToLive` 决定：显式配置
   `backToLive` 就用它，否则按 `seekMode` 推导（`timeshift` → `reopen`，其余 →
   `seekEnd`）。`reopen` 重开的是 `_source` 里保存的**原始**直播地址，而不是内核
   当前打开的时移地址。
@@ -361,92 +361,92 @@ seek/换档 ABR 租约绑定加载尝试，直播待本次 buffering true→fals
   timeshiftBadgeColor`）间切换；`backToLive`（原 `backToEdge`，已删除并改名）
   调 `backToLiveEdge()` 而非 `reload()`。
 
-## 无缝引擎切换（0.4.0，默认关闭）
+## 无缝播放器切换（0.4.0，默认关闭）
 
-现行实现：`cutover_engine.dart` 将影子及订阅/就绪等待收进 `_WarmSlot`；操作代际隔离
+现行实现：`cutover.dart` 将影子及订阅/就绪等待收进 `_WarmSlot`；操作代际隔离
 open/reload/prepare/commit，提交事务独占已认领槽，过期切换不能普通 open 抢回源。
-包内 `cutover/acceptance.dart` 的 `MovaWarmOwner` 扩展接受能力，以
+包内 `cutover/acceptance.dart` 的 `IMovaWarmOwner` 扩展接受能力，以
 prepareOwned 返回 MovaWarmTicket，commitOwned 返回 committed/notReady/superseded，
-cancelOwned 只取消相应槽，连已认领事务也遵守取消；不扩展公开 MovaCutover。
+cancelOwned 只取消相应槽，连已认领事务也遵守取消；不扩展公开 IMovaCutover。
 等待型 pod 广告逐条 prepare + 凭据提交，使用广告方向计划（1x、停首帧、就绪期限）。
 代理换指时用 render epoch 队列投递状态和事件，补发 SourceChange/Ready/FirstFrame，
 宿主回调抢源则停止补发并让位；H77 逻辑修复已落地，设备复验见检查点。
 
 
-- `MovaCutoverEngine`（`lib/src/core/cutover/cutover_engine.dart`）本身实现 `MovaApi` +
-  `MovaCutover`：宿主把它交给 `MovaPlayer`，UI 只认这一份稳定的对外面；它自持
-  `MovaBus<MovaState>` + 三个 broadcast controller，把订阅从旧引擎重接到新引擎——
-  **绝不直接转发 `active.states`**，否则组件在 `initState` 里订阅的流会在换引擎后死掉。
-- `MovaOpts.cutover`（`MovaCutoverConfig`）默认 `enabled: false`；关闭时 `MovaCutoverEngine`
-  是纯直通代理，永不创建影子引擎，每个能力方法原样转发给工厂产出的唯一引擎。
+- `MovaCutover`（`lib/src/core/cutover/cutover.dart`）本身实现 `IMovaApi` +
+  `IMovaCutover`：宿主把它交给 `MovaPlayer`，UI 只认这一份稳定的对外面；它自持
+  `MovaBus<MovaState>` + 三个 broadcast controller，把订阅从旧播放器重接到新播放器——
+  **绝不直接转发 `active.states`**，否则组件在 `initState` 里订阅的流会在换播放器后死掉。
+- `MovaOpts.cutover`（`MovaCutoverOpts`）默认 `enabled: false`；关闭时 `MovaCutover`
+  是纯直通代理，永不创建影子播放器，每个能力方法原样转发给工厂产出的唯一播放器。
 - 预热拆成两层可插拔纯逻辑（脱离 Flutter/内核，单测覆盖）：
-  - **触发策略** `MovaWarmTrigger`（`lib/src/core/cutover/trigger.dart`）：
+  - **触发策略** `IMovaWarmTrigger`（`lib/src/core/cutover/trigger.dart`）：
     `MovaLeadWarm`（按 `remaining`/`total` 倒推，短于 `minWarmDuration` 的片段
     一律不预热）用于可预测切换点（广告）；`MovaEagerWarm`（恒真）用于不可预测切换点
     （`cutoverTo`／未来的清晰度热切换）。
-  - **就绪判据** `MovaWarmPolicy`（`lib/src/core/cutover/warm.dart`）：`MovaBufferWarm`
+  - **就绪判据** `IMovaWarmPolicy`（`lib/src/core/cutover/warm.dart`）：`MovaBufferWarm`
     是 `MovaBufferAbr` 的镜像——后者数缓冲上升沿判"该降档"，前者数连续 `stableTicks`
     次"已到达目标位置 + 未卡顿 + 已缓冲 `lookahead`"判"可以切"；`elapsed >= timeout`
     时返回 `giveUp`（调用方据此拆影子、回落普通 `open()`），优先级高于 `ready`。
-- `MovaState.renderEpoch`：普通 `MovaEngine` 恒为 0；`MovaCutoverEngine` 每次 `commit()`
+- `MovaState.renderEpoch`：普通 `Mova` 恒为 0；`MovaCutover` 每次 `commit()`
   成功后递增，`_RenderSurface` 的 selector 纳入它以强制重读 `renderHandle`
   （`lib/src/ui/player.dart` 的 `_RenderSurface`，selector 从 `(fit, zoom)` 扩为
   `(fit, zoom, epoch)`）。
-- 原子切换顺序（`MovaCutoverEngine._commitNow`）：`active.pause()` → 影子
-  `setVolume(active.state.volume)` → 影子 `play()` → 转发订阅从旧引擎重接到新引擎
+- 原子切换顺序（`MovaCutover._commitNow`）：`active.pause()` → 影子
+  `setVolume(active.state.volume)` → 影子 `play()` → 转发订阅从旧播放器重接到新播放器
   → `active`/`renderEpoch` 换指 → `unawaited(old.dispose())`（先换指再释放，释放是慢
   的原生调用，不能挡在换指前面）。
-- `MovaAds` 新增可选 `cutover` 构造参数（应为同一个 `MovaCutoverEngine` 实例）：广告播放
+- `MovaAds` 新增可选 `cutover` 构造参数（应为同一个 `MovaCutover` 实例）：广告播放
   期间每个 progress tick 都调 `cutover.prepare(content, at: 续播点, cue: ...)`；
   `_playContent` 先 `cutover.commit()`，成功则跳过 `open`/`seek`，失败回落今天的路径；
   `_playAd` 开头 `cutover.abandon()`（丢弃为上一条广告预热的影子）。不传 `cutover` 时行为
   与 0.3.0 逐字节一致。
-- **清晰度切换未接入**：`MovaEngine.switchQuality()` 的语义已与
+- **清晰度切换未接入**：`Mova.switchQuality()` 的语义已与
   `cutoverTo(MovaSource(uri), at: position)` 一一对应，但只做了接口形状契约测试
-  （`test/core/cutover/cutover_engine_test.dart` 的 Task 8 分组）+ 落点注释
-  （`engine.dart` `switchQuality()` 上方），真正接入时还差一件事：影子引擎起步时
+  （`test/core/cutover/cutover_test.dart` 的 Task 8 分组）+ 落点注释
+  （`mova.dart` `switchQuality()` 上方），真正接入时还差一件事：影子播放器起步时
   `currentQuality`/`qualities` 为空，转正后需重新播种。
-- **feed 引擎池明确排除**：`core/feed/engine_pool.dart` 的拖拽场景要求两页画面
+- **feed 播放器池明确排除**：`core/feed/feed_pool.dart` 的拖拽场景要求两页画面
   同时在渲染树上连续插值（双画面并存），结构性不适用本模型的单渲染面离散替换；
-  两者仅共享 `MovaEngineFactory` 这一条底层原语。
+  两者仅共享 `MovaFactory` 这一条底层原语。
 - **真机验证未做**：黑屏是否真的消除、中插续播点误差、内存/解码 session 三阶段采样、
   短广告降级路径、断网预热超时兜底，均需真机逐项验证，详见
-  [doc/plans/2026-09-16-seamless-swap.md](plans/2026-09-16-seamless-swap.md) Task 11。
+  [doc/plans/2026-09-16-seamless-cutover.md](plans/2026-09-16-seamless-cutover.md) Task 11。
 
 ## 广告编排增强（0.5.0）
 
-**一句话结论：不新建任何预热机制。** `MovaWarmTrigger`/`MovaWarmPolicy`/`MovaCutoverEngine`
+**一句话结论：不新建任何预热机制。** `IMovaWarmTrigger`/`IMovaWarmPolicy`/`MovaCutover`
 三个抽象**零类型改动**直接复用，"正片背后暖广告"只是把同一套 `prepare` → 就绪判据 →
-`commit` 用在另一个方向上；`MovaCutover` 的 `prepare`/`commit`/`abandon`/`cutoverTo` 四个
+`commit` 用在另一个方向上；`IMovaCutover` 的 `prepare`/`commit`/`abandon`/`cutoverTo` 四个
 动词语义已经够用，**不新增任何方法**。
 
 | 抽象 | content→ad 方向怎么用 | 改动 |
 |---|---|---|
-| `MovaWarmTrigger` | 用 `MovaEagerWarm`（delay 窗口的全部意义就是拿来预热） | 零 |
-| `MovaWarmPolicy` | 用 `MovaBufferWarm`，`target: 0`，超时取 `adReadyTimeout` | 零 |
-| `MovaCutoverEngine` | `prepare(ad, at: 0, plan: …)` → `commit(waitForReady: true)` | 接 `plan` |
-| `MovaCutover` | 两段式服务中插，一次式 `cutoverTo` 服务前/后贴片 | `prepare` 加 `plan` |
+| `IMovaWarmTrigger` | 用 `MovaEagerWarm`（delay 窗口的全部意义就是拿来预热） | 零 |
+| `IMovaWarmPolicy` | 用 `MovaBufferWarm`，`target: 0`，超时取 `adReadyTimeout` | 零 |
+| `MovaCutover` | `prepare(ad, at: 0, plan: …)` → `commit(waitForReady: true)` | 接 `plan` |
+| `IMovaCutover` | 两段式服务中插，一次式 `cutoverTo` 服务前/后贴片 | `prepare` 加 `plan` |
 
 唯一的接口增量是 `MovaWarmPlan`（`core/cutover/plan.dart`）：把"本次预热用哪个触发策略、
-哪个就绪判据、就绪后是否停在起点"这三件**每次预热各不相同**的事从全局 `MovaCutoverConfig`
-里解耦出来。同一个 `MovaCutoverEngine` 实例现在要跑两个方向的预热，三者取值都不同：
+哪个就绪判据、就绪后是否停在起点"这三件**每次预热各不相同**的事从全局 `MovaCutoverOpts`
+里解耦出来。同一个 `MovaCutover` 实例现在要跑两个方向的预热，三者取值都不同：
 
 | | ad→content（0.4.0） | content→ad（0.5.0） |
 |---|---|---|
 | 触发 | `MovaLeadWarm(lead: 2s)` | `MovaEagerWarm()` |
-| 超时 | `MovaCutoverConfig.readyTimeout`（8s） | `MovaAdConfig.adReadyTimeout`（5s） |
+| 超时 | `MovaCutoverOpts.readyTimeout`（8s） | `MovaAdOpts.adReadyTimeout`（5s） |
 | 就绪后停住 | 否（一路播着等 commit） | **是**（广告必须从第 0 帧给用户看） |
 
-把它们塞进 `MovaCutoverConfig` 等于让通用切换模块知道"广告"这个概念，正是要避免的耦合方向。
+把它们塞进 `MovaCutoverOpts` 等于让通用切换模块知道"广告"这个概念，正是要避免的耦合方向。
 
 ### 是否等待就绪：按 kind 取默认值
 
 **判据：等待的价值，等于等待期间屏幕上那张画面的价值。** `MovaAdWaitByKind` 默认
 `pre: false` / `mid: true` / `post: false`——中插期间屏幕上是用户正在看的正片，前/后贴片
-期间没有正在进行的观看体验需要保护。三层覆盖**全部收在 `MovaAdConfig.waitsFor()` 一处**：
+期间没有正在进行的观看体验需要保护。三层覆盖**全部收在 `MovaAdOpts.waitsFor()` 一处**：
 
 ```
-break.waitForReady ?? config.waitForAdReady.waitFor(break)
+break.waitForReady ?? opts.waitForAdReady.waitFor(break)
 ```
 
 `ads.dart` 里**不许出现任何与等待相关的 `kind` 判断**，否则宿主的覆盖就绕不
@@ -457,7 +457,7 @@ break.waitForReady ?? config.waitForAdReady.waitFor(break)
 开启时接管时刻是 `max(倒计时走完, 广告就绪)`。
 
 **这不破坏"默认行为不变"**：等待要真正发生需同时满足宿主传了 `cutover`、
-`MovaCutoverConfig.enabled` 为 true、且解析结果为等待——前两件 0.4.0 默认都是关的。
+`MovaCutoverOpts.enabled` 为 true、且解析结果为等待——前两件 0.4.0 默认都是关的。
 
 ### 不依赖媒体时间轴（硬约束）
 
@@ -480,11 +480,11 @@ break.waitForReady ?? config.waitForAdReady.waitFor(break)
    连续 tick 计数，一次侥幸 tick 就能提交切换。
 2. `at == Duration.zero` 仍下发一次无意义的 `seek(0)`——刚 `open()` 完就 seek 是纯粹的
    风险敞口。
-3. 影子引擎的 `MovaErrorEvent` 从未被监听，加载失败会一直预热到超时。
+3. 影子播放器的 `MovaErrorEvent` 从未被监听，加载失败会一直预热到超时。
 
 ### 为什么 `_playContent` 用 `commit(waitForReady: true)` 而非裸 `commit()`
 
-广告结束（`MovaDone`）和影子引擎的就绪判据报告 `ready` 是两个独立的时钟——按设计，
+广告结束（`MovaDone`）和影子播放器的就绪判据报告 `ready` 是两个独立的时钟——按设计，
 影子只在广告最后一两秒才被要求预热（见 `MovaLeadWarm`），所以广告最后一帧播放的那个
 精确瞬间，影子往往还处于 `warming`、尚未 `ready`，是很常见的情况。裸 `commit()` 会把
 这种"差一点点"直接判为失败、回落到完整的 `open()` 重建，导致无缝切换几乎每次都落空。
@@ -496,8 +496,8 @@ break.waitForReady ?? config.waitForAdReady.waitFor(break)
 | 文件 | 职责 |
 |---|---|
 | `core/cutover/plan.dart` | `MovaWarmPlan` |
-| `core/ad/fail.dart` | `MovaAdFailKind` / `MovaAdFail` / `MovaAdFailAction` / `MovaAdFailPolicy` / `MovaAdRetrySkip` / `MovaAdAbandonPod` |
-| `core/options/ad_config.dart` | `MovaAdWaitPolicy` / `MovaAdWaitByKind` / `MovaAdNotReady` + 7 个旋钮 + `waitsFor` / `effectiveWarmPlan` / `effectiveFailPolicy` |
+| `core/ad/fail.dart` | `MovaAdFailKind` / `MovaAdFail` / `MovaAdFailAction` / `IMovaAdFailPolicy` / `MovaAdRetrySkip` / `MovaAdAbandonPod` |
+| `core/options/ad_opts.dart` | `IMovaAdWaitPolicy` / `MovaAdWaitByKind` / `MovaAdNotReady` + 7 个旋钮 + `waitsFor` / `effectiveWarmPlan` / `effectiveFailPolicy` |
 | `core/model/ad.dart` | `delay` / `duration` / `waitForReady` / `assertValid()`；`MovaAdEventType.pending`/`.failed`；`MovaAdEvent.error` |
 | `core/model/source.dart` | `MovaSourceResolver` |
 | `core/ad/ads.dart` | `_Phase.pending`、三条定时器、延迟源解析、就绪等待编排、失败兜底 |
@@ -512,13 +512,13 @@ break.waitForReady ?? config.waitForAdReady.waitFor(break)
 - **真机验证未做**：等待是否真的消除黑屏、`adReadyTimeout`/`loadTimeout` 默认值是否合理、
   双活解码窗口在中低端机上的表现、坏 URL 在真机上以哪种形式报出来、`duration` 对超长素材
   是否真的不卡死，均需真机逐项验证，详见
-  [doc/plans/2026-09-16-ad-swap-enhancements.md](plans/2026-09-16-ad-swap-enhancements.md)
+  [doc/plans/2026-09-16-ad-cutover-enhancements.md](plans/2026-09-16-ad-cutover-enhancements.md)
   Task 12。
 
 ## App 内小窗（MovaMini，0.6.0，默认关闭）
 
 在不依赖任何系统 PiP API 的前提下，让画面从页面里"缩"成一个可拖拽的悬浮小窗——不重新
-解码、不黑屏。默认关闭（`MovaMiniConfig.enabled` 为 `false`），四端通用。
+解码、不黑屏。默认关闭（`MovaMiniOpts.enabled` 为 `false`），四端通用。
 
 **与系统 PiP / 系统悬浮窗的三方关系（互斥矩阵）**：
 
@@ -529,11 +529,11 @@ break.waitForReady ?? config.waitForAdReady.waitFor(break)
 | App 内小窗（本节） | Flutter 绘制树内，**不出 App** | 零权限 | `MovaState.mini` |
 
 `MovaState.mini`/`pip`/`fullscreen` 三者：`mini` 与 `pip` 正交（各自独立的 bool，互不清
-对方）；`mini` 与 `fullscreen` 互斥——`MovaEngine.setMini(true)` 在 `state.fullscreen` 为
+对方）；`mini` 与 `fullscreen` 互斥——`Mova.setMini(true)` 在 `state.fullscreen` 为
 真时会先 `setFullscreen(false)`（先发 `MovaFullScreenChange` 再发 `MovaMiniChange`），反向
 `setMini(false)` **不会**恢复全屏。
 
-**为什么不重新解码**：`MovaApi`/`MovaEngine`/`MovaMpvKernel` 是纯 Dart 对象，生命周期与
+**为什么不重新解码**：`IMovaApi`/`Mova`/`MovaMpvKernel` 是纯 Dart 对象，生命周期与
 widget 树无关；`_RenderSurface` 每次 build 都重读 `api.renderHandle` 并按
 `_RenderHandleKey(handle)` 做 key——句柄没变，Flutter 复用同一个 `Texture`。
 `test/ui/player_test.dart` 有一条"同一 api 在两个树位置先后挂载，renderHandle 不变"的
@@ -564,15 +564,15 @@ widget 树无关；`_RenderSurface` 每次 build 都重读 `api.renderHandle` �
 中心位置判据（惯性优先）。
 
 **误用防护**：`MovaMini.isShowing(api)` 让页面 `dispose()` 前自检；
-`MovaEngine.dispose()` 在 `state.mini == true` 时打一条 debug-only `assert`（release
+`Mova.dispose()` 在 `state.mini == true` 时打一条 debug-only `assert`（release
 零成本）。`MovaMini._detachEntry()` 单点收口 entry 摘除，`entry.mounted` 判据防止
-宿主 Overlay 先于 ctl 死亡（页面被 pop）导致的重复 remove 崩溃。
+宿主 Overlay 先于 `MovaMini` 死亡（页面被 pop）导致的重复 remove 崩溃。
 
 **"点画面"手势不再硬编码（2026-09-24 真机验证发现问题后改动）**：早期实现里点击小窗
-画面内容会直接调 `ctl.hide()`，真机验证时发现——没有配套"回到整页"UI 的宿主页面上，
+画面内容会直接调 `mini.hide()`，真机验证时发现——没有配套"回到整页"UI 的宿主页面上，
 这看起来就是"点一下小窗就凭空消失了"，容易被误当成关闭。改为 `MovaMini.onTapContent`
-（`void Function(MovaApi api)?`）回调，默认 `null`（点画面无效果，只有关闭 ✕ 按钮能收起
-小窗），宿主需要"点画面回整页"效果时自行接 `ctl.onTapContent = (api) => ctl.hide()`。
+（`void Function(IMovaApi api)?`）回调，默认 `null`（点画面无效果，只有关闭 ✕ 按钮能收起
+小窗），宿主需要"点画面回整页"效果时自行接 `mini.onTapContent = (api) => mini.hide()`。
 关闭按钮的行为不受影响，始终调 `MovaMini.close()`。
 
 **真机验证已完成**（计划 Task 12，2026-09-24，Windows 桌面 + Android
@@ -586,19 +586,19 @@ STG AL00）：Windows 桌面（`--no-enable-impeller` 强制 Skia 后端）A–F
 先 `setMini(false)` 再进系统 PiP，不叠加）真机确认通过；切后台再回前台会自动
 暂停；旧记录的 Surface 回收归因未经对照证实，代码依据是 media_kit Video 默认后台暂停
 （非 mini 特有）。现行 MovaPlayer 关闭该默认路径并经 api.pause 处理，祖先守卫可接管。验证中顺带发现并修复一个 demo
-自身次生 bug：`_MisuseDemoState` 触发 assert 后若同一帧内又导航，新引擎事件
+自身次生 bug：`_MisuseDemoState` 触发 assert 后若同一帧内又导航，新播放器事件
 流回调会在 widget 树锁定期间同步刷新 `_eventLog`，已改用
 `addPostFrameCallback` 推迟通知。checklist 见
 [doc/plans/2026-09-23-app-inline-pip-overlay.md](doc/plans/2026-09-23-app-inline-pip-overlay.md)。
 
 **⚠️ 2026-09-24 Windows 真机验证发现一个未解决的原生崩溃**：`mini_window_demo`
-在播放中途（非引擎刚创建时）100% 概率触发 `0xc0000005` 访问越界，故障模块是
+在播放中途（非播放器刚创建时）100% 概率触发 `0xc0000005` 访问越界，故障模块是
 自研瘦身版 `libmpv-2.dll`，Windows 事件日志三次复现故障偏移完全一致
 （`libmpv-2.dll+0x94d927`）。**已排除**：不是 `doc/plans/2026-09-17-windows-libmpv-slim.md
-§13` 那个已用 clang 修复的 `mpv_create()` 崩溃（那个崩在引擎创建时，这个崩在
+§13` 那个已用 clang 修复的 `mpv_create()` 崩溃（那个崩在播放器创建时，这个崩在
 播放中途，代码位置也不同，且 CI 日志确认当前 dist/ 产物确实是 clang 编译的）；
 不是网络流本身（裸 `media_kit` `Player` 播放同一 URL 不崩）；不是小尺寸渲染面；
-不是 `createMovaEngine()`/`MovaPlayer` 封装本身（全屏播放不崩）；不是
+不是 `createMova()`/`MovaPlayer` 封装本身（全屏播放不崩）；不是
 `showInPage()` 挂载动作本身（自动触发不崩）；不是 `MovaMini.show()` 后紧跟
 `Navigator.pop()` 的路由转场竞态（自动化复现该精确时序不崩）。**崩溃似乎只在
 真人鼠标/拖拽交互下触发**，自动化模拟同样的状态变化走不到那条代码路径。
@@ -622,7 +622,7 @@ Reporting\LocalDumps\mova_example.exe`（`DumpFolder` 指向
 `.dmp` 可供对照分析，无法确认是否真的是同一条故障路径被规避，还是恰好没撞上。
 下一步：分别在 Impeller 开/关两种状态下各拿一次崩溃（或"多次不崩"）的转储，
 配合带符号 dll 比对调用栈，才能真正定论。**注意区分**：`_MisuseDemo` 页面故意不检查
-`isShowing` 触发 `MovaEngine.dispose()` 的 debug-only assert 时，因为
+`isShowing` 触发 `Mova.dispose()` 的 debug-only assert 时，因为
 `dispose()` 是 async 但 `State.dispose()` 没 await 它，assert 失败会变成未捕获
 的 Future 错误直接杀死整个 isolate——**表现为窗口无声消失、无崩溃弹窗、无
 原生崩溃日志**，和上述真正的原生崩溃（有 `0xc0000005` 事件、故障模块是
@@ -631,8 +631,8 @@ Reporting\LocalDumps\mova_example.exe`（`DumpFolder` 指向
 
 ## 仅音频模式（`audioOnly`，0.4.x，默认关闭）
 
-`MovaMpvKernel({bool audioOnly = false})` / `MovaEngine({bool audioOnly = false})` /
-`createMovaEngine({bool audioOnly = false})`。为 `true` 时**不建立任何视频管线**，
+`MovaMpvKernel({bool audioOnly = false})` / `Mova({bool audioOnly = false})` /
+`createMova({bool audioOnly = false})`。为 `true` 时**不建立任何视频管线**，
 `renderHandle` 为 `null`。**不新增任何公开类，barrel 一行未改。**
 
 **机制**：media_kit 的 `Player` 一创建就是 mpv 的 `--vid=no`
@@ -646,17 +646,17 @@ Reporting\LocalDumps\mova_example.exe`（`DumpFolder` 指向
 三条设计决定及其理由：
 
 - **不进 `MovaOpts`**。`MovaOpts` 的语义是运行期可 `copyWith` 替换的配置（12 节全部
-  如此），而 `audioOnly` 是**引擎构造期一次性的资源决策**：内核的渲染句柄一次绑定、
+  如此），而 `audioOnly` 是**播放器构造期一次性的资源决策**：内核的渲染句柄一次绑定、
   永不重绑，`copyWith(audioOnly: true)` 无法生效，放进去等于造一个骗人的口子。
   `test/core/openness_audio_test.dart` 有一条反对账测试，钉死配置节数量仍是 12。
   运行期可观测的信号就是 `renderHandle == null` 本身，因此也没有 `MovaState.audioOnly`。
-- **不加 `MovaStreamType.audio`**。"音频"是引擎的资源形态，不是源的流类型。同一条
-  `audioOnly` 引擎既能放 vod 音频也能放 live 音频；同一条纯音频 URL 也完全可以在普通
-  引擎上播（只是白背视频管线）。两者正交，混进 `MovaSource` 会造出 2×2 的无意义组合。
+- **不加 `MovaStreamType.audio`**。"音频"是播放器的资源形态，不是源的流类型。同一条
+  `audioOnly` 播放器既能放 vod 音频也能放 live 音频；同一条纯音频 URL 也完全可以在普通
+  播放器上播（只是白背视频管线）。两者正交，混进 `MovaSource` 会造出 2×2 的无意义组合。
 - **不换 `media_kit_libs_*_audio`**。那是编译期二选一，换了 mova 的视频功能会物理失效，
   与"既要视频又要音频"的目标用户直接冲突。包体积因此不随模式变。
 
-**`MovaFrameExtractor` 的处置**：`createMovaEngine()` 原本无条件注入它，而它在首次
+**`MovaFrameExtractor` 的处置**：`createMova()` 原本无条件注入它，而它在首次
 `extract()` 时会新开**第二个** `Player`——一整条额外的解码管线（2026-09-30 起不再为它建
 `VideoController`，改为 `vid=auto`+`vo=null` 解码；首次 seek 前等 `duration>0`，再轮询 `seeking`/`time-pos` 判定 seek 落地才截图，见 `CLAUDE.md` 与 `doc/plans/2026-09-29-observe-event-ffi.md` §10.7）。`audioOnly: true` 时默认不再注入（`extractor ?? (audioOnly ? null : MovaFrameExtractor())`），
 宿主显式传入的 `extractor` 仍然胜出。`MovaMpvKernel.screenshot()` 在 `audioOnly` 下短路返回
@@ -664,9 +664,9 @@ Reporting\LocalDumps\mova_example.exe`（`DumpFolder` 指向
 
 **UI 层零改动**：`_RenderSurface` 的 `handle is VideoController` 三元判定天然把 `null`
 落进 else 分支拿到黑色占位；音频场景的封面/波形/歌词面直接用 `MovaPlayer.surface`
-这个已有口子传入，因此**不做 `MovaAudioSkin`**。
+这个已有口子传入，因此**不做 `MovaAudioUiKit`**。
 
-**明确不做**：`MovaAudioSkin`；后台常驻/锁屏/通知栏/耳机线控/音频焦点/gapless/歌单
+**明确不做**：`MovaAudioUiKit`；后台常驻/锁屏/通知栏/耳机线控/音频焦点/gapless/歌单
 这一整套系统集成面——分流判据是"需不需要熄屏后台常驻 + 系统媒体控制"，需要就走
 `just_audio` + `audio_service`。
 
@@ -677,7 +677,7 @@ README 与可行性笔记 §1 里的开销数字目前仍是**推算量级，不
 
 ## 埋点与 QoE（`lib/src/core/report/`，2026-09-29，默认关闭）
 
-把 `MovaReporter` 从"UI 动作流水"补成"播放质量数据源"，详细论证与逐 Task 计划见
+把 `IMovaReporter` 从"UI 动作流水"补成"播放质量数据源"，详细论证与逐 Task 计划见
 [doc/plans/2026-09-29-telemetry-enhancement.md](plans/2026-09-29-telemetry-enhancement.md)、
 调研背景见
 [doc/notes/2026-09-29-player-telemetry-best-practices.md](notes/2026-09-29-player-telemetry-best-practices.md)。
@@ -689,11 +689,11 @@ README 与可行性笔记 §1 里的开销数字目前仍是**推算量级，不
 |---|---|---|---|
 | 首帧就绪（精确） | `MPV_EVENT_PLAYBACK_RESTART` | 经自建 FFI 弱客户端订阅可达（`MovaMpvKernel.nativeRestartAvailable`） | 首选；其在工作时忽略下一行的兜底，不在工作时退化到下一行 |
 | 首帧就绪（兜底） | `core-idle` | media_kit 内建观察，透传为 `buffering` | 订阅失败时的静默退化路径 |
-| 卡顿真信号 | `paused-for-cache` | 需 mova 自己 `observeProperty` | `MovaStatsProbe.stalling` |
-| 卡顿累计次数/时长 | 无——libmpv 不提供任何累计计数器 | — | mova 自实现聚合（`MovaStallPolicy`） |
+| 卡顿真信号 | `paused-for-cache` | 需 mova 自己 `observeProperty` | `IMovaStatsProbe.stalling` |
+| 卡顿累计次数/时长 | 无——libmpv 不提供任何累计计数器 | — | mova 自实现聚合（`IMovaStallPolicy`） |
 | 会话结束原因 | `mpv_event_end_file.reason` | 经自建 FFI 弱客户端订阅可达；`EOF` 恒不可达（`--keep-open=yes`） | 佐证/兜底，非替代——权威信号仍是 `MovaDone` |
-| 错误分类 | 日志 prefix（`stream`/`file`/`ffmpeg`/`vd`/`ad`/`cplayer`） | `Player.stream.log` 可达，`stream.error` 把 prefix 丢了 | `MovaErrorPolicy`/`MovaPrefixError` 按 prefix 分类 |
-| 码率/吞吐/丢帧 | `video-bitrate`/`cache-speed`/`frame-drop-count`/`decoder-frame-drop-count` | 均不在 media_kit 内建观察表，可自行 `getProperty` | `MovaStatsProbe.sample()` |
+| 错误分类 | 日志 prefix（`stream`/`file`/`ffmpeg`/`vd`/`ad`/`cplayer`） | `Player.stream.log` 可达，`stream.error` 把 prefix 丢了 | `IMovaErrorPolicy`/`MovaPrefixError` 按 prefix 分类 |
+| 码率/吞吐/丢帧 | `video-bitrate`/`cache-speed`/`frame-drop-count`/`decoder-frame-drop-count` | 均不在 media_kit 内建观察表，可自行 `getProperty` | `IMovaStatsProbe.sample()` |
 
 **两条必须记住的 media_kit 约束：**
 
@@ -709,21 +709,21 @@ README 与可行性笔记 §1 里的开销数字目前仍是**推算量级，不
 `mpv_wait_event` 排空，订阅 `MPV_EVENT_PLAYBACK_RESTART`（TTFF 精确落地信号）与
 `MPV_EVENT_END_FILE`（会话结束原因佐证）：端口 `core/kernel/mpv_event_backend.dart`、纯逻辑状态机
 `mpv_event_pump.dart`、FFI 后端 `platform_impl/mpv_event_backend_ffi.dart`，`MovaMpvKernel` 构造期接线，
-`createMovaEngine()` 注入。订阅失败静默退化到 `core-idle`/`buffering` 边沿与旧的时序推断，不影响其余
+`createMova()` 注入。订阅失败静默退化到 `core-idle`/`buffering` 边沿与旧的时序推断，不影响其余
 上报；`media_kit` 回到 pub.dev 的 `^1.2.6`，**可以正常发布到 pub.dev**。debug 下走 100ms 轮询，release 走
-原生回调。`MovaStatsProbe.nativeRestartAvailable` 为 true 时，TTFF 只认 RESTART，忽略 buffering/位置兜底
+原生回调。`IMovaStatsProbe.nativeRestartAvailable` 为 true 时，TTFF 只认 RESTART，忽略 buffering/位置兜底
 （兜底比真实 restart 早约 200ms）。详见 `doc/plans/2026-09-29-observe-event-ffi.md`。
 
-**主要类型**：`MovaReportConfig`（`MovaOpts.report`，默认 `qoe: false`）、
+**主要类型**：`MovaReportOpts`（`MovaOpts.report`，默认 `qoe: false`）、
 `MovaQoeCollector`（持有会话状态，`qoe: false` 时纯直通、行为与之前逐字节一致）、
-`MovaTtffTracker`、`MovaStallPolicy`/`MovaEdgeStall`、`MovaSessionEnd`/
-`resolveSessionEnd`/`resolveSessionEndNative`、`MovaErrorPolicy`/`MovaPrefixError`、
-`MovaStatsProbe`（`MovaMpvKernel` 的可选能力接口，未实现的内核只会让 QoE 层降级）。
+`MovaTtffTracker`、`IMovaStallPolicy`/`MovaEdgeStall`、`MovaSessionEnd`/
+`resolveSessionEnd`/`resolveSessionEndNative`、`IMovaErrorPolicy`/`MovaPrefixError`、
+`IMovaStatsProbe`（`MovaMpvKernel` 的可选能力接口，未实现的内核只会让 QoE 层降级）。
 `MovaReportName` 从 `enum` 改为 const 值类（`==`/`hashCode` 按 `value`），内置 +
 `MovaReportName.custom` 自定义双轨。
 
 **验证情况（2026-09-30，真机基于真实事件）**：Android（STG-AL00）与 Windows 桌面已验证 FFI 订阅
-（与 media_kit 流共存、多引擎并存、dispose 不拖主线程、创建/销毁数量相等、内存走势）与 QoE 链路
+（与 media_kit 流共存、多播放器并存、dispose 不拖主线程、创建/销毁数量相等、内存走势）与 QoE 链路
 （播完 `ended`、换源 `stopped`、失败 `failed`+`startupFail`、开播即弃 `abandoned`、限速流真实
 `rebuffer` 与 `stallMs`、`qoe: false` 零事件、带画面路径同样通过）。真机暴露并修复了 3 个真 bug
 （假 TTFF、`stallMs` 重复累计、失败源也计观看时长）。**仍未验证**：iOS/macOS（无 Mac，订阅失败即静默退化）、
@@ -731,7 +731,7 @@ README 与可行性笔记 §1 里的开销数字目前仍是**推算量级，不
 
 ## PiP（原生）
 
-- Dart 侧经 `MovaPipPort`；Android `MovaPlugin.kt` 用
+- Dart 侧经 `IMovaPip`；Android `MovaPlugin.kt` 用
   `PictureInPictureParams`，宽高比 `clamp(0.42, 2.39)`；iOS/桌面未实现，
   `isPipSupported()` 返回 `false`。
 - **iOS 系统 PiP：待定任务（未完成）**。可行性已调研，方向为
@@ -740,104 +740,104 @@ README 与可行性笔记 §1 里的开销数字目前仍是**推算量级，不
   落地前 `isPipSupported()` 仍返回 `false`、`MovaPipButtonComponent` 自动隐藏；落地后仅原生
   返回值变化，Dart/UI 零改动。完整研究 + 落地计划见
   [doc/notes/2026-07-31-ios-pip-feasibility.md](notes/2026-07-31-ios-pip-feasibility.md)。
-- `MovaState.pipSupported` / `MovaApi.pipSupported`（阶段 C）：engine 构造后不久
-  用 `MovaPipPort.isSupported()` 探测一次（默认 `false`，探测失败也归约为
+- `MovaState.pipSupported` / `IMovaApi.pipSupported`（阶段 C）：`Mova` 构造后不久
+  用 `IMovaPip.isSupported()` 探测一次（默认 `false`，探测失败也归约为
   `false` 而不抛出）；`MovaPipButtonComponent` 据此隐藏自身，不支持的平台上按钮
   根本不出现，而不是出现了点了没反应。
 
 ## 全屏（桌面平台的已知边界）
 
-`MovaSystemChromeOrientationPort`（`MovaOrientationPort` 的默认实现）只处理移动端的
+`MovaOrient`（`IMovaOrient` 的默认实现）只处理移动端的
 方向锁定与沉浸式系统 UI；Windows/macOS/Linux 上没有"真全屏"的对应概念（撑满
 屏幕、去掉标题栏），因此 `setFullscreen(true)` 在桌面端不会有可见效果——2026-07-31
 Windows 实跑证实。这不是回归，是能力从未在桌面实现过。mova 不内置窗口管理
 依赖（如 `window_manager`），桌面真全屏留给宿主接：`setFullscreen()` 每次调用都会
-在 `MovaApi.events` 上发 `MovaFullScreenChange(bool)` 事件，与 `MovaOrientationPort`
+在 `IMovaApi.events` 上发 `MovaFullScreenChange(bool)` 事件，与 `IMovaOrient`
 无关，宿主监听后自行调用窗口管理 API 即可（见 README「平台端口」一节示例）。
 
 ### 强制横竖屏（0.3.0）
 
-`MovaApi.setOrientation(MovaOrientation)` 是独立于全屏的方向能力：`MovaOrientation.auto`
+`IMovaApi.setOrient(MovaOrientMode)` 是独立于全屏的方向能力：`MovaOrientMode.auto`
 保持上文「全屏按宽高比定向」的行为，`portrait`/`landscape` 无视宽高比与全屏状态
-强制该方向，写入 `MovaState.orientation` 并发 `MovaOrientationChange`。落点在
-`MovaOrientationPort.apply` 新增的 `orientation` 参：`resolveOrientations()`
-（`orientation_impl.dart`，已抽出纯函数单测）在 `auto` 时回退到
-`preferredOrientationsFor(w,h)`，否则直接取横/竖屏对。engine 侧由 `_applyOrientation()`
-统一根据 `state.fullscreen + state.orientation` 应用，`setFullscreen`/`setOrientation`
-/尺寸到达三处共用它。UI 侧 `MovaOrientationButtonComponent`（顶栏，name
-`orientationButton`）仅在 `defaultTargetPlatform` 为 Android/iOS 时渲染——桌面端强制
-方向本就无效，与 pip 按钮的隐藏思路一致——点击经 `MovaOrientation.toggled` 横↔竖切换。
+强制该方向，写入 `MovaState.orient` 并发 `MovaOrientChange`。落点在
+`IMovaOrient.apply` 新增的 `orient` 参：`resolveOrients()`
+（`orient_impl.dart`，已抽出纯函数单测）在 `auto` 时回退到
+`preferredOrientsFor(w,h)`，否则直接取横/竖屏对。`Mova` 侧由 `_applyOrient()`
+统一根据 `state.fullscreen + state.orient` 应用，`setFullscreen`/`setOrient`
+/尺寸到达三处共用它。UI 侧 `MovaOrientButtonComponent`（顶栏，name
+`orientButton`）仅在 `defaultTargetPlatform` 为 Android/iOS 时渲染——桌面端强制
+方向本就无效，与 pip 按钮的隐藏思路一致——点击经 `MovaOrientMode.toggled` 横↔竖切换。
 
-## 预设皮肤：bilibili 点播 / 抖音风 feed
+## 预设 UI 套件：bilibili 点播 / 抖音风 feed
 
-两套开箱即用的皮肤，落地于 0.3.0 插件化架构之上（未单独编版本号，落地日期
+两套开箱即用的 UI 套件，落地于 0.3.0 插件化架构之上（未单独编版本号，落地日期
 2026-08-01）。
 
-- **`MovaBilibiliSkin`**（`ui/skins/bilibili_skin.dart`）：`extends MovaDefaultSkin`，
+- **`MovaBilibiliUiKit`**（`ui/ui_kits/bilibili_ui_kit.dart`）：`extends MovaDefaultUiKit`，
   纯"补丁档"定制（`MovaPatch.add`/`insertAfter`），零布局改写——bilibili 的默认
   控制条与手势侧别（左亮度/右音量）本就对齐 0.3.0 默认值。新增
   `MovaDanmakuTrackComponent`（`ui/components/danmaku.dart`，挂 `MovaSlot.overlay`，
   不受锁定/自动隐藏门控）+ 顶栏 `MovaSpeedButtonComponent`（`ui/components/
-  speed_button.dart`，`0.5x~2x` 六档循环，走既有 `MovaApi.setRate`，未新增 core
+  speed_button.dart`，`0.5x~2x` 六档循环，走既有 `IMovaApi.setRate`，未新增 core
   能力）。**倍速按钮落在顶栏而非底栏**：`MovaTopBarComponent.build()` 用
   `...children.sublist(1)` 展开全部子节点，而自适应的 `MovaBottomBarComponent`
   按下标显式取子节点（`children[0]`/`children[2]`/`children[4]`），补丁插入的
   新兄弟节点会被静默丢弃——这是从 `MovaBottomBarComponent` 现有实现读出的真实约束，
   非设计偏好。
-- **弹幕（`MovaDanmakuConfig`/`MovaDanmakuItem`）**：**只做展示**，无发送框/输入/
-  去重限流引擎（`MovaOpts.danmaku`，默认 `enabled: false`）；`items` 是宿主给
+- **弹幕（`MovaDanmakuOpts`/`MovaDanmakuItem`）**：**只做展示**，无发送框/输入/
+  去重限流播放器（`MovaOpts.danmaku`，默认 `enabled: false`）；`items` 是宿主给
   的固定列表，按 `time` 触发滚动、按 `trackCount` 轮询分轨（非完整防重叠）。
   "弹幕开关"按钮本期**未做**——`enabled` 是构造期配置，非运行时可切换状态，
   加运行时开关需要一个新的本地 UI 状态承载点，本期从简未做，留待后续。
-- **`MovaFeedPlayer`/`MovaDouyinSkin`**（`ui/feed_player.dart`/`ui/skins/
-  douyin_skin.dart`）：纵向"上滑下一个视频"feed，**引擎池架构**——
-  `MovaFeedEnginePool`（`core/feed/engine_pool.dart`）持有最多 `poolSize`
-  个 `MovaApi`，每个热页一个自己的引擎与渲染画面；`MovaFeed`
+- **`MovaFeedPlayer`/`MovaDouyinUiKit`**（`ui/feed_player.dart`/`ui/ui_kits/
+  douyin_ui_kit.dart`）：纵向"上滑下一个视频"feed，**播放器池架构**——
+  `MovaFeedPool`（`core/feed/feed_pool.dart`）持有最多 `poolSize`
+  个 `IMovaApi`，每个热页一个自己的播放器与渲染画面；`MovaFeed`
   （`core/feed/feed.dart`，纯 Dart，无 Flutter 依赖）驱动这个池
   在 feed 中前进。两者都不依赖 Flutter，可单测。
-  - **推翻了此前的单引擎决策**（2026-08-02）。原决策依据是"并行引擎池每活跃
+  - **推翻了此前的单播放器决策**（2026-08-02）。原决策依据是"并行播放器池每活跃
     实例约 50-100MB 内存 + 硬解并发 session 数（很多中低端 Android SoC 只支持
-    1-2 个）"，于是改为单引擎反复 `open()`。但单引擎在切页瞬间有两个躲不掉的
+    1-2 个）"，于是改为单播放器反复 `open()`。但单播放器在切页瞬间有两个躲不掉的
     瑕疵：冷 `open()` 会清空共享画面（**黑屏一闪**），而任何原地复用同一
     Surface 的快速路径（当时的 `queueNext`+`Player.next()`）都会把**上一条
     最后解码的那一帧**留在屏幕上，直到新一条的帧覆盖它为止。两者当时只能靠
     一层定时黑遮罩（`switchMaskDuration`，150ms 猜测值）桥接——那是猜测，
-    不是修复，真机连续快切时仍会露。改用引擎池后，观众正在滑向的那页早已在
-    自己的引擎上打开、停在自己的画面上，**两个瑕疵都从根上不成立**，遮罩连同
-    `switchMaskDuration` 参数一起删除。采纳前用 `example/lib/spike_dual_engine.dart`
-    在 Android 真机按 `dumpsys meminfo` 分三阶段（单引擎基线 / 加一个预热引擎 /
+    不是修复，真机连续快切时仍会露。改用播放器池后，观众正在滑向的那页早已在
+    自己的播放器上打开、停在自己的画面上，**两个瑕疵都从根上不成立**，遮罩连同
+    `switchMaskDuration` 参数一起删除。采纳前用 `example/lib/spike_dual_mova.dart`
+    在 Android 真机按 `dumpsys meminfo` 分三阶段（单播放器基线 / 加一个预热播放器 /
     释放后回收）实测过增量，结论是可接受。硬解 session 数的顾虑仍在，因此
     `poolSize` 保持宿主可配（默认 3，内存吃紧可降到 2）。
-  - **`MovaApi.queueNext`/`MovaKernel.queueNext` 与 mpv `prefetch-playlist` 已删**：
-    每页独立引擎后，单引擎内部的 playlist 预取无意义。
+  - **`IMovaApi.queueNext`/`IMovaKernel.queueNext` 与 mpv `prefetch-playlist` 已删**：
+    每页独立播放器后，单播放器内部的 playlist 预取无意义。
   - **窗口与淘汰**：`movaFeedWindow(center, size)`（纯函数，可单测）以活跃页为
     中心向外展开、**向前优先**（`[c, c+1, c-1, c+2, …]`，奇数 size 对称，偶数
     多出来的一个放前方），负索引跳过而非钳位。池满时**按到目标索引的距离淘汰，
     不是 LRU**——刚划走的那页恰是"最近使用"却也最可能马上又要用，LRU 会淘汰错
-    的那个。回收只解绑 + `pause()`，引擎实例放回空闲列表复用，**不 dispose**
+    的那个。回收只解绑 + `pause()`，播放器实例放回空闲列表复用，**不 dispose**
     （每次上滑重建一次原生 Surface，等于把这套设计想省的开销又还回去）。
   - **就绪判据 = `open()` resolve，不是"首帧已渲染"**：media_kit 没有暴露可
     重复触发的首帧事件（`VideoController.waitUntilFirstFrameRendered` 是一次性
-    `Completer`，池化引擎被复用于后续条目时不会再触发）。冷 `open()` 在帧尺寸
+    `Completer`，池化播放器被复用于后续条目时不会再触发）。冷 `open()` 在帧尺寸
     确定前本就保持画面空白，因此用它近似。`MovaFeedSlot.ready` 为 `false` 期间，
     该页显示 `MovaFeedPlayer.placeholderBuilder`（宿主可给封面图/骨架屏，默认
     纯黑）**并照常渲染自己的 chrome**——chrome 组件读的是 feed 条目而非播放
-    状态，因此用任意存活引擎撑起 `MovaScope` 即可。
-  - **引擎所有权在 `MovaFeedPlayer`，不在宿主**：构造面从 `api:` 改为
-    `engineFactory:`（宿主传 `createMovaEngine`）+ `poolSize`。池创建的每个引擎
+    状态，因此用任意存活播放器撑起 `MovaScope` 即可。
+  - **播放器所有权在 `MovaFeedPlayer`，不在宿主**：构造面从 `api:` 改为
+    `movaFactory:`（宿主传 `createMova`）+ `poolSize`。池创建的每个播放器
     都由该 widget dispose——宿主根本拿不到它们，别处也无从释放。这是相对
     0.3.0 的 **breaking change**（feed 是未发布的新特性，代价可接受）。
-  - **音频不重叠**：只有活跃页 `play()`，`MovaFeedEnginePool.focus(index)` 把
-    其余所有已绑定引擎 `pause()`；预热邻居一律 `open(autoPlay: false)` 停在
+  - **音频不重叠**：只有活跃页 `play()`，`MovaFeedPool.focus(index)` 把
+    其余所有已绑定播放器 `pause()`；预热邻居一律 `open(autoPlay: false)` 停在
     首帧。
   - **`MovaNetworkWarmFeedPrefetcher` 保留，但只覆盖池够不到的更远条目**：
-    `prefetchDepth` 范围内、已在引擎窗口里的索引会被跳过——那些正在被真正
+    `prefetchDepth` 范围内、已在播放器窗口里的索引会被跳过——那些正在被真正
     打开，重复发一次 Range GET 毫无收益。默认 `prefetchDepth: 1` + 默认
     `poolSize: 3` 的组合下，网络预取实际不发出任何请求。
   - **`MovaFeed.activate()` 对重叠调用做合并，不会与自己竞速**：
     快速连续 swipe 会在前一次 `activate(N)` 还没切完时就调用 `activate(N+1)`。
-    即使有了引擎池，串行化依然必要：两次重叠激活会各自用自己的窗口调用
-    `retain()`、再争抢空闲引擎，落败的一方可能把胜出方刚建立的绑定淘汰掉，
+    即使有了播放器池，串行化依然必要：两次重叠激活会各自用自己的窗口调用
+    `retain()`、再争抢空闲播放器，落败的一方可能把胜出方刚建立的绑定淘汰掉，
     出现 chrome 已显示 N+1、画面却卡在别处的问题。`activate()` 内部排队合并：
     任意时刻只有一路序列在跑，重叠调用只更新"接下来想要哪个索引"，进行中的
     循环收尾后自动去处理最新目标，处理到一半才发现已被取代的目标会被跳过。
@@ -845,17 +845,17 @@ Windows 实跑证实。这不是回归，是能力从未在桌面实现过。mov
     同样带这个检查，一旦有新激活到来就中止。
   - **feed 到尽头（loader 返回 `null`）不再空转**：`_buildPage` 用一个
     `_requested` 集合记录已请求过的索引——否则"build 发起请求 → 没东西可缓存
-    → `setState` → build 再发起同一请求"会无限循环（引擎池改造前就存在，
+    → `setState` → build 再发起同一请求"会无限循环（播放器池改造前就存在，
     旧测试只 `pump()` 两次没暴露，换成 `pumpAndSettle` 立刻打出来）。加载
     失败的索引会移出集合，后续重建仍会重试。
-  - **默认 `fit: cover`**：池创建每个引擎时对其调用一次
+  - **默认 `fit: cover`**：池创建每个播放器时对其调用一次
     `setFit(MovaFit.cover)`（可经构造参数覆盖）——`contain` 会按每条视频的
     宽高比留出不同大小的黑边，每次上滑都像是尺寸跳了一下。**已知限制**：
     Android 上 `VideoControllerConfiguration.width`/`height` 明确无效（见
     media_kit_video 文档），解码输出的原生 Surface 必定按视频源分辨率
     设置——切到分辨率不同的视频时，底层 Surface 仍会 resize/重建一次，
     这与 `fit` 无关，是 media_kit_video 在 Android 上的实现限制，修复需要
-    改其 Android 原生代码，mova 这层治不了。**引擎池顺带绕开了它的观感
+    改其 Android 原生代码，mova 这层治不了。**播放器池顺带绕开了它的观感
     代价**：每页有自己的 Surface，那次 resize/重建发生在预热阶段（观众还在看
     上一条），而非切换瞬间。
   - **点赞状态 mova 端到端本地持有**（`MovaFeedItem.initialLiked`/
@@ -865,22 +865,22 @@ Windows 实跑证实。这不是回归，是能力从未在桌面实现过。mov
     `MovaFeed.toggleLike` 把切换结果写回条目缓存，滑走再滑回时仍是
     切换后的值；不做回滚，是否持久化交给 `onLikeChanged` 回调。评论/分享/
     头像/关注一律只是回调，mova 不持有这些业务状态。
-  - **手势冲突靠"不引入组件"规避**：`MovaDouyinSkin.components()` 压根不挂载
-    `MovaGestureLayerComponent`（默认皮肤的亮度/音量竖滑手势），纵向拖拽完全归
+  - **手势冲突靠"不引入组件"规避**：`MovaDouyinUiKit.components()` 压根不挂载
+    `MovaGestureLayerComponent`（默认 UI 套件的亮度/音量竖滑手势），纵向拖拽完全归
     `PageView` 所有；这是组件化架构的直接收益，不需要任何特判代码。
   - **数据源**：`MovaFeedLoader = Future<MovaFeedItem?> Function(int index)`，
     异步按需解析，返回 `null` 表示 feed 结束；`MovaFeed` 内部按索引
     缓存去重并发加载。
 
 新增测试：`test/core/model_test.dart`（`MovaDanmakuItem`/`MovaFeedItem`）、
-`test/core/options_test.dart`（`MovaDanmakuConfig`/`MovaOpts.danmaku`）、
-`test/core/feed_test.dart`、`test/core/engine_pool_test.dart`
-（`movaFeedWindow` 展开顺序/负索引、容量上限、距离淘汰、引擎复用不 dispose、
+`test/core/options_test.dart`（`MovaDanmakuOpts`/`MovaOpts.danmaku`）、
+`test/core/feed_test.dart`、`test/core/feed_pool_test.dart`
+（`movaFeedWindow` 展开顺序/负索引、容量上限、距离淘汰、播放器复用不 dispose、
 `focus` 只留一路播放、绑定被取代后不置 ready）、`test/core/feed_prefetcher_test.dart`
 （真起 `HttpServer` 校验 Range 头，非 mock）、`test/ui/danmaku_test.dart`、
-`test/ui/speed_button_test.dart`、`test/ui/bilibili_skin_test.dart`、
-`test/ui/douyin_skin_test.dart`、`test/ui/feed_social_test.dart`、
-`test/ui/feed_player_test.dart`。example 新增 `bilibili 皮肤`演示入口（原有
+`test/ui/speed_button_test.dart`、`test/ui/bilibili_ui_kit_test.dart`、
+`test/ui/douyin_ui_kit_test.dart`、`test/ui/feed_social_test.dart`、
+`test/ui/feed_player_test.dart`。example 新增 `bilibili UI 套件`演示入口（原有
 demo 列表第 6 项）与独立的 `DouyinFeedDemoPage`（AppBar 新图标按钮进入，三个
 公开短 mp4 循环）。**均只在桌面跑过 `flutter test`/`flutter analyze`，未上
 真机**——手势双击识别、`PageView` 纵向滑动手感、弹幕滚动的真实观感，均承接
@@ -892,21 +892,21 @@ demo 列表第 6 项）与独立的 `DouyinFeedDemoPage`（AppBar 新图标按�
 
 | 能力 | 公开面 | 落点 |
 |---|---|---|
-| 出画面信号（D1） | `MovaState.rendered`、`MovaFirstFrame(sinceOpen, signal)`、`MovaFirstFrameGate`/`MovaFirstFrameSignal` | `core/render/first_frame.dart`、`engine.dart`（`_armAttempt`/`_feedGate`/`_onAttemptLanded`） |
-| 原生订阅解耦（D2） | `MovaMpvKernel(observeNativeEvents:)`、`createMovaEngine(preciseFirstFrame:)`、`movaObserveFlags` | `kernel/mpv_kernel.dart`、`platform_impl/wiring.dart` |
-| fit 声明式（D3） | `MovaEngine(fit:)`、`createMovaEngine(fit:)`、`MovaPlayer(fit:)`/`MovaView(fit:)` | `engine.dart`、`ui/player.dart` |
+| 出画面信号（D1） | `MovaState.rendered`、`MovaFirstFrame(sinceOpen, signal)`、`MovaFirstFrameGate`/`MovaFirstFrameSignal` | `core/render/first_frame.dart`、`mova.dart`（`_armAttempt`/`_feedGate`/`_onAttemptLanded`） |
+| 原生订阅解耦（D2） | `MovaMpvKernel(observeNativeEvents:)`、`createMova(preciseFirstFrame:)`、`movaObserveFlags` | `kernel/mpv_kernel.dart`、`platform_impl/wiring.dart` |
+| fit 声明式（D3） | `Mova(fit:)`、`createMova(fit:)`、`MovaPlayer(fit:)`/`MovaView(fit:)` | `mova.dart`、`ui/player.dart` |
 | 封面（D4） | `MovaPlayer(poster:, posterFade:)`、`MovaFeedPlayer(posterUntilFirstFrame:)` | `ui/poster.dart`、`ui/player.dart` |
-| 极简皮肤（D5） | `MovaMinimalSkin`、`MovaTheme.bufferingSize/StrokeWidth/Color` | `ui/skins/minimal_skin.dart`、`options/theme.dart` |
+| 极简 UI 套件（D5） | `MovaMinimalUiKit`、`MovaTheme.bufferingSize/StrokeWidth/Color` | `ui/ui_kits/minimal_ui_kit.dart`、`options/theme.dart` |
 | 声明式组件（D6） | `MovaView`、`MovaSource.sameAs` | `ui/view.dart`、`model/source.dart` |
-| 超时与恢复（D7） | `MovaOpts.recovery`（`MovaRecoveryConfig`）、`MovaPlayFail`/`MovaPlayFailKind`、`MovaRecoveryPolicy`/`MovaRetryThenFailover`/`MovaFailoverOnly`、`MovaRecoveryDecision`、`MovaGiveUpError`、事件 `MovaPlayFailure`/`MovaRecovered` | `options/recovery_config.dart`、`recovery/fail.dart`、`recovery/watchdog.dart`（不导出）、`engine.dart`（`_onPlayFail`/`_recover`/`_giveUp`/`_announceReady`） |
-| 多地址（D8） | `MovaSource.alternatives/uris/pick`、`MovaState.sourceIndex`、事件 `MovaFailover` | `model/source.dart`、`engine.dart`（`_activeUri`） |
-| 自动暂停（D9） | `MovaAutoPauseConfig`/`MovaAutoPauseGate`/`MovaHideReason`/`MovaLiveResume`/`MovaGuardAction`、`MovaAutoPause`、`MovaView(autoPause:, routeObservers:)` | `core/guard/auto_pause.dart`、`ui/guard/auto_pause.dart` |
+| 超时与恢复（D7） | `MovaOpts.recovery`（`MovaRecoveryOpts`）、`MovaPlayFail`/`MovaPlayFailKind`、`IMovaRecoveryPolicy`/`MovaRetryThenFailover`/`MovaFailoverOnly`、`MovaRecoveryDecision`、`MovaGiveUpError`、事件 `MovaPlayFailure`/`MovaRecovered` | `options/recovery_opts.dart`、`recovery/fail.dart`、`recovery/watchdog.dart`（不导出）、`mova.dart`（`_onPlayFail`/`_recover`/`_giveUp`/`_announceReady`） |
+| 多地址（D8） | `MovaSource.alternatives/uris/pick`、`MovaState.sourceIndex`、事件 `MovaFailover` | `model/source.dart`、`mova.dart`（`_activeUri`） |
+| 自动暂停（D9） | `MovaAutoPauseOpts`/`MovaAutoPauseGate`/`MovaHideReason`/`MovaLiveResume`/`MovaGuardAction`、`MovaAutoPause`、`MovaView(autoPause:, routeObservers:)` | `core/guard/auto_pause.dart`、`ui/guard/auto_pause.dart` |
 | 测试替身（D10） | `package:mova/testing.dart`：`MovaTestKernel`、`MovaTesting` | `lib/testing.dart`、`src/testing/*`、`wiring.dart` 的注入点 |
 
 **首帧判据（D1）**：原生 `PLAYBACK_RESTART`（权威）；原生不可用时 buffering 下降沿 / 连续两个递增且 >0 的位置 / 暂停态打开后首个非零尺寸；
 原生可用但兜底信号先到时等 1500ms 宽限。内核 `open()` 在途期间丢弃一切观测。
 
-**END_FILE 现行订阅规则**：默认 createMovaEngine 首次 open 懒创建弱客户端，
+**END_FILE 现行订阅规则**：默认 createMova 首次 open 懒创建弱客户端，
 与 recovery 无关；RESTART 由 reporter/preciseFirstFrame 或封面按需启用。
 注入 kernel 的能力由宿主提供，movaObserveFlags 的 native 字段是历史辅助结果，
 工厂实际传 observeNativeEvents:true，不能拿该 helper 推断默认不订阅。
@@ -928,33 +928,33 @@ demo 列表第 6 项）与独立的 `DouyinFeedDemoPage`（AppBar 新图标按�
 
 ## 低功耗待机（2026-10-23，默认关闭）
 
-计划：[doc/plans/2026-10-23-standby-mode.md](plans/2026-10-23-standby-mode.md)（D1–D13）；调研：[doc/notes/2026-10-23-libmpv-low-power-standby.md](notes/2026-10-23-libmpv-low-power-standby.md)。
+计划：[doc/plans/2026-10-23-keep-alive-mode.md](plans/2026-10-23-keep-alive-mode.md)（D1–D13）；调研：[doc/notes/2026-10-23-libmpv-low-power-keep-alive.md](notes/2026-10-23-libmpv-low-power-keep-alive.md)。
 Windows release 已部分实测（18/18 FLV 唤醒走 grace，5s 为兜底而非首帧耗时）；
 Android CP1 S1/S7/S13/S14 为 20/20，见 [CP1](plans/2026-11-03-cp1-results.md)。
 HLS、耗电与 iOS/macOS 仍未充分验证，不表示 CP2/CP3 已通过。
 
 | 能力 | 公开面 | 落点 |
 |---|---|---|
-| 命令式入口（D1） | `MovaKeepAlive.setKeepAlive(bool)`（`MovaEngine`/`MovaCutoverEngine` 实现） | `core/keep_alive/keep_alive.dart`、`engine.dart`、`cutover/cutover_engine.dart` |
+| 命令式入口（D1） | `IMovaKeepAlive.setKeepAlive(bool)`（`Mova`/`MovaCutover` 实现） | `core/keep_alive/keep_alive.dart`、`mova.dart`、`cutover/cutover.dart` |
 | 状态与事件（D6） | `MovaState.keepAlivePhase`、`MovaKeepAlivePhase`/`MovaKeepAliveMode`/`MovaKeepAliveReason`、`MovaKeepAliveChange`、`MovaKeepAliveResume` | `state/state.dart`、`events/events.dart` |
-| 调参（D13） | `MovaOpts.keepAlive`（`MovaKeepAliveConfig`）、`MovaSilentKeepAlive` | `options/keep_alive_config.dart` |
-| 内核能力（D3/D5） | `MovaKeepAliveKernel`（`inspectKeepAlive`/`enterKeepAlive`/`exitKeepAlive`）、`MovaKeepAliveMedia`、`MovaAudioPresence`、`movaAudioPresence()`（均不进主 barrel） | `kernel/keep_alive_kernel.dart`、`kernel/mpv_kernel.dart`（只增不改） |
+| 调参（D13） | `MovaOpts.keepAlive`（`MovaKeepAliveOpts`）、`MovaSilentKeepAlive` | `options/keep_alive_opts.dart` |
+| 内核能力（D3/D5） | `IMovaKeepAliveKernel`（`inspectKeepAlive`/`enterKeepAlive`/`exitKeepAlive`）、`MovaKeepAliveMedia`、`MovaAudioPresence`、`movaAudioPresence()`（均不进主 barrel） | `kernel/keep_alive_kernel.dart`、`kernel/mpv_kernel.dart`（只增不改） |
 | 决策（D4） | `decideKeepAliveEntry`/`decideKeepAliveWake`/`MovaKeepAliveEntry`/`MovaKeepAliveWake`（不导出） | `keep_alive/plan.dart` |
-| 守卫（D10） | `MovaHiddenMode`、`MovaAutoPauseConfig.hiddenMode`、`MovaGuardAction.keepAlive/wake` | `guard/auto_pause.dart`、`ui/guard/auto_pause.dart` |
-| 恢复计时（D7） | `MovaFirstFrameGate.arm(resume: true)` | `render/first_frame.dart`、`engine.dart` |
+| 守卫（D10） | `MovaHiddenMode`、`MovaAutoPauseOpts.hiddenMode`、`MovaGuardAction.keepAlive/wake` | `guard/auto_pause.dart`、`ui/guard/auto_pause.dart` |
+| 恢复计时（D7） | `MovaFirstFrameGate.arm(resume: true)` | `render/first_frame.dart`、`mova.dart` |
 
 **现行待机修复**：唤醒用独立首帧闸门，换源/档/重载结束旧测量为 reloaded，
 不发 MovaKeepAliveResume；setKeepAlive(false) 在进入 resuming 时返回，不等待网络。
 回边缘/重开不占待机队列，返回后复查最新意图与尝试；再次待机作废旧唤醒，失败走终结上报。
 
 **状态机（D6）**：`off` → `holding`（进入）/`fallback`（退回暂停）；`holding` → `fallback`（`maxDuration`/失败/结束）或 `resuming`（唤醒）；`resuming` → `off`（首帧落地或 `resumeTimeout`）；
-任意非 off 遇宿主 `pause()` → `off(paused)`；待机请求存在期间 `open()`/`reload()` → `fallback(reloaded)`，新源首帧落地后若意图仍为播放再尝试 `holding`。所有迁移经引擎内一条串行队列。
+任意非 off 遇宿主 `pause()` → `off(paused)`；待机请求存在期间 `open()`/`reload()` → `fallback(reloaded)`，新源首帧落地后若意图仍为播放再尝试 `holding`。所有迁移经播放器内一条串行队列。
 
 **B/C 判定（D4）**：`audio-params.sampleRate > 0` 且有选中的真实音轨才算有音频（瘦身 libmpv 可能裁掉某些解码器，音轨存在但解码器打不开时做 `vid=no` 会让直播停读）；
 `unknown`（轨道未载入或音频解码器未出声）一律退回暂停。HLS/DASH（`file-format` 为 `hls`/`dash`，实际取值待真机核对）默认退回暂停。
 
 **属性操作（D5）**：只碰 `mute` 与 `vid`，先保存、再改写、退出时精确还原；先静音再拆视频，恢复时先恢复视频再恢复声音；原值为 `no` 的 `vid`（audioOnly/懒创建未挂界面）不动；
-每次属性读写 2s 超时，失败则回滚并让引擎退回暂停。绝不碰 `volume`（Android 上归系统音量端口）、`vo`/`wid`（归 media_kit 的 Android `widListener`，`wid=0` 时设回非 null 会原生崩溃）、`aid`（全关等于停读）、`VideoController`。
+每次属性读写 2s 超时，失败则回滚并让播放器退回暂停。绝不碰 `volume`（Android 上归系统音量端口）、`vo`/`wid`（归 media_kit 的 Android `widListener`，`wid=0` 时设回非 null 会原生崩溃）、`aid`（全关等于停读）、`VideoController`。
 
 **与既有逻辑的交互（D8/D9）**：`play()` 在 holding 时保持待机、fallback 时按意图重试待机；`seek`/`setVolume` 照常；`backToLiveEdge`/`switchQuality` 在 holding 时同源重载并保持待机、
 fallback 时以暂停态加载（`_loadPlays`）；holding 期间看门狗 `disarm`、ABR 与自动回边缘直接返回、失败/直播结束降级为 `fallback(failed/ended)` 并在唤醒时强制重开；唤醒后回到卡顿监视、不重计起播期限。
@@ -967,9 +967,9 @@ fallback 时以暂停态加载（`_loadPlays`）；holding 期间看门狗 `disa
 
 ## 测试
 
-- `test/core/`：`api_test.dart`/`bus_test.dart`/`compat_test.dart`/
-  `engine_test.dart`/`interceptor_test.dart`/`kernel_contract_test.dart`/
-  `model_test.dart`/`options_test.dart`/`ports_test.dart`/`purity_test.dart`
+- `test/core/`：`api_test.dart`/`bus_test.dart`/
+  `mova_test.dart`/`interceptor_test.dart`/`kernel_contract_test.dart`/
+  `model_test.dart`/`options_test.dart`/`platform_test.dart`/`purity_test.dart`
   （断言 `core/` 不 import Flutter）/`state_test.dart`/
   `openness_live_test.dart`（阶段 C，DESIGN §6.2 逐行对账）/
   `openness_preview_test.dart`（阶段 B，DESIGN §6.1 逐行对账）/
@@ -977,9 +977,9 @@ fallback 时以暂停态加载（`_loadPlays`）；holding 期间看门狗 `disa
   `models`/`hash`/`vtt`/`cache`/`disk_cache`/`two_level_cache`/`net_probe`/
   `vtt_source`/`extractor`/`service`）。
 - `test/ui/`：`bottom_bar_test.dart`/`format_test.dart`/`gesture_test.dart`/
-  `live_bar_test.dart`（0.3.0 起验证自适应底栏的直播态）/`orientation_test.dart`/
+  `live_bar_test.dart`（0.3.0 起验证自适应底栏的直播态）/`orient_test.dart`/
   `overlays_test.dart`/`player_test.dart`/`plugin_test.dart`（0.3.0 `MovaPlugin`）/
-  `preview_test.dart`（阶段 B）/`selector_test.dart`/`skin_test.dart`/
+  `preview_test.dart`（阶段 B）/`selector_test.dart`/`ui_kit_test.dart`/
   `top_bar_test.dart`/`tree_test.dart`。
 - `test/platform_impl/`：`net_probe_impl_test.dart`（阶段 B）/`wiring_test.dart`。
 - `test/method_channel_test.dart`：平台通道桩。
@@ -1010,13 +1010,13 @@ flutter pub publish --dry-run                     # 发布校验
 1. **阶段 B：拖动预览缩略图——已完成**（2026-07-31）。文件清单：
    `lib/src/core/preview/`（`models`/`hash`/`vtt`/`cache`/`dir_provider`/`disk_cache`/
    `two_level_cache`/`net_probe`/`fetcher`/`source`/`vtt_source`/`extractor`/
-   `platform_kind`/`api`/`service`）、`lib/src/core/options/preview_config.dart`
-   （`MovaPreviewConfig`）、`lib/src/platform_impl/`（`mpv_extractor_impl`/
+   `platform_kind`/`api`/`service`）、`lib/src/core/options/preview_opts.dart`
+   （`MovaPreviewOpts`）、`lib/src/platform_impl/`（`mpv_extractor_impl`/
    `net_probe_impl`/`thumb_dir_impl`）、`lib/src/ui/components/preview.dart`
    （`MovaPreviewComponent`，挂 `MovaSlot.bottomAbove`，气泡水平位置随拖动比例跟随，
-   钳制不越界）。新增公开面：`MovaApi.preview`（`MovaPreviewApi`）、
-   `MovaOpts.preview`（`MovaPreviewConfig`）、`MovaPreviewBlock` 事件；
-   `createMovaEngine()` 新增 `thumbDir`/`extractor`/`fetcher` 三个可选参数。
+   钳制不越界）。新增公开面：`IMovaApi.preview`（`IMovaPreviewApi`）、
+   `MovaOpts.preview`（`MovaPreviewOpts`）、`MovaPreviewBlock` 事件；
+   `createMova()` 新增 `thumbDir`/`extractor`/`fetcher` 三个可选参数。
    **抽帧路线**（见 `doc/plans/2026-07-31-phase-b-preview.md` 附录 A）：
    `screenshot-raw` 实测在 Windows 上不论 `vf=scale` 还是
    `VideoControllerConfiguration(width/height)` 都不能缩小输出，最终采用
@@ -1056,11 +1056,11 @@ Android+iOS 落地中，见下**）+ AI MCP 集成钩子（仍为纯前瞻记录
   关闭，预期行为。分平台现状：Android/iOS 已有原生插件、扩展量级小，**先落地这两个
   平台**；**macOS 目前没有原生插件**（`macos/` 目录不存在），要从零搭建，暂缓；
   Windows 插件骨架是空壳，SAPI/COM 实现是真实原生工作量、无项目内先例，暂缓。架构
-  延续既有端口抽象三件套（暂拟 `MovaSttEngine`，core 出抽象、`platform_impl/` 出各平台
+  延续既有端口抽象三件套（暂拟 `IMovaStt`，core 出抽象、`platform_impl/` 出各平台
   原生实现、无原生能力则 noop）。第一版曾建议默认依赖 whisper.cpp（FFI），已推翻。
   曾评估"MCP 兜底转写"，**已否决**（MCP 是请求/响应协议非实时流式，延迟不可控；且与
   MCP 钩子本该扮演的"被动暴露上下文"角色冲突）——缺口不专门补，复用既有
-  `MovaVolumePort`/`MovaCallbackVolumePort` 的注入模式给宿主一个通用 `MovaSttEngine` 口子即可。
+  `IMovaVolume`/`MovaCallbackVolume` 的注入模式给宿主一个通用 `IMovaStt` 口子即可。
 - **MCP 钩子（与上方字幕功能解耦，不承担转写职责）**：预计不会成为核心依赖，更可能是
   一个可选的 `MovaHook` 实现或独立的事件流消费者，订阅播放状态/字幕文本等只读
   上下文，并可选择性地接收外部指令——是**被动**暴露/接受控制的角色，不用作"主动请求
@@ -1070,11 +1070,11 @@ Android+iOS 落地中，见下**）+ AI MCP 集成钩子（仍为纯前瞻记录
 以下两点是阶段 A 落地过程中相对 DESIGN 文档的已知偏差，供阶段 B/C 生成详细
 计划时对照实际签名，不要盲目照抄 DESIGN 原文：
 
-- `MovaAbrPolicy` 落在 `lib/src/core/options/abr_config.dart`，不是 DESIGN
+- `IMovaAbrPolicy` 落在 `lib/src/core/options/abr_opts.dart`，不是 DESIGN
   设想的 `lib/src/core/model/abr.dart`。
-- `MovaApi.renderHandle` 是阶段 A 落地过程中新加的 getter（DESIGN 原文未提），
+- `IMovaApi.renderHandle` 是阶段 A 落地过程中新加的 getter（DESIGN 原文未提），
   用于让 `MovaPlayer` 在测试环境下渲染占位符而非真实 media_kit `Video`。
-- `MovaState.sourceTitle` 是 `MovaState` 的字段，不是 `MovaApi` 上独立的 getter。
+- `MovaState.sourceTitle` 是 `MovaState` 的字段，不是 `IMovaApi` 上独立的 getter。
 - `MovaPatch.add` 的 slot/order 处理在落地时做过修正，具体行为以
   `lib/src/ui/slots/tree.dart` 的 `applyPatches()` 实现与
   `test/ui/tree_test.dart` 为准。

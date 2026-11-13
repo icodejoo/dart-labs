@@ -1,8 +1,8 @@
-# 播放器埋点上报的业界实践调研（对照 `MovaReporter` 现状）
+# 播放器埋点上报的业界实践调研（对照 `IMovaReporter` 现状）
 
-> 2026-09-29 · 调研笔记 · 对应刚落地的 `lib/src/core/report/`（`MovaReporter`）
+> 2026-09-29 · 调研笔记 · 对应刚落地的 `lib/src/core/report/`（`IMovaReporter`）
 >
-> 结论先行：**`MovaReporter` 的"只标准化、不发送"这条主干设计是对的，与 ExoPlayer
+> 结论先行：**`IMovaReporter` 的"只标准化、不发送"这条主干设计是对的，与 ExoPlayer
 > `AnalyticsListener` / CMCD v2 Event Mode 的分层一致；但当前白名单是一份"UI 动作
 > 流水"，而不是"播放质量数据源"——业界公认的四大 QoE 指标（起播耗时 TTFF、卡顿次数
 > 与时长、播放失败、会话开始/结束）在 mova 现有的 12 个 `MovaReportName` 里一个都
@@ -23,13 +23,13 @@
 - 名称：`MovaReportName` 枚举 **12 项**（`sourceChange`/`play`/`pause`/`seek`/`seeked`/
   `done`/`error`/`qualityChange`/`abrDownShift`/`fullScreenChange`/`pipChange`/
   `miniChange`/`liveEdgeReach`——实为 13 个常量，去掉 `error` 后 12 个非错误项）。
-- 两条产出路径：`translateMovaEvent()` 白名单自动映射 + `MovaApi.report(name, params)`
+- 两条产出路径：`translateMovaEvent()` 白名单自动映射 + `IMovaApi.report(name, params)`
   手动上报。
 - `MovaEvent` 全集实为 **29 个**（`events.dart` 逐个数：Ready/SourceChange/Play/Pause/
   Done/Seek/Seeked/BufferChange/DurationChange/SizeChange/VolumeChange/BrightChange/
   RateChange/QualityListChange/QualityChange/AbrDownShift/FitChange/ZoomChange/
-  LockChange/FullScreenChange/OrientationChange/PipChange/MiniChange/TimeShiftChange/
-  LiveEdgeReach/PreviewBlock/SttBlock/SwapChange/ErrorEvent），白名单覆盖 13 个。
+  LockChange/FullScreenChange/OrientChange/PipChange/MiniChange/TimeShiftChange/
+  LiveEdgeReach/PreviewBlock/SttBlock/CutoverChange/ErrorEvent），白名单覆盖 13 个。
 
 ---
 
@@ -362,8 +362,8 @@ PDF 拉下来精读。）
 | `MovaRateChange` | ❌ 高频手势 | CMCD 明确列 `e=pr`（速率变化）为触发事件；建议**去抖后**保留 |
 | `MovaVolumeChange` | ❌ 高频手势 | IMA 有 `VOLUME_CHANGED`/`VOLUME_MUTED`，CMCD 有 `e=m`/`e=um`；建议只报**静音/取消静音**这两个语义点 |
 | `MovaTimeShiftChange` | ❌ 高频 | 建议聚合为"时移会话"（进入/退出 + 最大偏移） |
-| `MovaBrightChange`/`MovaZoomChange`/`MovaLockChange`/`MovaFitChange`/`MovaOrientationChange` | ❌ | 纯 UI，排除合理（如需可走 `MovaApi.report` 手动上报） |
-| `MovaPreviewBlock`/`MovaSttBlock`/`MovaSwapChange` | ❌ 内部诊断 | 排除合理；但 `MovaSwapChange` 在**广告场景**下等价于 IMA 的 `CONTENT_PAUSE/RESUME_REQUESTED`，宿主可能需要 |
+| `MovaBrightChange`/`MovaZoomChange`/`MovaLockChange`/`MovaFitChange`/`MovaOrientChange` | ❌ | 纯 UI，排除合理（如需可走 `IMovaApi.report` 手动上报） |
+| `MovaPreviewBlock`/`MovaSttBlock`/`MovaCutoverChange` | ❌ 内部诊断 | 排除合理；但 `MovaCutoverChange` 在**广告场景**下等价于 IMA 的 `CONTENT_PAUSE/RESUME_REQUESTED`，宿主可能需要 |
 
 ### 7.2 业界标配但 mova **完全拿不到**的指标
 
@@ -380,7 +380,7 @@ PDF 拉下来精读。）
 | **带宽估计 / 实测吞吐** | CMCD `mtp`；hls.js `bandwidthEstimate`；Shaka `estimatedBandwidth` | ❌ 无 |
 | **错误码（可聚类的）** | CMCD `ec`；hls.js `ErrorDetails` | ⚠️ 只有 `error.toString()` |
 | **会话级不变字段（sessionId/streamType/format/playerVersion/networkType）** | CMCD Session 类；各家标配 | ❌ 无 |
-| **广告四分位（25/50/75%）** | IMA `FIRST_QUARTILE`/`MIDPOINT`/`THIRD_QUARTILE`；CMCD `e=as`/`ae`/`abs`/`abe`/`sk` | ❌ 无（mova 有 `MovaAdController` 但未接上报） |
+| **广告四分位（25/50/75%）** | IMA `FIRST_QUARTILE`/`MIDPOINT`/`THIRD_QUARTILE`；CMCD `e=as`/`ae`/`abs`/`abe`/`sk` | ❌ 无（mova 有 `MovaAds` 但未接上报） |
 
 ---
 
@@ -449,13 +449,13 @@ rebufferCount, rebufferMs}`，`priority: immediate`（进程随时可能被杀�
 依据：CMCD 的 Session 分类与 `sid`/`cid`/`sf`/`st`/`v`（[CTA-5004-B][cta5004b]）；
 阿里云的维度清单（SDK 版本/网络类型/是否硬解/分辨率/运营商）（[阿里云][aliyun-qos]）。
 做法：mova 生成 `sessionId`（UUID），`sessionStart` 的 params 带
-`{sessionId, streamType(vod/live), playerVersion, audioOnly, swapEnabled}`；
+`{sessionId, streamType(vod/live), playerVersion, audioOnly, cutoverEnabled}`；
 networkType 已有 `connectivity_plus` 依赖（preview 模块在用），可复用；deviceId/
 viewerId 属宿主身份信息，**不要 mova 采集**，让宿主自己往 params 合并。
 
 **B2. 增加心跳/周期进度上报（默认关闭，可配间隔）。**
 依据：CMCD v2 Event Mode 把心跳 `e=t` 列为一等事件类型（[CTA-5004-B][cta5004b]）。
-做法：`MovaReportConfig(heartbeat: Duration?)`，默认 `null` 关闭；开启时按间隔产出
+做法：`MovaReportOpts(heartbeat: Duration?)`，默认 `null` 关闭；开启时按间隔产出
 `heartbeat` 事件，`params` 带累计 watchedMs / rebufferCount / 当前码率 / bufferHealth。
 
 **B3. 码率切换带上前后的具体数值，而不只是 label。**
@@ -473,7 +473,7 @@ sessionEnd、firstFrame（含失败）、进入后台 → immediate；其余 bat
 **B5. 广告事件接入上报（四分位 + 广告段边界）。**
 依据：IMA 的 `FIRST_QUARTILE`/`MIDPOINT`/`THIRD_QUARTILE`/`IMPRESSION`/`SKIPPED`
 （[IMA][ima]）；CMCD v2 的 `e=abs/abe/as/ae/sk`（[CTA-5004-B][cta5004b]）。
-mova 已有 `MovaAdController`，缺的只是接线。四分位是广告计费刚需，做广告业务的宿主
+mova 已有 `MovaAds`，缺的只是接线。四分位是广告计费刚需，做广告业务的宿主
 一定会问。
 
 **B6. 丢帧数上报（低频聚合）。**

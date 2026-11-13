@@ -21,7 +21,7 @@ const _items = [
 void main() {
   testWidgets('replacement playlist re-arms a dismissed next-up card', (t) async {
     final api = FakeMovaApi(options: const MovaOpts(
-      playlist: MovaPlaylistConfig(enabled: true, items: _items),
+      playlist: MovaPlaylistOpts(enabled: true, items: _items),
     ));
     final first = MovaPlaylist(api);
     await pumpComponent(t, api, MovaNextUpComponent(first));
@@ -50,13 +50,13 @@ void main() {
     second.dispose();
     await api.dispose();
   });
-  /// Builds a fake API with the playlist enabled (or not) plus a controller.
+  /// Builds a fake API with the playlist enabled (or not) plus a [MovaPlaylist].
   ///
-  /// 构造一个启用（或不启用）播放列表的假 API 及其控制器。
+  /// 构造一个启用（或不启用）播放列表的假 API 及其 MovaPlaylist。
   (FakeMovaApi, MovaPlaylist) build({bool enabled = true}) {
     final api = FakeMovaApi(
       options: MovaOpts(
-        playlist: MovaPlaylistConfig(enabled: enabled, items: _items),
+        playlist: MovaPlaylistOpts(enabled: enabled, items: _items),
       ),
     );
     return (api, MovaPlaylist(api));

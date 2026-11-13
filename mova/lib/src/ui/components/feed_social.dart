@@ -55,21 +55,21 @@ Widget _railAction({
 /// 右侧社交动作竖排（头像/关注、点赞、评论、分享），bilibili/douyin 风格。
 /// 纯组合组件——每个子组件自行渲染，这里只负责把它们排成一列。
 class MovaSocialRailComponent extends MovaComponent {
-  /// Creates the social rail, wiring its children to [item]/[controller]/
+  /// Creates the social rail, wiring its children to [item]/[feed]/
   /// [index]/[likeNotifier].
   ///
-  /// 创建社交竖排，把子组件接到 [item]/[controller]/[index]/[likeNotifier]。
+  /// 创建社交竖排，把子组件接到 [item]/[feed]/[index]/[likeNotifier]。
   ///
   /// - [item]: metadata + callbacks for the current page / 当前页的元数据与回调
-  /// - [controller]: the feed controller owning local like state / 持有本地
-  ///   点赞状态的 feed 控制器
+  /// - [feed]: the [MovaFeed] owning local like state / 持有本地
+  ///   点赞状态的 [MovaFeed]
   /// - [index]: this page's feed index / 本页在 feed 中的索引
   /// - [likeNotifier]: shared like-state notifier for this page, kept in
   ///   sync with double-tap-to-like on the gesture layer / 本页共享的点赞状态
   ///   notifier，与手势层的双击点赞保持同步
   MovaSocialRailComponent({
     required this.item,
-    required this.controller,
+    required this.feed,
     required this.index,
     required this.likeNotifier,
   });
@@ -79,10 +79,10 @@ class MovaSocialRailComponent extends MovaComponent {
   /// 当前页的元数据与回调。
   final MovaFeedItem item;
 
-  /// The feed controller owning local like state.
+  /// The [MovaFeed] owning local like state.
   ///
-  /// 持有本地点赞状态的 feed 控制器。
-  final MovaFeed controller;
+  /// 持有本地点赞状态的 [MovaFeed]。
+  final MovaFeed feed;
 
   /// This page's feed index.
   ///
@@ -109,7 +109,7 @@ class MovaSocialRailComponent extends MovaComponent {
   List<MovaComponent> get children => [
     MovaAvatarComponent(item: item),
     MovaLikeButtonComponent(
-      controller: controller,
+      feed: feed,
       index: index,
       likeNotifier: likeNotifier,
     ),
@@ -118,7 +118,7 @@ class MovaSocialRailComponent extends MovaComponent {
   ];
 
   @override
-  Widget build(BuildContext context, MovaApi api, List<Widget> children) {
+  Widget build(BuildContext context, IMovaApi api, List<Widget> children) {
     return Padding(
       padding: const EdgeInsets.only(right: 8, bottom: 24),
       child: Column(
@@ -163,7 +163,7 @@ class MovaAvatarComponent extends MovaComponent {
   MovaSlot get slot => MovaSlot.right;
 
   @override
-  Widget build(BuildContext context, MovaApi api, List<Widget> children) {
+  Widget build(BuildContext context, IMovaApi api, List<Widget> children) {
     final theme = MovaPlayerStyle.themeOf(context);
     final avatarUrl = item.avatarUrl;
     return GestureDetector(
@@ -205,15 +205,15 @@ class MovaLikeButtonComponent extends MovaComponent {
   ///
   /// 创建点赞按钮叶子组件。
   MovaLikeButtonComponent({
-    required this.controller,
+    required this.feed,
     required this.index,
     required this.likeNotifier,
   });
 
-  /// The feed controller owning local like state.
+  /// The [MovaFeed] owning local like state.
   ///
-  /// 持有本地点赞状态的 feed 控制器。
-  final MovaFeed controller;
+  /// 持有本地点赞状态的 [MovaFeed]。
+  final MovaFeed feed;
 
   /// This page's feed index.
   ///
@@ -237,7 +237,7 @@ class MovaLikeButtonComponent extends MovaComponent {
   MovaSlot get slot => MovaSlot.right;
 
   @override
-  Widget build(BuildContext context, MovaApi api, List<Widget> children) {
+  Widget build(BuildContext context, IMovaApi api, List<Widget> children) {
     final theme = MovaPlayerStyle.themeOf(context);
     return ValueListenableBuilder<({bool liked, int count})>(
       valueListenable: likeNotifier,
@@ -250,7 +250,7 @@ class MovaLikeButtonComponent extends MovaComponent {
           size: 32,
           count: '${value.count}',
           theme: theme,
-          onTap: () => likeNotifier.value = controller.toggleLike(index),
+          onTap: () => likeNotifier.value = feed.toggleLike(index),
         );
       },
     );
@@ -285,7 +285,7 @@ class MovaCommentButtonComponent extends MovaComponent {
   MovaSlot get slot => MovaSlot.right;
 
   @override
-  Widget build(BuildContext context, MovaApi api, List<Widget> children) {
+  Widget build(BuildContext context, IMovaApi api, List<Widget> children) {
     final theme = MovaPlayerStyle.themeOf(context);
     return _railAction(
       icon: Icons.chat_bubble_rounded,
@@ -326,7 +326,7 @@ class MovaShareButtonComponent extends MovaComponent {
   MovaSlot get slot => MovaSlot.right;
 
   @override
-  Widget build(BuildContext context, MovaApi api, List<Widget> children) {
+  Widget build(BuildContext context, IMovaApi api, List<Widget> children) {
     final theme = MovaPlayerStyle.themeOf(context);
     return _railAction(
       icon: Icons.reply_rounded,
@@ -365,7 +365,7 @@ class MovaFeedInfoComponent extends MovaComponent {
   MovaSlot get slot => MovaSlot.bottom;
 
   @override
-  Widget build(BuildContext context, MovaApi api, List<Widget> children) {
+  Widget build(BuildContext context, IMovaApi api, List<Widget> children) {
     final theme = MovaPlayerStyle.themeOf(context);
     final author = item.authorName;
     final music = item.musicName;

@@ -18,12 +18,12 @@ const _cardKey = ValueKey('card');
 /// 一张 100 像素高、带守卫的卡片。
 Widget _card(
   FakeMovaApi api, {
-  MovaAutoPauseConfig config = const MovaAutoPauseConfig(),
+  MovaAutoPauseOpts opts = const MovaAutoPauseOpts(),
   List<RouteObserver<ModalRoute<dynamic>>> observers = const [],
 }) =>
     MovaAutoPause(
       api: api,
-      config: config,
+      opts: opts,
       routeObservers: observers,
       child: const SizedBox(key: _cardKey, height: 100),
     );
@@ -50,12 +50,12 @@ const _toForeground = [AppLifecycleState.inactive, AppLifecycleState.resumed];
 /// A 300px viewport holding the card followed by a long spacer.
 ///
 /// 一个 300 像素的视口，里面是卡片加一段很长的占位。
-Widget _list(FakeMovaApi api, ScrollController c, {MovaAutoPauseConfig config = const MovaAutoPauseConfig()}) =>
+Widget _list(FakeMovaApi api, ScrollController c, {MovaAutoPauseOpts opts = const MovaAutoPauseOpts()}) =>
     MaterialApp(
       home: Scaffold(
         body: SizedBox(
           height: 300,
-          child: ListView(controller: c, children: [_card(api, config: config), const SizedBox(height: 2000)]),
+          child: ListView(controller: c, children: [_card(api, opts: opts), const SizedBox(height: 2000)]),
         ),
       ),
     );
@@ -82,7 +82,7 @@ class _SlowKeepAliveApi extends FakeKeepAliveApi {
 
 void main() {
   for (final playing in [false, true]) {
-    testWidgets('engine replacement owns its resume intent: $playing', (t) async {
+    testWidgets('player replacement owns its resume intent: $playing', (t) async {
       final first = FakeMovaApi()..push(const MovaState(playing: true));
       final second = FakeMovaApi()..push(MovaState(playing: playing));
       final scroll = ScrollController();
@@ -147,7 +147,7 @@ void main() {
     final api = FakeMovaApi()..push(const MovaState(playing: true));
     final c = ScrollController();
     addTearDown(c.dispose);
-    await t.pumpWidget(_list(api, c, config: const MovaAutoPauseConfig(minVisibleFraction: 0.5)));
+    await t.pumpWidget(_list(api, c, opts: const MovaAutoPauseOpts(minVisibleFraction: 0.5)));
     c.jumpTo(30);
     await t.pump();
     expect(_n(api, 'pause'), 0, reason: '70% still visible');
@@ -278,8 +278,8 @@ void main() {
 
   testWidgets('9. a live source returning after the grace period jumps to the edge, then plays', (t) async {
     final api = FakeMovaApi()..push(const MovaState(playing: true, type: MovaStreamType.live));
-    const cfg = MovaAutoPauseConfig(liveResumeGrace: Duration.zero);
-    Widget app(bool on) => MaterialApp(home: TickerMode(enabled: on, child: _card(api, config: cfg)));
+    const opts = MovaAutoPauseOpts(liveResumeGrace: Duration.zero);
+    Widget app(bool on) => MaterialApp(home: TickerMode(enabled: on, child: _card(api, opts: opts)));
     await t.pumpWidget(app(true));
     await t.pumpWidget(app(false));
     expect(_n(api, 'pause'), 1);
@@ -308,18 +308,18 @@ void main() {
 
   testWidgets('11. MovaView mounts the guard only when autoPause is given', (t) async {
     final made = <FakeMovaApi>[];
-    Widget view({MovaAutoPauseConfig? autoPause}) => MaterialApp(
+    Widget view({MovaAutoPauseOpts? autoPause}) => MaterialApp(
           home: MovaView(
             source: const MovaSource('https://a/1.mp4'),
             autoPause: autoPause,
-            engineFactory: (o) {
+            movaFactory: (o) {
               final api = FakeMovaApi(options: o);
               made.add(api);
               return api;
             },
           ),
         );
-    await t.pumpWidget(view(autoPause: const MovaAutoPauseConfig()));
+    await t.pumpWidget(view(autoPause: const MovaAutoPauseOpts()));
     await t.pump();
     expect(find.byType(MovaAutoPause), findsOneWidget);
     await t.pumpWidget(const SizedBox());
@@ -330,12 +330,12 @@ void main() {
 
   // ---- keepAlive (hiddenMode) ----
 
-  const keepAliveCfg = MovaAutoPauseConfig(hiddenMode: MovaHiddenMode.keepAlive);
+  const keepAliveCfg = MovaAutoPauseOpts(hiddenMode: MovaHiddenMode.keepAlive);
   const livePlaying = MovaState(playing: true, playbackIntent: true, type: MovaStreamType.live);
 
-  testWidgets('13. keepAlive mode asks a capable engine to hold, then wake; it never pauses or plays', (t) async {
+  testWidgets('13. keepAlive mode asks a capable player to hold, then wake; it never pauses or plays', (t) async {
     final api = FakeKeepAliveApi()..push(livePlaying);
-    Widget app(bool on) => MaterialApp(home: TickerMode(enabled: on, child: _card(api, config: keepAliveCfg)));
+    Widget app(bool on) => MaterialApp(home: TickerMode(enabled: on, child: _card(api, opts: keepAliveCfg)));
     await t.pumpWidget(app(true));
     await t.pumpWidget(app(false));
     await t.pump();
@@ -347,9 +347,9 @@ void main() {
     expect(_n(api, 'play'), 0);
   });
 
-  testWidgets('14. an engine without the capability degrades to pause and play', (t) async {
+  testWidgets('14. a player without the capability degrades to pause and play', (t) async {
     final api = FakeMovaApi()..push(livePlaying);
-    Widget app(bool on) => MaterialApp(home: TickerMode(enabled: on, child: _card(api, config: keepAliveCfg)));
+    Widget app(bool on) => MaterialApp(home: TickerMode(enabled: on, child: _card(api, opts: keepAliveCfg)));
     await t.pumpWidget(app(true));
     await t.pumpWidget(app(false));
     await t.pump();
@@ -361,7 +361,7 @@ void main() {
 
   testWidgets('15. backgrounding while held pauses (resumed -> inactive -> hidden)', (t) async {
     final api = FakeKeepAliveApi()..push(livePlaying);
-    Widget app(bool on) => MaterialApp(home: TickerMode(enabled: on, child: _card(api, config: keepAliveCfg)));
+    Widget app(bool on) => MaterialApp(home: TickerMode(enabled: on, child: _card(api, opts: keepAliveCfg)));
     await t.pumpWidget(app(true));
     await t.pumpWidget(app(false));
     await t.pump();
@@ -376,8 +376,8 @@ void main() {
   testWidgets('16. a play intent arriving while hidden holds it in keepAlive mode and pauses it in pause mode', (t) async {
     const idle = MovaState(type: MovaStreamType.live);
     final held = FakeKeepAliveApi()..push(idle);
-    Widget app(FakeMovaApi api, MovaAutoPauseConfig cfg, bool on) =>
-        MaterialApp(home: TickerMode(enabled: on, child: _card(api, config: cfg)));
+    Widget app(FakeMovaApi api, MovaAutoPauseOpts opts, bool on) =>
+        MaterialApp(home: TickerMode(enabled: on, child: _card(api, opts: opts)));
     await t.pumpWidget(app(held, keepAliveCfg, true));
     await t.pumpWidget(app(held, keepAliveCfg, false));
     await t.pump();
@@ -388,8 +388,8 @@ void main() {
 
     await t.pumpWidget(const SizedBox());
     final paused = FakeKeepAliveApi()..push(idle);
-    await t.pumpWidget(app(paused, const MovaAutoPauseConfig(), true));
-    await t.pumpWidget(app(paused, const MovaAutoPauseConfig(), false));
+    await t.pumpWidget(app(paused, const MovaAutoPauseOpts(), true));
+    await t.pumpWidget(app(paused, const MovaAutoPauseOpts(), false));
     await t.pump();
     paused.push(livePlaying);
     await t.pump();
@@ -400,7 +400,7 @@ void main() {
   testWidgets('17. becoming visible while setKeepAlive(true) is still pending ends with a wake and no second hold', (t) async {
     final gate = Completer<void>();
     final api = _SlowKeepAliveApi(gate)..push(livePlaying);
-    Widget app(bool on) => MaterialApp(home: TickerMode(enabled: on, child: _card(api, config: keepAliveCfg)));
+    Widget app(bool on) => MaterialApp(home: TickerMode(enabled: on, child: _card(api, opts: keepAliveCfg)));
     await t.pumpWidget(app(true));
     await t.pumpWidget(app(false));
     await t.pump();
@@ -413,7 +413,7 @@ void main() {
     expect(_n(api, 'setKeepAlive:true'), 1);
   });
 
-  testWidgets('18. MovaView with a keepAlive autoPause hands the hold to its engine', (t) async {
+  testWidgets('18. MovaView with a keepAlive autoPause hands the hold to its player', (t) async {
     final made = <FakeKeepAliveApi>[];
     await t.pumpWidget(
       MaterialApp(
@@ -422,7 +422,7 @@ void main() {
           child: MovaView(
             source: const MovaSource('https://a/live.flv', type: MovaStreamType.live),
             autoPause: keepAliveCfg,
-            engineFactory: (o) {
+            movaFactory: (o) {
               final api = FakeKeepAliveApi(options: o)..push(livePlaying);
               made.add(api);
               return api;

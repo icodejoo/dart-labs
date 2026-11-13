@@ -12,7 +12,7 @@ import 'dart:typed_data';
 ///
 /// 之所以做成端口而不是直接调 `HttpClient`：测试可以喂预置字节，宿主也可以
 /// 注入自己的鉴权头、CDN 改写或带缓存的 HTTP 栈。
-abstract class MovaHttpFetch {
+abstract class IMovaHttpFetch {
   /// Fetches [url]; returns null on any non-200 response or transport error.
   ///
   /// 拉取 [url]；任何非 200 响应或传输错误都返回 null。
@@ -30,8 +30,8 @@ abstract class MovaHttpFetch {
   Future<void> close();
 }
 
-/// 可选的带头 HTTP 能力；旧 [MovaHttpFetch.get] 签名保持不变。
-abstract class MovaHeaderedHttpFetch implements MovaHttpFetch {
+/// 可选的带头 HTTP 能力；旧 [IMovaHttpFetch.get] 签名保持不变。
+abstract class IMovaHeaderedHttpFetch implements IMovaHttpFetch {
   /// 使用 [headers] 拉取 [url]；失败返回 null，不保存到下一次请求。
   Future<Uint8List?> getWithHeaders(Uri url, Map<String, String> headers);
 }
@@ -40,36 +40,36 @@ final Expando<bool> _headerWarnings = Expando<bool>();
 
 /// 优先调用带头能力；旧实现仍调用 get，且每个实例仅在 debug 提示一次。
 Future<Uint8List?> movaFetchWithHeaders(
-  MovaHttpFetch fetcher,
+  IMovaHttpFetch fetcher,
   Uri url,
   Map<String, String> headers,
 ) {
   if (headers.isEmpty) return fetcher.get(url);
-  if (fetcher is MovaHeaderedHttpFetch) {
+  if (fetcher is IMovaHeaderedHttpFetch) {
     return fetcher.getWithHeaders(url, headers);
   }
   assert(() {
     if (_headerWarnings[fetcher] != true) {
       _headerWarnings[fetcher] = true;
       // ignore: avoid_print — core 保持无 Flutter 依赖，仅 assert 内提示。
-      print('mova: fetcher 未实现 MovaHeaderedHttpFetch，旁路请求将不带请求头。');
+      print('mova: fetcher 未实现 IMovaHeaderedHttpFetch，旁路请求将不带请求头。');
     }
     return true;
   }());
   return fetcher.get(url);
 }
 
-/// The default [MovaHttpFetch], built on `dart:io`'s [HttpClient].
+/// The default [IMovaHttpFetch], built on `dart:io`'s [HttpClient].
 ///
 /// Chosen over `package:http` so preview support adds no new dependency; every
 /// failure mode collapses to null so a broken thumbnail track never surfaces
 /// as a playback error.
 ///
-/// 默认的 [MovaHttpFetch]，基于 `dart:io` 的 [HttpClient]。
+/// 默认的 [IMovaHttpFetch]，基于 `dart:io` 的 [HttpClient]。
 ///
 /// 相比 `package:http` 选它是为了让预览功能不引入任何新依赖；所有失败路径都
 /// 收敛为 null，坏掉的缩略图轨绝不会冒充成播放错误。
-class MovaIoHttpFetcher implements MovaHeaderedHttpFetch {
+class MovaIoHttpFetcher implements IMovaHeaderedHttpFetch {
   /// Creates a fetcher with a per-request [timeout].
   ///
   /// 创建一个每请求超时为 [timeout] 的 fetcher。

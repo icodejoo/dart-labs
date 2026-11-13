@@ -3,17 +3,17 @@ import 'dart:typed_data';
 import '../core/preview/fetcher.dart';
 import '../core/kernel/kernel.dart';
 
-/// The kernel factory `createMovaEngine()` consults before building its real
+/// The kernel factory `createMova()` consults before building its real
 /// media_kit kernel. Always `null` in production; only `MovaTesting` sets it.
 /// Deliberately not exported from the main barrel.
 ///
-/// `createMovaEngine()` 在构建真实 media_kit 内核之前会先咨询的内核工厂。生产环境恒为
+/// `createMova()` 在构建真实 media_kit 内核之前会先咨询的内核工厂。生产环境恒为
 /// `null`；只有 `MovaTesting` 会设置它。刻意不从主 barrel 导出。
-MovaKernel Function()? movaTestKernelFactory;
+IMovaKernel Function()? movaTestKernelFactory;
 
 /// 测试接缝默认的空 HTTP 端口，不创建网络连接或超时计时器。
-/// 示例：`createMovaEngine(fetcher: const MovaTestHttpFetch())`。
-class MovaTestHttpFetch implements MovaHttpFetch {
+/// 示例：`createMova(fetcher: const MovaTestHttpFetch())`。
+class MovaTestHttpFetch implements IMovaHttpFetch {
   /// 创建无资源的空端口。
   const MovaTestHttpFetch();
 

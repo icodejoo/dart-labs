@@ -49,7 +49,7 @@ test exit=0
 - a12-clear 检查点：status=done，累计HLS结果=0，失败=0，脚本/未捕获异常=0；证据 example/tool/coverage_evidence/win-a12-clear.json。
 
 - 开始 f3-fixed-normal：参数 {'case': 'hls', 'mode': 'normal', 'count': 34}；保存完整真实事件，超时仅防挂死。
-- A23检查点（PASS）：普通引擎与cutover enabled代理各open本地点播成功（duration=40000ms，audioOnly=true），两者第1/第2次dispose均void completed、exception=null，共4次调用，第二次异常0。证据win-a23.json（seq1–10）。
+- A23检查点（PASS）：普通播放器与cutover enabled代理各open本地点播成功（duration=40000ms，audioOnly=true），两者第1/第2次dispose均void completed、exception=null，共4次调用，第二次异常0。证据win-a23.json（seq1–10）。
 - A12检查点（PASS）：5次输入读回依次 -1→1.0、0→1.0、NaN→1.0、100→100.0、2.5→2.5；rendered=true、640×360、VideoController真实画面。已直接查看win-a12--1.png与win-a12-0.png，彩条画面正常铺满播放区域、未塌缩。其余截图同前缀保存。
 - 截图边界检查点：Windows枚举2块2560×1440显示器（X=0/2560）；按自启PID的GetWindowRect抓取（10,10,1280,720），非整双屏。元数据win-a12-0-window.json。
 - 开始F3修复版：normal/cutover/paused各34次（共102），真实视频挂树，每次target原生读回>=8000ms；远离40s素材EOF（>20s时重新seek到9s并等原生到位）。暂停态continuedOk代表位置保持且pause=yes，非时间推进。
@@ -91,7 +91,7 @@ test exit=0
 
 - f3-unfixed-paused 检查点：status=done，累计HLS结果=102，失败=0，脚本/未捕获异常=0；证据 example/tool/coverage_evidence/win-f3-unfixed-paused.json。
 
-- 还原检查点：engine.dart 已恢复原字节，SHA256=8e8c99c87cacb2319c5eaa4c9d51301c40b3e9151a5a061f5908e1cc2476812c，与开始一致=True。
+- 还原检查点：mova.dart 已恢复原字节，SHA256=8e8c99c87cacb2319c5eaa4c9d51301c40b3e9151a5a061f5908e1cc2476812c，与开始一致=True。
 
 - 开始收尾审核：从两份最终完整原生时间线重新分组计数，核对每次target/RESTART/continued；核对库文件还原哈希，再关闭自启进程并检查残留。
 
@@ -118,22 +118,22 @@ test exit=0
 | 合计 | 102/102 | 0 | 102/102 | 0 |
 
 - 原生判据：每次target取切档前mpv `time-pos`且>=8s；交替360p/180p；全部RESTART位置记录于`HLS_RESTART`/`HLS_RESULT.restarts`，任一落在target±500ms即landed；播放态continued必须原生增加至少250ms，暂停态必须保持target±500ms且原生`pause=yes`。时钟仅作为日志序号时间线与防挂死截止，不推算成功。
-- 三组分别为普通引擎播放、`MovaCutoverEngine`且`MovaCutoverConfig(enabled:true)`播放、普通引擎暂停；两版本均真实MovaPlayer挂树，Windows自动启用MovaSnapshotGuard。切档本身仍经代理转发switchQuality；没有额外调用cutoverTo。
+- 三组分别为普通播放器播放、`MovaCutover`且`MovaCutoverOpts(enabled:true)`播放、普通播放器暂停；两版本均真实MovaPlayer挂树，Windows自动启用MovaSnapshotGuard。切档本身仍经代理转发switchQuality；没有额外调用cutoverTo。
 - 完整事件证据：`example/tool/coverage_evidence/win-f3-fixed-paused.json`与`win-f3-unfixed-paused.json`（均累计含该版本三组全部事件）；各模式独立检查点文件为`win-f3-{fixed,unfixed}-{normal,cutover,paused}.json`。统计`win-f3-summary.json`，失败及完整时间线`win-f3-failures.json`。
 - 源为Android同一套40s HLS VOD，high/low分片复制到`example/tool/rerun-sources/hls/`，Windows直接127.0.0.1:18094访问；未用Android设备或adb发命令。源服务日志`win-source.log`。
 
 ### 还原核对
 
-| 状态 | engine.dart SHA256 |
+| 状态 | mova.dart SHA256 |
 |---|---|
 | 临时改动前 | `8e8c99c87cacb2319c5eaa4c9d51301c40b3e9151a5a061f5908e1cc2476812c` |
 | forcePark:false对照 | `be1544de7457f236b6a53804296f598a42247fb42a16e5ff955e48a93379c916` |
 | 已还原 | `8e8c99c87cacb2319c5eaa4c9d51301c40b3e9151a5a061f5908e1cc2476812c` |
 
-- **哈希完全一致**；只临时替换指定一行，使用保存的原字节恢复，保留原工作区未提交改动。补丁归档`win-f3-fix.patch`，还原后补丁`win-f3-restored.patch`逐字节一致；哈希证据`win-engine-hashes.json`，原字节备份`win-engine-fixed.bytes`。没有commit/stash/reset/checkout。
+- **哈希完全一致**；只临时替换指定一行，使用保存的原字节恢复，保留原工作区未提交改动。补丁归档`win-f3-fix.patch`，还原后补丁`win-f3-restored.patch`逐字节一致；哈希证据`win-mova-hashes.json`，原字节备份`win-mova-fixed.bytes`。没有commit/stash/reset/checkout。
 
 ### 残留进程检查
 
 - 本次PID：修复版exe 23368、未修复版exe 34008、源 33804；均已退出。清理后相关进程**0**，18093/18094监听**0**。详见`win-processes.json`、`win-cleanup.json`、`win-residual-ports.json`。未关闭其他窗口/进程。
 
-- 最终范围核查检查点：Windows生成文件已无工作区改动；engine.dart SHA256再次独立用Get-FileHash核对一致；HLS high/low 42个文件逐一与Android原素材SHA256相同（win-fixture-hashes.json）。dioman并行变化未触碰，既有test/core/engine_test.dart改动保留。
+- 最终范围核查检查点：Windows生成文件已无工作区改动；mova.dart SHA256再次独立用Get-FileHash核对一致；HLS high/low 42个文件逐一与Android原素材SHA256相同（win-fixture-hashes.json）。dioman并行变化未触碰，既有test/core/mova_test.dart改动保留。

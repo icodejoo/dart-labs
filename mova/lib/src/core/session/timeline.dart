@@ -1,4 +1,4 @@
-import '../options/ad_config.dart';
+import '../options/ad_opts.dart';
 import 'package:meta/meta.dart';
 import '../model/ad.dart';
 

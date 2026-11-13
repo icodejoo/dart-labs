@@ -83,7 +83,7 @@ void main() {
 
   test('throttleStream survives its listener count dropping to zero and back', () async {
     // Regression test: throttleStream's internal controller must be
-    // broadcast. `MovaEngine` wraps this stream in `.asBroadcastStream()` so
+    // broadcast. `Mova` wraps this stream in `.asBroadcastStream()` so
     // both the seek bar and the gesture layer can hold independent
     // subscriptions; if a widget rebuild ever drops the listener count to
     // zero and a new subscriber attaches afterwards, `asBroadcastStream`
@@ -92,7 +92,7 @@ void main() {
     // would silently and permanently kill position updates until restart —
     // exactly the real-device symptom this test guards against.
     //
-    // 回归测试：throttleStream 内部 controller 必须是广播型。`MovaEngine` 会把
+    // 回归测试：throttleStream 内部 controller 必须是广播型。`Mova` 会把
     // 这个流包一层 `.asBroadcastStream()`，让进度条与手势层各自独立订阅；
     // 若一次 widget 重建让监听数降到零、随后又有新订阅者接入，
     // `asBroadcastStream` 会对本流重新调用一次 `listen()`。单订阅

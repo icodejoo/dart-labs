@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mova/src/core/events/events.dart';
 import 'package:mova/src/core/model/quality.dart';
 import 'package:mova/src/core/model/source.dart';
-import 'package:mova/src/core/options/report_config.dart';
+import 'package:mova/src/core/options/report_opts.dart';
 import 'package:mova/src/core/report/collector.dart';
 import 'package:mova/src/core/report/report.dart';
 import 'package:mova/src/core/report/stats_probe.dart';
@@ -22,7 +22,7 @@ void main() {
       final collector = MovaQoeCollector(
         events: events.stream,
         reporter: MovaCallbackReporter(received.add),
-        config: const MovaReportConfig(qoe: true),
+        opts: const MovaReportOpts(qoe: true),
       );
       collector.onOpen(const MovaSource('https://host/master.m3u8'), autoPlay: true);
       events.add(const MovaQualityChange(_quality1080));
@@ -46,7 +46,7 @@ void main() {
       final collector = MovaQoeCollector(
         events: events.stream,
         reporter: MovaCallbackReporter(received.add),
-        config: const MovaReportConfig(qoe: true),
+        opts: const MovaReportOpts(qoe: true),
         probe: probe,
       );
       collector.onOpen(const MovaSource('https://host/master.m3u8'), autoPlay: true);
@@ -82,7 +82,7 @@ void main() {
       final collector = MovaQoeCollector(
         events: events.stream,
         reporter: MovaCallbackReporter(received.add),
-        config: const MovaReportConfig(qoe: true),
+        opts: const MovaReportOpts(qoe: true),
       );
       collector.onOpen(const MovaSource('https://host/master.m3u8'), autoPlay: true);
       events.add(const MovaAbrDownShift(_quality1080, _quality720));
@@ -101,7 +101,7 @@ void main() {
       final collector = MovaQoeCollector(
         events: events.stream,
         reporter: MovaCallbackReporter(received.add),
-        config: const MovaReportConfig(),
+        opts: const MovaReportOpts(),
       );
       collector.onOpen(const MovaSource('https://host/master.m3u8'), autoPlay: true);
       events.add(const MovaQualityChange(_quality1080));

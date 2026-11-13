@@ -12,11 +12,11 @@ enum MovaKeepAlivePhase {
   /// 正在待机：仍在播放，画面和/或声音已关。
   holding,
 
-  /// KeepAlive was asked for but the engine paused instead (VOD, unknown media,
+  /// KeepAlive was asked for but the player paused instead (VOD, unknown media,
   /// HLS, silent stream with `pause`, kernel without the capability, or a
   /// hold that hit `maxDuration` / failed / ended).
   ///
-  /// 请求了待机但引擎改为暂停（点播、媒体信息未知、HLS、配置为暂停的无声流、内核无此能力，
+  /// 请求了待机但播放器改为暂停（点播、媒体信息未知、HLS、配置为暂停的无声流、内核无此能力，
   /// 或待机超过 `maxDuration` / 失败 / 结束）。
   fallback,
 
@@ -127,27 +127,27 @@ enum MovaKeepAliveReason {
   notPlaying,
 }
 
-/// Engines that can keep a stream warm while their picture is hidden.
-/// A capability next to `MovaApi` (like `MovaCutover`); check with `is`.
+/// Players that can keep a stream warm while their picture is hidden.
+/// A capability next to `IMovaApi` (like `IMovaCutover`); check with `is`.
 ///
-/// 能在画面被隐藏时让流保持热态的引擎。与 `MovaApi` 并列的能力接口（同
-/// `MovaCutover`）；用 `is` 判断。
-abstract class MovaKeepAlive {
-  /// Tells the engine its picture is hidden ([on] true) or visible again.
+/// 能在画面被隐藏时让流保持热态的播放器。与 `IMovaApi` 并列的能力接口（同
+/// `IMovaCutover`）；用 `is` 判断。
+abstract class IMovaKeepAlive {
+  /// Tells the player its picture is hidden ([on] true) or visible again.
   ///
   /// Hidden: a playing live stream is held — still playing with video
   /// decoding off and sound muted (or, without audio, decoding on and
-  /// muted) — for at most `MovaKeepAliveConfig.maxDuration`, then paused. When
+  /// muted) — for at most `MovaKeepAliveOpts.maxDuration`, then paused. When
   /// it cannot be held (VOD, HLS by default, unknown media, no kernel
   /// support) it is paused right away. Not playing, or shown in PiP / the
   /// mini window: nothing happens. Visible again: a held stream resumes
   /// decoding (no reconnect); a paused live stream resumes, or reconnects to
   /// the edge when it was paused long enough. Network is NOT saved while held.
   ///
-  /// 告诉引擎它的画面被隐藏了（[on] 为 true）或又可见了。
+  /// 告诉播放器它的画面被隐藏了（[on] 为 true）或又可见了。
   ///
   /// 隐藏：正在播放的直播流进入待机——仍在播放，但关视频解码并静音（无音频的流则继续解码并静音），
-  /// 最长 `MovaKeepAliveConfig.maxDuration`，之后转为暂停。无法待机（点播、默认下的 HLS、媒体信息未知、
+  /// 最长 `MovaKeepAliveOpts.maxDuration`，之后转为暂停。无法待机（点播、默认下的 HLS、媒体信息未知、
   /// 内核不支持）时立即暂停。没在播，或画面在画中画/小窗里：什么都不做。重新可见：待机中的流恢复解码
   /// （不重连）；暂停中的直播续播，暂停够久则重连到直播边缘。待机期间**不省流量**。
   ///
@@ -161,8 +161,8 @@ abstract class MovaKeepAlive {
   ///
   /// Example / 示例:
   /// ```dart
-  /// final api = createMovaEngine();
-  /// if (api is MovaKeepAlive) {
+  /// final api = createMova();
+  /// if (api is IMovaKeepAlive) {
   ///   await api.setKeepAlive(true);   // card scrolled away / 卡片滑走
   ///   await api.setKeepAlive(false);  // back on screen / 回到屏幕
   /// }

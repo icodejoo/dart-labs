@@ -12,10 +12,10 @@ import '../cutover/cutover_operation_test.dart' show settleOperations;
 /// 验证激活失败恢复与网络预取字节预算。
 void main() {
   test('coreA10 failed adjacent activation silences the retained old page', () async {
-    final engines = <FakeMovaApi>[];
-    final pool = MovaFeedEnginePool(size: 3, engineFactory: () {
+    final movas = <FakeMovaApi>[];
+    final pool = MovaFeedPool(size: 3, movaFactory: () {
       final api = FakeMovaApi()..pushPlayingOnVerbs = true;
-      engines.add(api);
+      movas.add(api);
       return api;
     });
     final feed = MovaFeed(
@@ -37,8 +37,8 @@ void main() {
     //
     // 强制重新绑定，使相邻页在 open 处失败，而非在 play 处失败。
     pool.retain({0, 2});
-    for (final engine in engines.where((engine) => !identical(engine, old))) {
-      engine.openThrows = StateError('next page failed');
+    for (final mova in movas.where((mova) => !identical(mova, old))) {
+      mova.openThrows = StateError('next page failed');
     }
     await expectLater(feed.activate(1), throwsStateError);
     expect(feed.activeIndex, 1);
@@ -50,10 +50,10 @@ void main() {
   for (final failAt in ['loader', 'bind']) {
     test('C12 stale $failAt failure still activates the latest page', () async {
       final gate = Completer<void>();
-      final engines = <FakeMovaApi>[];
-      final pool = MovaFeedEnginePool(
+      final movas = <FakeMovaApi>[];
+      final pool = MovaFeedPool(
         size: 1,
-        engineFactory: () {
+        movaFactory: () {
           final api = FakeMovaApi();
           if (failAt == 'bind') {
             api.openGate = gate;
@@ -61,7 +61,7 @@ void main() {
             api.openThrowsFor = '0';
             api.openThrowsOnce = true;
           }
-          engines.add(api);
+          movas.add(api);
           return api;
         },
       );
@@ -86,9 +86,9 @@ void main() {
       gate.complete();
       await Future.wait([first, latest]);
       expect(feed.activeIndex, 1);
-      expect(pool.slotFor(1)?.api, same(engines.last));
-      expect(engines.last.source?.uri, '1');
-      expect(engines.last.state.playbackIntent, isTrue);
+      expect(pool.slotFor(1)?.api, same(movas.last));
+      expect(movas.last.source?.uri, '1');
+      expect(movas.last.state.playbackIntent, isTrue);
     });
   }
 
@@ -96,7 +96,7 @@ void main() {
     'C12 latest activation failure is returned and a later request can retry',
     () async {
       var fail = true;
-      final pool = MovaFeedEnginePool(size: 1, engineFactory: FakeMovaApi.new);
+      final pool = MovaFeedPool(size: 1, movaFactory: FakeMovaApi.new);
       final feed = MovaFeed(
         pool: pool,
         prefetchDepth: 0,

@@ -16,7 +16,7 @@ def call(name,action='snapshot',**args):
     capture(name)
     return d
 for proxy in [False,True]:
-    name='rerun-native-'+('cutover' if proxy else 'engine')
+    name='rerun-native-'+('cutover' if proxy else 'mova')
     update('开始 '+name,[],['- 逐个音量边界读回Android媒体音量；在非audioOnly画面尺寸就绪后立即读open同步状态，补齐A8/A5/N12。'])
     call(name+'-dispose','dispose')
     call(name+'-start',cutover=str(proxy).lower())

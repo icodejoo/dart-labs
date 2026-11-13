@@ -16,7 +16,7 @@ class _Marker extends MovaComponent {
   MovaSlot get slot => MovaSlot.bottom;
   /// 在 [context] 中构建标记文本；[api] 和 [children] 不参与显示。
   @override
-  Widget build(BuildContext context, MovaApi api, List<Widget> children) => const Text('marker');
+  Widget build(BuildContext context, IMovaApi api, List<Widget> children) => const Text('marker');
 }
 
 void main() {

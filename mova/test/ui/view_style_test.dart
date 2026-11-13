@@ -7,16 +7,16 @@ void main() {
   const changed = <String, MovaOpts>{
     'theme': MovaOpts(theme: MovaTheme(accentColor: 0xff00ff00)),
     'strings': MovaOpts(strings: MovaStrs(live: 'ON AIR')),
-    'gesture': MovaOpts(gesture: MovaGestureConfig(doubleTapSeek: false)),
-    'controls': MovaOpts(controls: MovaCtrlsConfig(shortcuts: true)),
-    'danmaku': MovaOpts(danmaku: MovaDanmakuConfig(fontSize: 22)),
+    'gesture': MovaOpts(gesture: MovaGestureOpts(doubleTapSeek: false)),
+    'controls': MovaOpts(controls: MovaCtrlsOpts(shortcuts: true)),
+    'danmaku': MovaOpts(danmaku: MovaDanmakuOpts(fontSize: 22)),
   };
   for (final entry in changed.entries) {
     testWidgets(
-      'view ${entry.key} updates old options fallback without engine recreation',
+      'view ${entry.key} updates old options fallback without player recreation',
       (t) async {
         final made = <FakeMovaApi>[];
-        MovaApi factory(MovaOpts o) {
+        IMovaApi factory(MovaOpts o) {
           final api = FakeMovaApi(options: o)
             ..push(const MovaState(buffering: true));
           made.add(api);
@@ -27,7 +27,7 @@ void main() {
           home: MovaView(
             source: const MovaSource('https://h/a.mp4'),
             options: options,
-            engineFactory: factory,
+            movaFactory: factory,
           ),
         );
         await t.pumpWidget(view(const MovaOpts()));
@@ -40,7 +40,7 @@ void main() {
         expect(
           made.single.options,
           const MovaOpts(),
-          reason: 'engine keeps its construction snapshot',
+          reason: 'player keeps its construction snapshot',
         );
         final context = t.element(find.byType(CircularProgressIndicator));
         expect(MovaPlayerStyle.themeOf(context), entry.value.theme);
@@ -49,7 +49,7 @@ void main() {
         expect(MovaPlayerStyle.controlsOf(context), entry.value.controls);
         expect(
           MovaPlayerStyle.danmakuOf(context),
-          MovaDanmakuStyle.fromConfig(entry.value.danmaku),
+          MovaDanmakuStyle.fromOpts(entry.value.danmaku),
         );
         expect(
           t
@@ -65,11 +65,11 @@ void main() {
     );
   }
   testWidgets(
-    'inline closures and new danmaku lists keep engine and use latest data',
+    'inline closures and new danmaku lists keep player and use latest data',
     (t) async {
       final made = <FakeMovaApi>[];
-      final skin = MovaBilibiliSkin();
-      MovaApi factory(MovaOpts o) {
+      final uiKit = MovaBilibiliUiKit();
+      IMovaApi factory(MovaOpts o) {
         final api = FakeMovaApi(options: o)
           ..push(const MovaState(playing: true));
         made.add(api);
@@ -81,11 +81,11 @@ void main() {
           MaterialApp(
             home: MovaView(
               source: const MovaSource('https://h/a.mp4'),
-              engineFactory: factory,
-              skin: skin,
+              movaFactory: factory,
+              uiKit: uiKit,
               options: MovaOpts(
                 strings: MovaStrs(adStartingIn: (n) => '$n s'),
-                danmaku: MovaDanmakuConfig(
+                danmaku: MovaDanmakuOpts(
                   enabled: true,
                   items: [
                     MovaDanmakuItem(

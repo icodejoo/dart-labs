@@ -230,7 +230,7 @@ Future<Worker> start(
   String? probeAfterKill,
 }) async {
   await root.create(recursive: true);
-  final config = jsonEncode({
+  final opts = jsonEncode({
     'id': id,
     'root': root.path,
     'gate': gate,
@@ -238,7 +238,7 @@ Future<Worker> start(
   });
   final process = await Process.start(
     Platform.resolvedExecutable,
-    ['run', '${temporary.path}/worker.dart', config],
+    ['run', '${temporary.path}/worker.dart', opts],
     workingDirectory: temporary.path,
     runInShell: false,
     mode: ProcessStartMode.normal,
@@ -290,13 +290,13 @@ Future<void> intact(Worker worker) async {
   );
 }
 
-/// Lists actual engine directories, ignoring the root scan lock file.
+/// Lists actual player (`mova_*`) directories, ignoring the root scan lock file.
 ///
-/// 列出真实 engine 目录，忽略根目录扫描锁文件。
-Future<List<Directory>> engines(Directory root) async =>
+/// 列出真实播放器（`mova_*`）目录，忽略根目录扫描锁文件。
+Future<List<Directory>> movas(Directory root) async =>
     (await root.list(followLinks: false).toList())
         .whereType<Directory>()
-        .where((d) => nameOf(d.path).startsWith('engine_'))
+        .where((d) => nameOf(d.path).startsWith('mova_'))
         .toList();
 
 /// Queues all resolvers behind a real root lock using event barriers.
@@ -384,7 +384,7 @@ Future<void> mutualAndRecovery(int iteration) async {
     final db = await b!.event('READY');
     require(da['directory'] != db['directory'], 'B adopted live A directory');
     require(
-      (await engines(root)).length == 2,
+      (await movas(root)).length == 2,
       'S1 expected two live directories',
     );
     await Future.wait(owned.map(intact));
@@ -404,7 +404,7 @@ Future<void> mutualAndRecovery(int iteration) async {
     await b!.stop();
     await a!.check('S2-before-force-kill');
     await a!.kill();
-    final candidates = await engines(root);
+    final candidates = await movas(root);
     require(
       candidates.length == 2,
       'Expected two orphans after A kill/B dispose',
@@ -439,7 +439,7 @@ Future<void> mutualAndRecovery(int iteration) async {
       original == previous.ready!['token'],
       'Adopted cache token damaged',
     );
-    final remaining = await engines(root);
+    final remaining = await movas(root);
     require(
       remaining.length == 1 && remaining.single.path == adopted,
       'Expected one adopted orphan and other orphan deleted',
@@ -488,7 +488,7 @@ Future<void> fourWay(int iteration) async {
       'Concurrent workers shared a directory',
     );
     require(
-      (await engines(root)).length == 4,
+      (await movas(root)).length == 4,
       'Expected four retained directories',
     );
     await Future.wait(owned.map(intact));
@@ -511,7 +511,7 @@ Future<void> deletionRace(int iteration) async {
     await a.send('go');
     final held = (await a.event('READY'))['directory'] as String;
     final orphanFixture = await Directory(
-      '${root.path}/engine_legacy_orphan',
+      '${root.path}/mova_legacy_orphan',
     ).create();
     final orphan = Directory(await orphanFixture.resolveSymbolicLinks());
     final orphanToken =
@@ -524,7 +524,7 @@ Future<void> deletionRace(int iteration) async {
       'Fixture must have no lease',
     );
     require(
-      (await engines(root)).length == 2,
+      (await movas(root)).length == 2,
       'S4 fixture requires exactly two directories',
     );
     final heldDeletes = <String>[];
@@ -585,7 +585,7 @@ Future<void> deletionRace(int iteration) async {
         );
       }
       require(
-        (await engines(root)).length == 3,
+        (await movas(root)).length == 3,
         'S4 unexpected directory count',
       );
       await Future.wait(owned.map(intact));
@@ -603,7 +603,7 @@ Future<void> deletionRace(int iteration) async {
       detail['orphanOutcome'] = exists ? 'adopted-exactly-once' : 'deleted';
       detail['adopterPids'] = adopters.map((w) => w.vmPid).toList();
       detail['heldDeleteEvents'] = heldDeletes;
-      detail['remainingCount'] = (await engines(root)).length;
+      detail['remainingCount'] = (await movas(root)).length;
       await Future.wait(owned.map((w) => w.stop()));
     } finally {
       await watch.cancel();

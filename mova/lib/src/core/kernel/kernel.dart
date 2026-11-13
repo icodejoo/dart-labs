@@ -6,11 +6,11 @@ import 'dart:typed_data';
 /// layers (controls, gestures, state) never import `package:media_kit`
 /// directly.
 ///
-/// 播放引擎（当前为 media_kit/mpv）的抽象层。
+/// 底层播放引擎（当前为 media_kit/mpv）的抽象层。
 ///
 /// 它把代码库其余部分与具体引擎隔离开，使上层（控件、手势、状态）永远不需要
 /// 直接引入 `package:media_kit`。
-abstract class MovaKernel {
+abstract class IMovaKernel {
   /// Opens a media resource by URI and optionally starts playback immediately.
   ///
   /// [uri] is the media resource location (file path, http(s) or hls URL).
@@ -140,7 +140,7 @@ abstract class MovaKernel {
   Stream<Object> get error;
 
   /// The underlying render handle to be attached to a video widget (e.g. a
-  /// `VideoController`). Its concrete type is engine-specific and opaque to
+  /// `VideoController`). Its concrete type is kernel-specific and opaque to
   /// callers outside the core layer.
   ///
   /// `null` means this kernel has no video pipeline at all — the audio-only
@@ -150,7 +150,7 @@ abstract class MovaKernel {
   /// `surface`) for any handle that is not a `VideoController`.
   ///
   /// 供视频渲染组件使用的底层渲染句柄（如 `VideoController`）。
-  /// 其具体类型由引擎决定，对核心层之外的调用者不透明。
+  /// 其具体类型由内核实现决定，对核心层之外的调用者不透明。
   ///
   /// `null` 表示该内核**根本没有视频管线**——即仅音频场景：从未创建过
   /// `VideoController`，也从未注册过 Flutter 纹理。它**不是**错误状态，也不得

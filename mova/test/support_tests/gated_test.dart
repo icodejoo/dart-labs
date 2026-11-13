@@ -61,7 +61,7 @@ void main() {
     expect(api.state.error, 'fatal');
   });
   test('工厂跨实例排序并统计每次释放调用', () async {
-    final factory = GatedEngineFactory();
+    final factory = GatedMovaFactory();
     final a = factory.create();
     final b = factory.create();
     await a.play();
@@ -78,18 +78,18 @@ void main() {
     expect(b.disposeCount, 1);
   });
   test('切换替身按源返回结果并等待预热与提交', () async {
-    final ctl = FakeCutoverCtl();
-    addTearDown(ctl.dispose);
-    ctl.prepareGate = Completer<void>();
-    final prepare = ctl.prepare(const MovaSource('a'));
-    expect(ctl.preparedSource?.uri, 'a');
-    ctl.prepareGate!.complete();
+    final cutover = FakeCutover();
+    addTearDown(cutover.dispose);
+    cutover.prepareGate = Completer<void>();
+    final prepare = cutover.prepare(const MovaSource('a'));
+    expect(cutover.preparedSource?.uri, 'a');
+    cutover.prepareGate!.complete();
     await prepare;
-    ctl.commitResultFor = (source) => source.uri == 'a';
-    ctl.commitGate = Completer<void>();
-    final commit = ctl.commit();
-    ctl.commitGate!.complete();
+    cutover.commitResultFor = (source) => source.uri == 'a';
+    cutover.commitGate = Completer<void>();
+    final commit = cutover.commit();
+    cutover.commitGate!.complete();
     expect(await commit, isTrue);
-    expect(ctl.preparedSources.map((s) => s.uri), ['a']);
+    expect(cutover.preparedSources.map((s) => s.uri), ['a']);
   });
 }

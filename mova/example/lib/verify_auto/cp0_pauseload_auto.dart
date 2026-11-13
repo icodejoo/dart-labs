@@ -5,7 +5,7 @@ Future<void> runPauseLoad(Cp0Harness h) async {
   for(final gate in ['loading','ready','firstFrame']) {
     for(var run=0;run<h.runs;run++) {
       final reports=<Map<String,Object?>>[];
-      final api=createMovaEngine(preciseFirstFrame:true,options:const MovaOpts(report:MovaReportConfig(qoe:true)),
+      final api=createMova(preciseFirstFrame:true,options:const MovaOpts(report:MovaReportOpts(qoe:true)),
         reporter:MovaCallbackReporter((r){final row=<String,Object?>{'name':r.name.value,'params':r.params};reports.add(row);h.mark('REPORT',row);}));
       await h.mount(api);await h.call('open(A)',null,()=>api.open(h.source('a')));await h.waitPosition(1500);await h.call('pause',null,api.pause);
       final before=await h.native();final begin=h.records.length;

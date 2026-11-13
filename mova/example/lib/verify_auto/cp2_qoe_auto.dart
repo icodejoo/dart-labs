@@ -11,12 +11,12 @@ Future<void> runQoe(Cp2Harness h) async {
       await h.control('reset');
       await h.control('throttle', {'bytesPerSecond': 400000});
       final reports=<Map<String,Object?>>[];
-      final a = cp2Engine(h,
+      final a = cp2Mova(h,
         reporter:MovaCallbackReporter((r){final row=<String,Object?>{'name':r.name.value,'sessionId':r.sessionId,'params':r.params};reports.add(row);h.mark('REPORT',row);}),
 
         options: const MovaOpts(
-          report:MovaReportConfig(qoe:true),
-          recovery: MovaRecoveryConfig(
+          report:MovaReportOpts(qoe:true),
+          recovery: MovaRecoveryOpts(
             enabled: true,
             stallTimeout: Duration(seconds: 3),
           ),
@@ -139,13 +139,13 @@ Future<void> runQoePause30(Cp2Harness h) async {
     await h.control('reset');
     await h.control('throttle', {'bytesPerSecond': 400000});
     final reports = <Map<String, Object?>>[];
-    final a = cp2Engine(h,
+    final a = cp2Mova(h,
       reporter: MovaCallbackReporter((r) {
         final row = <String, Object?>{'name': r.name.value, 'sessionId': r.sessionId, 'params': r.params};
         reports.add(row);
         h.mark('REPORT', row);
       }),
-      options: const MovaOpts(report: MovaReportConfig(qoe: true)),
+      options: const MovaOpts(report: MovaReportOpts(qoe: true)),
     );
     await h.mount(a);
     final stamp = DateTime.now().microsecondsSinceEpoch;

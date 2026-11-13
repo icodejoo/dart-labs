@@ -9,15 +9,15 @@ class CommandLog {
       entries.add((instance: instance, verb: verb));
 }
 
-/// 可直接传给真实切换引擎的工厂，保留全部实例供释放与源断言。
-class GatedEngineFactory {
+/// 可直接传给真实切换代理的工厂，保留全部实例供释放与源断言。
+class GatedMovaFactory {
   final CommandLog log = CommandLog();
-  final List<FakeMovaApi> engines = [];
+  final List<FakeMovaApi> movas = [];
 
-  /// 创建带共享命令日志的引擎替身。
+  /// 创建带共享命令日志的播放器替身。
   FakeMovaApi create() {
-    final engine = FakeMovaApi(commandLog: log);
-    engines.add(engine);
-    return engine;
+    final mova = FakeMovaApi(commandLog: log);
+    movas.add(mova);
+    return mova;
   }
 }

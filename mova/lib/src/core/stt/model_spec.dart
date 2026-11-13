@@ -1,11 +1,11 @@
 /// One file a model needs, already extracted and individually downloadable
-/// (not a `.tar.bz2` bundle — see `doc/notes/2026-08-04-stt-engine-decision.md`
+/// (not a `.tar.bz2` bundle — see `doc/notes/2026-08-04-stt-recognizer-decision.md`
 /// for why: sherpa-onnx's official GitHub Releases ship archives, so the
 /// default source re-hosts the already-extracted plain files rather than
 /// decompressing on-device).
 ///
 /// 模型所需的单个文件，已解压、可单独下载（不是 `.tar.bz2` 压缩包——原因见
-/// `doc/notes/2026-08-04-stt-engine-decision.md`：sherpa-onnx 官方 GitHub
+/// `doc/notes/2026-08-04-stt-recognizer-decision.md`：sherpa-onnx 官方 GitHub
 /// Releases 发布的是压缩包，因此默认源改为重新托管已解压好的裸文件，而不是
 /// 在端上解压）。
 class MovaSttModelFile {
@@ -39,10 +39,10 @@ class MovaSttModelFile {
   final int? sizeBytes;
 }
 
-/// A named, versioned set of files one STT engine needs on disk before it
+/// A named, versioned set of files one STT recognizer needs on disk before it
 /// can be constructed.
 ///
-/// 一个具名、带版本的文件集合，某个 STT 引擎在构造前需要它们都已落盘。
+/// 一个具名、带版本的文件集合，某个 STT 识别器在构造前需要它们都已落盘。
 class MovaSttModelSpec {
   /// Creates a model spec.
   ///

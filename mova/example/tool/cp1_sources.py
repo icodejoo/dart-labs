@@ -26,7 +26,7 @@ class Fixtures:
         self.gate.set()
         self.kind = ''
         self.reopen_entered = False
-        self.swap_entered = False
+        self.cutover_entered = False
         self.probe_entered = False
         self.hanging_body = False
         self.probes = {}
@@ -39,7 +39,7 @@ class Fixtures:
 
     def stats(self):
         with self.lock:
-            return dict(reopenEntered=self.reopen_entered, swapEntered=self.swap_entered, probeEntered=self.probe_entered,
+            return dict(reopenEntered=self.reopen_entered, cutoverEntered=self.cutover_entered, probeEntered=self.probe_entered,
                         hangingBody=self.hanging_body, gateReleased=self.gate.is_set(), probes=dict(self.probes),
                         requests=list(self.requests), manifests=list(self.manifests), responses=list(self.responses), uriStyle=self.uri_style,
                         bytesPerSecond=self.bps, segmentEntered=self.segment_entered)
@@ -74,8 +74,8 @@ class Fixtures:
                 if not probe and path == '/live.m3u8' and fixture.kind == 'reopen':
                     fixture.reopen_entered = True
                     fixture.gate.wait(60)
-                if not probe and path == '/new.m3u8' and fixture.kind == 'swap':
-                    fixture.swap_entered = True
+                if not probe and path == '/new.m3u8' and fixture.kind == 'cutover':
+                    fixture.cutover_entered = True
                     fixture.gate.wait(60)
                 if path.endswith('.ts') and fixture.kind == 'recovery' and not fixture.gate.is_set():
                     fixture.segment_entered = True

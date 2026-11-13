@@ -10,8 +10,8 @@ const _low = MovaQuality(label: '480p', uri: 'https://h/480.m3u8', height: 480);
 
 void main() {
   test('1. defaults: keepAlive is configured but never on, the guard pauses, the state is off', () {
-    expect(const MovaOpts().keepAlive, const MovaKeepAliveConfig());
-    expect(const MovaAutoPauseConfig().hiddenMode, MovaHiddenMode.pause);
+    expect(const MovaOpts().keepAlive, const MovaKeepAliveOpts());
+    expect(const MovaAutoPauseOpts().hiddenMode, MovaHiddenMode.pause);
     expect(const MovaState().keepAlivePhase, MovaKeepAlivePhase.off);
   });
 
@@ -22,22 +22,22 @@ void main() {
         final r = KeepAliveRig(async, k);
         r.playLive(type: type);
         r.land();
-        r.engine.pause();
+        r.mova.pause();
         r.settle();
-        r.engine.play();
+        r.mova.play();
         r.settle();
-        r.engine.seek(const Duration(seconds: 1));
+        r.mova.seek(const Duration(seconds: 1));
         r.settle();
-        r.engine.setVolume(40);
+        r.mova.setVolume(40);
         r.settle();
-        r.engine.debugSetQualities(const [_high, _low], current: _high);
-        r.engine.switchQuality(_low);
+        r.mova.debugSetQualities(const [_high, _low], current: _high);
+        r.mova.switchQuality(_low);
         r.settle();
-        r.engine.backToLiveEdge();
+        r.mova.backToLiveEdge();
         r.settle();
-        r.engine.reload();
+        r.mova.reload();
         r.settle();
-        r.engine.dispose().ignore();
+        r.mova.dispose().ignore();
         async.elapse(const Duration(seconds: 1));
         r.settle();
 
@@ -48,17 +48,17 @@ void main() {
         }
         expect(r.events.whereType<MovaKeepAliveChange>(), isEmpty, reason: type.name);
         expect(r.events.whereType<MovaKeepAliveResume>(), isEmpty, reason: type.name);
-        expect(r.engine.state.keepAlivePhase, MovaKeepAlivePhase.off, reason: type.name);
+        expect(r.mova.state.keepAlivePhase, MovaKeepAlivePhase.off, reason: type.name);
       }
     });
   });
 
-  test('3. MovaOpts.copyWith(keepAlivePhase:) swaps only the keepAlive section', () {
-    const custom = MovaKeepAliveConfig(maxDuration: Duration(seconds: 7), allowHls: true);
-    const base = MovaOpts(recovery: MovaRecoveryConfig(enabled: true));
+  test('3. MovaOpts.copyWith(keepAlive:) swaps only the keepAlive section', () {
+    const custom = MovaKeepAliveOpts(maxDuration: Duration(seconds: 7), allowHls: true);
+    const base = MovaOpts(recovery: MovaRecoveryOpts(enabled: true));
     final next = base.copyWith(keepAlive: custom);
     expect(next.keepAlive, custom);
-    expect(next, const MovaOpts(recovery: MovaRecoveryConfig(enabled: true), keepAlive: custom));
+    expect(next, const MovaOpts(recovery: MovaRecoveryOpts(enabled: true), keepAlive: custom));
     expect(next.recovery, base.recovery);
     expect(next.live, base.live);
   });

@@ -19,15 +19,15 @@
 
 最终验证：全量 `flutter test --concurrency=3` **2094 PASS**（`cp1-close-h28-tests-r3.log`）；相关测试 21 PASS（其中新增产品复现 2 条、采样 4 条）；采样回退 4 FAIL→4 PASS；`flutter analyze lib test` 0 issues（`cp1-close-h28-analyze-r3.log`）。上述日志均在 `example/tool/coverage_evidence/`。
 
-## 2. Skin 快照同步
+## 2. UI 套件快照同步
 
-设计核对：总计划 B14（577 行）明确锁定按钮进入组件树，落地记录（588 行）明确默认树加入 lockToggle 并同步 Bilibili 基准；C 块 `2026-11-03-c04-c06-chrome-style.md` 的 C06 文件清单仍包含默认皮肤锁定按钮（834 行）。这是设计内组件，不能删除来匹配旧验证页。
+设计核对：总计划 B14（577 行）明确锁定按钮进入组件树，落地记录（588 行）明确默认树加入 lockToggle 并同步 Bilibili 基准；C 块 `2026-11-03-c04-c06-chrome-style.md` 的 C06 文件清单仍包含默认 UI 套件锁定按钮（834 行）。这是设计内组件，不能删除来匹配旧验证页。
 
 精确快照为 default/bilibili 完整树和 patch 树分别补上 `lockToggle@overlay`；Bilibili patch 期望改为按固定节点名映射 topBar/danmakuTrack，其余节点逐个原样保留，避免固定 sublist 截掉新组件。仍使用有序列表全量相等、真实挂树与点击判据。产品代码无修改。
 
-`flutter test --concurrency=3 test/ui/skin_test.dart test/ui/bilibili_skin_test.dart test/ui/b14_test.dart`：24 PASS，证据 `example/tool/coverage_evidence/cp1-close-skin-tests.log`。
+`flutter test --concurrency=3 test/ui/ui_kit_test.dart test/ui/bilibili_ui_kit_test.dart test/ui/b14_test.dart`：24 PASS，证据 `example/tool/coverage_evidence/cp1-close-ui-kit-tests.log`。
 
-真机三轮 `cp1-close-skin-1825`：原 12 条快照 **12/12 PASS**。证据 `example/tool/coverage_evidence/matrix-cp1-close-skin-1825-skin/cp0-result.json`、`matrix-cp1-close-skin-1825-1-skin/cp0-result.json`、`matrix-cp1-close-skin-1825-2-skin/cp0-result.json`，每份 verdicts[6,8,56,61]。三轮完整 skin 各 68 PASS / 0 FAIL / 6 BLOCKED（人工布局/PiP/全屏视觉项），harness=[]；不把这些人工项当作 PASS。快照修正不证明 B03 专属底栏刺激已执行，底栏覆盖仍单独列项。构建拉回 SHA256=`9a9e047da9bcec323ad51ca88cd0b7097f5ec8fb54e86fc4caa70a52fe12e78c`。原 12 条 FAIL 保留在旧证据。
+真机三轮 `cp1-close-ui-kit-1825`：原 12 条快照 **12/12 PASS**。证据 `example/tool/coverage_evidence/matrix-cp1-close-ui-kit-1825-ui-kit/cp0-result.json`、`matrix-cp1-close-ui-kit-1825-1-ui-kit/cp0-result.json`、`matrix-cp1-close-ui-kit-1825-2-ui-kit/cp0-result.json`，每份 verdicts[6,8,56,61]。三轮完整 UI 套件各 68 PASS / 0 FAIL / 6 BLOCKED（人工布局/PiP/全屏视觉项），harness=[]；不把这些人工项当作 PASS。快照修正不证明 B03 专属底栏刺激已执行，底栏覆盖仍单独列项。构建拉回 SHA256=`9a9e047da9bcec323ad51ca88cd0b7097f5ec8fb54e86fc4caa70a52fe12e78c`。原 12 条 FAIL 保留在旧证据。
 
 ## 3. 独立 END_FILE 采样
 
@@ -41,7 +41,7 @@
 
 ## 4. BLOCKED 夹具收口
 
-- 7a：只给延迟替换的新源设置 network-timeout=20s，保留旧 5s wake 竞争窗口及 >6s 的闸门刺激。`cp1-close-wakeswap-1838` 10/10 PASS，原生新源首帧和地址完整，harness=[]，run_matrix=0。CHECK 在 `example/tool/coverage_evidence/matrix-cp1-close-wakeswap-1838/matrix-cp1-close-wakeswap-1838-cp1-wakeswap.json` records[269,503,740,982,1211,1429,1648,1862,2089,2290]。
+- 7a：只给延迟替换的新源设置 network-timeout=20s，保留旧 5s wake 竞争窗口及 >6s 的闸门刺激。`cp1-close-wakecutover-1838` 10/10 PASS，原生新源首帧和地址完整，harness=[]，run_matrix=0。CHECK 在 `example/tool/coverage_evidence/matrix-cp1-close-wakecutover-1838/matrix-cp1-close-wakecutover-1838-cp1-wakecutover.json` records[269,503,740,982,1211,1429,1648,1862,2089,2290]。
 - 7b/fallback：所有主/子清单及别名输出完整 HTTP URI，保留每次实际响应正文。第六次重开协议测试与 primary 前缀测试回退旧输出后 2 FAIL，修正后 2 PASS；另验证 primary 实际 404 状态与备用路径可读，及相邻帧隐私守卫。Python 新回归 5 PASS；矩阵既有回归 56 PASS。
 - 恢复：开源前启用限速 400000B/s，并按源限制 demuxer-readahead-secs=1、demuxer-max-bytes=524288、cache-secs=1，防止 120 秒本地 HLS 在 arm 前读完。仍必须观察 segmentEntered、buffering、真实 stallTimeout/retry 与原生续播误差。
 - 探测：备用源组的素材实际为滑动直播 HLS，声明 live，并显式 liveEndIsFailure；限制预读和网络超时，要求真实主源失败后触发 failover，再核对每地址独立探测一次。关闭组保持不主动 loadQualities。
@@ -73,7 +73,7 @@ CP0 S1/S13 新基线 `cp0-close-keepalive-core-1949`：S1 五轮（每轮 25/50/
 
 当前 S1/S13 独立复测 `cp1-close-keepalive-core-1955` 同样为 S1 15/15、S13 5/5 原生 PASS。两边各 5 轮、每轮子样本数严格相同，S1 各轮 GOP 集合均为 {25,50,100}；S13 均 after=no/yes、stillHolding=true。新对照证据 `example/tool/coverage_evidence/cp1-close-keepalive-core-comparison.json`，没有使用旧 CP1 PASS 补计本轮。
 
-外层适配器补充缺陷：`cp1_closeout_batch.py` 的外层 run-id 带 `-host`，旧完成头却填写原生 run-id，导致外层在 worker exit=0 后误报 identity HARNESS（H28/skin/core 的原生采样均未受影响）。已分别保存 host/native 两个 ID，并补回归验证旧头被拒、新头通过。旧完成 JSON 与外层误报日志未改写；`cp1-closeout-native-audit.json` 独立校验四份原始数据、实际 worker exit=0、原生 schema 与修正后的命名映射，确认仅身份头差异，H28 90 条与 skin 12 条目标快照及两版 core 原生数据完整。相关 Python 回归最终 11 PASS。
+外层适配器补充缺陷：`cp1_closeout_batch.py` 的外层 run-id 带 `-host`，旧完成头却填写原生 run-id，导致外层在 worker exit=0 后误报 identity HARNESS（H28/UI 套件/core 的原生采样均未受影响）。已分别保存 host/native 两个 ID，并补回归验证旧头被拒、新头通过。旧完成 JSON 与外层误报日志未改写；`cp1-closeout-native-audit.json` 独立校验四份原始数据、实际 worker exit=0、原生 schema 与修正后的命名映射，确认仅身份头差异，H28 90 条与 skin 12 条目标快照及两版 core 原生数据完整。相关 Python 回归最终 11 PASS。
 
 keepAlive 最终复核：当前 `cp1-close-keepalive-2002` 五轮各 24/24 组具有阶段 token、双向前台保护和精确 ACK。S7 为 5/5 场景 PASS、100/100 次恢复具有非黑运动相邻帧；S14 5/5 PASS，holding 两阶段与 CP0 同为黑屏，restored 重新运动。人工检查当前五份联系表及 CP0 五轮/补采联系表，无持续黑屏或卡帧。`example/tool/coverage_evidence/cp1-close-keepalive-review/visual-review.json` 保存逐帧数字、选择清单与所有缺测尝试；CP0 S7 原首轮仍 BLOCKED。原始 CHECK 的人工复核 BLOCKED 不回写，综合判定另存。S1/S13 两版各五轮原生对照 PASS；因此四场景当前 20/20，CP0 同口径有效基线齐备。
 

@@ -4,11 +4,11 @@ import 'package:media_kit_video/media_kit_video.dart';
 import 'package:mova/mova.dart';
 import 'cp0_harness.dart';
 
-/// Default engine, no manual quality selection and no native event pump.
+/// Default player, no manual quality selection and no native event pump.
 Future<void> runAutoTier(Cp0Harness h) async {
   for (final mode in ['limited', 'unlimited']) {
     for (var run = 0; run < (mode == 'limited' ? h.runs : 1); run++) {
-      final a = createMovaEngine();
+      final a = createMova();
       await h.mount(a);
       final cursor = h.records.length;
       final uri =
@@ -67,7 +67,7 @@ Future<void> runAutoTier(Cp0Harness h) async {
             .skip(cursor)
             .where((r) => r['kind'] == 'EVENT')
             .toList(),
-        'defaultEngine': true,
+        'defaultMova': true,
         'manualQualityCommands': 0,
       });
       await h.release();

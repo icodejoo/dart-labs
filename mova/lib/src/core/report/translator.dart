@@ -10,14 +10,14 @@ const _valueKey = 'value';
 /// [event] isn't in the reportable whitelist.
 ///
 /// This is the single, centralized place that decides which [MovaEvent]
-/// variants are worth reporting — call sites in `MovaEngine`/`MovaCutoverEngine`
+/// variants are worth reporting — call sites in `Mova`/`MovaCutover`
 /// must never sprinkle ad-hoc `reporter.onReport(...)` calls of their own.
 ///
 /// Deliberately excluded (and why): [MovaBufferChange]/[MovaTimeShiftChange]
 /// (flap several times per second while stalled/timeshifting),
 /// [MovaDurationChange]/[MovaSizeChange]/[MovaQualityListChange] (decoder
 /// metadata, not a user-facing action), [MovaVolumeChange]/[MovaBrightChange]/
-/// [MovaZoomChange]/[MovaRateChange]/[MovaLockChange]/[MovaOrientationChange]
+/// [MovaZoomChange]/[MovaRateChange]/[MovaLockChange]/[MovaOrientChange]
 /// (fire once per pixel of a drag gesture), [MovaReady] (fires on every
 /// successful open right alongside [MovaSourceChange], redundant),
 /// [MovaCutoverChange] (internal seamless-cutover implementation detail),
@@ -27,15 +27,15 @@ const _valueKey = 'value';
 /// [event] 到其 [MovaReportEvent] 的纯映射；[event] 不在可上报白名单内时
 /// 返回 `null`。
 ///
-/// 这是唯一、集中判断哪些 [MovaEvent] 子类型值得上报的一处——`MovaEngine`/
-/// `MovaCutoverEngine` 的调用方绝不应该自行散落插入零星的 `reporter.onReport(...)`
+/// 这是唯一、集中判断哪些 [MovaEvent] 子类型值得上报的一处——`Mova`/
+/// `MovaCutover` 的调用方绝不应该自行散落插入零星的 `reporter.onReport(...)`
 /// 调用。
 ///
 /// 刻意排除（及理由）：[MovaBufferChange]/[MovaTimeShiftChange]（卡顿/时移期间
 /// 每秒可能翻转数次）、[MovaDurationChange]/[MovaSizeChange]/
 /// [MovaQualityListChange]（解码器元数据，非用户可感知动作）、
 /// [MovaVolumeChange]/[MovaBrightChange]/[MovaZoomChange]/[MovaRateChange]/
-/// [MovaLockChange]/[MovaOrientationChange]（拖动手势每个像素都会触发一次）、
+/// [MovaLockChange]/[MovaOrientChange]（拖动手势每个像素都会触发一次）、
 /// [MovaReady]（与 [MovaSourceChange] 几乎同时触发，信息冗余）、
 /// [MovaCutoverChange]（无缝切换的内部实现细节）、[MovaPreviewBlock]/
 /// [MovaSttBlock]（内部拒绝诊断，非业务分析事件）。

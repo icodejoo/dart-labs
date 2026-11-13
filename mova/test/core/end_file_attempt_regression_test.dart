@@ -26,7 +26,7 @@ class _OpeningKernel extends FakeStatsKernel {
 }
 
 /// 用真实泵模拟弱客户端队列，并保留通知产生时的尝试。
-class _AttemptKernel extends FakeStatsKernel implements MovaAttemptEventKernel {
+class _AttemptKernel extends FakeStatsKernel implements IMovaAttemptEventKernel {
   /// 构造可手动投递原生通知的内核。
   _AttemptKernel() {
     pump = MovaMpvEventPump(backend, name: 'attempt', onRestart: () {},
@@ -92,15 +92,15 @@ void main() {
         expect(k.attempt, loadedAttempt);
         k.ends.add((attempt: loadedAttempt, reason: MovaEndFileReason.error));
         r.settle();
-        expect(r.engine.state.keepAlivePhase, MovaKeepAlivePhase.fallback);
+        expect(r.mova.state.keepAlivePhase, MovaKeepAlivePhase.fallback);
         if (holding) expect(r.changes.last.reason, MovaKeepAliveReason.failed);
-        expect(r.engine.state.error, isNull);
+        expect(r.mova.state.error, isNull);
         expect(r.events.whereType<MovaErrorEvent>(), isEmpty);
         expect(r.events.whereType<MovaPlayFailure>(), isEmpty);
         // 短暂停播通常只续播；failed 必须使唤醒重新加载。
         r.keepAlive(false);
         expect(k.openedUris.length, opens + 1);
-        r.engine.dispose();
+        r.mova.dispose();
         r.settle();
       });
     });
@@ -111,17 +111,17 @@ void main() {
       fakeAsync((async) {
         final k = _KeepAliveAttemptKernel();
         final r = KeepAliveRig(async, k,
-          options: const MovaOpts(live: MovaLiveConfig(
+          options: const MovaOpts(live: MovaLiveOpts(
             seekMode: MovaLiveSeekMode.dvr,
             dvrWindow: Duration(minutes: 1),
           )),
-          recovery: MovaRecoveryConfig(enabled: recovery),
+          recovery: MovaRecoveryOpts(enabled: recovery),
         )..playLive();
         r.land();
         r.keepAlive(true);
         async.elapse(const Duration(seconds: 30));
         r.settle();
-        expect(r.engine.state.keepAlivePhase, MovaKeepAlivePhase.fallback);
+        expect(r.mova.state.keepAlivePhase, MovaKeepAlivePhase.fallback);
         final loadedAttempt = k.attempt;
         final opens = k.openedUris.length;
         expect(r.keepAlive(false), MovaKeepAlivePhase.resuming);
@@ -135,7 +135,7 @@ void main() {
               MovaPlayFailKind.nativeEndError);
           expect(r.events.whereType<MovaErrorEvent>(), isEmpty);
         } else {
-          expect(r.engine.state.error, MovaEndFileReason.error);
+          expect(r.mova.state.error, MovaEndFileReason.error);
           expect(r.events.whereType<MovaErrorEvent>().single.fatal, isTrue);
           expect(k.calls.last, 'pause');
           // 同一操作尝试仍只结算一次终结错误。
@@ -143,7 +143,7 @@ void main() {
           r.settle();
           expect(r.events.whereType<MovaErrorEvent>(), hasLength(1));
         }
-        r.engine.dispose();
+        r.mova.dispose();
         r.settle();
       });
     });
@@ -152,8 +152,8 @@ void main() {
   test('F-J delivered A END_FILE with captured attempt cannot terminate B', () async {
     final k = _AttemptKernel();
     await k.pump.start(Future.value());
-    final e = MovaEngine(kernel: k, options: const MovaOpts(
-      controls: MovaCtrlsConfig(autoHide: false),
+    final e = Mova(kernel: k, options: const MovaOpts(
+      controls: MovaCtrlsOpts(autoHide: false),
     ));
     await e.open(const MovaSource('https://h/A.mp4'));
     final oldAttempt = k.attempt;
@@ -170,8 +170,8 @@ void main() {
 
   test('F-L diagnostic 404 does not consume terminal END_FILE', () async {
     final k = FakeStatsKernel();
-    final e = MovaEngine(kernel: k, options: const MovaOpts(
-      controls: MovaCtrlsConfig(autoHide: false),
+    final e = Mova(kernel: k, options: const MovaOpts(
+      controls: MovaCtrlsOpts(autoHide: false),
     ));
     final errors = <MovaErrorEvent>[];
     e.events.where((v) => v is MovaErrorEvent).cast<MovaErrorEvent>().listen(errors.add);
@@ -191,9 +191,9 @@ void main() {
       final k = _AttemptKernel();
       await k.pump.start(Future.value());
       final policy = RecordingAdPolicy(MovaAdFailAction.retry);
-      final e = MovaEngine(kernel: k, options: MovaOpts(
-        controls: const MovaCtrlsConfig(autoHide: false),
-        ads: MovaAdConfig(enabled: true, failPolicy: policy, breaks: const [
+      final e = Mova(kernel: k, options: MovaOpts(
+        controls: const MovaCtrlsOpts(autoHide: false),
+        ads: MovaAdOpts(enabled: true, failPolicy: policy, breaks: const [
           MovaAdBreak(kind: MovaAdBreakKind.pre,
             source: MovaSource('https://h/ad.mp4'), waitForReady: false),
         ]),
@@ -222,8 +222,8 @@ void main() {
   for (final endFirst in [true, false]) {
     test('F-L one fatal per attempt endFirst=$endFirst', () async {
       final k = FakeStatsKernel();
-      final e = MovaEngine(kernel: k, options: const MovaOpts(
-        controls: MovaCtrlsConfig(autoHide: false),
+      final e = Mova(kernel: k, options: const MovaOpts(
+        controls: MovaCtrlsOpts(autoHide: false),
       ));
       final errors = <MovaErrorEvent>[];
       e.events.where((v) => v is MovaErrorEvent).cast<MovaErrorEvent>().listen(errors.add);
@@ -243,8 +243,8 @@ void main() {
 
   test('F-K END_FILE during open waits for return without recovery', () async {
     final k = _OpeningKernel();
-    final e = MovaEngine(kernel: k, options: const MovaOpts(
-      controls: MovaCtrlsConfig(autoHide: false),
+    final e = Mova(kernel: k, options: const MovaOpts(
+      controls: MovaCtrlsOpts(autoHide: false),
     ));
     final opening = e.open(const MovaSource('https://h/bad.mp4'));
     await pumpEventQueue();
@@ -268,18 +268,18 @@ void main() {
         final r = KeepAliveRig(async, k)..playLive();
         if (holding) r.land();
         r.keepAlive(true);
-        expect(r.engine.state.keepAlivePhase,
+        expect(r.mova.state.keepAlivePhase,
             holding ? MovaKeepAlivePhase.holding : MovaKeepAlivePhase.fallback);
         final opens = k.openedUris.length;
         k.emitEndFile(MovaEndFileReason.error);
         r.settle();
         expect(r.events.whereType<MovaErrorEvent>(), isEmpty);
-        expect(r.engine.state.error, isNull);
-        expect(r.engine.state.keepAlivePhase, MovaKeepAlivePhase.fallback);
+        expect(r.mova.state.error, isNull);
+        expect(r.mova.state.keepAlivePhase, MovaKeepAlivePhase.fallback);
         if (holding) expect(r.changes.last.reason, MovaKeepAliveReason.failed);
         r.keepAlive(false);
         expect(k.openedUris.length, opens + 1);
-        r.engine.dispose();
+        r.mova.dispose();
         r.settle();
       });
     });

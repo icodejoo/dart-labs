@@ -10,14 +10,14 @@ import 'cutover_operation_test.dart' show DetachGatedApi, settleOperations;
 /// Exposes the final play and settings awaits without replacing hand-off logic.
 ///
 /// 暴露最终播放与设置的等待点，不替换换指逻辑。
-class _Api extends DetachGatedApi implements MovaKeepAlive {
+class _Api extends DetachGatedApi implements IMovaKeepAlive {
   /// Enables cutover with silent warm-up disabled for the fake API.
   ///
   /// 启用切换，并为假 API 禁用预热静音。
   _Api()
     : super(
         options: const MovaOpts(
-          cutover: MovaCutoverConfig(enabled: true, muteWhileWarm: false),
+          cutover: MovaCutoverOpts(enabled: true, muteWhileWarm: false),
         ),
       );
 
@@ -35,7 +35,7 @@ class _Api extends DetachGatedApi implements MovaKeepAlive {
 
   /// Lets tests change the outgoing view while inheritance is pending.
   ///
-  /// 允许测试在继承挂起期间修改旧引擎视图。
+  /// 允许测试在继承挂起期间修改旧播放器视图。
   @override
   Future<void> setRate(double r) async {
     await rateGate?.future;
@@ -43,9 +43,9 @@ class _Api extends DetachGatedApi implements MovaKeepAlive {
     push(state.copyWith(rate: r));
   }
 
-  /// Publishes fullscreen changes as a real engine would.
+  /// Publishes fullscreen changes as a real player would.
   ///
-  /// 像真实引擎一样发布全屏变化。
+  /// 像真实播放器一样发布全屏变化。
   @override
   Future<void> setFullscreen(bool v) async {
     await fullscreenGate?.future;
@@ -65,26 +65,26 @@ class _Api extends DetachGatedApi implements MovaKeepAlive {
   }
 }
 
-/// Owns fake engines while exercising the real proxy.
+/// Owns fake players while exercising the real proxy.
 ///
-/// 持有假引擎，同时运行真实代理。
+/// 持有假播放器，同时运行真实代理。
 class _Rig {
-  /// Records each engine and seeds explicit playback intent.
+  /// Records each player and seeds explicit playback intent.
   ///
-  /// 记录每个引擎，并设置明确的播放意图。
+  /// 记录每个播放器，并设置明确的播放意图。
   _Rig() {
-    api = MovaCutoverEngine(
-      engineFactory: () {
-        final engine = _Api();
-        engines.add(engine);
-        return engine;
+    api = MovaCutover(
+      movaFactory: () {
+        final mova = _Api();
+        movas.add(mova);
+        return mova;
       },
     );
-    engines.first.push(engines.first.state.copyWith(playbackIntent: true));
+    movas.first.push(movas.first.state.copyWith(playbackIntent: true));
   }
 
-  final engines = <_Api>[];
-  late final MovaCutoverEngine api;
+  final movas = <_Api>[];
+  late final MovaCutover api;
 
   /// Warms and readies a shadow at [at] under [plan].
   ///
@@ -98,7 +98,7 @@ class _Rig {
       at: at,
       plan: plan,
     );
-    final shadow = engines.last;
+    final shadow = movas.last;
     await ready(shadow, at);
     return shadow;
   }
@@ -142,9 +142,9 @@ void main() {
       if (!gate.isCompleted) gate.complete();
       shadow.rateGate?.complete();
       expect(await committing, isFalse);
-      expect(rig.api.active, same(rig.engines.first));
+      expect(rig.api.active, same(rig.movas.first));
       expect(shadow.disposeCount, 1);
-      expect(rig.engines.first.disposeCount, 0);
+      expect(rig.movas.first.disposeCount, 0);
     });
   }
 
@@ -169,17 +169,17 @@ void main() {
     });
   }
 
-  test('coreA5 mini handoff disposes the retired real engine', () async {
+  test('coreA5 mini handoff disposes the retired real player', () async {
     final kernels = <MovaTestKernel>[];
-    final api = MovaCutoverEngine(
-      engineFactory: () {
+    final api = MovaCutover(
+      movaFactory: () {
         final kernel = MovaTestKernel();
         kernels.add(kernel);
-        return MovaEngine(
+        return Mova(
           kernel: kernel,
           ownsKernel: true,
           fetcher: const MovaTestHttpFetch(),
-          options: const MovaOpts(cutover: MovaCutoverConfig(enabled: true)),
+          options: const MovaOpts(cutover: MovaCutoverOpts(enabled: true)),
         );
       },
     );
@@ -211,14 +211,14 @@ void main() {
       addTearDown(rig.api.dispose);
       final shadow = await rig.warm();
       final gate = Completer<void>();
-      if (point == 'pause') rig.engines.first.pauseGate = gate;
+      if (point == 'pause') rig.movas.first.pauseGate = gate;
       if (point == 'final play') shadow.finalPlayGate = gate;
       final committing = rig.api.commit();
       await settleOperations();
       await rig.api.abandon();
       gate.complete();
       expect(await committing, isFalse);
-      expect(rig.api.active, same(rig.engines.first));
+      expect(rig.api.active, same(rig.movas.first));
       expect(shadow.disposeCount, 1);
       expect(rig.api.state.renderEpoch, 0);
     });
@@ -261,7 +261,7 @@ void main() {
         rate: 2,
       );
       await settleOperations();
-      final next = rig.engines.last;
+      final next = rig.movas.last;
       expect(next, isNot(same(oldShadow)));
       await rig.ready(next, const Duration(seconds: 50));
       expect(await switching, isTrue);
@@ -302,11 +302,11 @@ void main() {
       final committing = rig.api.commit();
       await settleOperations();
       await rig.api.setRate(2);
-      final viewGate = rig.engines.first.fullscreenGate = Completer<void>();
+      final viewGate = rig.movas.first.fullscreenGate = Completer<void>();
       final changing = rig.api.setFullscreen(false);
       gate.complete();
       await settleOperations();
-      expect(rig.api.active, same(rig.engines.first));
+      expect(rig.api.active, same(rig.movas.first));
       viewGate.complete();
       await changing;
       expect(await committing, isTrue);
@@ -326,7 +326,7 @@ void main() {
                 .listen((_) {}, onDone: () => done = true);
         sub.pause();
         await rig.api.dispose().timeout(const Duration(seconds: 1));
-        expect(rig.engines.first.disposed, isTrue);
+        expect(rig.movas.first.disposed, isTrue);
         expect(done, isFalse);
         sub.resume();
         await settleOperations();

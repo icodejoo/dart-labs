@@ -2,11 +2,11 @@ import 'package:flutter/widgets.dart';
 
 import '../../core/api.dart';
 
-/// Publishes a [MovaApi] instance down the widget tree so descendant widgets
+/// Publishes a [IMovaApi] instance down the widget tree so descendant widgets
 /// (e.g. [MovaSelect] and friends) can find it without it being threaded
 /// through every constructor.
 ///
-/// 将一个 [MovaApi] 实例向下发布到组件树，使后代组件（如 [MovaSelect] 及其
+/// 将一个 [IMovaApi] 实例向下发布到组件树，使后代组件（如 [MovaSelect] 及其
 /// 同类）无需层层传参即可找到它。
 class MovaScope extends InheritedWidget {
   /// Wraps [child] with a scope that exposes [api] to descendants.
@@ -22,7 +22,7 @@ class MovaScope extends InheritedWidget {
   /// The capability surface published to descendants.
   ///
   /// 发布给后代的能力面。
-  final MovaApi api;
+  final IMovaApi api;
 
   /// Looks up the nearest enclosing [MovaScope] and returns its [api].
   ///
@@ -31,7 +31,7 @@ class MovaScope extends InheritedWidget {
   /// 查找最近的 [MovaScope] 并返回其 [api]。
   ///
   /// 若 [context] 不在任何 [MovaScope] 之下则抛出 [FlutterError]。
-  static MovaApi of(BuildContext context) {
+  static IMovaApi of(BuildContext context) {
     final scope = context.dependOnInheritedWidgetOfExactType<MovaScope>();
     if (scope == null) {
       throw FlutterError(
@@ -53,7 +53,7 @@ class MovaScope extends InheritedWidget {
   /// 与 [of] 不同，本方法可在 `initState` 及副作用上下文中安全调用——它绝不会
   /// 让调用方订阅重建。用于只把 api 当作稳定句柄的场景（api 在播放器生命周期内
   /// 不变），例如 [MovaPlugin] 内部。
-  static MovaApi readOf(BuildContext context) {
+  static IMovaApi readOf(BuildContext context) {
     final scope = context.getInheritedWidgetOfExactType<MovaScope>();
     if (scope == null) {
       throw FlutterError(

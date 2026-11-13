@@ -6,7 +6,7 @@ import '../../core/api.dart';
 final movaFullscreenRoutes = Expando<Route<void>>();
 
 // 自己的全屏路由不算遮挡；其他页面覆盖仍交给 B13 守卫处理。
-bool movaCoveredByFullscreen(MovaApi api, ModalRoute<dynamic> route) {
+bool movaCoveredByFullscreen(IMovaApi api, ModalRoute<dynamic> route) {
   final fullscreen = movaFullscreenRoutes[api];
   return fullscreen != null &&
       fullscreen.isCurrent &&

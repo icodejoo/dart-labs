@@ -7,8 +7,8 @@ import 'package:mova/mova.dart';
 import '../support/fake_api.dart';
 import '../support/fake_kernel.dart';
 
-/// 记录真实引擎向 HTTP 端口发出的请求。
-class _Fetch implements MovaHttpFetch {
+/// 记录真实播放器向 HTTP 端口发出的请求。
+class _Fetch implements IMovaHttpFetch {
   /// master 请求次数。
   int requests = 0;
 
@@ -30,32 +30,32 @@ void main() {
     testWidgets('F-H $name probeVariants false blocks automatic HTTP but permits explicit probe', (t) async {
       final fetcher = _Fetch();
       const options = MovaOpts(
-        abr: MovaAbrConfig(probeVariants: false),
-        controls: MovaCtrlsConfig(autoHide: false),
+        abr: MovaAbrOpts(probeVariants: false),
+        controls: MovaCtrlsOpts(autoHide: false),
       );
-      final engine = MovaEngine(
+      final mova = Mova(
         kernel: FakeKernel(),
         fetcher: fetcher,
         options: options,
-        brightness: MovaFallbackBrightnessPort(),
-        pip: MovaNoopPipPort(),
-        orientation: MovaNoopOrientationPort(),
+        brightness: MovaFallbackBrightness(),
+        pip: MovaNoopPip(),
+        orient: MovaNoopOrient(),
       );
       const source = MovaSource('https://h/master.m3u8');
       if (!view) {
-        engine.open(source);
+        mova.open(source);
         await t.pump();
       }
       await t.pumpWidget(MaterialApp(home: view
-          ? MovaView(source: source, options: options, engineFactory: (_) => engine)
-          : MovaPlayer(api: engine)));
+          ? MovaView(source: source, options: options, movaFactory: (_) => mova)
+          : MovaPlayer(api: mova)));
       await t.pump();
       expect(fetcher.requests, 0);
-      await engine.loadQualities();
+      await mova.loadQualities();
       expect(fetcher.requests, 1);
       await t.pumpWidget(const SizedBox());
       await t.pump();
-      engine.dispose();
+      mova.dispose();
       await t.pump();
     });
 
@@ -65,7 +65,7 @@ void main() {
         await t.pumpWidget(MaterialApp(home: view
             ? MovaView(
                 source: const MovaSource('https://h/master.m3u8'),
-                engineFactory: (_) => api,
+                movaFactory: (_) => api,
                 autoLoadQualities: autoLoad,
               )
             : MovaPlayer(api: api, autoLoadQualities: autoLoad)));

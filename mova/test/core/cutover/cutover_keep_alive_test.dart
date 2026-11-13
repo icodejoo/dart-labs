@@ -3,9 +3,9 @@ import 'package:mova/mova.dart';
 
 import '../../support/fake_api.dart';
 
-/// Yields a few microtasks so async chains inside [MovaCutoverEngine] settle.
+/// Yields a few microtasks so async chains inside [MovaCutover] settle.
 ///
-/// 让出几个微任务，使 [MovaCutoverEngine] 内部的异步链结算完毕。
+/// 让出几个微任务，使 [MovaCutover] 内部的异步链结算完毕。
 Future<void> settle() async {
   for (var i = 0; i < 4; i++) {
     await Future<void>.delayed(Duration.zero);
@@ -15,23 +15,23 @@ Future<void> settle() async {
 const _cue = MovaWarmCue(remaining: Duration(seconds: 1), total: Duration(seconds: 10));
 const _ready = MovaProg(position: Duration(seconds: 5), buffer: Duration(seconds: 6));
 
-/// Builds a cutover engine whose factory makes [FakeKeepAliveApi]s (or plain
+/// Builds a cutover player whose factory makes [FakeKeepAliveApi]s (or plain
 /// [FakeMovaApi]s when [plain]), recording each into [made].
 ///
-/// 构造一个切换引擎，工厂产出 [FakeKeepAliveApi]（[plain] 时为普通 [FakeMovaApi]），逐个记进 [made]。
-MovaCutoverEngine _build(List<FakeMovaApi> made, {bool plain = false}) {
-  const opts = MovaOpts(cutover: MovaCutoverConfig(enabled: true, muteWhileWarm: false));
-  return MovaCutoverEngine(engineFactory: () {
+/// 构造一个切换代理，工厂产出 [FakeKeepAliveApi]（[plain] 时为普通 [FakeMovaApi]），逐个记进 [made]。
+MovaCutover _build(List<FakeMovaApi> made, {bool plain = false}) {
+  const opts = MovaOpts(cutover: MovaCutoverOpts(enabled: true, muteWhileWarm: false));
+  return MovaCutover(movaFactory: () {
     final f = plain ? FakeMovaApi(options: opts) : FakeKeepAliveApi(options: opts);
     made.add(f);
     return f;
   });
 }
 
-/// Warms a shadow to ready and returns it (the second engine made).
+/// Warms a shadow to ready and returns it (the second player made).
 ///
-/// 把影子引擎预热到就绪并返回它（工厂造出的第二个引擎）。
-Future<FakeMovaApi> _warm(MovaCutoverEngine api, List<FakeMovaApi> made) async {
+/// 把影子播放器预热到就绪并返回它（工厂造出的第二个播放器）。
+Future<FakeMovaApi> _warm(MovaCutover api, List<FakeMovaApi> made) async {
   made.first.push(made.first.state.copyWith(playbackIntent: true));
   await api.prepare(const MovaSource('https://host/content.mp4'), at: const Duration(seconds: 5), cue: _cue);
   await settle();
@@ -44,10 +44,10 @@ Future<FakeMovaApi> _warm(MovaCutoverEngine api, List<FakeMovaApi> made) async {
 }
 
 void main() {
-  test('1. it is a keepAlive controller and forwards to the active engine, answering with its reply', () async {
+  test('1. it is an IMovaKeepAlive and forwards to the active player, answering with its reply', () async {
     final made = <FakeMovaApi>[];
     final api = _build(made);
-    expect(api, isA<MovaKeepAlive>());
+    expect(api, isA<IMovaKeepAlive>());
     final phase = await api.setKeepAlive(true);
     expect(made.first.calls, contains('setKeepAlive:true'));
     expect(phase, MovaKeepAlivePhase.holding);
@@ -55,7 +55,7 @@ void main() {
     expect(made.first.calls, contains('setKeepAlive:false'));
   });
 
-  test('2. the active engine keepAlive state and events show through the proxy', () async {
+  test('2. the active player keepAlive state and events show through the proxy', () async {
     final made = <FakeMovaApi>[];
     final api = _build(made);
     final events = <MovaEvent>[];
@@ -97,7 +97,7 @@ void main() {
     expect(shadow.calls, isNot(contains('setVolume')));
   });
 
-  test('5. an engine without the capability just pauses and plays, and answers off', () async {
+  test('5. a player without the capability just pauses and plays, and answers off', () async {
     final made = <FakeMovaApi>[];
     final api = _build(made, plain: true);
     expect(await api.setKeepAlive(true), MovaKeepAlivePhase.off);

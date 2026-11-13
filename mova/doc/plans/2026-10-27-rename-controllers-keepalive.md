@@ -1,6 +1,6 @@
 # 改名清单：去掉 *Controller + standby → keepAlive
 
-> 2026-10-27 · **等 Codex 真机覆盖测试结束后再动手**（它的验证页在用旧名）。公开 API 破坏性改名，旧名留 `@Deprecated` typedef 一个版本。
+> 2026-10-27 · **等 Codex 真机覆盖测试结束后再动手**（它的验证页在用旧名）。公开 API 破坏性改名，计划里曾打算旧名留 `@Deprecated` typedef 一个版本；实际 2026-11-12 的全量改名已直接删除所有旧名与 `@Deprecated` 别名（见 CHANGELOG `Unreleased`）。
 
 ## 一、Controller 类
 
@@ -10,45 +10,45 @@
 | `MovaFeedController` | `MovaFeed` | core/feed/feed_controller.dart |
 | `MovaPlaylistController` | `MovaPlaylist` | core/playlist/playlist_controller.dart |
 | `MovaMiniController` | `MovaMini` | ui/mini/mini_ctl.dart |
-| `MovaSwapController` | `MovaCutover`（接口） | core/swap/ctl.dart |
-| `MovaStandbyController` | `MovaKeepAlive` | core/standby/standby.dart |
+| `MovaSwapController` | `IMovaCutover`（接口） | core/swap/ctl.dart |
+| `MovaStandbyController` | `IMovaKeepAlive` | core/standby/standby.dart |
 
 ## 二、standby → keepAlive（整功能，默认方案）
 
 | 旧名 | 新名 |
 |---|---|
-| `MovaStandbyController` | `MovaKeepAlive`（见上） |
-| `MovaStandbyConfig` / `MovaOpts.standby` | `MovaKeepAliveConfig` / `MovaOpts.keepAlive` |
+| `MovaStandbyController` | `IMovaKeepAlive`（见上） |
+| `MovaStandbyConfig` / `MovaOpts.standby` | `MovaKeepAliveOpts` / `MovaOpts.keepAlive` |
 | `MovaStandbyPhase`（`MovaState.standby`） | `MovaKeepAlivePhase`（`MovaState.keepAlivePhase`，已定；旧 `standby` 留 `@Deprecated` getter） |
 | `MovaStandbyMode` | `MovaKeepAliveMode` |
 | `MovaStandbyReason` | `MovaKeepAliveReason` |
 | `MovaStandbyEntry` / `MovaStandbyEntryKind` | `MovaKeepAliveEntry` / `MovaKeepAliveEntryKind` |
 | `MovaStandbyWake` / `MovaStandbyMedia` | `MovaKeepAliveWake` / `MovaKeepAliveMedia` |
-| `MovaStandbyKernel` | `MovaKeepAliveKernel` |
+| `MovaStandbyKernel` | `IMovaKeepAliveKernel` |
 | `MovaStandbyChange` / `MovaStandbyResume`（事件） | `MovaKeepAliveChange` / `MovaKeepAliveResume` |
 | `MovaSilentStandby` | `MovaSilentKeepAlive` |
 | `MovaHiddenMode.standby` | `MovaHiddenMode.keepAlive` |
 | `setStandby(bool)` | `setKeepAlive(bool)` |
 | `standbyCapable`（gate 参数）、`standbyPhase` | `keepAliveCapable`、`keepAlivePhase` |
-| 文件 `core/standby/`、`standby_kernel.dart`、`standby_config.dart` | `core/keep_alive/`、`keep_alive_kernel.dart`、`keep_alive_config.dart` |
+| 文件 `core/standby/`、`standby_kernel.dart`、`standby_opts.dart` | `core/keep_alive/`、`keep_alive_kernel.dart`、`keep_alive_opts.dart` |
 
 ## 二·附、swap → Cutover（整功能）
 
 | 旧名 | 新名 |
 |---|---|
-| `MovaSwapEngine` | `MovaCutoverEngine` |
-| `MovaSwapController` | `MovaCutover` |
-| `MovaSwapConfig` / `MovaOpts.swap` | `MovaCutoverConfig` / `MovaOpts.cutover` |
+| `MovaSwapEngine`（更早叫 `MovaCutoverEngine`） | `MovaCutover` |
+| `MovaSwapController` | `IMovaCutover` |
+| `MovaSwapConfig` / `MovaOpts.swap` | `MovaCutoverOpts` / `MovaOpts.cutover` |
 | `MovaSwapChange`（事件） | `MovaCutoverChange` |
 | `swapTo` | `cutoverTo` |
 | 目录 `core/swap/` | `core/cutover/` |
-| `MovaWarmPlan` / `MovaWarmTrigger` / `MovaWarmPolicy` | 保持（"预热"是独立概念） |
+| `MovaWarmPlan` / `IMovaWarmTrigger` / `IMovaWarmPolicy` | 保持（"预热"是独立概念） |
 | `MovaState.renderEpoch` | 保持 |
 
 ## 三、波及范围
 
 - 约 73 个文件含 Controller 旧名，54 个含 standby；合集待落地时用 grep 确认。
-- 同步：test 全部、example（含 `main_standby_verify.dart` → `main_keepalive_verify.dart`、`verify_auto/standby_auto.dart`）、README「隐藏时待机」、CHANGELOG、doc/SPEC.md、CLAUDE.md、doc/plans 里的历史文档只在新增"改名说明"处注明，不回改历史正文。
+- 同步：test 全部、example（含 `main_standby_verify.dart` → `main_keepalive_verify.dart`、`verify_auto/standby_auto.dart`）、README「隐藏时待机」、CHANGELOG、doc/SPEC.md、CLAUDE.md、doc/plans 里的历史文档当时只计划在新增"改名说明"处注明；2026-11-12 改名收尾时已统一改成新名（本文保留旧名到新名的映射）。
 - 版本：0.5.0（破坏性），CHANGELOG 记旧→新对照。
 
 ## 四、步骤

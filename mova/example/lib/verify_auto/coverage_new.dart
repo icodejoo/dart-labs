@@ -59,9 +59,9 @@ Future<void> runNew(Map<String, String> args) async {
   }
 }
 
-/// Measures remaining boundary paths against real native engines.
+/// Measures remaining boundary paths against real native players.
 Future<void> edges() async {
-  final a=createMovaEngine(audioOnly:true);c.observe(a);
+  final a=createMova(audioOnly:true);c.observe(a);
   final pending=a.open(c.source(),autoPlay:false);
   c.mark('OPEN_IMMEDIATE',c.snapshot(a));await pending;
   await a.seek(const Duration(seconds:7));await c.until(()=>a.state.duration>Duration.zero);
@@ -81,31 +81,31 @@ Future<void> adFailure() async {
     final received=<MovaAdEvent>[];
     final broken=MovaAdBreak(kind:MovaAdBreakKind.pre,source:c.source('404.mp4'));
     final good=MovaAdBreak(kind:MovaAdBreakKind.pre,source:c.source('ad.mp4'),duration:const Duration(seconds:1));
-    final opts=MovaOpts(ads:MovaAdConfig(enabled:true,breaks:[broken,good],failPolicy:policy,onAdEvent:(e){received.add(e);c.mark('AD_POLICY_EVENT',{'policy':'${policy.runtimeType}','type':e.type.name,'uri':e.adBreak.source.uri,'error':'${e.error}'});}));
-    final a=createMovaEngine(audioOnly:true,options:opts);c.observe(a);final ctl=MovaAds(a);
-    await ctl.load(c.source());await c.until(()=>!ctl.isShowingAd && a.state.sourceTitle=='Coverage vod.mp4',seconds:30);
+    final opts=MovaOpts(ads:MovaAdOpts(enabled:true,breaks:[broken,good],failPolicy:policy,onAdEvent:(e){received.add(e);c.mark('AD_POLICY_EVENT',{'policy':'${policy.runtimeType}','type':e.type.name,'uri':e.adBreak.source.uri,'error':'${e.error}'});}));
+    final a=createMova(audioOnly:true,options:opts);c.observe(a);final ads=MovaAds(a);
+    await ads.load(c.source());await c.until(()=>!ads.isShowingAd && a.state.sourceTitle=='Coverage vod.mp4',seconds:30);
     c.mark('AD_POLICY_END',{'policy':'${policy.runtimeType}','events':received.map((e)=>e.type.name).toList(),'state':c.snapshot(a)});
-    await ctl.dispose();await a.dispose();
+    await ads.dispose();await a.dispose();
   }
 }
 
 /// Leaves the real NextUp card visible long enough for adb interaction.
 Future<void> nextUp() async {
   c.widgetMode.value=false;
-  final a=createMovaEngine(preciseFirstFrame:true,options:MovaOpts(playlist:MovaPlaylistConfig(enabled:true,nextUpLeadTime:const Duration(seconds:10),items:[MovaPlaylistItem(source:c.source('ad.mp4'),title:'EPISODE ONE'),MovaPlaylistItem(source:c.source(),title:'COVERAGE NEXT EPISODE')])));
-  final ctl=MovaPlaylist(a);c.observe(a);c.screen.value=a;
-  c.skin.value=MovaDefaultSkin(patches:[MovaPatch.add(MovaSlot.overlay,MovaNextUpComponent(ctl))]);
-  await c.settle(200);await ctl.jumpTo(0);await c.until(()=>a.state.rendered);await a.seek(const Duration(seconds:12));await a.pause();
-  c.mark('NEXTUP_READY',{'index':ctl.currentIndex,'state':c.snapshot(a)});
+  final a=createMova(preciseFirstFrame:true,options:MovaOpts(playlist:MovaPlaylistOpts(enabled:true,nextUpLeadTime:const Duration(seconds:10),items:[MovaPlaylistItem(source:c.source('ad.mp4'),title:'EPISODE ONE'),MovaPlaylistItem(source:c.source(),title:'COVERAGE NEXT EPISODE')])));
+  final playlist=MovaPlaylist(a);c.observe(a);c.screen.value=a;
+  c.uiKit.value=MovaDefaultUiKit(patches:[MovaPatch.add(MovaSlot.overlay,MovaNextUpComponent(playlist))]);
+  await c.settle(200);await playlist.jumpTo(0);await c.until(()=>a.state.rendered);await a.seek(const Duration(seconds:12));await a.pause();
+  c.mark('NEXTUP_READY',{'index':playlist.currentIndex,'state':c.snapshot(a)});
 }
 
 /// Hosts the real ad chrome so adb can exercise click and skip controls.
 Future<void> visualAd() async {
   c.widgetMode.value=false;
-  final config=MovaAdConfig(enabled:true,breaks:[MovaAdBreak(kind:MovaAdBreakKind.pre,source:c.source('ad.mp4'),duration:const Duration(seconds:15),skippableAfter:const Duration(seconds:2),clickThroughUrl:'https://example.invalid/coverage')],onAdEvent:(e)=>c.mark('VISUAL_AD_EVENT',{'type':e.type.name,'uri':e.adBreak.source.uri}));
-  final a=createMovaEngine(preciseFirstFrame:true,options:MovaOpts(ads:config));c.observe(a);c.screen.value=a;
-  final ctl=MovaAds(a);c.skin.value=MovaDefaultSkin(patches:[MovaPatch.add(MovaSlot.overlay,MovaAdOverlayComponent(ctl))]);
-  await c.settle(200);await ctl.load(c.source());await c.until(()=>a.state.rendered);
+  final opts=MovaAdOpts(enabled:true,breaks:[MovaAdBreak(kind:MovaAdBreakKind.pre,source:c.source('ad.mp4'),duration:const Duration(seconds:15),skippableAfter:const Duration(seconds:2),clickThroughUrl:'https://example.invalid/coverage')],onAdEvent:(e)=>c.mark('VISUAL_AD_EVENT',{'type':e.type.name,'uri':e.adBreak.source.uri}));
+  final a=createMova(preciseFirstFrame:true,options:MovaOpts(ads:opts));c.observe(a);c.screen.value=a;
+  final ads=MovaAds(a);c.uiKit.value=MovaDefaultUiKit(patches:[MovaPatch.add(MovaSlot.overlay,MovaAdOverlayComponent(ads))]);
+  await c.settle(200);await ads.load(c.source());await c.until(()=>a.state.rendered);
   c.mark('VISUAL_AD_READY',c.snapshot(a));
 }
 
@@ -118,7 +118,7 @@ Future<void> subtitles() async {
     final data=await rootBundle.load(videoAsset);
     final video=File('${Directory.systemTemp.path}/coverage-sub-$format.mp4');await video.writeAsBytes(data.buffer.asUint8List());
     final p=Player();final k=MovaMpvKernel(player:p,lazyVideo:true,observeNativeEvents:false);
-    final a=createMovaEngine(kernel:k);c.observe(a);c.screen.value=a;await c.settle(200);
+    final a=createMova(kernel:k);c.observe(a);c.screen.value=a;await c.settle(200);
     await a.open(MovaSource(video.path),autoPlay:false);
     final n=p.platform as NativePlayer;
     if(format!='movtext') {
@@ -140,7 +140,7 @@ Future<void> subtitles() async {
 /// Suppresses startup reloads, then arms the real buffer ABR for a network stall.
 ///
 /// 排除起播重载，随后用真实缓冲ABR观察网络卡顿。
-class GatedAbr implements MovaAbrPolicy {
+class GatedAbr implements IMovaAbrPolicy {
   final inner=MovaBufferAbr(threshold:1);
   bool armed=false;
   int resets=0;
@@ -156,7 +156,7 @@ class GatedAbr implements MovaAbrPolicy {
 Future<void> abr() async {
   Future<void> throttle(bool on) async {final h=HttpClient();try{await(await(await h.getUrl(Uri.parse('http://127.0.0.1:18084/throttle/${on?'on':'off'}'))).close()).drain<void>();}finally{h.close();}}
   final policy=GatedAbr();
-  final a=createMovaEngine(preciseFirstFrame:true,options:MovaOpts(abr:MovaAbrConfig(policy:policy)));
+  final a=createMova(preciseFirstFrame:true,options:MovaOpts(abr:MovaAbrOpts(policy:policy)));
   final local=<MovaEvent>[];c.observe(a);a.events.listen(local.add);c.screen.value=a;await c.settle(250);
   try {
     await a.open(MovaSource('http://127.0.0.1:18084/master.m3u8?t=${DateTime.now().microsecondsSinceEpoch}',mpvOptions:const {'cache':'no','demuxer-max-bytes':'65536','demuxer-readahead-secs':'0'}));
@@ -184,14 +184,14 @@ Future<void> abr() async {
 Future<void> adResume() async {
   for(var run=0;run<5;run++) {
     final players=<Player>[];
-    const opts=MovaOpts(ads:MovaAdConfig(enabled:true),cutover:MovaCutoverConfig(enabled:true,trigger:MovaEagerWarm()));
-    MovaEngine factory(){
+    const opts=MovaOpts(ads:MovaAdOpts(enabled:true),cutover:MovaCutoverOpts(enabled:true,trigger:MovaEagerWarm()));
+    Mova factory(){
       final p=Player();players.add(p);
       final k=MovaMpvKernel(player:p,lazyVideo:true,observeNativeEvents:true,backendFactory:(n,address)=>createFfiMpvEventBackend(n,address,pollInDebug:false));
-      return createMovaEngine(kernel:k,options:opts);
+      return createMova(kernel:k,options:opts);
     }
-    final a=MovaCutoverEngine(engineFactory:factory);c.observe(a);c.screen.value=a;await c.settle(300);
-    final ctl=MovaAds(a,cutover:a);
+    final a=MovaCutover(movaFactory:factory);c.observe(a);c.screen.value=a;await c.settle(300);
+    final ads=MovaAds(a,cutover:a);
     int? last,target,actual,readLatency;
     var epoch=0;
     a.progress.listen((p)=>last=p.position.inMilliseconds);
@@ -204,38 +204,38 @@ Future<void> adResume() async {
         unawaited((()async{final native=players.last.platform as NativePlayer;final value=await native.getProperty('time-pos');readLatency=c.clock.elapsedMilliseconds-started;actual=(double.parse(value)*1000).round();})());
       }
     });
-    await ctl.load(c.source());await c.until(()=>last!=null&&last!>=4000);
-    await ctl.playAdNow(MovaAdBreak(kind:MovaAdBreakKind.mid,source:c.source('ad.mp4'),skippableAfter:Duration.zero));
+    await ads.load(c.source());await c.until(()=>last!=null&&last!>=4000);
+    await ads.playAdNow(MovaAdBreak(kind:MovaAdBreakKind.mid,source:c.source('ad.mp4'),skippableAfter:Duration.zero));
     await c.until(()=>a.state.renderEpoch==1);await c.until(()=>last!=null&&last!>=3000&&a.cutoverPhase==MovaCutoverPhase.ready,seconds:25);
-    ctl.skip();await c.until(()=>actual!=null,seconds:20);
+    ads.skip();await c.until(()=>actual!=null,seconds:20);
     final error=actual!-target!;
     c.check('F4.adResume',error.abs()<100,'run=$run target=$target nativeAfter=$actual error=$error nativeReadLatency=$readLatency epoch=${a.state.renderEpoch}');
-    c.screen.value=null;await c.settle(200);await ctl.dispose();await a.dispose();
+    c.screen.value=null;await c.settle(200);await ads.dispose();await a.dispose();
   }
 }
 
-/// Exercises the two-phase and eager cutover APIs with native audio-only engines.
+/// Exercises the two-phase and eager cutover APIs with native audio-only players.
 ///
-/// 用原生仅音频引擎验证两阶段和立即切换接口。
+/// 用原生仅音频播放器验证两阶段和立即切换接口。
 Future<void> cutover() async {
   for(final enabled in [false,true]) {
-    final made=<MovaEngine>[];
-    MovaEngine factory(){final e=createMovaEngine(audioOnly:true,options:MovaOpts(cutover:MovaCutoverConfig(enabled:enabled,readyTimeout:const Duration(seconds:2))));made.add(e);return e;}
-    final a=MovaCutoverEngine(engineFactory:factory);c.observe(a);
+    final made=<Mova>[];
+    Mova factory(){final e=createMova(audioOnly:true,options:MovaOpts(cutover:MovaCutoverOpts(enabled:enabled,readyTimeout:const Duration(seconds:2))));made.add(e);return e;}
+    final a=MovaCutover(movaFactory:factory);c.observe(a);
     await a.open(c.source());await c.until(()=>a.state.rendered);
     if(!enabled){
       await a.prepare(c.source('ad.mp4'));final committed=await a.commit(waitForReady:true);
-      final swapped=await a.cutoverTo(c.source('ad.mp4'));
-      c.check('C11.off',!committed&&!swapped&&made.length==1&&a.state.renderEpoch==0,'engines=${made.length} epoch=${a.state.renderEpoch}');
+      final cutover=await a.cutoverTo(c.source('ad.mp4'));
+      c.check('C11.off',!committed&&!cutover&&made.length==1&&a.state.renderEpoch==0,'movas=${made.length} epoch=${a.state.renderEpoch}');
     }else{
       await a.prepare(c.source('ad.mp4'),at:const Duration(seconds:6),plan:const MovaWarmPlan(trigger:MovaEagerWarm(),pauseWhenReady:true,rate:1.5));
       await c.until(()=>a.cutoverPhase==MovaCutoverPhase.ready);
       final ok=await a.commit(waitForReady:true);await c.until(()=>a.state.renderEpoch==1);
       await c.settle(200);c.check('A24.commit',ok&&a.state.rate==1.5,'epoch=${a.state.renderEpoch} rate=${a.state.rate} position=${c.latest.position.inMilliseconds}');
-      c.check('A24.retired',!await made.first.open(c.source()),'retired engine rejects open');
+      c.check('A24.retired',!await made.first.open(c.source()),'retired player rejects open');
       final before=made.length;
       await a.prepare(c.source(),cue:const MovaWarmCue(remaining:Duration(milliseconds:500),total:Duration(seconds:2)));
-      c.check('A24.short',made.length==before&&a.cutoverPhase==MovaCutoverPhase.idle,'short warm declined engines=${made.length}');
+      c.check('A24.short',made.length==before&&a.cutoverPhase==MovaCutoverPhase.idle,'short warm declined movas=${made.length}');
       await a.prepare(c.source(),plan:const MovaWarmPlan(trigger:MovaEagerWarm()));
       final abandoned=made.last;await a.abandon();
       c.check('A24.abandon',a.cutoverPhase==MovaCutoverPhase.idle&&!await abandoned.open(c.source()),'shadow disposed');
@@ -256,28 +256,28 @@ Future<void> ads() async {
   final received=<MovaAdEvent>[];
   MovaAdBreak br(MovaAdBreakKind kind,String label,{bool? wait})=>MovaAdBreak(kind:kind,source:MovaSource(c.source('ad.mp4').uri,title:label),offset:const Duration(seconds:3),duration:const Duration(seconds:1),skippableAfter:Duration.zero,waitForReady:wait,clickThroughUrl:'https://example.invalid/coverage');
   final pre=br(MovaAdBreakKind.pre,'PRE'),mid=br(MovaAdBreakKind.mid,'MID'),post=br(MovaAdBreakKind.post,'POST');
-  final config=MovaAdConfig(enabled:true,breaks:[pre,mid,post],onAdEvent:(e){received.add(e);c.mark('AD_EVENT',{'type':e.type.name,'kind':e.adBreak.kind.name,'title':e.adBreak.source.title,'error':'${e.error}','click':e.adBreak.clickThroughUrl});});
-  c.check('C9.waits',!config.waitsFor(pre)&&config.waitsFor(mid)&&!config.waitsFor(post)&&!config.waitsFor(br(MovaAdBreakKind.mid,'OVERRIDE',wait:false)), 'pre=false mid=true post=false breakOverride=false');
-  final a=createMovaEngine(audioOnly:true,options:MovaOpts(ads:config));c.observe(a);
-  final ctl=MovaAds(a);await ctl.loadDeferred(()async=>c.source('ad.mp4'));
+  final opts=MovaAdOpts(enabled:true,breaks:[pre,mid,post],onAdEvent:(e){received.add(e);c.mark('AD_EVENT',{'type':e.type.name,'kind':e.adBreak.kind.name,'title':e.adBreak.source.title,'error':'${e.error}','click':e.adBreak.clickThroughUrl});});
+  c.check('C9.waits',!opts.waitsFor(pre)&&opts.waitsFor(mid)&&!opts.waitsFor(post)&&!opts.waitsFor(br(MovaAdBreakKind.mid,'OVERRIDE',wait:false)), 'pre=false mid=true post=false breakOverride=false');
+  final a=createMova(audioOnly:true,options:MovaOpts(ads:opts));c.observe(a);
+  final ads=MovaAds(a);await ads.loadDeferred(()async=>c.source('ad.mp4'));
   await c.until(()=>received.any((e)=>e.type==MovaAdEventType.started&&e.adBreak.source.title=='PRE'));
-  ctl.notifyClicked();ctl.skip();
-  await c.until(()=>!ctl.isShowingAd&&c.latest.position.inMilliseconds>500);
-  final manual=br(MovaAdBreakKind.mid,'MANUAL');await ctl.playAdNow(manual);
+  ads.notifyClicked();ads.skip();
+  await c.until(()=>!ads.isShowingAd&&c.latest.position.inMilliseconds>500);
+  final manual=br(MovaAdBreakKind.mid,'MANUAL');await ads.playAdNow(manual);
   await c.until(()=>received.any((e)=>e.type==MovaAdEventType.started&&e.adBreak.source.title=='MANUAL'));
-  ctl.skip();
+  ads.skip();
   await c.until(()=>received.any((e)=>e.type==MovaAdEventType.completed&&e.adBreak.source.title=='POST'),seconds:45);
   c.check('A27.rolls',[pre,mid,post].every((b)=>received.any((e)=>e.type==MovaAdEventType.started&&identical(e.adBreak,b)))&&received.any((e)=>e.type==MovaAdEventType.clicked),'events=${received.map((e)=>'${e.adBreak.source.title}:${e.type.name}').toList()}');
-  await ctl.dispose();await a.dispose();
+  await ads.dispose();await a.dispose();
 }
 
-/// Measures lazy controller construction while immediately mounting the surface.
+/// Measures lazy video controller construction while immediately mounting the surface.
 ///
-/// 测量控制器懒构造，并立即挂载渲染面。
+/// 测量视频控制器懒构造，并立即挂载渲染面。
 Future<void> lazy() async {
   var made=0;
   final k=MovaMpvKernel(lazyVideo:true,observeNativeEvents:false,videoControllerFactory:(p){made++;return VideoController(p);});
-  final a=createMovaEngine(kernel:k);c.observe(a);
+  final a=createMova(kernel:k);c.observe(a);
   c.check('A3.lazyBefore',made==0,'controllers=$made');
   await a.open(c.source());await c.settle(300);
   c.check('A3.lazyOpened',made==0,'controllers=$made size=${a.state.width}x${a.state.height}');
@@ -292,7 +292,7 @@ Future<void> lazy() async {
 /// 通过自然EOF执行完整可视点播生命周期并校验事件。
 Future<void> lifecycle() async {
   final local=<MovaEvent>[];
-  final a=createMovaEngine(preciseFirstFrame:true);c.observe(a);a.events.listen(local.add);c.screen.value=a;
+  final a=createMova(preciseFirstFrame:true);c.observe(a);a.events.listen(local.add);c.screen.value=a;
   await c.settle(300);await a.open(c.source());
   await c.until(()=>a.state.rendered && c.latest.position.inSeconds>=2);
   await a.seek(const Duration(seconds:5));await c.settle(200);await a.setRate(1.5);
@@ -316,7 +316,7 @@ Future<void> tls() async {
     for(final verify in [false,true]) {
       for(var i=0;i<4;i++) {
         final local=<MovaEvent>[];
-        final a=createMovaEngine(audioOnly:true,tlsVerify:verify,tlsCaFile:ca.path);
+        final a=createMova(audioOnly:true,tlsVerify:verify,tlsCaFile:ca.path);
         c.observe(a);a.events.listen(local.add);
         try{await a.open(MovaSource('https://127.0.0.1:${18443+i}/low/index.m3u8?t=${DateTime.now().microsecondsSinceEpoch}&run=$run'));}
         catch(e){c.mark('TLS_OPEN_THROW',{'error':'$e'});}
@@ -340,7 +340,7 @@ Future<void> tlsProbe() async {
     for(final endpoint in ['127.0.0.1:18443','localhost:18447']) {
       for(final path in ['vod.mp4','low/index.m3u8']) {
         final p=Player();final k=MovaMpvKernel(player:p,audioOnly:true,observeNativeEvents:false,tlsVerify:true,tlsCaFile:ca.path);
-        final a=createMovaEngine(kernel:k);c.observe(a);final local=<MovaEvent>[];a.events.listen(local.add);
+        final a=createMova(kernel:k);c.observe(a);final local=<MovaEvent>[];a.events.listen(local.add);
         p.stream.log.listen((line){if(line.level=='error'||line.text.toLowerCase().contains('certificate')){c.mark('TLS_NATIVE_LOG',{'prefix':line.prefix,'text':line.text});}});
         final n=p.platform as NativePlayer;
         try{await a.open(MovaSource('https://$endpoint/$path?t=${DateTime.now().microsecondsSinceEpoch}&run=$run'));}catch(e){c.mark('TLS_THROW',{'error':'$e'});}
@@ -358,7 +358,7 @@ Future<void> tlsProbe() async {
 /// 在关闭会话前释放真实网络卡顿，测量完整卡顿次数和时长。
 Future<void> stallRelease() async {
   final reports=<MovaReportEvent>[];
-  final a=createMovaEngine(audioOnly:true,options:const MovaOpts(report:MovaReportConfig(qoe:true)),reporter:MovaCallbackReporter((r){reports.add(r);c.mark('REPORT',{'name':r.name.value,'params':r.params,'sessionId':r.sessionId,'reportKind':r.kind.name,'priority':r.priority.name});}));
+  final a=createMova(audioOnly:true,options:const MovaOpts(report:MovaReportOpts(qoe:true)),reporter:MovaCallbackReporter((r){reports.add(r);c.mark('REPORT',{'name':r.name.value,'params':r.params,'sessionId':r.sessionId,'reportKind':r.kind.name,'priority':r.priority.name});}));
   c.observe(a);final src=c.source('stall.mp4');await a.open(src);await c.until(()=>a.state.rendered);await c.until(()=>a.state.buffering);
   final start=c.clock.elapsedMilliseconds;await c.settle(4000);
   final h=HttpClient();final key=Uri.parse(src.uri).queryParameters['t']!;
@@ -367,43 +367,43 @@ Future<void> stallRelease() async {
   c.mark('STALL_MEASURE',{'observedBufferWindow':c.clock.elapsedMilliseconds-start});await c.settle(500);await a.dispose();await c.settle(300);
 }
 
-/// Swipes a three-engine native audio pool, including overlapping requests.
+/// Swipes a three-player native audio pool, including overlapping requests.
 ///
-/// 连续切换三引擎原生音频池，包含并发切换。
+/// 连续切换三播放器原生音频池，包含并发切换。
 Future<void> feed({bool resources=false}) async {
   final resourceBaseline=resources?await s00d_resources.checkpoint('pool.before'):<String,Object?>{};
-  final made=<MovaApi>[];
-  final pool=MovaFeedEnginePool(engineFactory:(){ final a=createMovaEngine(audioOnly:true); made.add(a); return a; });
-  final controller=MovaFeed(pool:pool,loader:(i) async => i<0 || i>150 ? null : MovaFeedItem(source:c.source('vod.mp4?feed=$i')));
-  await controller.ensure(0); await controller.activate(0);
+  final made=<IMovaApi>[];
+  final pool=MovaFeedPool(movaFactory:(){ final a=createMova(audioOnly:true); made.add(a); return a; });
+  final feed=MovaFeed(pool:pool,loader:(i) async => i<0 || i>150 ? null : MovaFeedItem(source:c.source('vod.mp4?feed=$i')));
+  await feed.ensure(0); await feed.activate(0);
   for(var i=1;i<=100;i++) {
-    await controller.activate(i);
+    await feed.activate(i);
     if(i%20==0) {
-      c.mark('FEED_SAMPLE',{'index':controller.activeIndex,'engines':made.length,'rss':ProcessInfo.currentRss});
-      if(resources) {s00d_resources.sample('F13.resources.$i',resourceBaseline,await s00d_resources.checkpoint('pool.active.$i',created:made.length,engineCount:pool.engineCount),created:made.length,engineCount:pool.engineCount);}
+      c.mark('FEED_SAMPLE',{'index':feed.activeIndex,'movas':made.length,'rss':ProcessInfo.currentRss});
+      if(resources) {s00d_resources.sample('F13.resources.$i',resourceBaseline,await s00d_resources.checkpoint('pool.active.$i',created:made.length,movaCount:pool.movaCount),created:made.length,movaCount:pool.movaCount);}
     }
   }
-  await Future.wait([for(var i=101;i<=120;i++)controller.activate(i)]);
+  await Future.wait([for(var i=101;i<=120;i++)feed.activate(i)]);
   if (resources) {
-    await s00d_resources.checkpoint('pool.concurrent.120', created: made.length, engineCount: pool.engineCount);
+    await s00d_resources.checkpoint('pool.concurrent.120', created: made.length, movaCount: pool.movaCount);
   }
-  c.check('A29.final',controller.activeIndex==120 && made.isNotEmpty && made.length<=pool.size,'active=${controller.activeIndex} engines=${made.length} capacity=${pool.size}');
-  c.mark('FEED_ENGINES',{'states':made.map(c.snapshot).toList()});
-  controller.dispose();
+  c.check('A29.final',feed.activeIndex==120 && made.isNotEmpty && made.length<=pool.size,'active=${feed.activeIndex} movas=${made.length} capacity=${pool.size}');
+  c.mark('FEED_MOVAS',{'states':made.map(c.snapshot).toList()});
+  feed.dispose();
   if(resources) {
     await s00d_resources.DisposeFrames().run(()=>pool.dispose().timeout(const Duration(seconds:20)));
-    s00d_resources.sample('F13.resources.disposed',resourceBaseline,await s00d_resources.checkpoint('pool.disposed.0ms',created:made.length,engineCount:pool.engineCount),created:made.length,engineCount:pool.engineCount);
+    s00d_resources.sample('F13.resources.disposed',resourceBaseline,await s00d_resources.checkpoint('pool.disposed.0ms',created:made.length,movaCount:pool.movaCount),created:made.length,movaCount:pool.movaCount);
     // 释放后的稳定窗口另采，不能把逻辑池为零直接当原生解码器已回收。
     await c.settle(1000);
-    await s00d_resources.checkpoint('pool.disposed.1000ms', created: made.length, engineCount: pool.engineCount);
+    await s00d_resources.checkpoint('pool.disposed.1000ms', created: made.length, movaCount: pool.movaCount);
     await c.settle(4000);
-    await s00d_resources.checkpoint('pool.disposed.5000ms', created: made.length, engineCount: pool.engineCount);
+    await s00d_resources.checkpoint('pool.disposed.5000ms', created: made.length, movaCount: pool.movaCount);
   } else {await pool.dispose().timeout(const Duration(seconds:20));}
   final accepts = <bool>[];
-  for (final engine in made) { accepts.add(await engine.open(c.source())); }
-  c.mark('CHECK', {'id': 'A29.poolReclaimed', 'pass': pool.engineCount == 0 && accepts.every((v) => !v),
-    'numbers': {'engineCount': pool.engineCount, 'accepts': accepts}});
-  c.check('A29.dispose',pool.engineCount == 0 && accepts.every((v) => !v),'pool=${pool.engineCount} postDisposeOpen=$accepts');
+  for (final mova in made) { accepts.add(await mova.open(c.source())); }
+  c.mark('CHECK', {'id': 'A29.poolReclaimed', 'pass': pool.movaCount == 0 && accepts.every((v) => !v),
+    'numbers': {'movaCount': pool.movaCount, 'accepts': accepts}});
+  c.check('A29.dispose',pool.movaCount == 0 && accepts.every((v) => !v),'pool=${pool.movaCount} postDisposeOpen=$accepts');
 }
 
 /// Exercises real VTT and frame extraction paths with retained images.
@@ -418,8 +418,8 @@ Future<void> preview(Map<String,String> args) async {
   final disk=MovaDiskThumbCache(dir:MovaFixedThumbDirProvider('${Directory.systemTemp.path}/coverage-preview-counted'));
   final cache=CountedCache(memory,disk);await cache.clear();
   final puller=CountedPuller();
-  final a=createMovaEngine(audioOnly:true,extractor:extract?puller:null,probe:probe,
-    options:MovaOpts(preview:MovaPreviewConfig(enabled:true,
+  final a=createMova(audioOnly:true,extractor:extract?puller:null,probe:probe,
+    options:MovaOpts(preview:MovaPreviewOpts(enabled:true,
       network:blocked?MovaPreviewNet.never:probe==null?MovaPreviewNet.always:MovaPreviewNet.wifiOnly,
       vttUrl:args['mode']=='offline'?'http://127.0.0.1:9/unreachable.vtt':'http://127.0.0.1:18084/${args['mode']=='fallback'?'missing.vtt':'thumbs.vtt'}',vttEnabled:args['mode']!='extract',extractFallback:extract,
       bucket:const Duration(seconds:2),cache:cache)));
@@ -477,7 +477,7 @@ Future<void> preview(Map<String,String> args) async {
 /// Counts real extraction calls while delegating to the native extractor.
 ///
 /// 对真实原生抽帧器的调用计数。
-class CountedPuller implements MovaFramePuller {
+class CountedPuller implements IMovaFramePuller {
   final MovaFrameExtractor inner=MovaFrameExtractor();
   int calls=0;
   @override
@@ -491,7 +491,7 @@ class CountedPuller implements MovaFramePuller {
 /// Counts both cache levels without replacing their actual implementations.
 ///
 /// 在保留真实两级缓存实现的前提下计数命中。
-class CountedCache implements MovaThumbCache {
+class CountedCache implements IMovaThumbCache {
   CountedCache(this.memory,this.disk):inner=MovaTwoLevelCache(memory:memory,disk:disk);
   final MovaMemoryThumbCache memory;
   final MovaDiskThumbCache disk;
@@ -512,7 +512,7 @@ class CountedCache implements MovaThumbCache {
 /// Fails one start and succeeds the next so STT rollback can be observed.
 ///
 /// 首次启动失败、第二次成功，用于观察STT回滚。
-class RetrySttEngine extends MovaNoopSttEngine {
+class RetryStt extends MovaNoopStt {
   int calls=0;
   @override
   List<String> get languages=>['en'];
@@ -520,19 +520,19 @@ class RetrySttEngine extends MovaNoopSttEngine {
   Future<void> start(Duration atPosition) async {calls++;if(calls==1){throw StateError('coverage missing model');}}
 }
 
-/// Verifies no-engine blocking and failed-start retry on a real device host.
+/// Verifies no-player blocking and failed-start retry on a real device host.
 ///
-/// 验证无引擎阻断及启动失败后可重试。
+/// 验证无播放器阻断及启动失败后可重试。
 Future<void> stt() async {
-  final none=createMovaEngine(options:const MovaOpts(stt:MovaSttConfig(enabled:true)));
+  final none=createMova(options:const MovaOpts(stt:MovaSttOpts(enabled:true)));
   c.observe(none);await none.open(c.source(),autoPlay:false);await none.stt.start();await none.stt.stop();
-  c.mark('STT_NO_ENGINE',{'running':none.stt.isRunning,'languages':none.stt.languages});await none.dispose();
-  final engine=RetrySttEngine();
-  final a=createMovaEngine(options:MovaOpts(stt:MovaSttConfig(enabled:true,engine:engine)));
+  c.mark('STT_NO_RECOGNIZER',{'running':none.stt.isRunning,'languages':none.stt.languages});await none.dispose();
+  final recognizer=RetryStt();
+  final a=createMova(options:MovaOpts(stt:MovaSttOpts(enabled:true,recognizer:recognizer)));
   c.observe(a);await a.open(c.source(),autoPlay:false);
   try{await a.stt.start();}catch(e){c.mark('STT_EXPECTED_THROW',{'error':'$e','running':a.stt.isRunning});}
   c.check('N22.sttRollback',!a.stt.isRunning,'after first failure running=${a.stt.isRunning}');
-  await a.stt.start();c.check('N22.sttRetry',engine.calls==2&&a.stt.isRunning,'calls=${engine.calls} running=${a.stt.isRunning}');
+  await a.stt.start();c.check('N22.sttRetry',recognizer.calls==2&&a.stt.isRunning,'calls=${recognizer.calls} running=${a.stt.isRunning}');
   await a.stt.stop();await a.dispose();
 }
 
@@ -541,7 +541,7 @@ Future<void> stt() async {
 /// 关闭卡顿看门狗，让点播卡顿超过显式期限。
 Future<void> watchoff() async {
   final local=<MovaEvent>[];
-  final a=createMovaEngine(audioOnly:true,options:const MovaOpts(recovery:MovaRecoveryConfig(enabled:true,stallTimeout:Duration(seconds:1),stallWatchdog:false)));
+  final a=createMova(audioOnly:true,options:const MovaOpts(recovery:MovaRecoveryOpts(enabled:true,stallTimeout:Duration(seconds:1),stallWatchdog:false)));
   c.observe(a);a.events.listen(local.add);await a.open(c.source('stall.mp4'));
   await c.until(()=>a.state.rendered);await c.until(()=>a.state.buffering,seconds:20);await c.settle(5000);
   c.check('N2.watchoff',local.whereType<MovaPlayFailure>().isEmpty,'rendered=${a.state.rendered} buffering=${a.state.buffering} failures=${local.whereType<MovaPlayFailure>().length}');
@@ -555,7 +555,7 @@ Future<void> qoe(Map<String,String> args) async {
   final mode=args['mode']??'ended';
   final reports=<MovaReportEvent>[];
   final local=<MovaEvent>[];
-  final a=createMovaEngine(audioOnly:true,options:const MovaOpts(report:MovaReportConfig(qoe:true)),
+  final a=createMova(audioOnly:true,options:const MovaOpts(report:MovaReportOpts(qoe:true)),
     reporter:MovaCallbackReporter((r){reports.add(r);c.mark('REPORT',{'name':r.name.value,'params':r.params,'sessionId':r.sessionId,'reportKind':r.kind.name,'priority':r.priority.name});}));
   c.observe(a); a.events.listen(local.add);
   if(mode=='abandoned') {
@@ -602,13 +602,13 @@ Future<void> nativeUntil(FutureOr<bool> Function() predicate,{int seconds=20}) a
   }
 }
 
-/// Checks repeated disposal for real audio-only engines and proxies.
+/// Checks repeated disposal for real audio-only players and proxies.
 ///
-/// 检查真实仅音频引擎和代理的重复销毁。
+/// 检查真实仅音频播放器和代理的重复销毁。
 Future<void> retestDispose() async {
   for(final proxy in [false,true]) {
-    MovaEngine factory()=>createMovaEngine(audioOnly:true,options:MovaOpts(cutover:MovaCutoverConfig(enabled:proxy)));
-    final MovaApi a=proxy?MovaCutoverEngine(engineFactory:factory):factory();
+    Mova factory()=>createMova(audioOnly:true,options:MovaOpts(cutover:MovaCutoverOpts(enabled:proxy)));
+    final IMovaApi a=proxy?MovaCutover(movaFactory:factory):factory();
     c.observe(a);await a.open(c.source(),autoPlay:false);
     await c.until(()=>a.state.duration>Duration.zero);
     c.mark('DISPOSE_OPEN',{'cutover':proxy,'audioOnly':true,'state':c.snapshot(a)});
@@ -626,13 +626,13 @@ Future<void> hls(Map<String,String> args) async {
   var iteration=-1;
   late Player player;
   late MovaMpvKernel kernel;
-  MovaEngine factory() {
+  Mova factory() {
     player = Player();
     kernel = RetestKernel(player);
-    return createMovaEngine(kernel: kernel, preciseFirstFrame: true,
-      options: MovaOpts(cutover: MovaCutoverConfig(enabled: proxy)));
+    return createMova(kernel: kernel, preciseFirstFrame: true,
+      options: MovaOpts(cutover: MovaCutoverOpts(enabled: proxy)));
   }
-  final MovaApi a = proxy ? MovaCutoverEngine(engineFactory: factory) : factory();
+  final IMovaApi a = proxy ? MovaCutover(movaFactory: factory) : factory();
   final native = player.platform as NativePlayer;
   Future<int> position() async => ((double.tryParse(await native.getProperty('time-pos')) ?? -1) * 1000).round();
   var restarts = <int>[];
@@ -695,8 +695,8 @@ Future<void> hls(Map<String,String> args) async {
       await a.seek(const Duration(seconds: 9));
       await nativeUntil(() async => (await position() - 9000).abs() <= 250);
     }
-    // Wait until the engine's source progress stream catches the native readback.
-    // 等引擎所读进度与原生值对齐，避免旧锚点造成验证工具误报。
+    // Wait until the player's source progress stream catches the native readback.
+    // 等播放器所读进度与原生值对齐，避免旧锚点造成验证工具误报。
     await nativeUntil(() async => (player.state.position.inMilliseconds - await position()).abs() <= 100);
     await pending;
     restarts = <int>[];
@@ -750,8 +750,8 @@ Future<void> hls(Map<String,String> args) async {
 Future<void> options() async {
   final p = Player();
   final k = MovaMpvKernel(player: p, audioOnly: true, observeNativeEvents: false);
-  final a = createMovaEngine(kernel: k, options: const MovaOpts(recovery:
-    MovaRecoveryConfig(timeouts: MovaTimeouts(network: Duration(milliseconds: 1200),whepHandshake:Duration(seconds:2),whepFirstFrame:Duration(seconds:3),whepMedia:Duration(seconds:4)))));
+  final a = createMova(kernel: k, options: const MovaOpts(recovery:
+    MovaRecoveryOpts(timeouts: MovaTimeouts(network: Duration(milliseconds: 1200),whepHandshake:Duration(seconds:2),whepFirstFrame:Duration(seconds:3),whepMedia:Duration(seconds:4)))));
   c.observe(a);
   final native = p.platform as NativePlayer;
   Future<Map<String, String>> read() async {
@@ -779,11 +779,11 @@ Future<void> options() async {
   c.check('N4.whepOptions',whepReadback['demuxer-lavf-o']!.contains('media_timeout=6000000')&&whepReadback['demuxer-lavf-o']!.contains('handshake_timeout=2000000')&&whepReadback['demuxer-lavf-o']!.contains('first_frame_timeout=8000000'),'readback=$whepReadback');
   await a.open(c.source(),autoPlay:false);await c.until(()=>a.state.duration>Duration.zero);
   c.mark('WHEP_OPTIONS_RESTORED',await read());
-  const config = MovaRecoveryConfig();
-  c.check('N2.derived', config.startTimeoutFor('http://a').inSeconds == 65 && config.startTimeoutFor('whep://a').inSeconds == 85 && config.stallTimeoutFor('whep://a')!.inSeconds == 10 && config.copyWith(stallWatchdog:false).stallTimeoutFor('http://a') == null && config.copyWith(stallTimeout:const Duration(seconds:9)).copyWith(clearStallTimeout:true).stallTimeout == null, 'http=65,whepStart=85,whepStall=10,watchdogOff=null,clear=null');
+  const opts = MovaRecoveryOpts();
+  c.check('N2.derived', opts.startTimeoutFor('http://a').inSeconds == 65 && opts.startTimeoutFor('whep://a').inSeconds == 85 && opts.stallTimeoutFor('whep://a')!.inSeconds == 10 && opts.copyWith(stallWatchdog:false).stallTimeoutFor('http://a') == null && opts.copyWith(stallTimeout:const Duration(seconds:9)).copyWith(clearStallTimeout:true).stallTimeout == null, 'http=65,whepStart=85,whepStall=10,watchdogOff=null,clear=null');
   const t = MovaTimeouts(whepHandshake:Duration(seconds:2),whepFirstFrame:Duration(seconds:3),whepMedia:Duration(seconds:4));
   const s = MovaSource('whep://a',demuxerOptions:{'media_timeout':'8000000'},whepMediaTimeout:Duration(seconds:6));
-  c.mark('NEW_CONFIG', {'whep':s.mpvOptionsFor(s.uri,timeouts:t),'http':s.mpvOptionsFor('http://a',timeouts:t),'defaults':const MovaTimeouts().mpvOptionsFor('http://a')});
+  c.mark('NEW_OPTS', {'whep':s.mpvOptionsFor(s.uri,timeouts:t),'http':s.mpvOptionsFor('http://a',timeouts:t),'defaults':const MovaTimeouts().mpvOptionsFor('http://a')});
   final picked = MovaSource.pick(['',' http://a ','http://a','http://b']);
   c.check('C17.pick', picked!.uris.length == 2 && picked.sameAs(const MovaSource('http://a',alternatives:['http://b'])) && !picked.sameAs(const MovaSource('http://a')), picked.uris);
   await a.open(const MovaSource('http://127.0.0.1:18084/low/index.m3u8',mpvOptions:{'http-header-fields':'X-Coverage: 42'}),autoPlay:false);
@@ -799,7 +799,7 @@ Future<void> recovery(Map<String, String> args) async {
   final isLive=['live','liveDefault','liveLegacy','liveAlternatives'].contains(mode);
   final local = <MovaEvent>[];
   final start = c.clock.elapsedMilliseconds;
-  final a = createMovaEngine(audioOnly:true, options:MovaOpts(recovery:MovaRecoveryConfig(
+  final a = createMova(audioOnly:true, options:MovaOpts(recovery:MovaRecoveryOpts(
     enabled:true,
     liveReconnect:mode!='liveLegacy',
     policy: mode == 'live' ? const MovaLiveReconnect(maxAttempts:7) :
@@ -834,7 +834,7 @@ Future<void> recovery(Map<String, String> args) async {
 Future<void> live(Map<String,String> args) async {
   final step = int.parse(args['step'] ?? '2000');
   final local = <Map<String,Object>>[];
-  final a = createMovaEngine(audioOnly:true, options:MovaOpts(live:MovaLiveConfig(durationStep:Duration(milliseconds:step))));
+  final a = createMova(audioOnly:true, options:MovaOpts(live:MovaLiveOpts(durationStep:Duration(milliseconds:step))));
   c.observe(a);
   a.events.listen((e) { if(e is MovaDurationChange) local.add({'ms':c.clock.elapsedMilliseconds,'duration':e.duration.inMilliseconds}); });
   await a.open(MovaSource(c.source('live.flv?gop=50&audio=1').uri,type:MovaStreamType.live));
@@ -874,8 +874,8 @@ class ProbeHook extends MovaHook {
 Future<void> hooks(bool cutover) async {
   final h = ProbeHook();
   final h2=ProbeHook();
-  MovaEngine factory()=>createMovaEngine(audioOnly:true,interceptors:[h,h2],options:MovaOpts(playlist:MovaPlaylistConfig(items:[MovaPlaylistItem(source:c.source()),MovaPlaylistItem(source:c.source('ad.mp4'))])));
-  final MovaApi a=cutover?MovaCutoverEngine(engineFactory:factory):factory();c.observe(a);
+  Mova factory()=>createMova(audioOnly:true,interceptors:[h,h2],options:MovaOpts(playlist:MovaPlaylistOpts(items:[MovaPlaylistItem(source:c.source()),MovaPlaylistItem(source:c.source('ad.mp4'))])));
+  final IMovaApi a=cutover?MovaCutover(movaFactory:factory):factory();c.observe(a);
   h.reject=true;
   c.check('N8.reject',!await a.open(c.source()),'beforeOpen=false');
   h.reject=false;

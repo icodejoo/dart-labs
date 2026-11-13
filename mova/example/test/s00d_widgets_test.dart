@@ -30,15 +30,15 @@ Future<void> drain(WidgetTester t, [int ms = 0]) async {
   }
 }
 
-Future<MovaEngine> make(
+Future<Mova> make(
   WidgetTester t, {
   MovaOpts options = const MovaOpts(),
-  MovaPipPort? pip,
-  MovaHttpFetch? fetcher,
+  IMovaPip? pip,
+  IMovaHttpFetch? fetcher,
 }) async => (await t.runAsync(
-  () async => createMovaEngine(options: options, pip: pip, fetcher: fetcher),
+  () async => createMova(options: options, pip: pip, fetcher: fetcher),
 ))!;
-Future<void> component(WidgetTester t, MovaApi a, MovaComponent c) async {
+Future<void> component(WidgetTester t, IMovaApi a, MovaComponent c) async {
   await t.pumpWidget(
     MaterialApp(
       key: ValueKey('${identityHashCode(a)}:${c.name}'),
@@ -62,11 +62,11 @@ Future<void> unmount(WidgetTester t) async {
   await drain(t);
 }
 
-Future<void> dispose(WidgetTester t, MovaApi a) async {
+Future<void> dispose(WidgetTester t, IMovaApi a) async {
   await t.runAsync(a.dispose);
 }
 
-class SupportedPip implements MovaPipPort {
+class SupportedPip implements IMovaPip {
   int enters = 0;
   @override
   Future<bool> isSupported() async => true;
@@ -77,7 +77,7 @@ class SupportedPip implements MovaPipPort {
   }
 }
 
-class MasterFetch implements MovaHttpFetch {
+class MasterFetch implements IMovaHttpFetch {
   @override
   Future<Uint8List?> get(Uri url) async => Uint8List.fromList(
     utf8.encode(
@@ -104,7 +104,7 @@ void main() {
         final a = await make(
           t,
           options: MovaOpts(
-            controls: MovaCtrlsConfig(
+            controls: MovaCtrlsOpts(
               autoHide: auto,
               showOnStart: start,
               autoHideDelay: const Duration(milliseconds: 100),
@@ -149,7 +149,7 @@ void main() {
         await dispose(t, a);
       }
     }
-    const d = MovaCtrlsConfig();
+    const d = MovaCtrlsOpts();
     measured(
       'C5.defaults',
       [
@@ -157,7 +157,7 @@ void main() {
         d.showOnStart,
         d.autoHideDelay.inMilliseconds,
         d.fadeDuration.inMilliseconds,
-        d == const MovaCtrlsConfig(),
+        d == const MovaCtrlsOpts(),
       ],
       [true, true, 3000, 200, true],
     );
@@ -170,7 +170,7 @@ void main() {
       final a = await make(
         t,
         options: MovaOpts(
-          danmaku: MovaDanmakuConfig(
+          danmaku: MovaDanmakuOpts(
             enabled: enabled,
             trackCount: 2,
             crossDuration: const Duration(seconds: 2),
@@ -233,7 +233,7 @@ void main() {
       final a = await make(
         t,
         options: MovaOpts(
-          playlist: MovaPlaylistConfig(
+          playlist: MovaPlaylistOpts(
             enabled: true,
             autoPlayNext: auto,
             nextUpLeadTime: const Duration(seconds: 5),
@@ -275,7 +275,7 @@ void main() {
     final a = await make(
       t,
       options: const MovaOpts(
-        playlist: MovaPlaylistConfig(
+        playlist: MovaPlaylistOpts(
           enabled: true,
           items: [
             MovaPlaylistItem(source: MovaSource('s00d://one')),
@@ -305,18 +305,18 @@ void main() {
   testWidgets('View ownership, sameAs, null, options, error and disposal', (
     t,
   ) async {
-    final engines = <MovaApi>[];
+    final movas = <IMovaApi>[];
     final errors = <Object>[];
     final ready = [
       await make(t),
       await make(
         t,
-        options: const MovaOpts(controls: MovaCtrlsConfig(autoHide: false)),
+        options: const MovaOpts(controls: MovaCtrlsOpts(autoHide: false)),
       ),
     ];
-    MovaApi factory(MovaOpts o) {
+    IMovaApi factory(MovaOpts o) {
       final a = ready.removeAt(0);
-      engines.add(a);
+      movas.add(a);
       return a;
     }
 
@@ -324,7 +324,7 @@ void main() {
       home: MovaView(
         source: s,
         options: o,
-        engineFactory: factory,
+        movaFactory: factory,
         autoLoadQualities: false,
         onOpenError: (e, st) => errors.add(e),
         poster: const Text('S00D poster'),
@@ -334,13 +334,13 @@ void main() {
     await drain(t);
     measured(
       'N17.lazy',
-      [engines.length, find.text('S00D poster').evaluate().length],
+      [movas.length, find.text('S00D poster').evaluate().length],
       [0, 1],
     );
     await t.pumpWidget(view(const MovaSource('s00d://view', title: 'old')));
     await drain(t);
     final first = MovaTesting.kernels.first;
-    measured('N17.owned', [engines.length, first.lastUri], [1, 's00d://view']);
+    measured('N17.owned', [movas.length, first.lastUri], [1, 's00d://view']);
     await t.pumpWidget(view(const MovaSource('s00d://view', title: 'new')));
     await drain(t);
     measured('N17.same', first.calls.where((s) => s == 'open').length, 1);
@@ -359,14 +359,14 @@ void main() {
     await t.pumpWidget(
       view(
         const MovaSource('s00d://second'),
-        o: const MovaOpts(controls: MovaCtrlsConfig(autoHide: false)),
+        o: const MovaOpts(controls: MovaCtrlsOpts(autoHide: false)),
       ),
     );
     await drain(t);
     measured(
       'N17.options',
       [
-        engines.length,
+        movas.length,
         first.calls.contains('dispose'),
         MovaTesting.lastKernel!.lastUri,
       ],
@@ -377,7 +377,7 @@ void main() {
     await t.pumpWidget(
       view(
         const MovaSource('s00d://throw'),
-        o: const MovaOpts(controls: MovaCtrlsConfig(autoHide: false)),
+        o: const MovaOpts(controls: MovaCtrlsOpts(autoHide: false)),
       ),
     );
     await drain(t);
@@ -410,7 +410,7 @@ void main() {
         api: a,
         fit: MovaFit.cover,
         surface: const Text('S00D surface'),
-        skin: const MovaMinimalSkin(),
+        uiKit: const MovaMinimalUiKit(),
       ),
     );
     await t.pumpWidget(player());
@@ -462,7 +462,7 @@ void main() {
         home: MovaPlayer(
           api: a,
           poster: const Text('S00D poster'),
-          skin: const MovaMinimalSkin(),
+          uiKit: const MovaMinimalUiKit(),
         ),
       ),
     );
@@ -571,36 +571,36 @@ void main() {
   testWidgets(
     'mini: default off, mounting modes, drag, snap, fling, resize, close',
     (t) async {
-      final ctl = MovaMini();
+      final mini = MovaMini();
       var closed = 0;
       var tapped = 0;
-      ctl.onClosed = (_) {
+      mini.onClosed = (_) {
         closed++;
       };
-      ctl.onTapContent = (_) {
+      mini.onTapContent = (_) {
         tapped++;
       };
       final off = await make(t);
       await t.pumpWidget(
         MaterialApp(
-          builder: (c, w) => MovaMiniHost(mini: ctl, child: w!),
+          builder: (c, w) => MovaMiniHost(mini: mini, child: w!),
           home: const Scaffold(body: Text('S00D host')),
         ),
       );
       await drain(t);
-      await t.runAsync(() => ctl.show(off));
+      await t.runAsync(() => mini.show(off));
       await drain(t);
       measured(
         'C12.defaultOff',
         find.byType(MovaMiniWindow).evaluate().length,
         0,
       );
-      await t.runAsync(ctl.hide);
+      await t.runAsync(mini.hide);
       await dispose(t, off);
       final a = await make(
         t,
         options: const MovaOpts(
-          mini: MovaMiniConfig(
+          mini: MovaMiniOpts(
             enabled: true,
             width: 160,
             margin: 12,
@@ -608,13 +608,13 @@ void main() {
           ),
         ),
       );
-      await t.runAsync(() => ctl.show(a));
+      await t.runAsync(() => mini.show(a));
       await drain(t);
       measured(
         'A26.persistent',
         [
-          ctl.isShowing(a),
-          ctl.mount.name,
+          mini.isShowing(a),
+          mini.mount.name,
           find.byType(MovaMiniWindow).evaluate().length,
         ],
         [true, 'persistent', 1],
@@ -652,7 +652,7 @@ void main() {
       );
       await t.fling(window, const Offset(-350, -120), 3000);
       await drain(t);
-      measured('U8.fling', [ctl.isShowing(a), closed], [true, 0]);
+      measured('U8.fling', [mini.isShowing(a), closed], [true, 0]);
       final old = t.getRect(window);
       await t.binding.setSurfaceSize(const Size(600, 800));
       await drain(t);
@@ -693,34 +693,34 @@ void main() {
       await drain(t);
       measured('A26.tap', tapped, 1);
       await t.runAsync(
-        () => ctl.showInPage(t.element(find.text('S00D host')), a),
+        () => mini.showInPage(t.element(find.text('S00D host')), a),
       );
       await drain(t);
       measured(
         'A26.page',
-        [ctl.mount.name, find.byType(MovaMiniWindow).evaluate().length],
+        [mini.mount.name, find.byType(MovaMiniWindow).evaluate().length],
         ['page', 1],
       );
-      ctl.setRect(
+      mini.setRect(
         const MovaMiniRect(left: 12, top: 12, width: 160, height: 90),
       );
       await drain(t);
-      measured('A26.setRect', [ctl.rect?.left, ctl.rect?.top], [12.0, 12.0]);
-      await t.runAsync(ctl.hide);
+      measured('A26.setRect', [mini.rect?.left, mini.rect?.top], [12.0, 12.0]);
+      await t.runAsync(mini.hide);
       await drain(t);
-      measured('A26.hide', [ctl.isShowing(a), closed], [false, 0]);
-      await t.runAsync(() => ctl.show(a));
+      measured('A26.hide', [mini.isShowing(a), closed], [false, 0]);
+      await t.runAsync(() => mini.show(a));
       await drain(t);
-      await t.runAsync(ctl.close);
+      await t.runAsync(mini.close);
       await drain(t);
       measured(
         'A26.close',
-        [ctl.isShowing(a), closed, a.state.mini],
+        [mini.isShowing(a), closed, a.state.mini],
         [false, 1, false],
       );
       await unmount(t);
       await dispose(t, a);
-      ctl.dispose();
+      mini.dispose();
       await t.binding.setSurfaceSize(null);
     },
   );
@@ -802,7 +802,7 @@ void main() {
       final a = await make(
         t,
         options: MovaOpts(
-          gesture: MovaGestureConfig(
+          gesture: MovaGestureOpts(
             maxZoom: 2,
             leftVertical: remap
                 ? MovaGestureAction.volume
@@ -894,7 +894,7 @@ void main() {
       await t.longPressAt(origin + const Offset(200, 120));
       await drain(t);
       measured('U6.longPress.$remap', a.state.rate, 1.0);
-      // Lock enforcement belongs to the real skin, not the standalone leaf.
+      // Lock enforcement belongs to the real UI kit, not the standalone leaf.
       await t.pumpWidget(
         MaterialApp(
           home: SizedBox(width: 400, height: 240, child: MovaPlayer(api: a)),
@@ -968,14 +968,14 @@ void main() {
     await drain(t);
     measured('U3.pipClick', [pip.enters, a.state.pip], [1, true]);
     debugDefaultTargetPlatformOverride = TargetPlatform.windows;
-    await component(t, a, MovaOrientationButtonComponent());
+    await component(t, a, MovaOrientButtonComponent());
     measured(
       'U3.directionDesktop',
       find.byType(MovaIconButton).evaluate().length,
       0,
     );
     debugDefaultTargetPlatformOverride = TargetPlatform.android;
-    await component(t, a, MovaOrientationButtonComponent());
+    await component(t, a, MovaOrientButtonComponent());
     measured(
       'U3.directionMobile',
       find.byType(MovaIconButton).evaluate().length,
@@ -983,10 +983,10 @@ void main() {
     );
     await t.tap(find.byType(MovaIconButton));
     await drain(t);
-    measured('U3.direction1', a.state.orientation.name, 'landscape');
+    measured('U3.direction1', a.state.orient.name, 'landscape');
     await t.tap(find.byType(MovaIconButton));
     await drain(t);
-    measured('U3.direction2', a.state.orientation.name, 'portrait');
+    measured('U3.direction2', a.state.orient.name, 'portrait');
     debugDefaultTargetPlatformOverride = null;
     await unmount(t);
     await dispose(t, a);
@@ -1001,7 +1001,7 @@ void main() {
         home: MovaFeedPlayer(
           poolSize: 1,
           prefetchDepth: 0,
-          engineFactory: () {
+          movaFactory: () {
             creates++;
             return a;
           },

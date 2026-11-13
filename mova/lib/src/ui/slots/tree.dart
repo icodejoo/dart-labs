@@ -224,7 +224,7 @@ class _CopyComponent extends MovaComponent {
   int get order => orderOverride ?? _source.order;
 
   @override
-  Widget build(BuildContext context, MovaApi api, List<Widget> builtChildren) =>
+  Widget build(BuildContext context, IMovaApi api, List<Widget> builtChildren) =>
       _source.build(context, api, builtChildren);
 }
 
@@ -248,7 +248,7 @@ class MovaSlotBundle {
   /// 按槽位分组的 widget，每个槽位内部已排好序。
   final Map<MovaSlot, List<Widget>> _bySlot;
 
-  /// 按组件名索引已构建的顶层 widget，供皮肤分层使用。
+  /// 按组件名索引已构建的顶层 widget，供 UI 套件分层使用。
   final Map<String, Widget> _byName;
 
   /// 返回 [slot] 中名称属于 [names] 的节点；[exclude] 为真时返回其余节点。
@@ -288,7 +288,7 @@ class MovaSlotBundle {
 /// 决出先后（稳定排序）。
 MovaSlotBundle buildSlots(
   BuildContext context,
-  MovaApi api,
+  IMovaApi api,
   List<MovaComponent> tree,
 ) {
   final entries = <_BuiltEntry>[];
@@ -324,7 +324,7 @@ MovaSlotBundle buildSlots(
 /// widget 构建 [component] 本身。
 Widget _buildRecursive(
   BuildContext context,
-  MovaApi api,
+  IMovaApi api,
   MovaComponent component,
 ) {
   final builtChildren = [

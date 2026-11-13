@@ -36,7 +36,7 @@ class MovaCenterPlayComponent extends MovaComponent {
   /// Builds the remaining patched controls, including an empty result.
   ///
   /// 构建补丁后保留的控件，允许全部移除。
-  Widget build(BuildContext context, MovaApi api, List<Widget> children) {
+  Widget build(BuildContext context, IMovaApi api, List<Widget> children) {
     if (children.isEmpty) return const SizedBox.shrink();
     if (children.length == 1) return Center(child: children.single);
     return Center(
@@ -49,13 +49,13 @@ class MovaCenterPlayComponent extends MovaComponent {
 ///
 /// Mirrors 0.1.0's `_centerPlayPause()`: an `InkResponse` circle (radius 36)
 /// showing a filled play/pause glyph sized/colored from [MovaTheme], driven by
-/// [MovaState.playing], calling [MovaApi.playOrPause] on tap.
+/// [MovaState.playing], calling [IMovaApi.playOrPause] on tap.
 ///
 /// 中央大号播放/暂停点按反馈按钮。
 ///
 /// 对齐 0.1.0 的 `_centerPlayPause()`：一个半径 36 的 `InkResponse` 圆形，内含
 /// 填充式播放/暂停图标（尺寸/颜色取自 [MovaTheme]），由 [MovaState.playing] 驱动，
-/// 点击调用 [MovaApi.playOrPause]。
+/// 点击调用 [IMovaApi.playOrPause]。
 class MovaPlayPauseComponent extends MovaComponent {
   /// Creates the play/pause leaf component.
   ///
@@ -77,7 +77,7 @@ class MovaPlayPauseComponent extends MovaComponent {
   /// Builds playback controls with a shared semantic and tooltip label.
   ///
   /// 构建播放控件，为语义与提示复用同一动作名称。
-  Widget build(BuildContext context, MovaApi api, List<Widget> children) {
+  Widget build(BuildContext context, IMovaApi api, List<Widget> children) {
     final theme = MovaPlayerStyle.themeOf(context);
     return MovaSelect<bool>(
       selector: (s) => s.playing,

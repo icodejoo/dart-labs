@@ -57,9 +57,9 @@ void main() {
         async.flushMicrotasks();
 
         backend.events.addAll([
-          const MovaRawEvent(MovaMpvEventBackend.eventPlaybackRestart),
-          const MovaRawEvent(MovaMpvEventBackend.eventEndFile, endFileReason: 0),
-          const MovaRawEvent(MovaMpvEventBackend.eventEndFile, endFileReason: 2),
+          const MovaRawEvent(IMovaMpvEventBackend.eventPlaybackRestart),
+          const MovaRawEvent(IMovaMpvEventBackend.eventEndFile, endFileReason: 0),
+          const MovaRawEvent(IMovaMpvEventBackend.eventEndFile, endFileReason: 2),
         ]);
 
         backend.wake();
@@ -76,8 +76,8 @@ void main() {
         async.flushMicrotasks();
 
         backend.events.addAll([
-          const MovaRawEvent(MovaMpvEventBackend.eventPlaybackRestart),
-          const MovaRawEvent(MovaMpvEventBackend.eventPlaybackRestart),
+          const MovaRawEvent(IMovaMpvEventBackend.eventPlaybackRestart),
+          const MovaRawEvent(IMovaMpvEventBackend.eventPlaybackRestart),
         ]);
 
         backend.wake();
@@ -162,7 +162,7 @@ void main() {
         
         final pollCountBefore = backend.callLog.where((c) => c == 'poll').length;
         
-        backend.events.add(const MovaRawEvent(MovaMpvEventBackend.eventPlaybackRestart));
+        backend.events.add(const MovaRawEvent(IMovaMpvEventBackend.eventPlaybackRestart));
         backend.staleWake();
         
         final pollCountAfter = backend.callLog.where((c) => c == 'poll').length;
@@ -212,7 +212,7 @@ void main() {
         async.flushMicrotasks();
         
         for (int i = 0; i < 1000; i++) {
-          backend.events.add(const MovaRawEvent(MovaMpvEventBackend.eventPlaybackRestart));
+          backend.events.add(const MovaRawEvent(IMovaMpvEventBackend.eventPlaybackRestart));
         }
         
         backend.wake();
@@ -246,8 +246,8 @@ void main() {
         async.flushMicrotasks();
         
         backend.events.addAll([
-          const MovaRawEvent(MovaMpvEventBackend.eventPlaybackRestart),
-          const MovaRawEvent(MovaMpvEventBackend.eventEndFile, endFileReason: 0),
+          const MovaRawEvent(IMovaMpvEventBackend.eventPlaybackRestart),
+          const MovaRawEvent(IMovaMpvEventBackend.eventEndFile, endFileReason: 0),
         ]);
         
         backend.wake();
@@ -265,7 +265,7 @@ void main() {
         pump.start(Future.value());
         async.flushMicrotasks();
         
-        backend.events.add(const MovaRawEvent(MovaMpvEventBackend.eventPlaybackRestart));
+        backend.events.add(const MovaRawEvent(IMovaMpvEventBackend.eventPlaybackRestart));
         backend.pollThrow = Exception('poll error');
         
         backend.wake();
@@ -307,9 +307,9 @@ void main() {
         async.flushMicrotasks();
         
         backend.events.addAll([
-          const MovaRawEvent(MovaMpvEventBackend.eventPlaybackRestart),
-          const MovaRawEvent(MovaMpvEventBackend.eventShutdown),
-          const MovaRawEvent(MovaMpvEventBackend.eventPlaybackRestart),
+          const MovaRawEvent(IMovaMpvEventBackend.eventPlaybackRestart),
+          const MovaRawEvent(IMovaMpvEventBackend.eventShutdown),
+          const MovaRawEvent(IMovaMpvEventBackend.eventPlaybackRestart),
         ]);
         
         backend.wake();
@@ -323,7 +323,7 @@ void main() {
       });
     });
 
-    test('I9: 多引擎并存', () {
+    test('I9: 多播放器并存', () {
       fakeAsync((async) {
         final backend1 = FakeMpvEventBackend();
         final backend2 = FakeMpvEventBackend();
@@ -336,9 +336,9 @@ void main() {
         pump2.start(Future.value());
         async.flushMicrotasks();
         
-        backend1.events.add(const MovaRawEvent(MovaMpvEventBackend.eventPlaybackRestart));
-        backend2.events.add(const MovaRawEvent(MovaMpvEventBackend.eventPlaybackRestart));
-        backend2.events.add(const MovaRawEvent(MovaMpvEventBackend.eventPlaybackRestart));
+        backend1.events.add(const MovaRawEvent(IMovaMpvEventBackend.eventPlaybackRestart));
+        backend2.events.add(const MovaRawEvent(IMovaMpvEventBackend.eventPlaybackRestart));
+        backend2.events.add(const MovaRawEvent(IMovaMpvEventBackend.eventPlaybackRestart));
         
         backend1.wake();
         backend2.wake();
@@ -349,7 +349,7 @@ void main() {
         pump1.dispose();
         async.flushMicrotasks();
         
-        backend2.events.add(const MovaRawEvent(MovaMpvEventBackend.eventPlaybackRestart));
+        backend2.events.add(const MovaRawEvent(IMovaMpvEventBackend.eventPlaybackRestart));
         backend2.wake();
         
         expect(r1, 1);
@@ -407,9 +407,9 @@ void main() {
         async.flushMicrotasks();
         
         expect(backend.lastRestrictedEvents, {
-          MovaMpvEventBackend.eventShutdown,
-          MovaMpvEventBackend.eventEndFile,
-          MovaMpvEventBackend.eventPlaybackRestart,
+          IMovaMpvEventBackend.eventShutdown,
+          IMovaMpvEventBackend.eventEndFile,
+          IMovaMpvEventBackend.eventPlaybackRestart,
         });
       });
     });
@@ -421,11 +421,11 @@ void main() {
         async.flushMicrotasks();
         
         backend.events.addAll([
-          const MovaRawEvent(MovaMpvEventBackend.eventEndFile, endFileReason: 0),
-          const MovaRawEvent(MovaMpvEventBackend.eventEndFile, endFileReason: 2),
-          const MovaRawEvent(MovaMpvEventBackend.eventEndFile, endFileReason: 3),
-          const MovaRawEvent(MovaMpvEventBackend.eventEndFile, endFileReason: 4),
-          const MovaRawEvent(MovaMpvEventBackend.eventEndFile, endFileReason: 5),
+          const MovaRawEvent(IMovaMpvEventBackend.eventEndFile, endFileReason: 0),
+          const MovaRawEvent(IMovaMpvEventBackend.eventEndFile, endFileReason: 2),
+          const MovaRawEvent(IMovaMpvEventBackend.eventEndFile, endFileReason: 3),
+          const MovaRawEvent(IMovaMpvEventBackend.eventEndFile, endFileReason: 4),
+          const MovaRawEvent(IMovaMpvEventBackend.eventEndFile, endFileReason: 5),
         ]);
         
         backend.wake();

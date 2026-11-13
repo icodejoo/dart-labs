@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:media_kit/media_kit.dart';
-import 'package:mova/src/core/engine.dart';
+import 'package:mova/src/core/mova.dart';
 import 'package:mova/src/core/events/events.dart';
 import 'package:mova/src/core/kernel/mpv_defaults.dart';
 import 'package:mova/src/core/kernel/mpv_kernel.dart';
@@ -128,22 +128,22 @@ void main() {
 
   group('codec diagnostics with recovery disabled', () {
     late _FakePlayer player;
-    late MovaEngine engine;
+    late Mova mova;
     late List<MovaErrorEvent> errors;
     late StreamSubscription<MovaEvent> subscription;
 
     setUp(() {
       player = _FakePlayer();
-      engine = MovaEngine(kernel: MovaMpvKernel(player: player, audioOnly: true, observeQoeSignals: false));
+      mova = Mova(kernel: MovaMpvKernel(player: player, audioOnly: true, observeQoeSignals: false));
       errors = [];
-      subscription = engine.events.listen((event) {
+      subscription = mova.events.listen((event) {
         if (event is MovaErrorEvent) errors.add(event);
       });
     });
 
     tearDown(() async {
       await subscription.cancel();
-      await engine.dispose();
+      await mova.dispose();
       await player.errors.close();
     });
 
@@ -153,7 +153,7 @@ void main() {
         ..add(_codecAttempt)
         ..add(_codecAttempt);
       await Future<void>.delayed(Duration.zero);
-      expect(engine.state.error, isNull);
+      expect(mova.state.error, isNull);
       expect(errors, isEmpty);
     });
 
@@ -162,14 +162,14 @@ void main() {
         ..add(_codecAttempt)
         ..add(_decoderFailed);
       await Future<void>.delayed(Duration.zero);
-      expect(engine.state.error, _decoderFailed);
+      expect(mova.state.error, _decoderFailed);
       expect(errors.map((event) => event.error), [_decoderFailed]);
     });
 
     test('裁剪掉的容器仍置 error 并发错误事件', () async {
       player.errors.add(_formatFailed);
       await Future<void>.delayed(Duration.zero);
-      expect(engine.state.error, _formatFailed);
+      expect(mova.state.error, _formatFailed);
       expect(errors.map((event) => event.error), [_formatFailed]);
     });
 
@@ -178,7 +178,7 @@ void main() {
         ..add(_cannotSeek)
         ..add(_forceSeekable);
       await Future<void>.delayed(Duration.zero);
-      expect(engine.state.error, isNull);
+      expect(mova.state.error, isNull);
       expect(errors, isEmpty);
     });
   });

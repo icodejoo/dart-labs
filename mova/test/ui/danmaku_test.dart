@@ -19,7 +19,7 @@ void main() {
   testWidgets('spawns a comment once playback crosses its time, then retires it', (t) async {
     final api = FakeMovaApi(
       options: MovaOpts(
-        danmaku: const MovaDanmakuConfig(
+        danmaku: const MovaDanmakuOpts(
           enabled: true,
           items: [MovaDanmakuItem(text: 'hello', time: Duration(seconds: 5))],
           crossDuration: Duration(milliseconds: 500),
@@ -44,7 +44,7 @@ void main() {
   testWidgets('does not respawn a comment already passed on a later tick', (t) async {
     final api = FakeMovaApi(
       options: MovaOpts(
-        danmaku: const MovaDanmakuConfig(
+        danmaku: const MovaDanmakuOpts(
           enabled: true,
           items: [MovaDanmakuItem(text: 'once', time: Duration(seconds: 2))],
           crossDuration: Duration(seconds: 10),

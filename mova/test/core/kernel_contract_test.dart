@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mova/src/core/engine.dart';
+import 'package:mova/src/core/mova.dart';
 import 'package:mova/src/core/kernel/kernel.dart';
 
 import '../support/fake_kernel.dart';
@@ -44,22 +44,22 @@ void main() {
     expect(k.renderHandle, isNull);
   });
 
-  test('MovaEngine wires up around a null render handle without throwing', () {
-    late final MovaEngine engine;
+  test('Mova wires up around a null render handle without throwing', () {
+    late final Mova mova;
     expect(
-      () => engine = MovaEngine(kernel: FakeKernel(renderHandle: null)),
+      () => mova = Mova(kernel: FakeKernel(renderHandle: null)),
       returnsNormally,
-      reason: "engine.dart's late final wiring must not depend on a non-null "
-          'render handle / engine.dart 的 late final 接线不得依赖非空渲染句柄',
+      reason: "mova.dart's late final wiring must not depend on a non-null "
+          'render handle / mova.dart 的 late final 接线不得依赖非空渲染句柄',
     );
-    expect(engine.renderHandle, isNull);
+    expect(mova.renderHandle, isNull);
   });
 
-  test('MovaEngine forwards the kernel render handle unchanged when present', () {
+  test('Mova forwards the kernel render handle unchanged when present', () {
     final kernel = FakeKernel();
-    final engine = MovaEngine(kernel: kernel);
+    final mova = Mova(kernel: kernel);
     expect(
-      identical(engine.renderHandle, kernel.renderHandle),
+      identical(mova.renderHandle, kernel.renderHandle),
       isTrue,
       reason: 'the handle is passed through as-is, never wrapped or replaced / '
           '句柄原样透传，不得被包装或替换',

@@ -96,7 +96,7 @@ V10在系统前台采样全部为false时，HE日志仍记录LIFECYCLE resumed�
 |HE V6|3/3 PASS|[[5], [5], [5]]|
 |HE V10|3/3 PASS|[[10], [10], [10]]|
 
-F3 为 normal/paused/cutover 各1次；JSON rows 的 HLS_RESULT 是原生 RESTART、地址、暂停状态和推进读回，不是钟表估计。dispose 每次含普通引擎/代理各两次销毁，共12次 dispose 调用，无异常。HE V6 三次续播误差 0ms，stallTimeout 偏移见日志；V10 三次真实 route cover/pop 与 TickerMode off/on 均通过、0崩溃。
+F3 为 normal/paused/cutover 各1次；JSON rows 的 HLS_RESULT 是原生 RESTART、地址、暂停状态和推进读回，不是钟表估计。dispose 每次含普通播放器/代理各两次销毁，共12次 dispose 调用，无异常。HE V6 三次续播误差 0ms，stallTimeout 偏移见日志；V10 三次真实 route cover/pop 与 TickerMode off/on 均通过、0崩溃。
 
 CP0 Windows 四组仍 PENDING（`2026-11-03-cp0-baseline.md`）；F3/dispose/V6 本轮功能PASS，但“不劣于CP0”保持BLOCKED。V10以本轮3次0崩溃和功能判据PASS，不声称满足原总计划20次；本次用户明确将次数上限设为3。
 

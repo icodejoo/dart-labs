@@ -1,7 +1,7 @@
 # mova 统一编排总计划（2026-10-31）
 
 > 状态：**已拍板（2026-11-03，用户授权由 Claude 决策）**：第 8 节 18 项全部采纳推荐默认值；仅第 8 项（pub.dev 实际版本）需用户本人确认，不阻塞开工，发版前补。
-> **2026-10-31 审计修订**：只读审计结论是“不能原样开工”，已就地落进本文：A19 前移到 S01 之后；A20 补改写口径；A12 默认值与测试 rig；A13/A14 合成一个设计单元（拆 3 个提交，顺序固定）；`@Deprecated` 成本与 `MovaHttpFetch` 破坏性；真机验证页成本与 CP 检查行；被丢子项的承接；成本重算（66 提交，137 / 199 / 291 人天，明细见 7.3）。凡标 **[待核]** 的是本次修订没能核实的点。
+> **2026-10-31 审计修订**：只读审计结论是“不能原样开工”，已就地落进本文：A19 前移到 S01 之后；A20 补改写口径；A12 默认值与测试 rig；A13/A14 合成一个设计单元（拆 3 个提交，顺序固定）；`@Deprecated` 成本与 `IMovaHttpFetch` 破坏性；真机验证页成本与 CP 检查行；被丢子项的承接；成本重算（66 提交，137 / 199 / 291 人天，明细见 7.3）。凡标 **[待核]** 的是本次修订没能核实的点。
 > 范围：`mova/` 子工程。一条分支 `jelon/mova-orchestration`，66 个有序提交，4 个真机检查点，**只合并一次**。
 > 输入：[全量评审](../notes/2026-10-30-architecture-review.md)（65 条）、Codex 复审（N1–N9、R1–R12、6 条异议）、Codex 重构调研、opus 对重构调研的终审结论（9 条，本文直接吸收，不再争论）。Codex 两份报告在会话暂存区，未入库，引用时写"Codex 复审 §x / 重构调研 §x"。
 > 标注：**[已核]** = 写本文时亲自读过代码确认；**[材料]** = 来自评审或 Codex，本次没有逐行复核；**[推测]** = 静态读不出来，排了验证点。所有行号是 2026-10-31 main（`46bcc5d`）上的实际行号。
@@ -18,18 +18,18 @@
 |---|---|---|---|
 | 准备 | 修跑批判据、交错测试脚手架、替身按真实意图契约维护（A19 前移） | 3 | 5.5 人天 |
 | B 独立修复 | 状态层、进度快照、底栏、亮度方向、QoE、弹幕、预览、抽取器、池、feed、守卫、小毛病、性能、桌面无障碍 | 16 | 31.5 人天 |
-| A 编排收拢 | A1 引擎与切换层的时序修复（15 个行为/新增提交 + 2 个机械提交）；A2 会话层（MovaSession、广告时钟、意图、播放列表、失败仲裁） | 30 | 67.5 人天 |
+| A 编排收拢 | A1 播放器与切换层的时序修复（15 个行为/新增提交 + 2 个机械提交）；A2 会话层（MovaSession、广告时钟、意图、播放列表、失败仲裁） | 30 | 67.5 人天 |
 | C API 与 DX | 构造说明、双重开关、MovaView、MovaChrome、全屏路由、MovaPlayerStyle、请求头、barrel 分入口、STT 撤出、所有权 | 17 | 46.5 人天 |
 
 **提交**：66 个，每个提交 `flutter analyze` 0 issues、`flutter test` 全绿；行为变更与机械搬迁分开提交（机械 4 个、测试/工具 3 个、其余为行为、新增、API 或文档）。
 
-**真机检查点**：4 个（CP0 补基线、CP1 引擎与切换、CP2 会话与后台、CP3 合并前全量）。CP0 有个前置问题：最近两次跑批（full-02、r1030）135 项里 133 项 BLOCKED，原因是跑批脚本缺"完整编号自动判据"，不是产品失败（[r1030](2026-10-30-matrix-run-r1030.md):5-7）——不先修脚本就没有基线。
+**真机检查点**：4 个（CP0 补基线、CP1 播放器与切换、CP2 会话与后台、CP3 合并前全量）。CP0 有个前置问题：最近两次跑批（full-02、r1030）135 项里 133 项 BLOCKED，原因是跑批脚本缺"完整编号自动判据"，不是产品失败（[r1030](2026-10-30-matrix-run-r1030.md):5-7）——不先修脚本就没有基线。
 
 **三档成本**（含设备时间与终审）：乐观约 **137 人天**、最可能约 **199 人天**、悲观约 **291 人天**（审计修订前 120 / 172.5 / 242，增量明细见 7.3）；其中设备时间 10.5 / 16.5 / 32 天。AI 代理落地能压缩编码的日历时间，设备时间压不了。
 
-**待拍板**：18 项（第 8 节）。默认路径**不引入任何新第三方依赖**。最需要先拍的三件：网络探针默认接线（推翻旧决定）、判失败不依赖 recovery + 事件泵懒启动（改变"默认关"的边界）、广告时钟与后台暂停的所有权。审计后新增三项：`state.error` 只放终结错误（对默认行为是破坏性变更，待拍板 16）、`MovaHttpFetch` 加请求头（对宿主实现的破坏，待拍板 17）、`@Deprecated` 策略（待拍板 18）。
+**待拍板**：18 项（第 8 节）。默认路径**不引入任何新第三方依赖**。最需要先拍的三件：网络探针默认接线（推翻旧决定）、判失败不依赖 recovery + 事件泵懒启动（改变"默认关"的边界）、广告时钟与后台暂停的所有权。审计后新增三项：`state.error` 只放终结错误（对默认行为是破坏性变更，待拍板 16）、`IMovaHttpFetch` 加请求头（对宿主实现的破坏，待拍板 17）、`@Deprecated` 策略（待拍板 18）。
 
-**和已拍板约束的关系**：保住"新功能默认关闭""core 不依赖 UI""`createMovaEngine` 是标准构造""feed 不进 cutover""`MovaCutover` 四个动词不加方法""广告不依赖媒体时间轴"。有 4 处会推翻旧决定，都在第 8 节单列并写明"这会推翻 X"。
+**和已拍板约束的关系**：保住"新功能默认关闭""core 不依赖 UI""`createMova` 是标准构造""feed 不进 cutover""`IMovaCutover` 四个动词不加方法""广告不依赖媒体时间轴"。有 4 处会推翻旧决定，都在第 8 节单列并写明"这会推翻 X"。
 
 ---
 
@@ -45,10 +45,10 @@ Codex 重构调研的结论是"四类 bug 都能在原边界局部修，完整 S
 
 但收拢有边界。这次**不**做的：
 
-- **不把引擎内部的生命周期并进会话。** attempt、seek 校验链、recovery、keepAlive、首帧闸门仍归 `MovaEngine`；影子资源仍归 `MovaCutoverEngine`。会话只借用一个 `MovaApi`，通过公开动词驱动它。这和 Codex 的"唯一所有者在业务节点层有价值，但不能取代每播放器的 attempt/seek/native 资源所有权"一致。
+- **不把播放器内部的生命周期并进会话。** attempt、seek 校验链、recovery、keepAlive、首帧闸门仍归 `Mova`；影子资源仍归 `MovaCutover`。会话只借用一个 `IMovaApi`，通过公开动词驱动它。这和 Codex 的"唯一所有者在业务节点层有价值，但不能取代每播放器的 attempt/seek/native 资源所有权"一致。
 - **不另造第二个所有者。** `MovaSession` 由 `MovaAds` 现有的状态机原样搬家而来（A22 机械提交），`MovaAds` 退化成转发壳；`MovaPlaylist(api, ads:)` 与 `MovaAds` 共享同一个会话实例。没有"Ads 一套、Session 一套"的并存期。
 - **不做泛化命令队列**（终审 1）。`_keepAliveQueue` 留在本地，只把其中跨网络的重开挪出去（A07）。
-- **不把 `MovaEngine` 拆成七个子控制器。** 评审第 8 节第 1 阶段的全拆没有 bug 驱动，F3/A17 曾经单测全绿而真机失败率 20.68%→0.36% 走了四轮（CLAUDE.md「测试基线」段），seek/首帧/ABR 每动一次都要配 280 次真机。本分支只做有 bug 驱动的最小结构：`_LoadSpec`（A09/A10）、ABR 租约（A11）、独立的恢复闸门（A08）。全拆列入暂缓，触发条件见 1.4。
+- **不把 `Mova` 拆成七个子控制器。** 评审第 8 节第 1 阶段的全拆没有 bug 驱动，F3/A17 曾经单测全绿而真机失败率 20.68%→0.36% 走了四轮（CLAUDE.md「测试基线」段），seek/首帧/ABR 每动一次都要配 280 次真机。本分支只做有 bug 驱动的最小结构：`_LoadSpec`（A09/A10）、ABR 租约（A11）、独立的恢复闸门（A08）。全拆列入暂缓，触发条件见 1.4。
 
 #### Timeline / Cursor+Intent / Transition / Preloader / FailureArbiter 逐个裁定
 
@@ -56,20 +56,20 @@ Codex 重构调研的结论是"四类 bug 都能在原边界局部修，完整 S
 |---|---|---|---|
 | Timeline | 做 | 条目列表 + 每条目由排期推导出的节点（pre*/content/mid pod*/post*），纯函数；`setItems` 整体替换，不做可编辑图 | P1-7、P1-8、P3-3 都需要；可编辑图没有需求 |
 | Cursor | 做 | `{epoch, item, node, phase, contentResumeAt}` 不可变快照 | 事件带 nodeId/epoch、UI（NextUp、广告覆盖层）读同一个游标 |
-| Intent | **不新建** | 唯一事实来源是引擎的 `MovaState.playbackIntent`；会话只在转场入口取快照 | 会话再存一份意图就会出现两份意图对不齐；终审 5 要求"意图在 `old.pause()` 之前取" |
+| Intent | **不新建** | 唯一事实来源是播放器的 `MovaState.playbackIntent`；会话只在转场入口取快照 | 会话再存一份意图就会出现两份意图对不齐；终审 5 要求"意图在 `old.pause()` 之前取" |
 | Transition | 做（内部） | 由前后节点推导 `MovaWarmPlan`（rate、pauseWhenReady、就绪判据）、带会话 epoch 的令牌、过期不回落 | P0-2、P2-6、P2-7、CLAUDE.md 剩余任务 ②③ |
 | Preloader | 只保留现有两个方向 | 广告背后预热正片、正片背后预热广告；**不**预加载下一集 | 单影子槽会和中插预热抢位；自动预加载是新增资源消耗，按"新功能默认关闭"需要 opt-in 设计，目前没有需求证据 |
-| FailureArbiter | 做（最小） | 纯函数：节点级失败归会话策略，传输失败归引擎 recovery；同一 (epoch, node, attempt) 只结算一次 | README:62 自己写着"recovery + Ads + cutover 同开时交互不在保证范围内"[已核] |
+| FailureArbiter | 做（最小） | 纯函数：节点级失败归会话策略，传输失败归播放器 recovery；同一 (epoch, node, attempt) 只结算一次 | README:62 自己写着"recovery + Ads + cutover 同开时交互不在保证范围内"[已核] |
 
 ### 1.2 轨道定义
 
-- **轨道 A：编排收拢**。A1 = 引擎与切换层的时序与加载规格（凡是"谁在什么时刻有权改状态"的问题）；A2 = 会话层。
+- **轨道 A：编排收拢**。A1 = 播放器与切换层的时序与加载规格（凡是"谁在什么时刻有权改状态"的问题）；A2 = 会话层。
 - **轨道 B：与编排无关的 S/M 修复**。不碰 seek、首帧闸门、ABR、keepAlive，可在独立 worktree 并行开发，按阶梯位置落地。
 - **轨道 C：API 面与 DX**。凡破坏公开 API 的点都给 `@Deprecated` 过渡。
 
 两处和用户列表的归属不同，说明一下：
 - **P1-14（`Video` 后台暂停）归到 A（A21）**：终审 5 要求广告时钟和它一起定，而且它决定 `playbackIntent` 是否可信，后者是 A20 续播开播的依据。
-- **P1-13（自动隐藏续期）折进 C04**：`MovaChrome` 会把自动隐藏计时器从引擎搬走，先在引擎里修一遍再搬是来回折腾。
+- **P1-13（自动隐藏续期）折进 C04**：`MovaChrome` 会把自动隐藏计时器从播放器搬走，先在播放器里修一遍再搬是来回折腾。
 
 ### 1.3 完整归属表
 
@@ -79,7 +79,7 @@ Codex 重构调研的结论是"四类 bug 都能在原边界局部修，完整 S
 
 | 编号 | 问题 | 轨道 | 提交 | 备注 |
 |---|---|---|---|---|
-| P0-1 | 控制条隐藏/锁定时缓冲与错误层一起消失 | B | B01 | [已核] `overlays.dart:35,83` 在 center 槽，center 在 `_BarVisibility` 内（`default_skin.dart`） |
+| P0-1 | 控制条隐藏/锁定时缓冲与错误层一起消失 | B | B01 | [已核] `overlays.dart:35,83` 在 center 槽，center 在 `_BarVisibility` 内（`default_ui_kit.dart`） |
 | P0-2 | 影子不和源绑定，换集播成上一集 | A | A01→A02（触发三、N1）、A03（触发一/二） | 不加 `commit(expect:)`，按终审 2 用操作代际 |
 
 #### P1（24 条）
@@ -93,22 +93,22 @@ Codex 重构调研的结论是"四类 bug 都能在原边界局部修，完整 S
 | P1-5 | 广告计时不感知暂停和前后台 | A | A18（时钟）、A20（续播继承意图）、A21（后台暂停所有权） | 终审 5 |
 | P1-6 | 一次性 `cutoverTo` 抛异常时广告卡死 | A | A05 | [已核] `ads.dart:832-836` 只有 try/finally |
 | P1-7 | README 推荐的 ads+playlist 组合是坏的 | A | A25 | 依赖 A23 |
-| P1-8 | 每条内容的数据在引擎级 `MovaOpts`；MovaView 重建陷阱 | A/C | A23（按集广告）、C03（MovaView 只比引擎节）、C06（样式挪出 MovaOpts） | 弹幕条目随内容走：暂缓（1.4） |
+| P1-8 | 每条内容的数据在播放器级 `MovaOpts`；MovaView 重建陷阱 | A/C | A23（按集广告）、C03（MovaView 只比播放器节）、C06（样式挪出 MovaOpts） | 弹幕条目随内容走：暂缓（1.4） |
 | P1-9 | 双重开关静默不生效 | C/A | C02（Mini.show 遵守 enabled、README 示例、cutover/STT 的 debug 提示）、A23（会话自动识别 cutover）、A25（`playlist.enabled` 在会话路径遵守） | 按 Codex 异议 2：**不**改成"构造即启用"；`playlist.enabled` 现行只挡 NextUp 组件（`ui/components/next_up.dart:52` [已核]），A25 让会话路径的 next/previous/自动连播也遵守 |
 | P1-10 | `MovaFeedPlayer` 黑盒 | C | C14 | |
 | P1-11 | 全屏只是转屏，退出解除宿主方向锁 | B/C | B04（还原）、C05（应用内全屏路由 + PopScope，默认关） | OS 级窗口全屏端口：暂缓 |
-| P1-12 | 视图 UI 交互态放在引擎上 | C | C04 | L |
+| P1-12 | 视图 UI 交互态放在播放器上 | C | C04 | L |
 | P1-13 | 自动隐藏不感知交互 | C | C04 | 见 1.2 |
 | P1-14 | media_kit `Video` 默认后台暂停 | A | A21 | CP0 先验证真机影响 |
 | P1-15 | 桌面/TV/无障碍缺位 | B | B16 | 可聚焦与语义默认开，快捷键默认关 |
 | P1-16 | 底栏按下标取子节点 | B | B03 | [已核] `bottom_bar.dart:68-80` |
 | P1-17 | 弹幕前跳生成全部弹幕 | B | B06 | 单 CustomPainter 重写：暂缓 |
 | P1-18 | 亮度不读初值不还原 | B | B04 | |
-| P1-19 | 鉴权请求头无一等支持 | C | C07 | 用 `MovaSource.start` 而不是给 `open` 加参数（后者破坏 `implements MovaApi`） |
+| P1-19 | 鉴权请求头无一等支持 | C | C07 | 用 `MovaSource.start` 而不是给 `open` 加参数（后者破坏 `implements IMovaApi`） |
 | P1-20 | QoE 数据失真 | B | B05 | |
 | P1-21 | 预览 wifiOnly 名不副实 | C | C12（含 `wiring.dart:118,126` 过期 tree-shaking 注释）、C11（抽帧器默认的文档） | **推翻旧决定**，待拍板 5 |
-| P1-22 | 半成品 STT 全量暴露 | C/B | C09（撤出主入口）、B10（音频抽取器泄漏）、C13（不 dispose 宿主引擎、start 不 rethrow） | 模型下载非原子写盘 + 10s 超时：**暂缓**（缺陷在迁走的代码里，C09 只撤导出、缺陷仍在，见 1.4）；audioOnly 下也不启动 STT：B10；按 Codex 异议 3 改正"必定超时"的措辞 |
-| P1-23 | `MovaEngine()` 静默降级 | C | C01 | 按 Codex 异议 1：**不做**默认实现注册表，只修文档与 debug 提示 |
+| P1-22 | 半成品 STT 全量暴露 | C/B | C09（撤出主入口）、B10（音频抽取器泄漏）、C13（不 dispose 宿主播放器、start 不 rethrow） | 模型下载非原子写盘 + 10s 超时：**暂缓**（缺陷在迁走的代码里，C09 只撤导出、缺陷仍在，见 1.4）；audioOnly 下也不启动 STT：B10；按 Codex 异议 3 改正"必定超时"的措辞 |
+| P1-23 | `Mova()` 静默降级 | C | C01 | 按 Codex 异议 1：**不做**默认实现注册表，只修文档与 debug 提示 |
 | P1-24 | recovery 关时坏地址无事件 | A | A14 | 待拍板 6、7 |
 
 #### P2（33 条）
@@ -116,13 +116,13 @@ Codex 重构调研的结论是"四类 bug 都能在原边界局部修，完整 S
 | # | 问题 | 轨道 | 提交 | 备注 |
 |---|---|---|---|---|
 | 1 | 连点两次换档从头播、前一次释放后一次的 ABR 屏蔽 | A | A10（位置）、A11（租约） | |
-| 2 | 暂停加载期间 `play()` 被吞 | A | A06 | `_loadKernel` 只纠偏一个方向 [已核] `engine.dart:915-918` |
+| 2 | 暂停加载期间 `play()` 被吞 | A | A06 | `_loadKernel` 只纠偏一个方向 [已核] `mova.dart:915-918` |
 | 3 | 恢复重载期间用户 seek 被续播 seek 覆盖 | A | A10 | |
 | 4 | ABR 判据粗、策略实例被共享 | A/C | A11（seek 引起的缓冲不计）、C13（策略工厂） | 升档/时间窗属"真 ABR"，暂缓 |
 | 5 | 时移下 `timeshiftBehind` 被重算 | A | A10 + CP0 验证 | [推测] 取决于服务端时间基 |
 | 6 | pod 串播旧广告事件记到下一条、一次性预热参数不对 | A | A27 | |
 | 7 | 预热时机只看素材剩余时长 | A | A27 | |
-| 8 | 换指窗口转发旧引擎 playing=false；影子期新源事件丢失 | A | A28 | |
+| 8 | 换指窗口转发旧播放器 playing=false；影子期新源事件丢失 | A | A28 | |
 | 9 | 前跳越过 N 个中插全部补播 | A | A29 | 默认保持现状（全部补播） |
 | 10 | cutover 失败原因不可观测 | A | A28 | |
 | 11 | feed 预取只拉 64KB、不带头、池外直播满速拉流 | B/C | B12（过期检查、错误隔离）、C07（带头） | 池外直播停流需 `stop()` 能力：暂缓；预取只拉 64KB、HLS 只拿 m3u8、force close 断连接复用：**暂缓**（见 1.4），C17 在 README 写明限制 |
@@ -136,25 +136,25 @@ Codex 重构调研的结论是"四类 bug 都能在原边界局部修，完整 S
 | 19 | 选项弹层不能滚动 | B | B14 | |
 | 20 | 抽帧缩略图原分辨率、按条数限额、无 cacheWidth | B | B09 | |
 | 21 | 磁盘缓存每写全扫、比较器同步 stat | B | B09 | |
-| 22 | 所有引擎共用缩略图目录，dispose 清别人的缓存 | B | B09 | |
+| 22 | 所有播放器共用缩略图目录，dispose 清别人的缓存 | B | B09 | |
 | 23 | 预览队列不丢过时请求 | B | B08 | |
-| 24 | 注入对象所有权不清（含 `stallPolicy` 实例被多引擎共用） | C | C13（`policyFactory` 每引擎各取一个实例） | |
-| 25 | sessionStart 媒体信息采样过早 | B | B05 | B05 文件清单补 `engine.dart` 的 `open` 调用点（采样要从 open 同步段挪到内核加载后） |
+| 24 | 注入对象所有权不清（含 `stallPolicy` 实例被多播放器共用） | C | C13（`policyFactory` 每播放器各取一个实例） | |
+| 25 | sessionStart 媒体信息采样过早 | B | B05 | B05 文件清单补 `mova.dart` 的 `open` 调用点（采样要从 open 同步段挪到内核加载后） |
 | 26 | seek 引起的缓冲算 rebuffer | B | B05 | |
 | 27 | 测试内核完全被动 | C | C15 | |
-| 28 | PiP 只有进出；`pipChanged` 广播给所有引擎 | B | B13（广播） | actions/autoEnter/sourceRectHint：暂缓 |
+| 28 | PiP 只有进出；`pipChanged` 广播给所有播放器 | B | B13（广播） | actions/autoEnter/sourceRectHint：暂缓 |
 | 29 | 音频焦点、耳机拔出、AVAudioSession | — | CP0 验证 | 先确认 media_kit 自己是否处理；暂缓 |
 | 30 | barrel 导出大量内部实现 | C | C08 | |
 | 31 | 能力发现四种方式 | C | C10 | |
-| 32 | `createMovaEngine` 参数分层不清 | C | C11 | 按 Codex 异议 4 改措辞："资源行为由注入内核决定，标记仍影响上报" |
-| 33 | 文档过期 | C | C01、C17 | C17 修 `core/api.dart:368-371`（“必须且只能调用一次”，与 dispose 幂等不符）、`core/options/stt_config.dart:36,45`（引用不存在的 `createMovaEngine(stt:)`），行号均 [已核] |
+| 32 | `createMova` 参数分层不清 | C | C11 | 按 Codex 异议 4 改措辞："资源行为由注入内核决定，标记仍影响上报" |
+| 33 | 文档过期 | C | C01、C17 | C17 修 `core/api.dart:368-371`（“必须且只能调用一次”，与 dispose 幂等不符）、`core/options/stt_opts.dart:36,45`（引用不存在的 `createMova(stt:)`），行号均 [已核] |
 
 #### P3（6 条）
 
 | # | 问题 | 轨道 | 提交 | 备注 |
 |---|---|---|---|---|
 | 1 | core 只在形式上纯净，mpv 概念渗进公共模型 | — | 不做 | 做 HarmonyOS 第二内核时升 P2（见 [harmonyos 可行性](../notes/2026-10-28-harmonyos-next-feasibility.md)） |
-| 2 | 镜像事件不去重；dispose 里 UI 计时器取消晚 | B | B15 | [已核] `engine.dart:2865-2866` 在若干 await 之后 |
+| 2 | 镜像事件不去重；dispose 里 UI 计时器取消晚 | B | B15 | [已核] `mova.dart:2865-2866` 在若干 await 之后 |
 | 3 | `MovaAdBreak` 按身份相等，const 同实例只播一次 | A | A24 | 节点身份取代广告位对象身份 |
 | 4 | 位置标签每秒重建 5 次、MovaPlayer 重跑 components() | B | B15 | |
 | 5 | VTT 一次失败永久不可用、DVR 直播触发抽帧、debug 轮询 TTFF 偏晚 | B | B08（前两项） | debug 轮询：不做（仅 debug，已有文档） |
@@ -166,7 +166,7 @@ Codex 重构调研的结论是"四类 bug 都能在原边界局部修，完整 S
 |---|---|---|---|
 | N1 | commit 与下一次 prepare 无所有权隔离 | A | A01、A02 |
 | N2 | 池忽略 `open()` 的布尔结果，失败绑定不可重试 | B | B11 |
-| N3 | 错误响应 body 无超时，拖住 engine.dispose | B | B07 |
+| N3 | 错误响应 body 无超时，拖住 player.dispose | B | B07 |
 | N4 | 换源不结束 STT 会话，旧字幕写进新内容 | B | B10（cue 绑定会话代际，`_started` 不变） |
 | N5 | 池把同 URI 当同请求 | B | B11 |
 | N6 | 迟到的清晰度探测把手选档改回 auto | A | A12 |
@@ -197,17 +197,17 @@ N4 有个需要当心的冲突：Codex 建议"换源时 stop 旧识别"，但 `M
 
 | 编号 | 内容 | 提交 | 核对 |
 |---|---|---|---|
-| 终审 7a | B 模式唤醒后 5 秒内换源，恢复超时回调 reset 新源首帧闸门 | A08 | [已核] `_beginResume` 的超时回调 `if (_resumeGateArmed) _frameGate.reset()`（`engine.dart:1798-1802`）；`_armAttempt` 不清 `_resumeGateArmed`（`:946-955`）；`arm()` 先 `reset()`（`render/first_frame.dart:85-90`） |
-| 终审 7b | 回直播边缘后 `if(!state.playing) await _kernel.play()` 不复查意图 | A07（keepAlive 路径）、A10（非 keepAlive 的 `backToLiveEdge`） | [已核] `engine.dart:1774-1776`；`_reopenLiveSource` 也被非 keepAlive 的 `backToLiveEdge` 调用（`engine.dart:2581,2585` [已核]），不能只按 keepAlive 改 |
+| 终审 7a | B 模式唤醒后 5 秒内换源，恢复超时回调 reset 新源首帧闸门 | A08 | [已核] `_beginResume` 的超时回调 `if (_resumeGateArmed) _frameGate.reset()`（`mova.dart:1798-1802`）；`_armAttempt` 不清 `_resumeGateArmed`（`:946-955`）；`arm()` 先 `reset()`（`render/first_frame.dart:85-90`） |
+| 终审 7b | 回直播边缘后 `if(!state.playing) await _kernel.play()` 不复查意图 | A07（keepAlive 路径）、A10（非 keepAlive 的 `backToLiveEdge`） | [已核] `mova.dart:1774-1776`；`_reopenLiveSource` 也被非 keepAlive 的 `backToLiveEdge` 调用（`mova.dart:2581,2585` [已核]），不能只按 keepAlive 改 |
 | 终审 7c | 被拒的 open 推进 `_openGen`，作废在途 play/seek | A06 | [已核] `:1262` 在 hook 之前 `++_openGen`；`:1864-1867`、`:1931-1936` 比较 `_openGen` |
 | 终审 7d | `_playContent` 先置 content 再 await，广告残留进度被当正片位置，误触发中插 | A04 | [已核] `ads.dart:1050` 先写 phase，`:1055` 才 await；`:1307-1330` content 相用 `p.position` 判中插 |
 | 终审 7e | contentError 契约随"正片 open 失败也汇入"同步改文档与 CHANGELOG | A05（代码+dartdoc+CHANGELOG）、C17（README） | |
 | 终审 1 | 不做泛化队列；`_leaveKeepAlive` 的网络重开挪出队列 | A07 | [已核] `:1771-1784` 两处 await 网络在队列内 |
-| 终审 2 | 不给公开 `MovaCutover` 加 `commit(expect:)`；用操作代际 | A01、A02、A03 | [已核] SPEC.md:246-249 |
+| 终审 2 | 不给公开 `IMovaCutover` 加 `commit(expect:)`；用操作代际 | A01、A02、A03 | [已核] SPEC.md:246-249 |
 | 终审 3 | LoadSpec = 记录并重放 + 显式理由；ABR hold 改带尝试号的租约 | A09、A10、A11 | |
 | 终审 4 | resume 与初始 arm 共用一个闸门，迁移不能原样搬 | A08 | 同 7a |
 | 终审 5 | 广告时钟默认运行、只在 playing true→false 时暂停；意图在 `old.pause()` 前取；和 P1-14 一起定 | A18、A20、A21 | [已核] `MovaState.playbackIntent` 默认 **false**（`state/state.dart:235`），所以 A19 先修替身 |
-| 终审 6 | ads 侧 33 处用 FakeCutoverCtl，commit 只回固定布尔，P0-2 看不见 | S01、A02、A03 | [已核] `test/core/ads_test.dart` 33 处；`fake_api.dart:652-655` |
+| 终审 6 | ads 侧 33 处用 FakeCutover，commit 只回固定布尔，P0-2 看不见 | S01、A02、A03 | [已核] `test/core/ads_test.dart` 33 处；`fake_api.dart:652-655` |
 | 终审 8 | 动 seek/闸门/ABR/keepAlive 必须配真机，先补基线、统一 F3 口径 | CP0、CP1 | |
 | 终审 9 | 成本含设备时间 | 第 7 节 | |
 
@@ -215,7 +215,7 @@ N4 有个需要当心的冲突：Codex 建议"换源时 stop 旧识别"，但 `M
 
 | # | 异议 | 本计划的处理 |
 |---|---|---|
-| 1 | P1-23 不应改成注册表 | 采纳：C01 只修 README 与构造说明，`createMovaEngine` 仍是标准构造 |
+| 1 | P1-23 不应改成注册表 | 采纳：C01 只修 README 与构造说明，`createMova` 仍是标准构造 |
 | 2 | P1-9"构造即开启"改变关闭态契约 | 采纳：保留开关；Mini 两个入口一致遵守 enabled；`MovaAds(api, cutover:)` 旧语义逐字不变，只有新的 `MovaSession` 自动识别 |
 | 3 | 模型下载"必定超时"措辞错 | 采纳：写"低速下易失败、无流式与续传"；修复随 STT 外迁暂缓 |
 | 4 | P2-32 措辞不完整 | 采纳：C11 的断言与文档用新措辞 |
@@ -240,7 +240,7 @@ N4 有个需要当心的冲突：Codex 建议"换源时 stop 旧识别"，但 `M
 
 | 项 | 去处 |
 |---|---|
-| `createMovaEngine` vs `MovaEngine()` | C01（不做注册表） |
+| `createMova` vs `Mova()` | C01（不做注册表） |
 | 命令式用法清晰度列表 | A12 |
 | auto 档 ABR | A16（默认关） |
 | 错误黑名单 | A13、A14b |
@@ -262,30 +262,30 @@ N4 有个需要当心的冲突：Codex 建议"换源时 stop 旧识别"，但 `M
 |---|---|---|
 | P1-9 `playlist.enabled` 只挡 NextUp；Mini `show()` 要遵守 `enabled` | A25（playlist）、C02（Mini） | 会话路径 `enabled=false` 时 next/previous/自动连播 no-op；旧直连路径行为不变（逐字） |
 | P2-11 feed 预取只拉 64KB、HLS 只拿 m3u8、force close 断连接复用 | **暂缓**（1.4）+ C17 写限制 | 预取深度要新配置项与宿主取舍；B12 只修过期检查与错误隔离 |
-| P2-24 `stallPolicy` 实例被多引擎共用 | C13 | `policyFactory` 每引擎各取一个实例 |
-| P2-33 过期 dartdoc（`api.dart:368-371`、`stt_config.dart:36,45`） | C17 | 同 1.3 P2-33 行 |
+| P2-24 `stallPolicy` 实例被多播放器共用 | C13 | `policyFactory` 每播放器各取一个实例 |
+| P2-33 过期 dartdoc（`api.dart:368-371`、`stt_opts.dart:36,45`） | C17 | 同 1.3 P2-33 行 |
 | audioOnly 时也应关闭 STT（不止预览） | B10 | B08 只管预览；B10 本就改 `stt/service.dart` |
 | P1-21 过期 tree-shaking 注释、抽帧器默认 | C12（注释）、C11（抽帧器默认文档） | `connectivity_plus` 已是硬依赖，注释已不成立 |
-| README 首例 `engine.open()` 未 await 未 catch | C01 | README:106 [已核]；首例补 `await` 与 `catch` |
-| Codex 异议 2：mini/cutover/STT-无引擎 的“可观测禁用状态”（目前只 Mini 的 `showInPage` 查 enabled） | C02 | 补 cutover 关闭、STT 无引擎的 debug 一次性提示；只读 getter 命名 [待核] |
+| README 首例 `mova.open()` 未 await 未 catch | C01 | README:106 [已核]；首例补 `await` 与 `catch` |
+| Codex 异议 2：mini/cutover/STT-无播放器的“可观测禁用状态”（目前只 Mini 的 `showInPage` 查 enabled） | C02 | 补 cutover 关闭、STT 无播放器的 debug 一次性提示；只读 getter 命名 [待核] |
 | P1-22 模型下载非原子写盘 + 10s 超时（C09 只撤导出，缺陷还在） | **暂缓**（1.4） | 随 STT 迁往 mova_stt；C09 在 STT 入口 dartdoc 与 README 写明已知限制 |
 | P1-3 auto 档 ABR 默认仍关 | 说明默认值策略 | 见 1.3 P1-3 行与待拍板 11 |
-| P2-25 的 B05 文件清单漏 `engine.open` 调用点 | B05 | 已补进 3.2 B05 行 |
+| P2-25 的 B05 文件清单漏 `mova.open` 调用点 | B05 | 已补进 3.2 B05 行 |
 | 7a/7b 的 `_reopenLiveSource` 也被非 keepAlive 的 `backToLiveEdge` 使用 | A07（keepAlive）+ A10（非 keepAlive） | 见 1.3 终审 7b 行 |
 
 ### 1.4 不做 / 暂缓
 
 | 项 | 结论 | 理由与触发条件 |
 |---|---|---|
-| `MovaEngine` 全拆七个子控制器 | 暂缓 | 无 bug 驱动；seek/首帧/ABR 每次改动都要 280 次真机。触发：跑批脚本自动化稳定（CP0 修好后连续两次全量无 HARNESS 问题）且有新需求要改这些模块 |
+| `Mova` 全拆七个子控制器 | 暂缓 | 无 bug 驱动；seek/首帧/ABR 每次改动都要 280 次真机。触发：跑批脚本自动化稳定（CP0 修好后连续两次全量无 HARNESS 问题）且有新需求要改这些模块 |
 | 泛化命令队列 + 内部 Signal | 不做 | 终审 1、Codex 异议 6；长操作排队会让 pause/换源被网络卡住 |
-| 公开 `MovaCutover.commit(expect:)` | 不做 | 终审 2；会破坏所有 `implements MovaCutover`；SPEC.md:246-249"四个动词够用" |
+| 公开 `IMovaCutover.commit(expect:)` | 不做 | 终审 2；会破坏所有 `implements IMovaCutover`；SPEC.md:246-249"四个动词够用" |
 | 预加载下一集 | 暂缓 | 新增资源消耗，需 opt-in 设计；与中插预热抢单影子槽。触发：宿主明确需求 |
 | 默认实现注册表（P1-23 原修法） | 不做 | Codex 异议 1 |
 | 弹幕条目随内容走（P1-8 子项） | 暂缓 | 需要新的弹幕数据源 API；`MovaOpts.danmaku.items` 仍作默认值 |
 | 弹幕单 CustomPainter 重写（P1-17 子项） | 暂缓 | B06 先把"前跳必卡"修掉；painter 重写是性能优化，等真机帧耗时数据 |
 | OS 级窗口全屏端口（P1-11 子项） | 暂缓 | 桌面窗口全屏需要新平台插件代码；C05 先做应用内全屏 |
-| 池外直播引擎停流（P2-11 子项） | 暂缓 | 需要 `stop()`（释放解码不销毁）能力，属第 7 节能力缺口 |
+| 池外直播播放器停流（P2-11 子项） | 暂缓 | 需要 `stop()`（释放解码不销毁）能力，属第 7 节能力缺口 |
 | 真 ABR（带宽估计、升档、时间窗） | 暂缓 | 能力缺口，非缺陷 |
 | PiP actions/autoEnter/sourceRectHint | 暂缓 | 能力缺口；需要原生代码 |
 | 音频焦点、耳机拔出（P2-29） | 暂缓 | CP0 先确认 media_kit 自身处理情况 |
@@ -305,11 +305,11 @@ N4 有个需要当心的冲突：Codex 建议"换源时 stop 旧识别"，但 `M
 
 ```
                      ┌──────────────────────── ui/ (Flutter) ─────────────────────────┐
-                     │ MovaPlayer ─ MovaChrome(每视图一份, C04) ─ 皮肤/组件/手势          │
+                     │ MovaPlayer ─ MovaChrome(每视图一份, C04) ─ UI 套件/组件/手势          │
                      │ MovaView  MovaAutoPause(守卫)  MovaMini/MovaMiniHost             │
                      │ MovaFeedPlayer  NextUp/AdOverlay(读会话游标, A30)                 │
                      └───────┬──────────────────┬─────────────────────┬────────────────┘
-                             │只依赖 MovaApi     │读 MovaSession        │借用 MovaApi
+                             │只依赖 IMovaApi     │读 MovaSession        │借用 IMovaApi
                              ▼                  ▼                     ▼
 ┌──────────────────────────────── core/ (纯 Dart) ───────────────────────────────────────┐
 │                                                                                         │
@@ -323,26 +323,26 @@ N4 有个需要当心的冲突：Codex 建议"换源时 stop 旧识别"，但 `M
 │        ▲                       ▲                                                        │
 │  MovaAds（转发壳）      MovaPlaylist(api, ads:)（共享会话）/ MovaPlaylist(api)（旧直连）  │
 │        │                                                                                │
-│        └──借用──▶ MovaApi ◀── `is MovaCutover` 时用四个动词（prepare/commit/abandon/cutoverTo）
+│        └──借用──▶ IMovaApi ◀── `is IMovaCutover` 时用四个动词（prepare/commit/abandon/cutoverTo）
 │                     │                                                                    │
-│        MovaCutoverEngine（代理；操作代际 + _WarmSlot，A01/A02）                           │
-│                     │ 拥有：1 个生效引擎 + ≤1 个影子                                       │
+│        MovaCutover（代理；操作代际 + _WarmSlot，A01/A02）                           │
+│                     │ 拥有：1 个生效播放器 + ≤1 个影子                                       │
 │                     ▼                                                                    │
-│        MovaEngine（_LoadSpec、ABR 租约、独立恢复闸门；attempt/seek/recovery/keepAlive）    │
+│        Mova（_LoadSpec、ABR 租约、独立恢复闸门；attempt/seek/recovery/keepAlive）    │
 │                     │ 拥有                                                               │
 │                     ▼                                                                    │
-│        MovaKernel（mpv_kernel.dart 是唯一允许 import media_kit 的 core 文件）             │
+│        IMovaKernel（mpv_kernel.dart 是唯一允许 import media_kit 的 core 文件）             │
 │                                                                                         │
-│  core/feed/  MovaFeed + 引擎池：不进 cutover、不进会话、不调用 commit；只复用错误分类函数    │
+│  core/feed/  MovaFeed + 播放器池：不进 cutover、不进会话、不调用 commit；只复用错误分类函数    │
 └─────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ### 2.2 依赖方向与 core 纯净性
 
-- `core/session/` 只 import `core/api.dart`、`core/cutover/ctl.dart`、`core/cutover/plan.dart`、`core/model/*`、`core/options/*`、`core/events/*`；**不 import** `engine.dart`、`cutover_engine.dart`、任何 `ui/`。`purity_test` 现有规则（core 不 import Flutter，media_kit 例外只有 `kernel/mpv_kernel.dart`）自动覆盖新目录。
+- `core/session/` 只 import `core/api.dart`、`core/cutover/api.dart`、`core/cutover/plan.dart`、`core/model/*`、`core/options/*`、`core/events/*`；**不 import** `mova.dart`、`cutover.dart`、任何 `ui/`。`purity_test` 现有规则（core 不 import Flutter，media_kit 例外只有 `kernel/mpv_kernel.dart`）自动覆盖新目录。
 - `MovaAds`、`MovaPlaylist` → `MovaSession`；`MovaSession` 不反向依赖它们。
 - `ui/` → `MovaSession`（只读游标与事件）；`MovaSession` 不知道 UI 存在。
-- `MovaMini` 只借用 `MovaApi`，与会话互不依赖；SPEC.md:384-386 定的"`MovaMiniMount` 不进 core"保持。
+- `MovaMini` 只借用 `IMovaApi`，与会话互不依赖；SPEC.md:384-386 定的"`MovaMiniMount` 不进 core"保持。
 - feed 按 SPEC.md:237-239 不进 cutover；也不进会话。feed 复用的是 A13 的**错误分类函数**（`core/model/playback_error.dart`，判终结与否），**不是** `core/session/arbiter.dart` 的仲裁函数（节点失败裁决，只给会话用）；feed 不接入 `commit`，所以没有影子与操作代际。
 
 ### 2.3 新类型与接口签名
@@ -384,7 +384,7 @@ class MovaCursor {
 
 // core/session/ad_clock.dart
 class MovaAdClock {
-  MovaAdClock({DateTime Function()? now});    // 注入时钟：DateTime.now 不跟 fakeAsync（同 engine.debugClock）
+  MovaAdClock({DateTime Function()? now});    // 注入时钟：DateTime.now 不跟 fakeAsync（同 player.debugClock）
   void start(Duration length, void Function() onExpire);
   void pause();                               // 观测到 playing true→false 时调用
   void resume();                              // false→true
@@ -397,8 +397,8 @@ class MovaAdClock {
 enum MovaLoadOutcome { accepted, rejected, superseded, disposed }
 
 class MovaSession {
-  /// [api] 借用，不 dispose；[ads] 默认取 api.options.ads；api is MovaCutover 时自动启用无缝切换
-  MovaSession(MovaApi api, {MovaAdConfig? ads, List<MovaPlaylistItem> items = const [],
+  /// [api] 借用，不 dispose；[ads] 默认取 api.options.ads；api is IMovaCutover 时自动启用无缝切换
+  MovaSession(IMovaApi api, {MovaAdOpts? ads, List<MovaPlaylistItem> items = const [],
       int initialIndex = 0, bool autoAdvance = false});
 
   Future<MovaLoadOutcome> load(MovaSource content, {List<MovaAdBreak>? breaks});
@@ -431,7 +431,7 @@ enum MovaNodeEndReason { completed, skipped, failed, superseded }
 
 // core/session/arbiter.dart —— 纯函数
 enum MovaNodeFailVerdict { retryNode, skipNode, abandonPod, failItem, ignore }
-MovaNodeFailVerdict movaArbitrate(MovaNodeFailure f, {required MovaAdConfig ads, required bool engineRecovering});
+MovaNodeFailVerdict movaArbitrate(MovaNodeFailure f, {required MovaAdOpts ads, required bool movaRecovering});
 
 // core/model/playlist.dart —— 加可选字段，不破坏
 class MovaPlaylistItem { ...; final List<MovaAdBreak>? adBreaks; }   // null = 用 api.options.ads.breaks
@@ -444,7 +444,7 @@ class MovaPlaybackError {
 // MovaGiveUpError 改为 MovaPlaybackError 的子类（fatal=true），类名不变
 // MovaErrorEvent 加只读 getter `bool get fatal`（非终结错误照发事件，保持兼容，但不写 state.error）
 
-// core/engine/load_spec.dart（不导出，A09）
+// core/mova/load_spec.dart（不导出，A09）
 enum LoadReason { open, retry, failover, quality, timeshift, liveEdge }
 @immutable
 class LoadSpec { final int sourceIndex; final String uri; final MovaQuality? quality;
@@ -454,14 +454,14 @@ class LoadSpec { final int sourceIndex; final String uri; final MovaQuality? qua
 公开接口的小幅增量（都不破坏现有调用）：
 - `MovaAds.load`/`loadDeferred` 返回类型 `Future<void>` → `Future<bool>`（A25）。`Future<bool>` 是 `Future<void>` 的子类型，现有 `await`、丢弃返回值、tear-off 都照常编译；只有继承 `MovaAds` 并覆写 `load` 的子类会受影响（极少，CHANGELOG 写明）。
 - `MovaPlaylist(api, {MovaAds? ads})`（A25）。
-- `MovaAbrConfig.probeVariants`（默认 true，A12）、`MovaAbrConfig.manageAuto`（默认 false，A16）。
-- `MovaAdConfig.midRollSnapback`（默认 `MovaAdSnapback.all` = 现状，A29）。
+- `MovaAbrOpts.probeVariants`（默认 true，A12）、`MovaAbrOpts.manageAuto`（默认 false，A16）。
+- `MovaAdOpts.midRollSnapback`（默认 `MovaAdSnapback.all` = 现状，A29）。
 - `MovaCutoverChange.reason`（可选，A28）。
 - `MovaSource.headers/userAgent/start`（C07）。
 - `MovaAds.session`（只读 getter，A23 公开）：A25 的 `MovaPlaylist(api, ads:)` 要从传入的 `MovaAds` 取共享会话，没有这个访问口就只能让 `MovaPlaylist` 反向依赖 `MovaAds` 内部。A22 搬迁期内部可见、不导出。
-- B04 新增两个公开类型：`MovaOrientationConfig`（宿主声明一次允许方向）、可选端口能力 `MovaBrightRestore`；亮度还原带 opt-out 开关（命名落地时定 [待核]）。
-- C07 的 `MovaHttpFetch` 请求头：给 `get(Uri)` 直接加 `headers` 是**对宿主实现的破坏性变更**（`implements MovaHttpFetch` 的自写 fetcher 覆写签名不匹配），见待拍板 17；推荐用可选能力接口 `MovaHeaderedHttpFetch` 旁路，原签名不动。
-- 进度快照用新的可选能力接口 `MovaProgressSource { MovaProg get progressValue; }`（B02），**不**往 `MovaApi` 抽象类里加成员（那会破坏 `implements MovaApi` 的宿主）。
+- B04 新增两个公开类型：`MovaOrientOpts`（宿主声明一次允许方向）、可选端口能力 `IMovaBrightnessRestore`；亮度还原带 opt-out 开关（命名落地时定 [待核]）。
+- C07 的 `IMovaHttpFetch` 请求头：给 `get(Uri)` 直接加 `headers` 是**对宿主实现的破坏性变更**（`implements IMovaHttpFetch` 的自写 fetcher 覆写签名不匹配），见待拍板 17；推荐用可选能力接口 `IMovaHeaderedHttpFetch` 旁路，原签名不动。
+- 进度快照用新的可选能力接口 `IMovaProgressSource { MovaProg get progressValue; }`（B02），**不**往 `IMovaApi` 抽象类里加成员（那会破坏 `implements IMovaApi` 的宿主）。
 
 ### 2.4 现有字段如何迁移
 
@@ -476,11 +476,11 @@ class LoadSpec { final int sourceIndex; final String uri; final MovaQuality? qua
 | `_breaks`、`_cfg`、`_onAdEvent`、`_enabled`（:144-147，构造快照） | 会话：`_cfg` 仍构造快照；`breaks` 按条目取（条目 `adBreaks ?? cfg.breaks`） | A23 |
 | `_resuming`、`_landingAd`、`_sttWasRunning`、`_contentRate`（:259、:266、:241、:229） | 原样搬进会话 | A22 |
 | `MovaPlaylist._index`、`_jumpGen`（playlist.dart） | 有 `ads:` 时由会话游标承担；旧构造不变 | A25 |
-| `MovaCutoverEngine._shadow/_warmSource/_warmAt/_warmPlan/_policy/_warmClock/_holding/_heldAtTarget/_warmLive/_shadowBuffering/_readyCompleter/_readyTimer/三个影子订阅`（cutover_engine.dart:96-170） | 收进一个 `_WarmSlot` 对象 | A01（机械） |
-| `MovaEngine` 内各加载路径的局部 uri（`switchQuality` 的 `playUri` :2438、时移 builder 结果 :2197-2199） | `LoadSpec? _currentLoad` | A09 记录、A10 重放 |
-| `_abrHold`、`_abrHoldTimer`（engine.dart:553-563） | `_AbrLease{attemptId}` | A11 |
+| `MovaCutover._shadow/_warmSource/_warmAt/_warmPlan/_policy/_warmClock/_holding/_heldAtTarget/_warmLive/_shadowBuffering/_readyCompleter/_readyTimer/三个影子订阅`（cutover.dart:96-170） | 收进一个 `_WarmSlot` 对象 | A01（机械） |
+| `Mova` 内各加载路径的局部 uri（`switchQuality` 的 `playUri` :2438、时移 builder 结果 :2197-2199） | `LoadSpec? _currentLoad` | A09 记录、A10 重放 |
+| `_abrHold`、`_abrHoldTimer`（mova.dart:553-563） | `_AbrLease{attemptId}` | A11 |
 | `_resumeGateArmed` + 共享 `_frameGate`（:197、:429） | 独立 `_resumeGate` 实例 | A08 |
-| `MovaApi.showControls/hideControls/showHud/setDragging/uiStates`（api.dart:302-345） | `MovaChrome`，旧成员以 dartdoc + CHANGELOG 公告桥接一个版本（不加成员级注解） | C04 |
+| `IMovaApi.showControls/hideControls/showHud/setDragging/uiStates`（api.dart:302-345） | `MovaChrome`，旧成员以 dartdoc + CHANGELOG 公告桥接一个版本（不加成员级注解） | C04 |
 | `MovaOpts.theme/strings/gesture/controls/danmaku`（options.dart:62-102） | `MovaPlayerStyle`，旧字段 `@Deprecated` 兜底 | C06 |
 
 ### 2.5 命令三分法（落到具体命令）
@@ -490,16 +490,16 @@ class LoadSpec { final int sourceIndex; final String uri; final MovaQuality? qua
 | 所有者 | 短迁移（同步） | 长操作（带令牌） | 抢占（同步前缀） |
 |---|---|---|---|
 | MovaSession | 进度 tick 判中插、广告位置更新；Done/首帧/错误到达后的"下一节点"决策；pod 簿记（`_played`）；广告时钟 pause/resume；游标写入；仲裁裁决 | `api.open`、`prepare`、`commit(waitForReady)`、`cutoverTo`（若仍用）、resolver、STT start/stop；令牌 = `epoch` | `load`/`loadDeferred`/`jumpTo`/`next`/`previous`（`epoch++`、取消计时器、`unawaited(abandon())`，都在第一个 await 之前）、`skip`（相位与可跳过判定同步）、`dispose` |
-| MovaCutoverEngine | 影子认领（`commit` 里的 claim）、换指（`_active =`、`_epoch++`、重挂转发）、相位迁移 | `prepare` 的影子 open/seek（令牌 = 槽对象身份）、`_commitNow`（令牌 = 操作代际 `_op`）、`cutoverTo` | `open`/`reload`（`_op++` + 同步 abandon）、`abandon`（同步清槽并唤醒等待者，已是这样：cutover_engine.dart:799-836）、`dispose`、`pause`（直通） |
-| MovaEngine | open 接受后的会话/尝试推进与重置表；失败认领（`_failedAttemptId`）；seek 寄存/替换；首帧落地后的 rendered/续播决策；keepAlive 相位迁移（本地队列内，只做同步段） | beforeOpen/beforePlay/beforeSeek 钩子（令牌 = 已接受会话 + `_pauseSeq`，A06）；`_loadKernel`（会话 + 尝试）；`loadQualities`（会话 + 清晰度修订号，A12）；keepAlive 回边缘/重开（**挪出队列**，令牌 = 尝试号 + 最新意图，A07）；recovery 重载 | `pause`（同步写意图、`_pauseSeq++`、立即下发，已是这样：engine.dart:1905-1921）、`dispose`（同步置标志与取消计时器；B15 把 `_hudTimer/_autoHideTimer` 挪进同步前缀） |
+| MovaCutover | 影子认领（`commit` 里的 claim）、换指（`_active =`、`_epoch++`、重挂转发）、相位迁移 | `prepare` 的影子 open/seek（令牌 = 槽对象身份）、`_commitNow`（令牌 = 操作代际 `_op`）、`cutoverTo` | `open`/`reload`（`_op++` + 同步 abandon）、`abandon`（同步清槽并唤醒等待者，已是这样：cutover.dart:799-836）、`dispose`、`pause`（直通） |
+| Mova | open 接受后的会话/尝试推进与重置表；失败认领（`_failedAttemptId`）；seek 寄存/替换；首帧落地后的 rendered/续播决策；keepAlive 相位迁移（本地队列内，只做同步段） | beforeOpen/beforePlay/beforeSeek 钩子（令牌 = 已接受会话 + `_pauseSeq`，A06）；`_loadKernel`（会话 + 尝试）；`loadQualities`（会话 + 清晰度修订号，A12）；keepAlive 回边缘/重开（**挪出队列**，令牌 = 尝试号 + 最新意图，A07）；recovery 重载 | `pause`（同步写意图、`_pauseSeq++`、立即下发，已是这样：mova.dart:1905-1921）、`dispose`（同步置标志与取消计时器；B15 把 `_hudTimer/_autoHideTimer` 挪进同步前缀） |
 
-不跨引擎加锁；同一个原生 player 的效果顺序仍由内核自己的串行器保证（`mpv_kernel.dart` 的属性队列不动）。
+不跨播放器加锁；同一个原生 player 的效果顺序仍由内核自己的串行器保证（`mpv_kernel.dart` 的属性队列不动）。
 
 ### 2.6 必须保住的隐含语义
 
 | # | 语义 | 出处 [已核] | 守护 |
 |---|---|---|---|
-| 1 | `open()` 返回 true 只表示"被接受为当前源"，不是首帧、不是加载成功；recovery 接管的失败仍返回 true | engine.dart:1331-1341 | `playlist_test.dart`；A25 新增"接受≠首帧"用例 |
+| 1 | `open()` 返回 true 只表示"被接受为当前源"，不是首帧、不是加载成功；recovery 接管的失败仍返回 true | mova.dart:1331-1341 | `playlist_test.dart`；A25 新增"接受≠首帧"用例 |
 | 2 | 播放列表下标只在 accepted 且未被更晚的跳转取代时前进 | playlist.dart:144-164 | 现有 playlist_test；A25 在会话路径上复刻 |
 | 3 | `loadDeferred`：解析器直到正片要打开或预热时才调；同一次加载只调一次、在途共享；旧会话结果丢弃 | ads.dart:484-517 | `ads_session_test.dart`（4 条）；A23 扩展到按集 |
 | 4 | STT：`attach` 不停识别；pod 第一条广告采样 `isRunning` 并停 STT，回正片只恢复本来开着的 | stt/service.dart:121-125；ads.dart:787-790、1080-1083 | ads_test STT 分组；B10 不动 `_started` |
@@ -511,21 +511,21 @@ class LoadSpec { final int sourceIndex; final String uri; final MovaQuality? qua
 | 10 | 重试会再次发 `started` | ads.dart:993-1001 | ads_test |
 | 11 | `_resuming` 防 slot 到期、Done、skip 三路同时续播 | ads.dart:1150-1207 | ads_test；A18 时钟到期仍走同一入口 |
 | 12 | 广告 delay/duration 不依赖媒体时间轴，一律 Timer | SPEC.md:290-296 | A18 时钟仍是 Timer + 剩余时长，不读 duration、不 seek |
-| 13 | 是否等待就绪只在 `MovaAdConfig.waitsFor()` 一处决定，会话里不许对 kind 分支 | SPEC.md:270-288；ads.dart:634-637 | `openness_ad_test.dart`；A27 的 plan 推导不得引入 kind 判断（"后贴片不预热正片"是预热方向判断，不是等待判断，A03 写在 `_warmContentBehindAd` 里并注明） |
-| 14 | 影子预热失败不冒成在屏错误 | cutover_engine.dart:523-533 | cutover 测试；A15 只认 fatal 后仍保持 |
-| 15 | 广告方向预热停在第 0 帧（含零目标回绕）；正片方向 `pauseWhenReady` 防漂移 | cutover_engine.dart:172-194；ads.dart:1351-1362 | cutover_engine_test、ads_test |
-| 16 | cutover 外层身份、四条流不随换指重建；`renderEpoch` 递增；旧引擎先 markRetired 再异步 dispose，不复位方向 | cutover_engine.dart:706-728 | cutover_engine_test；A02 的事务化不改这段顺序 |
-| 17 | 预热静音只碰 mpv `mute`，不碰系统音量 | cutover_engine.dart:768-791（Q13） | cutover_warm_mute_test |
+| 13 | 是否等待就绪只在 `MovaAdOpts.waitsFor()` 一处决定，会话里不许对 kind 分支 | SPEC.md:270-288；ads.dart:634-637 | `openness_ad_test.dart`；A27 的 plan 推导不得引入 kind 判断（"后贴片不预热正片"是预热方向判断，不是等待判断，A03 写在 `_warmContentBehindAd` 里并注明） |
+| 14 | 影子预热失败不冒成在屏错误 | cutover.dart:523-533 | cutover 测试；A15 只认 fatal 后仍保持 |
+| 15 | 广告方向预热停在第 0 帧（含零目标回绕）；正片方向 `pauseWhenReady` 防漂移 | cutover.dart:172-194；ads.dart:1351-1362 | cutover_test、ads_test |
+| 16 | cutover 外层身份、四条流不随换指重建；`renderEpoch` 递增；旧播放器先 markRetired 再异步 dispose，不复位方向 | cutover.dart:706-728 | cutover_test；A02 的事务化不改这段顺序 |
+| 17 | 预热静音只碰 mpv `mute`，不碰系统音量 | cutover.dart:768-791（Q13） | cutover_warm_mute_test |
 | 18 | 广告 1x；回正片恢复用户倍速；`_resuming` 期间不让广告倍速覆盖正片倍速 | ads.dart:873-884、1068-1076、1309-1314 | ads_test 倍速分组；A27 给广告方向 plan 固定 1.0 |
-| 19 | 内部重试、换档不开新 QoE 会话；每次 `open` 只发一次 SourceChange+Ready | engine.dart:1350-1382、1482-1491 | engine_recovery_test、report 测试；A10 的 reason 表显式写出 |
-| 20 | 换档不清列表、不发 SourceChange；回边缘不归零时长；公开 `reload()` 等于新的 `open` | engine.dart:2442-2457、2591-2620、2547-2554 | A09/A10 的 reason 表 + 回归 |
-| 21 | open 后的 seek 一律寄存；续播校验最多 3 次、500ms 容差；4s 寄存兜底；10s ABR 屏蔽上限 | engine.dart:1290-1301、2115-2159、230、563 | engine_seek_drop_test、first_frame_engine_test；A10/A11 不改这些常量 |
-| 22 | 内部换档不再发 FirstFrame | engine.dart:1055 | first_frame_engine_test |
-| 23 | keepAlive：mute/vid 保存后原样还原；pause 先停后还原；请求存在时换源以暂停态加载 | engine.dart:1683-1708 | keep_alive 测试；A07/A08 不动这三段 |
-| 24 | dispose 幂等；dispose 后所有公开动词静默 no-op | engine.dart:2819；CHANGELOG Unreleased | engine_dispose_race_test、engine_verbs_test |
+| 19 | 内部重试、换档不开新 QoE 会话；每次 `open` 只发一次 SourceChange+Ready | mova.dart:1350-1382、1482-1491 | mova_recovery_test、report 测试；A10 的 reason 表显式写出 |
+| 20 | 换档不清列表、不发 SourceChange；回边缘不归零时长；公开 `reload()` 等于新的 `open` | mova.dart:2442-2457、2591-2620、2547-2554 | A09/A10 的 reason 表 + 回归 |
+| 21 | open 后的 seek 一律寄存；续播校验最多 3 次、500ms 容差；4s 寄存兜底；10s ABR 屏蔽上限 | mova.dart:1290-1301、2115-2159、230、563 | mova_seek_drop_test、first_frame_mova_test；A10/A11 不改这些常量 |
+| 22 | 内部换档不再发 FirstFrame | mova.dart:1055 | first_frame_mova_test |
+| 23 | keepAlive：mute/vid 保存后原样还原；pause 先停后还原；请求存在时换源以暂停态加载 | mova.dart:1683-1708 | keep_alive 测试；A07/A08 不动这三段 |
+| 24 | dispose 幂等；dispose 后所有公开动词静默 no-op | mova.dart:2819；CHANGELOG Unreleased | mova_dispose_race_test、mova_verbs_test |
 | 25 | `playAdNow` 只在 content 相生效，同时只排一条 | ads.dart:541-562 | ads_test |
-| 26 | open/cutoverTo 等待期间旧引擎的残留 tick 不能把新广告判成已出首帧 | ads.dart:851-872 | `ad_stale_first_frame_test.dart` |
-| 27 | feed 双画面并存、不进 cutover | SPEC.md:237-239 | engine_pool_test；本计划不动这条 |
+| 26 | open/cutoverTo 等待期间旧播放器的残留 tick 不能把新广告判成已出首帧 | ads.dart:851-872 | `ad_stale_first_frame_test.dart` |
+| 27 | feed 双画面并存、不进 cutover | SPEC.md:237-239 | feed_pool_test；本计划不动这条 |
 
 ---
 
@@ -553,7 +553,7 @@ class LoadSpec { final int sourceIndex; final String uri; final MovaQuality? qua
 | S01 | `test(mova): 交错时序测试脚手架` | 测试 | `test/support/fake_api.dart`、新增 `test/support/gated.dart` | 250–400（测试代码） | — | 只加能力，不改现有断言；+5 条脚手架自测 | 全量绿，现有 1752 条不改 |
 | A19 | `test(mova): FakeMovaApi 按真实契约维护 playbackIntent`（原在 A2 块，前移到 S01 之后、CP0 之前；lib 未改） | 测试 | `test/support/fake_api.dart` | 30–60（测试代码） | S01 | 改写受影响断言，逐条列出 | open→意图=autoPlay，play→true，pause→false；不推 playing（保持终审 5 的前提）。注意：A20 要改写的 cutover 断言**不靠**这个替身（见 A20 行） |
 
-S01 的内容见第 5.2 节（门控 open/play/pause/seek、可选推 playing、按源记录的 FakeCutoverCtl、可数 dispose 的引擎工厂）。
+S01 的内容见第 5.2 节（门控 open/play/pause/seek、可选推 playing、按源记录的 FakeCutover、可数 dispose 的播放器工厂）。
 
 → **CP0：补真机基线**（第 4 节）
 
@@ -561,22 +561,22 @@ S01 的内容见第 5.2 节（门控 open/play/pause/seek、可选推 playing、
 
 | # | 提交 | 类型 | 主要文件 | 规模 | 依赖 | 测试 | 完成判据 |
 |---|---|---|---|---|---|---|---|
-| B01 | `fix(mova): 默认皮肤的缓冲与错误提示不再随控制条隐藏` | 行为 | `ui/skins/default_skin.dart`、`ui/components/overlays.dart` | 80–150 | — | +4：隐藏控制条后缓冲可见；锁定时错误层可点；pip/mini 时仍隐藏；自定义皮肤不受影响 | 不新增 `MovaSlot` 枚举值（宿主的穷举 switch 会坏）；改为 `MovaDefaultSkin.statusLayerNames`（默认 `{buffering, error}`）把这两个 center 组件挪到 `_BarVisibility`/`_HideWhen(locked)` 之外的状态层 |
-| B02 | `feat(mova): 进度同步快照与订阅即重放` | 新增 | `core/state/progress.dart`（`MovaProgressSource`）、`engine.dart`、`cutover_engine.dart`、`ui/scope/selector.dart`、`bottom_bar.dart`、`gesture_layer.dart`、`testing/` | 150–250 | — | +6：暂停态重挂载显示当前位置；双击从当前位置算；cutover 换指后快照跟随新引擎 | `MovaApi` 抽象零改动 |
+| B01 | `fix(mova): 默认 UI 套件的缓冲与错误提示不再随控制条隐藏` | 行为 | `ui/ui_kits/default_ui_kit.dart`、`ui/components/overlays.dart` | 80–150 | — | +4：隐藏控制条后缓冲可见；锁定时错误层可点；pip/mini 时仍隐藏；自定义 UI 套件不受影响 | 不新增 `MovaSlot` 枚举值（宿主的穷举 switch 会坏）；改为 `MovaDefaultUiKit.statusLayerNames`（默认 `{buffering, error}`）把这两个 center 组件挪到 `_BarVisibility`/`_HideWhen(locked)` 之外的状态层 |
+| B02 | `feat(mova): 进度同步快照与订阅即重放` | 新增 | `core/state/progress.dart`（`IMovaProgressSource`）、`mova.dart`、`cutover.dart`、`ui/scope/selector.dart`、`bottom_bar.dart`、`gesture_layer.dart`、`testing/` | 150–250 | — | +6：暂停态重挂载显示当前位置；双击从当前位置算；cutover 换指后快照跟随新播放器 | `IMovaApi` 抽象零改动 |
 | B03 | `fix(mova): 底栏按组件名取子节点` | 行为 | `ui/slots/tree.dart`、`ui/components/bottom_bar.dart` | 80–150 | — | +6：remove/insertAfter 每个子节点各一条；直播布局不越界 | |
-| B04 | `fix(mova): 亮度播种与离场还原，退出全屏还原宿主方向与系统栏` | 行为 | `engine.dart`（构造、`setFullscreen`、`dispose`）、`core/platform/ports.dart`（可选能力 `MovaBrightRestore`，新公开类型）、`platform_impl/brightness_impl.dart`、`orientation_impl.dart`、`MovaOrientationConfig`（新公开类型，宿主声明一次允许方向）、亮度还原 opt-out 开关 | 250–400 | — | +8 | 未声明时保持现行为（全方向），声明后还原到声明值 |
-| B05 | `fix(mova): QoE 心跳先结算、恢复后清终结标记、上报重试与切换、异步采样绑定会话` | 行为 | `core/report/collector.dart`、`translator.dart`、`engine.dart`（`open` 调用点：sessionStart 采样时机，P2-25） | 150–250 | — | +10：恒速播放心跳 watchedMs 递增；404→备选救回→sessionEnd 非 failed；A 的迟到 sample 不写 B 的基线、不发 A 的心跳；seek 缓冲不计 rebuffer；sessionStart 在内核加载后采样 | [已核] 心跳直接读 `_tally`（collector.dart:208-215），sample 后只查 `_sessionOpen`（:219）；`_lastVideoBps` 无代际（:460-463） |
+| B04 | `fix(mova): 亮度播种与离场还原，退出全屏还原宿主方向与系统栏` | 行为 | `mova.dart`（构造、`setFullscreen`、`dispose`）、`core/platform/platform.dart`（可选能力 `IMovaBrightnessRestore`，新公开类型）、`platform_impl/brightness_impl.dart`、`orient_impl.dart`、`MovaOrientOpts`（新公开类型，宿主声明一次允许方向）、亮度还原 opt-out 开关 | 250–400 | — | +8 | 未声明时保持现行为（全方向），声明后还原到声明值 |
+| B05 | `fix(mova): QoE 心跳先结算、恢复后清终结标记、上报重试与切换、异步采样绑定会话` | 行为 | `core/report/collector.dart`、`translator.dart`、`mova.dart`（`open` 调用点：sessionStart 采样时机，P2-25） | 150–250 | — | +10：恒速播放心跳 watchedMs 递增；404→备选救回→sessionEnd 非 failed；A 的迟到 sample 不写 B 的基线、不发 A 的心跳；seek 缓冲不计 rebuffer；sessionStart 在内核加载后采样 | [已核] 心跳直接读 `_tally`（collector.dart:208-215），sample 后只查 `_sessionOpen`（:219）；`_lastVideoBps` 无代际（:460-463） |
 | B06 | `fix(mova): 弹幕前跳只移动游标、限制同屏数量、暂停与倍速跟随` | 行为 | `ui/components/danmaku.dart` | 150–250 | — | +6：从 30:00 续播活动弹幕数 ≤ 上限；暂停时位置不动 | [材料] 行号未复核 |
 | B07 | `fix(mova): 预览网络请求受总期限约束且可取消，抽帧未确认落地不入缓存` | 行为 | `core/preview/fetcher.dart`、`service.dart`、`platform_impl/mpv_extractor_impl.dart` | 120–200 | — | +5：404 后 body 不结束，dispose 在期限内完成且主内核被释放；`_waitFor` 超时返回 null 不缓存 | [已核] 非 200 分支 `drain()` 无超时（fetcher.dart:66-68）；dispose 先 await `_queue`（service.dart:362）；`_waitFor` 返回值被丢（mpv_extractor_impl.dart:170） |
 | B08 | `perf(mova): 预览队列最新优先、过期请求执行前丢弃，VTT 失败可重试，DVR 直播不抽帧，audioOnly 不探 VTT` | 行为 | `core/preview/service.dart`、`vtt_source.dart` | 100–180 | B07 | +6 | 含 CLAUDE.md 剩余任务④#19（队列吞异常） |
-| B09 | `perf(mova): 缩略图按字节限额并限解码尺寸，磁盘缓存异步索引，缓存目录按引擎隔离` | 行为 | `core/preview/cache.dart`、`disk_cache.dart`、`platform_impl/thumb_dir_impl.dart`、`ui/components/preview.dart` | 250–400 | B08 | +8 | cutover 换指、feed 回收不再清别人的目录 |
-| B10 | `fix(mova): 音频抽取器释放原生 Player，STT 字幕绑定会话代际，audioOnly 下不启动 STT` | 行为 | `platform_impl/mpv_audio_extractor_impl.dart`、`core/stt/service.dart` | 80–150 | — | +5（含 audioOnly 引擎不启动 STT）：抽取异常/超时后 Player 被 dispose；旧源迟到的 cue 不进 recent；`isRunning` 不因换源改变 | [已核] `_player` 从未赋值（:60、:71、:105） |
-| B11 | `fix(mova): 引擎池尊重 open 接受结果、失败撤销绑定、按 sameAs 复用` | 行为 | `core/feed/engine_pool.dart` | 80–150 | — | +6：hook 拒绝→不置 ready、不显示旧素材；首开抛错后可重试；同 URL 换 mpvOptions 重开 | [已核] :258、:271、:274、:285 |
+| B09 | `perf(mova): 缩略图按字节限额并限解码尺寸，磁盘缓存异步索引，缓存目录按播放器隔离` | 行为 | `core/preview/cache.dart`、`disk_cache.dart`、`platform_impl/thumb_dir_impl.dart`、`ui/components/preview.dart` | 250–400 | B08 | +8 | cutover 换指、feed 回收不再清别人的目录 |
+| B10 | `fix(mova): 音频抽取器释放原生 Player，STT 字幕绑定会话代际，audioOnly 下不启动 STT` | 行为 | `platform_impl/mpv_audio_extractor_impl.dart`、`core/stt/service.dart` | 80–150 | — | +5（含 audioOnly 播放器不启动 STT）：抽取异常/超时后 Player 被 dispose；旧源迟到的 cue 不进 recent；`isRunning` 不因换源改变 | [已核] `_player` 从未赋值（:60、:71、:105） |
+| B11 | `fix(mova): 播放器池尊重 open 接受结果、失败撤销绑定、按 sameAs 复用` | 行为 | `core/feed/feed_pool.dart` | 80–150 | — | +6：hook 拒绝→不置 ready、不显示旧素材；首开抛错后可重试；同 URL 换 mpvOptions 重开 | [已核] :258、:271、:274、:285 |
 | B12 | `fix(mova): feed 条目与页面状态滑窗回收，预取校验过期，邻居预热错误隔离` | 行为 | `core/feed/feed.dart`、`feed_prefetcher.dart`、`ui/feed_player.dart` | 150–250 | B11 | +6：浏览 1 万条后缓存条数有界 | [材料] |
-| B13 | `fix(mova): 守卫豁免全屏，PiP 回流只作用于发起进入的引擎` | 行为 | `ui/guard/auto_pause.dart`、`engine.dart`（`_pipSub`） | 60–120 | — | +4 | |
-| B14 | `fix(mova): 手势与皮肤小缺陷` | 行为 | `gesture_layer.dart`、`ui/slots/tree.dart`、`default_skin.dart`、`common.dart`、`gesture_config.dart` | 150–250 | B03 | +8 | `vSensitivity` 生效；patch 路径拼错 debug 断言；锁定按钮进组件树并跟随控制条；弹层可滚动；手势轴向；`trackCount`/`maxZoom` 构造期 assert；`allowWhenLive` 文档对齐 |
-| B15 | `perf(mova): 位置标签按秒重建、MovaPlayer 缓存组件树、镜像事件去重、dispose 同步取消 UI 计时器` | 行为 | `bottom_bar.dart`、`ui/player.dart`、`engine.dart`（setter 去重、dispose 前缀） | 100–200 | B03 | +6；可能改写 1–3 条"传同值也发事件"的断言 | |
-| B16 | `feat(mova): 桌面与无障碍：按钮可聚焦带语义，悬停唤出控制条，快捷键（默认关）` | 新增/行为 | `ui/components/common.dart`、`ui/player.dart`、`MovaCtrlsConfig.shortcuts` | 300–500 | B14 | +10 | 可聚焦与语义属修缺陷默认开；快捷键是新能力默认关 |
+| B13 | `fix(mova): 守卫豁免全屏，PiP 回流只作用于发起进入的播放器` | 行为 | `ui/guard/auto_pause.dart`、`mova.dart`（`_pipSub`） | 60–120 | — | +4 | |
+| B14 | `fix(mova): 手势与 UI 套件小缺陷` | 行为 | `gesture_layer.dart`、`ui/slots/tree.dart`、`default_ui_kit.dart`、`common.dart`、`gesture_opts.dart` | 150–250 | B03 | +8 | `vSensitivity` 生效；patch 路径拼错 debug 断言；锁定按钮进组件树并跟随控制条；弹层可滚动；手势轴向；`trackCount`/`maxZoom` 构造期 assert；`allowWhenLive` 文档对齐 |
+| B15 | `perf(mova): 位置标签按秒重建、MovaPlayer 缓存组件树、镜像事件去重、dispose 同步取消 UI 计时器` | 行为 | `bottom_bar.dart`、`ui/player.dart`、`mova.dart`（setter 去重、dispose 前缀） | 100–200 | B03 | +6；可能改写 1–3 条"传同值也发事件"的断言 | |
+| B16 | `feat(mova): 桌面与无障碍：按钮可聚焦带语义，悬停唤出控制条，快捷键（默认关）` | 新增/行为 | `ui/components/common.dart`、`ui/player.dart`、`MovaCtrlsOpts.shortcuts` | 300–500 | B14 | +10 | 可聚焦与语义属修缺陷默认开；快捷键是新能力默认关 |
 
 #### B 块第四批落地记录（2026-11-03）
 
@@ -596,27 +596,27 @@ S01 的内容见第 5.2 节（门控 open/play/pause/seek、可选推 playing、
 - 生产变化同步记入 CHANGELOG，README 修正 B14 顶栏追加示例并说明 B16 操作；新增回归测试文件。按用户明确要求不修改 CLAUDE.md、不 push、不转派。
 - 本记录仅覆盖四个代码提交及自动化验证，不代表真机检查点或后续 A/C 块已完成。
 
-#### 轨道 A1 块（引擎与切换层）
+#### 轨道 A1 块（播放器与切换层）
 
 | # | 提交 | 类型 | 主要文件 | 规模 | 依赖 | 测试 | 完成判据 |
 |---|---|---|---|---|---|---|---|
-| A01 | `refactor(mova): cutover 预热状态收进 _WarmSlot` | 机械 | `core/cutover/cutover_engine.dart` | 200–300（搬） | — | 不改 | `test/core/cutover/` 现有约 108 条原样绿 |
-| A02 | `fix(mova): cutover 操作代际与提交事务归属` | 行为 | `cutover_engine.dart` | 150–250 | A01、S01 | +12（真实 `MovaCutoverEngine` + 门控假引擎，见 5.3 的 1/4/5/6/7）；可能改写 0–3 条 | 见 3.3 |
-| A03 | `fix(mova): 换集与后贴片不复用旧影子，广告侧各 await 校验加载代际` | 行为 | `core/ad/ads.dart` | 80–150 | A02 | +10（含 5.3 的 1/2/3/9，用真实 cutover 引擎） | 见 3.3 |
+| A01 | `refactor(mova): cutover 预热状态收进 _WarmSlot` | 机械 | `core/cutover/cutover.dart` | 200–300（搬） | — | 不改 | `test/core/cutover/` 现有约 108 条原样绿 |
+| A02 | `fix(mova): cutover 操作代际与提交事务归属` | 行为 | `cutover.dart` | 150–250 | A01、S01 | +12（真实 `MovaCutover` + 门控假播放器，见 5.3 的 1/4/5/6/7）；可能改写 0–3 条 | 见 3.3 |
+| A03 | `fix(mova): 换集与后贴片不复用旧影子，广告侧各 await 校验加载代际` | 行为 | `core/ad/ads.dart` | 80–150 | A02 | +10（含 5.3 的 1/2/3/9，用真实 cutover 播放器） | 见 3.3 |
 | A04 | `fix(mova): 回正片过渡期不把广告进度当正片位置` | 行为 | `ads.dart` | 60–100 | A03 | +3（5.3 的 8） | 新增内部相位 `toContent`；`isShowingAd` 为 false |
 | A05 | `fix(mova): 广告侧 open 失败全部汇流，正片 open 失败进 contentError` | 行为 | `ads.dart`、`CHANGELOG.md` | 60–120 | A03 | +6：cutoverTo 抛→广告失败策略；广告 open 被 hook 拒→跳过该广告位且不重试；正片 open 抛→contentError + idle；正片被拒→不报错 | `contentError` 的 dartdoc 与 CHANGELOG 同提交更新（终审 7e）；不新增 `MovaAdFailKind` 枚举值（宿主穷举 switch 会坏） |
-| A06 | `fix(mova): 被拒的 open 不再作废在途 play/seek，暂停加载期间的 play 不被吞` | 行为 | `engine.dart` | 40–80 | — | +5（5.3 的 15） | play/seek 的代际改比已接受会话 `_sessionGen`；`_loadKernel` 双向纠偏，keepAlive 请求存在时不纠 |
-| A07 | `fix(mova): 唤醒回直播边缘后按最新意图开播，网络重开移出待机队列` | 行为 | `engine.dart`（`_leaveKeepAlive`） | 60–120 | — | +5（5.3 的 16）；可能改写 1–2 条"setKeepAlive(false) 返回时已重开完成"的断言 | 见 3.3；`_reopenLiveSource` 也被非 keepAlive 的 `backToLiveEdge` 调用（`engine.dart:2581,2585`），本提交只改 keepAlive 路径，非 keepAlive 路径的按意图开播由 A10 的 liveEdge 重放覆盖 |
-| A08 | `fix(mova): 唤醒恢复测量改用独立闸门，换源结束恢复测量` | 行为 | `engine.dart` | 60–120 | A07 | +5（5.3 的 17） | 见 3.3 |
-| A09 | `refactor(mova): 记录当前加载规格（只记录，读取方不改）` | 机械 | `engine.dart`、新 `core/engine/load_spec.dart` | 200–350 | A06、A07 | 不改；+2 条只断言"记录正确"的白盒测试 | 读取方一行不改 |
-| A10 | `fix(mova): 重试与回边缘重放有效加载规格` | 行为 | `engine.dart` | 100–200 | A09 | +10（5.3 的 18、19 前半；P2-3：恢复中用户 seek 改写续播点） | reason 表见 3.3 |
-| A11 | `fix(mova): ABR 屏蔽改为带尝试号的租约，用户 seek 引起的缓冲不计入` | 行为 | `engine.dart` | 80–150 | A10 | +6（5.3 的 19 后半） | 10s 上限常量不变 |
-| A12 | `fix(mova): 清晰度探测不覆盖手选档，引擎就绪后自行探测` | 行为 | `engine.dart`、`core/options/abr_config.dart`、测试 rig（默认 fetcher） | 100–200 | A10 | +6（5.3 的 20；命令式 open 后列表非空；同会话只探一次；rig 默认 fetcher 换 noop 后逐个核对 `.m3u8` 用例） | `probeVariants` 默认 true 的方案二选一见待拍板 12（推荐 rig 默认 fetcher 换 noop）。原因 [已核]：测试里 `.m3u8` 出现 154 次，真实 `MovaEngine`+假内核会落到真实 `MovaIoHttpFetcher`（`engine.dart:654`），在 fakeAsync 里留 timeout 计时器，破坏 pendingTimers 断言 |
-| A13 | `feat(mova): 播放错误分级：内核层接线与分类（只分类，不改 state.error 行为）` | 新增 | 新 `core/model/playback_error.dart`、`core/kernel/mpv_kernel.dart`（把 `logs` 前缀带到错误流）、`core/kernel/kernel.dart`（可选能力，`MovaKernel` 抽象零新增成员）、`core/report/error_policy.dart` | 250–400 | B01 | +10 | **为什么要有内核层接线**：`error_policy` 按 log 子系统前缀判终结，而 `MovaKernel.error` 是不带前缀的 `Stream<Object>`（`kernel.dart:140`、`mpv_kernel.dart:794` [已核]），前缀只在 `MovaStatsProbe.logs`（`stats_probe.dart:175` [已核]）。接口形态（可选能力 vs 事件里带分级）A13 开工前出设计 [待核]。本提交落地后 `state.error` 行为**不变** |
-| A14 | `feat(mova): 判失败不依赖 recovery，END_FILE 订阅懒启动，有封面时打开 RESTART` | 行为 | `engine.dart`、`platform_impl/wiring.dart`、`core/kernel/mpv_kernel.dart`、`ui/view.dart` | 150–250 | A13 | +10；改写 `test/core/openness_host_test.dart:40` 的 `endFilesSubscribed isFalse` 断言（任务书记为 :30，实际核得 :40） | **推翻**"关闭时不订阅 endFiles"，待拍板 6/7。`END_FILE(error)` 转终结错误并写 `state.error`——先于 A14b 收窄，所以 404 地址在收窄前后始终有终结错误；待拍板 7 的“挂了封面就打开 RESTART”**在本提交落实**（`MovaPlayer(poster:)` 路径打开 `observeRestarts`）；“首帧判据不变”只指无封面路径 |
-| A14b | `fix(mova): state.error 只放终结错误，遮罩显示 MovaStrs 文案` | 行为 | `engine.dart`、`ui/components/overlays.dart`、`MovaStrs` | 150–250 | A14 | +8；预计改写 10–25 条断言（非终结内核错误不再写 `state.error`） | **破坏性**：待拍板 16。`MovaErrorEvent` 仍对非终结错误发出（`fatal=false`），遮罩显示 `MovaStrs` 文案，原始文本只在 debug |
-| A15 | `fix(mova): 广告判失败与影子放弃预热只认终结错误` | 行为 | `ads.dart`（`_onEvent`）、`cutover_engine.dart`（影子错误） | 40–80 | A14b | +4；改写 ads_test 中"任意错误判广告失败"的若干断言 | |
-| A16 | `feat(mova): auto 档由 mova ABR 接管（灰度，默认关）` | 新增 | `engine.dart`、`abr_config.dart` | 80–150 | A11、A12、CP0 结论 | +5 | 默认关；CP0 若证实 mpv auto 不是静态最高档，则本提交只加开关不改默认文档措辞 |
+| A06 | `fix(mova): 被拒的 open 不再作废在途 play/seek，暂停加载期间的 play 不被吞` | 行为 | `mova.dart` | 40–80 | — | +5（5.3 的 15） | play/seek 的代际改比已接受会话 `_sessionGen`；`_loadKernel` 双向纠偏，keepAlive 请求存在时不纠 |
+| A07 | `fix(mova): 唤醒回直播边缘后按最新意图开播，网络重开移出待机队列` | 行为 | `mova.dart`（`_leaveKeepAlive`） | 60–120 | — | +5（5.3 的 16）；可能改写 1–2 条"setKeepAlive(false) 返回时已重开完成"的断言 | 见 3.3；`_reopenLiveSource` 也被非 keepAlive 的 `backToLiveEdge` 调用（`mova.dart:2581,2585`），本提交只改 keepAlive 路径，非 keepAlive 路径的按意图开播由 A10 的 liveEdge 重放覆盖 |
+| A08 | `fix(mova): 唤醒恢复测量改用独立闸门，换源结束恢复测量` | 行为 | `mova.dart` | 60–120 | A07 | +5（5.3 的 17） | 见 3.3 |
+| A09 | `refactor(mova): 记录当前加载规格（只记录，读取方不改）` | 机械 | `mova.dart`、新 `core/mova/load_spec.dart` | 200–350 | A06、A07 | 不改；+2 条只断言"记录正确"的白盒测试 | 读取方一行不改 |
+| A10 | `fix(mova): 重试与回边缘重放有效加载规格` | 行为 | `mova.dart` | 100–200 | A09 | +10（5.3 的 18、19 前半；P2-3：恢复中用户 seek 改写续播点） | reason 表见 3.3 |
+| A11 | `fix(mova): ABR 屏蔽改为带尝试号的租约，用户 seek 引起的缓冲不计入` | 行为 | `mova.dart` | 80–150 | A10 | +6（5.3 的 19 后半） | 10s 上限常量不变 |
+| A12 | `fix(mova): 清晰度探测不覆盖手选档，播放器就绪后自行探测` | 行为 | `mova.dart`、`core/options/abr_opts.dart`、测试 rig（默认 fetcher） | 100–200 | A10 | +6（5.3 的 20；命令式 open 后列表非空；同会话只探一次；rig 默认 fetcher 换 noop 后逐个核对 `.m3u8` 用例） | `probeVariants` 默认 true 的方案二选一见待拍板 12（推荐 rig 默认 fetcher 换 noop）。原因 [已核]：测试里 `.m3u8` 出现 154 次，真实 `Mova`+假内核会落到真实 `MovaIoHttpFetcher`（`mova.dart:654`），在 fakeAsync 里留 timeout 计时器，破坏 pendingTimers 断言 |
+| A13 | `feat(mova): 播放错误分级：内核层接线与分类（只分类，不改 state.error 行为）` | 新增 | 新 `core/model/playback_error.dart`、`core/kernel/mpv_kernel.dart`（把 `logs` 前缀带到错误流）、`core/kernel/kernel.dart`（可选能力，`IMovaKernel` 抽象零新增成员）、`core/report/error_policy.dart` | 250–400 | B01 | +10 | **为什么要有内核层接线**：`error_policy` 按 log 子系统前缀判终结，而 `IMovaKernel.error` 是不带前缀的 `Stream<Object>`（`kernel.dart:140`、`mpv_kernel.dart:794` [已核]），前缀只在 `IMovaStatsProbe.logs`（`stats_probe.dart:175` [已核]）。接口形态（可选能力 vs 事件里带分级）A13 开工前出设计 [待核]。本提交落地后 `state.error` 行为**不变** |
+| A14 | `feat(mova): 判失败不依赖 recovery，END_FILE 订阅懒启动，有封面时打开 RESTART` | 行为 | `mova.dart`、`platform_impl/wiring.dart`、`core/kernel/mpv_kernel.dart`、`ui/view.dart` | 150–250 | A13 | +10；改写 `test/core/openness_host_test.dart:40` 的 `endFilesSubscribed isFalse` 断言（任务书记为 :30，实际核得 :40） | **推翻**"关闭时不订阅 endFiles"，待拍板 6/7。`END_FILE(error)` 转终结错误并写 `state.error`——先于 A14b 收窄，所以 404 地址在收窄前后始终有终结错误；待拍板 7 的“挂了封面就打开 RESTART”**在本提交落实**（`MovaPlayer(poster:)` 路径打开 `observeRestarts`）；“首帧判据不变”只指无封面路径 |
+| A14b | `fix(mova): state.error 只放终结错误，遮罩显示 MovaStrs 文案` | 行为 | `mova.dart`、`ui/components/overlays.dart`、`MovaStrs` | 150–250 | A14 | +8；预计改写 10–25 条断言（非终结内核错误不再写 `state.error`） | **破坏性**：待拍板 16。`MovaErrorEvent` 仍对非终结错误发出（`fatal=false`），遮罩显示 `MovaStrs` 文案，原始文本只在 debug |
+| A15 | `fix(mova): 广告判失败与影子放弃预热只认终结错误` | 行为 | `ads.dart`（`_onEvent`）、`cutover.dart`（影子错误） | 40–80 | A14b | +4；改写 ads_test 中"任意错误判广告失败"的若干断言 | |
+| A16 | `feat(mova): auto 档由 mova ABR 接管（灰度，默认关）` | 新增 | `mova.dart`、`abr_opts.dart` | 80–150 | A11、A12、CP0 结论 | +5 | 默认关；CP0 若证实 mpv auto 不是静态最高档，则本提交只加开关不改默认文档措辞 |
 
 
 #### A1 块第一批落地记录（2026-11-03）
@@ -633,14 +633,14 @@ S01 的内容见第 5.2 节（门控 open/play/pause/seek、可选推 playing、
 
 验证方式与计划差异：
 - A01/A02 使用单次完整 `flutter test`，分别 1865/1877 全绿。A03 验证曾遇 Dart VM OOM、线程创建失败，常规全量降低到并发 1 仍不能稳定完成，因此改为四分片完整覆盖，未删减用例、未跳过测试：A03 各片 498/489/451/449（并发 1）；A04 各片 499/490/451/450（并发 2）；A05 各片 501/491/453/451（并发 2），最终各片均全绿。A05 首次专项启动亦遇环境 OOM，随后单并发专项 6 项通过。
-- A04 调整 `test/core/ad_first_frame_test.dart` 中 `ad-engine progress during the return hand-off does not overwrite the saved content rate` 的夹具：首次 load 的 commit 先 `release(false)` 落定，再触发中插并门控回正片。旧夹具在初始正片尚未接管时推正片进度，依赖提前进入 content 的旧行为；全部原断言保留。新增回归与首帧/倍速专项合计 12 项通过。
+- A04 调整 `test/core/ad_first_frame_test.dart` 中 `ad-mova progress during the return hand-off does not overwrite the saved content rate` 的夹具：首次 load 的 commit 先 `release(false)` 落定，再触发中插并门控回正片。旧夹具在初始正片尚未接管时推正片进度，依赖提前进入 content 的旧行为；全部原断言保留。新增回归与首帧/倍速专项合计 12 项通过。
 - 代码核对：原有 cutover 目录实测 109 项（表内约 108 为估算）；A04 可直接沿用现有按相位分发的进度逻辑，生产改动仅 7 行，无需新增位置缓存。A05 同时接住 prepare/commit 与正片转场 seek 异常，均按当前加载代际汇流，不新增 `MovaAdFailKind`。
-- 新增回归文件、各行为提交的 CHANGELOG 及本落地记录均随相应提交说明原因；本记录随 A05 入库。公开 `MovaCutover` 不加 `commit(expect:)`，新功能开关默认值不变，未新增成员级 `@Deprecated`。
+- 新增回归文件、各行为提交的 CHANGELOG 及本落地记录均随相应提交说明原因；本记录随 A05 入库。公开 `IMovaCutover` 不加 `commit(expect:)`，新功能开关默认值不变，未新增成员级 `@Deprecated`。
 - 按用户明确要求不修改 `CLAUDE.md`；无关生成文件、doc/notes 与 matrix-run 文件未纳入提交，未触碰其他 worktree。本记录不代表 A06 之后或 CP1 真机检查已完成。
 
 #### A1 块第二批落地记录（2026-11-03）
 
-本批仅 A06 → A07 → A08 → A09 → A10，基线 1896；由当前执行者亲自完成，不转派、不切分支、不 push、不使用真机。每个提交前 `flutter analyze lib test` 均为 0 issues；生产代码仅改 `engine.dart` 与 A09 新增的 `core/engine/load_spec.dart`，未改 cutover_engine.dart、ads.dart、CLAUDE.md。
+本批仅 A06 → A07 → A08 → A09 → A10，基线 1896；由当前执行者亲自完成，不转派、不切分支、不 push、不使用真机。每个提交前 `flutter analyze lib test` 均为 0 issues；生产代码仅改 `mova.dart` 与 A09 新增的 `core/mova/load_spec.dart`，未改 cutover.dart、ads.dart、CLAUDE.md。
 
 | 提交 | flutter test 实测 | 新增 | 现有断言变化 |
 |---|---:|---:|---|
@@ -648,15 +648,15 @@ S01 的内容见第 5.2 节（门控 open/play/pause/seek、可选推 playing、
 | A07（`c3b51c07`） | 1906 | +5 | 无；门控验证回边缘/重开不阻塞 pause、新源，dispose 后不补播 |
 | A08（`7331ac15`） | 1911 | +5 | 无；独立恢复闸门、open/quality/recover 以 reloaded 结束测量 |
 | A09（`e2968196`） | 1913 | +2 | 无；两条只核对加载记录的白盒测试，生产读取方未接入规格 |
-| A10（随本记录提交） | 1923 | +10 | 改写 engine_test.dart 两条仅允许 open 的回边缘调用日志，详见下文 |
+| A10（随本记录提交） | 1923 | +10 | 改写 mova_test.dart 两条仅允许 open 的回边缘调用日志，详见下文 |
 
 验证方式与计划差异：
 - 各提交最终均使用单次完整 `flutter test --concurrency=6`，共新增 27 项，未删减、未跳过用例；本批未遇 OOM，未降并发、未分片、未结束其他进程。
-- A10 改写 `test/core/engine_test.dart` 的 `backToLiveEdge in timeshift mode reopens the original live url`：旧断言 `['open']` 错在忽略了重开结束时播放意图为 true、替身尚未报告 playing；按 A10 的最新意图规则应为 `['open', 'play']`。实际重开原地址、清时移等原断言保留。
+- A10 改写 `test/core/mova_test.dart` 的 `backToLiveEdge in timeshift mode reopens the original live url`：旧断言 `['open']` 错在忽略了重开结束时播放意图为 true、替身尚未报告 playing；按 A10 的最新意图规则应为 `['open', 'play']`。实际重开原地址、清时移等原断言保留。
 - A10 改写同文件的 `an explicit backToLive strategy overrides the mode-derived one`：旧 `['open']` 同样错误地排除了意图为 true 且未播放时必须补发的 play，改为 `['open', 'play']`；显式 reopen 策略仍生效。A07 原计划可能改写 1–2 条 Future 断言，实际无需改写：既有 KeepAliveRig 排空微任务，立即完成的假网络仍在断言前完成；新增门控测试明确验证 Future 在网络完成前返回 resuming。
-- A06 实际 engine 差异 16 行，A08 约 49 行，A09 生产差异 115 行，A10 约 75 行，均小于预估规模；复用已有加载及喂信号入口，没有为凑规模搬迁代码。A09 `git diff --cached --color-moved=zebra --stat/--numstat` 为 3 files、+207/-4（engine +51/-4、load_spec +60/-0、测试 +96/-0），无跨段搬迁；非搬迁项为类型/import、记录字段/测试 getter、六处写入、仅用于记录的 reason 局部量、时移 builder 结果提取为只求值一次的 uri、两条白盒测试，已逐条写入提交正文。
+- A06 实际 player 差异 16 行，A08 约 49 行，A09 生产差异 115 行，A10 约 75 行，均小于预估规模；复用已有加载及喂信号入口，没有为凑规模搬迁代码。A09 `git diff --cached --color-moved=zebra --stat/--numstat` 为 3 files、+207/-4（player +51/-4、load_spec +60/-0、测试 +96/-0），无跨段搬迁；非搬迁项为类型/import、记录字段/测试 getter、六处写入、仅用于记录的 reason 局部量、时移 builder 结果提取为只求值一次的 uri、两条白盒测试，已逐条写入提交正文。
 - 以当前代码为准：普通 kernel.error 不触发 recovery，回归用已订阅的原生 END_FILE(error)；时移重试继续以 `_seekTimeshift` 使用的源地址为 builder 基地址，固定落后量取规格而非被 tick 重算的 UI 状态；任一旧 open 未返回时 `_kernelOpening` 仍屏蔽首帧，交错换档测试因此在所有加载释放后送首帧。未扩大错误模型或改变首帧屏蔽规则。
-- 回退实现验证：仅临时替换 engine.dart 为对应提交前版本，A06/A07/A08/A10 的新增专项分别实测 3/4/4/8 条变红，随后逐字节还原当前实现；A09 为记录测试，不改既有断言。最终全量在还原实现后执行。
+- 回退实现验证：仅临时替换 mova.dart 为对应提交前版本，A06/A07/A08/A10 的新增专项分别实测 3/4/4/8 条变红，随后逐字节还原当前实现；A09 为记录测试，不改既有断言。最终全量在还原实现后执行。
 - 计划外配套文件仅各提交新增回归测试、行为提交的 CHANGELOG、A10 的两处既有测试断言及本落地记录，原因随各提交正文列出。新功能开关默认值不变，未新增成员级 @Deprecated；无关生成文件、doc/notes、matrix-run 与其他仓库文件均未纳入提交，未触碰其他 worktree。本记录不代表 A11 以后或 CP1 真机检查已完成。
 
 #### A1 块第三批落地记录（2026-11-03）
@@ -671,13 +671,13 @@ S01 的内容见第 5.2 节（门控 open/play/pause/seek、可选推 playing、
 
 验证方式与计划差异：
 - 共新增 22 项，与 +6/+6/+10 一致；未删减、未跳过用例，未降并发或按目录分片，未结束其他进程。专项覆盖后均以完整并发 6 测试作为提交闸门。
-- A12 改写 `test/core/engine_load_spec_replay_test.dart` 的 public reload 用例：① `currentQuality isNull` 改为 `currentQuality.isAuto isTrue`，旧断言忽略 reload 是新会话、就绪后会从内存 master 自动重新探测；② `qualities isEmpty` 改为 `hasLength(3)`，旧断言忽略探测恢复完整列表。时长/进度归零及 SourceChange/Ready 次数断言保留。
-- A12 改写 `test/ui/review_regression_test.dart` 的 #3：③ `probes == 0` 改为 `1`。旧断言把 View 跳过过期探测等同于引擎不能自主探测；延迟 open 被接受且就绪后引擎仍探一次，View 置空后的暂停意图、补发 pause 断言保留。
-- A12 另外调整三处测试准备，断言不改：engine_test.dart 与 audio_only_scenarios_test.dart 的 ABR 用例先等待 noop 探测完成再种档，避免把并行探测的清空当作 ABR 行为；engine_test.dart 的显式探测失败用例关闭自动探测，确保断言的是显式那一次失败，而非要求同会话第二次 HTTP 请求。
-- A12 采用已拍板的默认开启 probeVariants，未实现 A16 的 auto 接管。逐项核对全部既有 `.m3u8` 出现位置：真实 MovaEngine 夹具补默认 noop fetcher（nullable 注入也兜底），显式内存 fetcher 保留；MovaTesting 的工厂接缝亦用 noop。模型、广告 FakeMovaApi、QoE 及独立 mpv 用例不走引擎 HTTP，保持原路径。noop 不创建连接或 timeout，新增测试验证 get/close、接缝默认与 pendingTimers。
-- A13 采用用户定稿的可选 `MovaClassifiedErrorKernel`，接口独立位于 core/kernel/classified_error_kernel.dart、不进主 barrel；`MovaKernel` 抽象零新增成员，因此无需修改计划列出的 kernel.dart。分类 code 直接复用 MovaPrefixError，因此 error_policy.dart 与 QoE collector 均不改。MovaErrorEvent 默认构造器签名保留，增加 classified 命名构造器；非终结错误仍写 state.error，END_FILE 的新订阅及 state 收窄仍由 A14/A14b 承接。
+- A12 改写 `test/core/mova_load_spec_replay_test.dart` 的 public reload 用例：① `currentQuality isNull` 改为 `currentQuality.isAuto isTrue`，旧断言忽略 reload 是新会话、就绪后会从内存 master 自动重新探测；② `qualities isEmpty` 改为 `hasLength(3)`，旧断言忽略探测恢复完整列表。时长/进度归零及 SourceChange/Ready 次数断言保留。
+- A12 改写 `test/ui/review_regression_test.dart` 的 #3：③ `probes == 0` 改为 `1`。旧断言把 View 跳过过期探测等同于播放器不能自主探测；延迟 open 被接受且就绪后播放器仍探一次，View 置空后的暂停意图、补发 pause 断言保留。
+- A12 另外调整三处测试准备，断言不改：mova_test.dart 与 audio_only_scenarios_test.dart 的 ABR 用例先等待 noop 探测完成再种档，避免把并行探测的清空当作 ABR 行为；mova_test.dart 的显式探测失败用例关闭自动探测，确保断言的是显式那一次失败，而非要求同会话第二次 HTTP 请求。
+- A12 采用已拍板的默认开启 probeVariants，未实现 A16 的 auto 接管。逐项核对全部既有 `.m3u8` 出现位置：真实 Mova 夹具补默认 noop fetcher（nullable 注入也兜底），显式内存 fetcher 保留；MovaTesting 的工厂接缝亦用 noop。模型、广告 FakeMovaApi、QoE 及独立 mpv 用例不走播放器 HTTP，保持原路径。noop 不创建连接或 timeout，新增测试验证 get/close、接缝默认与 pendingTimers。
+- A13 采用用户定稿的可选 `IMovaClassifiedErrorKernel`，接口独立位于 core/kernel/classified_error_kernel.dart、不进主 barrel；`IMovaKernel` 抽象零新增成员，因此无需修改计划列出的 kernel.dart。分类 code 直接复用 MovaPrefixError，因此 error_policy.dart 与 QoE collector 均不改。MovaErrorEvent 默认构造器签名保留，增加 classified 命名构造器；非终结错误仍写 state.error，END_FILE 的新订阅及 state 收窄仍由 A14/A14b 承接。
 - A13 核对本地 media_kit 1.2.6 `real.dart:2068–2116`：stream.log 与 error 同行产生，以同一 prefix/level/text 过滤直接映射，不配对两条流。良性过滤实际在 mpv_defaults.dart，沿用原函数；已知终结文本为解码器耗尽与格式识别失败。新增表测试覆盖全部 code、首帧前后、已知终结文本及 END_FILE/error 与恢复放弃。原有 mpv_defaults_test.dart 的假 PlayerStream 补 log getter，模拟同一诊断行，全部原断言保留。
-- 回退验证：A11 仅回退 engine 实现时 4 条新增专项变红；A12 同样回退时 6 条全部变红；A13 回退 engine 接线时 4 条变红，临时放宽 mpv 日志过滤时另 2 条变红。每次均以 finally 逐字节还原，最终检查在还原后执行。
+- 回退验证：A11 仅回退 player 实现时 4 条新增专项变红；A12 同样回退时 6 条全部变红；A13 回退 player 接线时 4 条变红，临时放宽 mpv 日志过滤时另 2 条变红。每次均以 finally 逐字节还原，最终检查在还原后执行。
 - 生产差异均小于计划规模估计，复用现有首帧/seek 校验、就绪公告及 QoE code 映射，不为凑规模搬迁代码。计划外配套文件为新增回归、CHANGELOG、A12 的测试接缝与夹具、上述既有断言及 A13 的旧播放器替身、本落地记录，逐项原因写入对应提交正文。
 - 用户本次明确要求不改 CLAUDE.md，优先于 §3.1 的基线回写规则，故仅追加本记录。未加成员级 @Deprecated；无关生成文件、doc/notes、matrix-run 与其他目录均未纳入提交，未触碰其他 worktree。本记录不代表 A14 以后或 CP1 真机核对已完成。
 
@@ -695,12 +695,12 @@ S01 的内容见第 5.2 节（门控 open/play/pause/seek、可选推 playing、
 
 验证方式与计划差异：
 - 共新增 28 项，比计划的 27 项多 1 项：A14 额外覆盖 cutover 代理把封面 RESTART 意图传给当前/已存在/新建影子。最终检查均为单次完整并发 6，未删减、未跳过用例，未降并发或分片，未结束其他进程。
-- A14 的 `openness_host_test.dart` 默认配置用例与 `recovery/engine_recovery_test.dart` disabled 用例，旧 `endFilesSubscribed == false` 都错误地把基础失败检测绑到 recovery，改 true；native/qoe false、无恢复定时器与 open 仍抛出的断言保留。`recovery/failover_test.dart` disabled 用例的旧 `openedUris == [primary]` 错在接受了无效 alternatives 配置，现断言 debug AssertionError、无 open，原 sourceIndex 与无 failover 断言保留。
-- A14 的 5 个既有 mpv 事件用例仅调整夹具：验证事件泵前先 open；构造期建客户端的旧准备方式与懒启动不符，事件映射、过滤和销毁顺序的原断言保留。实际新增独立可选 `MovaRestartObserver`，由 engine/kernel 实现、player 请求、cutover 向底层传递，MovaApi/Kernel 抽象不加成员；`view.dart` 已有 poster 对应 preciseFirstFrame，无需改。提取统一终结清理，后台唤醒 open 异常避免重复上报。
-- A14b 实际只改写 5 个既有状态断言，少于预估 10–25：engine_test 的 boom、interceptor_test 的 boom、playback_error_test 的 tcp: reset / 旧内核 StateError / damaged frame 均默认非终结，不能再要求写遮罩状态。事件原对象、分级、code 与钩子通知仍检查。audio_only_scenarios_test 的换源清理用例将 boom 换为已知终结格式文本；recovery_fixes_test 的恢复清理用例补该文本末尾句点，原断言不变，因为两个用例都需要先建立真正的终结状态。Breaking 与事件/恢复决策迁移指引已写 CHANGELOG、README；state/events/classifier 的契约注释同步。
-- A15 代码中旧默认 `MovaErrorEvent` 构造器已由 A13 保留 `fatal=true`，所以既有终结错误断言无需反转。ads_test 的 player error 用例先发送 classified fatal=false、断言策略为空且广告继续，再发送 fatal=true，保留原一次失败及 playerError 检查；旧用例缺少非终结分支，不能证明“任意日志不应失败”。`_AdAttempt` 和 `MovaCutoverAcceptance` 不改，影子错误仍不冒为主流错误。
+- A14 的 `openness_host_test.dart` 默认配置用例与 `recovery/mova_recovery_test.dart` disabled 用例，旧 `endFilesSubscribed == false` 都错误地把基础失败检测绑到 recovery，改 true；native/qoe false、无恢复定时器与 open 仍抛出的断言保留。`recovery/failover_test.dart` disabled 用例的旧 `openedUris == [primary]` 错在接受了无效 alternatives 配置，现断言 debug AssertionError、无 open，原 sourceIndex 与无 failover 断言保留。
+- A14 的 5 个既有 mpv 事件用例仅调整夹具：验证事件泵前先 open；构造期建客户端的旧准备方式与懒启动不符，事件映射、过滤和销毁顺序的原断言保留。实际新增独立可选 `IMovaRestartObserver`，由 mova/kernel 实现、player 请求、cutover 向底层传递，IMovaApi/Kernel 抽象不加成员；`view.dart` 已有 poster 对应 preciseFirstFrame，无需改。提取统一终结清理，后台唤醒 open 异常避免重复上报。
+- A14b 实际只改写 5 个既有状态断言，少于预估 10–25：mova_test 的 boom、interceptor_test 的 boom、playback_error_test 的 tcp: reset / 旧内核 StateError / damaged frame 均默认非终结，不能再要求写遮罩状态。事件原对象、分级、code 与钩子通知仍检查。audio_only_scenarios_test 的换源清理用例将 boom 换为已知终结格式文本；recovery_fixes_test 的恢复清理用例补该文本末尾句点，原断言不变，因为两个用例都需要先建立真正的终结状态。Breaking 与事件/恢复决策迁移指引已写 CHANGELOG、README；state/events/classifier 的契约注释同步。
+- A15 代码中旧默认 `MovaErrorEvent` 构造器已由 A13 保留 `fatal=true`，所以既有终结错误断言无需反转。ads_test 的 player error 用例先发送 classified fatal=false、断言策略为空且广告继续，再发送 fatal=true，保留原一次失败及 playerError 检查；旧用例缺少非终结分支，不能证明“任意日志不应失败”。`_AdAttempt` 和 `IMovaCutoverAcceptance` 不改，影子错误仍不冒为主流错误。
 - A16 只新增默认关闭的实验性开关与其显式开启路径，复用探测列表和 ABR 租约：卡顿时 auto 转列表次高档，随后沿用具体档降档；不把 mpv 实际选档当作已验证的最高档。CP0 P1-3 尚无真机数据，未更改“auto 是静态最高档”等既有文档结论，未默认开启接管。新增夹具使用内存 master 和预览缓存，不触网；ABR 总开关、档位不足与用户 seek 租约均覆盖。
-- 回退生产验证：A14 / A14b / A15 / A16 的新增专项分别实测 8 / 6 / 3 / 3 项变红。A14 临时撤回默认失败、懒启动和封面请求；A14b 撤回 engine/遮罩并移除新文案值比较；A15 回退两个入口；A16 回退 engine 并移除新配置比较。均以 finally 逐字节还原，再执行最终完整检查。
+- 回退生产验证：A14 / A14b / A15 / A16 的新增专项分别实测 8 / 6 / 3 / 3 项变红。A14 临时撤回默认失败、懒启动和封面请求；A14b 撤回 mova/遮罩并移除新文案值比较；A15 回退两个入口；A16 回退 player 并移除新配置比较。均以 finally 逐字节还原，再执行最终完整检查。
 - 生产差异小于表内规模估计，复用既有分类、清理与降档路径，没有为凑规模搬迁。计划外文件限于上述可选能力/代理/播放器接线、契约注释、README/CHANGELOG、既有夹具与新增回归，以及本落地记录，具体原因逐条写入提交正文。
 - 按用户要求不改 CLAUDE.md、不加成员级 Deprecated，不提交无关生成文件、doc/notes、matrix-run 或其他子工程文件，未触碰其他 worktree。本记录仅覆盖这四个提交及自动化验证，不代表 CP0/CP1 或后续 A/C 块完成。
 
@@ -733,8 +733,8 @@ S01 的内容见第 5.2 节（门控 open/play/pause/seek、可选推 playing、
 - 共新增 34 项，与子计划 +5/+12/+8/+9 一致。A17 的历史验证与 color-moved 统计沿用已提交证据：3 files、+124/-35（ads +5/-35、timeline +68、测试 +51），非搬迁项为 import、私有函数改顶层名称并显式传参、三处调用适配、markPodPlayed 改为等价 addAll、跨库中文文档；原断言零改写。未重做 A17。
 - A18 采用两只 MovaAdClock，注入 now，默认运行、playing 真→假暂停与假→真恢复；起表意图假时暂停。delayRemaining 与到期统一为时钟，loadTimeout 保持独立墙钟；dispose 同步取消两只时钟。未改覆盖层实现或引入 core 对 Flutter 的依赖。
 - A18 三个既有用例逐条：① `delayRemaining counts down with the content ticks and stays positive until expiry`，旧断言把正片位置推进当时间流逝，seek/卡顿/倍速会令展示与 Timer 到期不一致，改注入时钟推进 2 秒；② `the countdown number decrements as content ticks arrive`，同样错误地由位置驱动时间，改 widget 时钟推进 2 秒后 tick 重建；③ `the cue carries the countdown when there is one, and nothing when there is not`，旧断言仅把正片从 30 秒推到 32 秒就要求剩余 5 秒变 3 秒，改注入时钟推进，预热 cue 与空 cue 的原期望保留。第三项按续做主会话明确授权采用总计划 ≤3 上限，已回写子计划第 6 节。
-- A20 只读 playbackIntent，快照在 old.pause 之前；意图假则影子 pause，意图真才 play、迁移待机及在解静音失败后恢复旧引擎。普通广告与续播显式传 autoPlay；load 起播显式 true。保留 cutover 提交事务、MovaCutoverAcceptance 与广告 _AdAttempt，不改公开 cutoverTo 的回落（A27 后续负责）。自写 engineFactory 引擎须维护意图，意图恒假则换指后暂停，已公告 CHANGELOG 和类注释。
-- A20 既有用例逐条补前提、原断言保留：① `commit() success: active becomes the shadow; old gets pause+dispose; new gets play`，旧引擎未 open/play 却要求影子开播，补意图 true；② `#17 commit migrates user view settings from the old engine onto the shadow before play`，设置顺序比较依赖无条件 play，补意图 true；③ keep_alive test 3 `a hold requested before commit puts the shadow into keepAlive before play without volume writes`，无意图却要求待机和开播，_warm 补意图；④ keep_alive test 4 `without a request the commit sequence is unchanged`，同样补影子开播前提；⑤/⑥ `warm mute true/false bypasses volume ports through prepare and commit` 两个参数化用例，旧真实引擎从未 play，prepare 前 api.play；⑦ `failed mute restoration emits an error and abandons the cutover`，旧夹具只有 emitPlaying(true)、没有用户意图却要求回退恢复，补 api.play 并保留观测；⑧ `提交影子 play 挂起时新 prepare 不被收尾释放`，旧 rig 意图假时 playGate 无法阻塞，构造补意图；⑨ `影子 play 挂起时 open B 禁止旧换指`，同样补开播前提；⑩ `同一 ready 影子只能被一个 commit 认领`，旧 rig 意图假却要求一次 play，补意图；⑪ `a retried break gets a fresh duration, counted from its new first frame`，共享替身在首次 open 抛错前不写意图，旧夹具意图恒假却要求重试广告计时到期，失败前 api.play 建立播放中重试。第⑪项为实跑发现的计划外夹具调整，已回写子计划；F1 八项交错原已 old.play，不需额外改写，keep_alive test 5 与 commit 无关、不改。
+- A20 只读 playbackIntent，快照在 old.pause 之前；意图假则影子 pause，意图真才 play、迁移待机及在解静音失败后恢复旧播放器。普通广告与续播显式传 autoPlay；load 起播显式 true。保留 cutover 提交事务、IMovaCutoverAcceptance 与广告 _AdAttempt，不改公开 cutoverTo 的回落（A27 后续负责）。自写 movaFactory 播放器须维护意图，意图恒假则换指后暂停，已公告 CHANGELOG 和类注释。
+- A20 既有用例逐条补前提、原断言保留：① `commit() success: active becomes the shadow; old gets pause+dispose; new gets play`，旧播放器未 open/play 却要求影子开播，补意图 true；② `#17 commit migrates user view settings from the old mova onto the shadow before play`，设置顺序比较依赖无条件 play，补意图 true；③ keep_alive test 3 `a hold requested before commit puts the shadow into keepAlive before play without volume writes`，无意图却要求待机和开播，_warm 补意图；④ keep_alive test 4 `without a request the commit sequence is unchanged`，同样补影子开播前提；⑤/⑥ `warm mute true/false bypasses volume ports through prepare and commit` 两个参数化用例，旧真实播放器从未 play，prepare 前 api.play；⑦ `failed mute restoration emits an error and abandons the cutover`，旧夹具只有 emitPlaying(true)、没有用户意图却要求回退恢复，补 api.play 并保留观测；⑧ `提交影子 play 挂起时新 prepare 不被收尾释放`，旧 rig 意图假时 playGate 无法阻塞，构造补意图；⑨ `影子 play 挂起时 open B 禁止旧换指`，同样补开播前提；⑩ `同一 ready 影子只能被一个 commit 认领`，旧 rig 意图假却要求一次 play，补意图；⑪ `a retried break gets a fresh duration, counted from its new first frame`，共享替身在首次 open 抛错前不写意图，旧夹具意图恒假却要求重试广告计时到期，失败前 api.play 建立播放中重试。第⑪项为实跑发现的计划外夹具调整，已回写子计划；F1 八项交错原已 old.play，不需额外改写，keep_alive test 5 与 commit 无关、不改。
 - A21 对本机 pub cache 的 media_kit_video 2.0.1 再核实两个参数名与默认 true/false，Video 均显式传 false。MovaPlayer 在 paused/detached 且有默认 Video 渲染面时经 API 暂停，不自动恢复；PiP 豁免、同一 API 守卫让位、background:false 可保留后台播放、audioOnly/自定义 surface 不动作、延迟出现的渲染句柄均有新增覆盖。按已拍板 D6，监听注册于挂载时，但是否有 Video 在事件发生时判定。
 - A21 与草图的实质差异：两个视图共用 API 时，首个 pause 清了意图，内核 playing 仍可能为真，第二个视图仍满足 intent || playing；原草图实测重复 pause。增加按 API 的 Expando 同轮通知标记、微任务清除，不增公开成员；第 8 项用 playing=true 验证一次暂停。去重前后红绿证据及差异已回写子计划。
 - 回退生产验证：A18 临时回退 ads 接线（只保留 debugClock 测试接缝以编译）并禁用时钟 pause，12 项中 **5 项变红**；其余 7 项为基础时钟/已有结算和清理不变量。A20 两处生产文件回退时 **6 项变红**，另把快照移到 old.pause 后、判断改回 playing 各 **1 项变红**，去重覆盖全部 8 项。A21 回退 player/auto_pause 时 **6 项变红**；分别移除守卫让位、PiP 豁免、允许 hidden 暂停各 **1 项变红**，去重覆盖全部 9 项；另单独移除去重，第 8 项变红。每轮均用 finally 逐字节还原生产文件，再执行最终检查。
@@ -753,9 +753,9 @@ S01 的内容见第 5.2 节（门控 open/play/pause/seek、可选推 playing、
 
 验证方式与计划差异：
 - 三次全量均完整通过，未遇 OOM、未降低并发、未分片、未删减或跳过用例，未结束其他进程。既有 ads_test、playlist_test 等文件和断言均未改；A25 只给本批 A23 新增的借用测试补充 `api.disposeCount == 0`，因为替身即使销毁后仍允许 open 返回 true，原新增断言不足以验证所有权。原断言全部保留，测试总数不变。A25 最终自审另补 A24 的续播尝试号捕获：钩子同步重载同一节点时，旧 skip/Done/定时器/失败尾部必须携带发钩子前的尝试号，不能重读当前尝试。给本批新增 session_nodes_test 的跳过用例追加回调重入场景，修复前 1 项变红、修复后通过，不新增测试条数；因此新修复后重跑 analyze 与完整全量。
-- A23 使用泛型加载核心原位映射结果，保留 A22 调用层级；直接构造自动识别 MovaCutover、广告适配器仍只认显式 cutover。MovaPlaylistItem.adBreaks 的 null/空列表分别表示回落配置/本集无排期；autoAdvance 默认关闭，切换仍受 cutoverEnabled 门控。按子计划 D12 增加 failed（总计划旧签名漏列），公开 API 补中文 dartdoc、参数/返回与示例，不加 Deprecated。
+- A23 使用泛型加载核心原位映射结果，保留 A22 调用层级；直接构造自动识别 IMovaCutover、广告适配器仍只认显式 cutover。MovaPlaylistItem.adBreaks 的 null/空列表分别表示回落配置/本集无排期；autoAdvance 默认关闭，切换仍受 cutoverEnabled 门控。按子计划 D12 增加 failed（总计划旧签名漏列），公开 API 补中文 dartdoc、参数/返回与示例，不加 Deprecated。
 - A24 的身份为条目、类型、同类型排期原顺序；插播序号 -1、-2 递减。已播集、失败次数、定时器、续播改走节点和尝试，广告钩子仍带原对象，dueMidRoll 包装签名不变。会话事件独立于 MovaEvent，不含 A26 的 MovaNodeFail。参数贯穿既有调用链及完整 dartdoc 令生产改动略超行数预估；没有为凑规模搬迁。
-- A25 仅 ads 路径登记借用会话并监听 contentEnded，enabled=false 时 jumpTo/next/previous/自动连播无动作，dispose 不销毁会话。字节比较确认旧直连 jumpTo 核心、next/previous、_onEvent 原样保留。门控换集使用 S01 GatedEngineFactory 与真实切换引擎，在已认领提交的 old.pause 门上换集，放行后旧广告不落地；当前代码没有真实代理 commitGate，故以该等价提交窗口定位。
+- A25 仅 ads 路径登记借用会话并监听 contentEnded，enabled=false 时 jumpTo/next/previous/自动连播无动作，dispose 不销毁会话。字节比较确认旧直连 jumpTo 核心、next/previous、_onEvent 原样保留。门控换集使用 S01 GatedMovaFactory 与真实切换播放器，在已认领提交的 old.pause 门上换集，放行后旧广告不落地；当前代码没有真实代理 commitGate，故以该等价提交窗口定位。
 - 回退生产验证均在 finally 中逐字节恢复：A23 保留编译接缝撤回新增行为后 **10 项变红**，另对关闭代理/旧广告入口、拒绝、销毁和借用语义做错误实现验证 **5 项变红**，去重覆盖 15 项。A24 回到 A23 的状态机，事件与构建函数留空编译接缝，**8 项运行时断言变红**。A25 撤回会话路径并保留布尔返回编译接缝 **9 项变红**，额外微任务回归 **1 项变红**，拒绝/旧路径开关错误实现 **2 项变红**，去重覆盖 12 项。
 - 时序核对曾临时替换为 A22（1a0b3651）的 ads/session 生产文件实跑，调用方 await 返回瞬间 api.calls 快照是 `[turn:1, open, turn:2]`；A25 相同。显式增加一次 await Future.value 后快照多出 turn:3，测试变红。与子计划动机的实测差异：本机 Dart 对单纯 then 映射的传播会优化，普通成功路径测试仍绿，不能把 then 一概声称为必然增加微任务；生产仍严格采用 D13 泛型核心直接映射，转发无 async/then。
 - 新增回归文件、cursor/events/registry 等包内配套、CHANGELOG 与必要 README 片段均按子计划；A25 额外触及本批 session_test 与 session_nodes_test，仅为上述所有权与回调重入断言补强，续播守卫补全 A24 节点及尝试归属。本记录随 A25 入库。不改 CLAUDE.md，未提交 Windows 插件生成文件、doc/notes、matrix-run 或其他子工程，未触碰其他 worktree。本记录不代表 A26–A30 或 CP2 已完成。
@@ -770,11 +770,11 @@ S01 的内容见第 5.2 节（门控 open/play/pause/seek、可选推 playing、
 | 初审五条修复 `5a36d64c` | 2173 | +8 | 9：8 条新增回归 + 1 条强化的既有计时测试 |
 | A26 `d96c5879` | 2183 | +10 | 10：会话接线回退与纯仲裁函数保留编译接缝后的回退 |
 | A27 `5ccfc132` | 2191 | +8 | 8：回退 session/cutover 接线后全部变红 |
-| A28 `2426a783` | 2203 | +12 | 9 条旧代理回退变红，另 3 条 API/普通引擎对照经语义突变变红 |
+| A28 `2426a783` | 2203 | +12 | 9 条旧代理回退变红，另 3 条 API/普通播放器对照经语义突变变红 |
 | A29 `b5cb1c62` | 2208 | +5 | 3 条新策略回退变红，另 2 条默认行为对照经错误默认值变红 |
 | A30（随本记录提交） | 2213 | +5 | 4 条 UI 回退变红，另 1 条旧直连对照经错误守卫变红 |
 
-合计新增 48 项，最终 2213；去重验证 49 条可变红（含强化既有测试 1 条）。兼容性和普通引擎对照在正确的旧行为下应保持绿色，故明确区分旧代码回退与故意破坏行为的语义突变，没有把编译失败计成回归变红。临时生产文件均在 finally 中按字节恢复。A28 认领槽后首帧的生命周期守卫另做了移除验证，在补齐夹具播放意图、确保 playGate 真正挡住提交后，该用例变红；它属于上述 9 条中的同一用例，不重复计数。
+合计新增 48 项，最终 2213；去重验证 49 条可变红（含强化既有测试 1 条）。兼容性和普通播放器对照在正确的旧行为下应保持绿色，故明确区分旧代码回退与故意破坏行为的语义突变，没有把编译失败计成回归变红。临时生产文件均在 finally 中按字节恢复。A28 认领槽后首帧的生命周期守卫另做了移除验证，在补齐夹具播放意图、确保 playGate 真正挡住提交后，该用例变红；它属于上述 9 条中的同一用例，不重复计数。
 
 五条初审缺陷及修复：
 
@@ -787,9 +787,9 @@ S01 的内容见第 5.2 节（门控 open/play/pause/seek、可选推 playing、
 新增公开 API（均补中文 dartdoc、参数/返回与示例；未增加成员级 Deprecated）：
 
 - A26：`MovaNodeFail`（node、verdict、error）与 `MovaNodeFailVerdict`。失败描述与纯仲裁函数留在包内；`contentError` 的公开注释和 CHANGELOG 明确扩展 A05 契约，加入正片终结错误，恢复开启时等 giveUp。
-- A27：在现有 `core/cutover/acceptance.dart` 扩展包内 `MovaWarmOwner`、`MovaWarmTicket`、`MovaWarmCommit`，未另起平行接口、未从 barrel 导出。代理实现的 prepareOwned/commitOwned 补中文说明；公开 MovaCutover 四动词与 MovaApi 均未加成员。
+- A27：在现有 `core/cutover/acceptance.dart` 扩展包内 `IMovaWarmOwner`、`MovaWarmTicket`、`MovaWarmCommit`，未另起平行接口、未从 barrel 导出。代理实现的 prepareOwned/commitOwned 补中文说明；公开 IMovaCutover 四动词与 IMovaApi 均未加成员。
 - A28：`MovaCutoverEndReason` 八种结束原因，`MovaCutoverChange.reason` 可选命名字段；旧 const 调用仍有效，没有新增 MovaEvent 子类。
-- A29：`MovaAdSnapback`、`MovaAdConfig.midRollSnapback`，构造、copyWith、相等与 hash 同步。默认 all 委托旧查找；单个到期插入点及同点 pod 不受多点补播策略影响。
+- A29：`MovaAdSnapback`、`MovaAdOpts.midRollSnapback`，构造、copyWith、相等与 hash 同步。默认 all 委托旧查找；单个到期插入点及同点 pod 不受多点补播策略影响。
 - A30：零新增公开面；NextUp 从 A25 已登记的 Expando 获取会话，不新增 session 参数；旧直连保持原时长判据。
 
 既有断言改写逐条说明：
@@ -808,13 +808,13 @@ S01 的内容见第 5.2 节（门控 open/play/pause/seek、可选推 playing、
 12. ads_pod_failure F5 skipBreak：窗口内不裁决，放行 open 抛出后唯一失败并续播第三条；旧断言原因同上，最终单条跳过不变量保留。
 13. ads_pod_failure F5 abandonPod：窗口内不裁决，放行 open 抛出后唯一失败并回正片；旧断言原因同上，最终放弃 pod 不变量保留。
 
-A26、A28、A29、A30 没有改写其他既有断言。A28 的 F4 widget 用例仅调整驱动并增加结算断言：事件订阅提前后，取消订阅与 close 跨真实/fakeAsync 队列，原“单次 pump 后直接 await load”会挂起；改为按明确的加载结算条件推进两个队列并设上限快速报错，保留全部旧断言。曾停止属于当前 worktree 的挂起测试进程，未结束其他 worktree 的进程；修正后重新完整全量通过。共享 FakeMovaApi、普通 engine.dart 的调试/语义突变均已按字节恢复，没有最终 diff。
+A26、A28、A29、A30 没有改写其他既有断言。A28 的 F4 widget 用例仅调整驱动并增加结算断言：事件订阅提前后，取消订阅与 close 跨真实/fakeAsync 队列，原“单次 pump 后直接 await load”会挂起；改为按明确的加载结算条件推进两个队列并设上限快速报错，保留全部旧断言。曾停止属于当前 worktree 的挂起测试进程，未结束其他 worktree 的进程；修正后重新完整全量通过。共享 FakeMovaApi、普通 mova.dart 的调试/语义突变均已按字节恢复，没有最终 diff。
 
 与子计划的差异和实现核对：
 
 - A26 的三路同 turn 描述与代码不完全一致：loadTimeout 只在 open 接受后武装，open 尚未完成时不会同时有该期限。改为一条测试内验证错误/超时和错误/迟到 open 抛出两组交错，覆盖三入口且只裁决一次。为保持 A13 既有明确语义，实际事件流的非终结广告日志在 recovery 关闭时也继续诊断而不结算；纯函数仍单测“恢复关闭时显式失败输入交广告策略”。包内失败描述增加原始 adBreak，供现有广告策略使用。
 - A27 按第 12 节拍板扩展 acceptance.dart；prepare 被 host open 取代、尚未返回槽时仍保留原 op 的空凭据，以报告 superseded，避免计划伪代码返回 null 后误当未就绪硬切。包内 prepareOwned 增加可选 play，保持 A20 首次起播与后续用户命令优先。F-N 和 F5 的计划表外断言变化已补子计划 §6。
-- A28 在原 +8 上按 H77 增 +4，总数 +12。state/events 统一进带 renderEpoch 的同一队列，事件通知前发布载荷对应快照，重入通知顺延；验证 epoch 0 和换指后，普通 MovaEngine 两组对照一致。影子生命周期必须在 open 前开始记录，并延续到认领后 detach 前；换指后按固定三类顺序各补一次，放弃不补发。结束原因八种都有覆盖。
+- A28 在原 +8 上按 H77 增 +4，总数 +12。state/events 统一进带 renderEpoch 的同一队列，事件通知前发布载荷对应快照，重入通知顺延；验证 epoch 0 和换指后，普通 Mova 两组对照一致。影子生命周期必须在 open 前开始记录，并延续到认领后 detach 前；换指后按固定三类顺序各补一次，放弃不补发。结束原因八种都有覆盖。
 - A29 无行为偏差；按正文“多个不同 offset”边界实现，默认 all 完整保留现状。A30 增加微秒边界，保证任何正的 skipIn 都向上取整，避免剩余 1μs 时显示 0；这属于原计划倒计时正确性验证的细化。
 - 按本次用户明确约束不改 CLAUDE.md（覆盖子计划要求 A30 回写它的旧指令）；基线记在本记录与子计划 §5。未提交插件生成文件、doc/notes、matrix-run 或其他子工程。
 
@@ -822,11 +822,11 @@ A26、A28、A29、A30 没有改写其他既有断言。A28 的 F4 widget 用例�
 
 ##### 终审修复
 
-1. P1 落地窗口丢失 giveUp：按失败 URI / fatal 事件媒体身份识别新媒体，将终结事件缓存到 open 落定后走既有失败仲裁；缓存限定当前加载与广告尝试，正片失败回 idle 并发 contentError、MovaNodeFail。fatal 分级事件增加可选 source，真实引擎填写所属媒体。回退 session 修复后 **4 条变红**（正片返回前 giveUp + F5 retry/skipBreak/abandonPod 正常返回变体），恢复后专项 53 条通过。另用真实引擎内核首次 open 异常验证异步 giveUp 最终只失败一次。
+1. P1 落地窗口丢失 giveUp：按失败 URI / fatal 事件媒体身份识别新媒体，将终结事件缓存到 open 落定后走既有失败仲裁；缓存限定当前加载与广告尝试，正片失败回 idle 并发 contentError、MovaNodeFail。fatal 分级事件增加可选 source，真实播放器填写所属媒体。回退 session 修复后 **4 条变红**（正片返回前 giveUp + F5 retry/skipBreak/abandonPod 正常返回变体），恢复后专项 53 条通过。另用真实播放器内核首次 open 异常验证异步 giveUp 最终只失败一次。
    - F5 既有三条断言保留，扩成 eventAndThrow / giveUpReturn 两种驱动；标题改成“open 落定”。旧兜底仅靠 open 抛出结算，正常返回时不会经过，不能证明窗口正确。既有“旧 ErrorEvent 在窗口内不结算”断言没错，不能把新媒体 giveUp 也当作旧事件；本次没有删减或放宽既有断言。
    - 分析范围偏差：根目录 flutter analyze 有 49 条既有问题，分布于 example、packages、HarmonyOS 试验目录；不修改无关代码。flutter analyze lib test 为 0 issues；全量测试 --concurrency=3：**2218 条通过**。
 
-2. P1 补发回调抢源：状态/事件队列携带 op 并在通知返回后复核；每次影子生命周期补发前后复核 op 与 active，过期停止。commitOwned 在返回 committed 前再次复核，抢源返回 superseded。晋升后过期仍退休并释放旧引擎，保留宿主正在使用的新 active；会话不把宿主源认作广告。
+2. P1 补发回调抢源：状态/事件队列携带 op 并在通知返回后复核；每次影子生命周期补发前后复核 op 与 active，过期停止。commitOwned 在返回 committed 前再次复核，抢源返回 superseded。晋升后过期仍退休并释放旧播放器，保留宿主正在使用的新 active；会话不把宿主源认作广告。
    - 回退 cutover 修复后 **4 条变红**（SourceChange、Ready、FirstFrame 回调抢源各一条 + 真实会话路径），恢复后通过；既有断言改写 **0**。沿用分析范围 lib test（0 issues），--concurrency=3 全量 **2222 条通过**。
 
 3. P2 换会话后已认领旧事务仍上屏：会话跟踪自己持有的预热凭据，load/jumpTo、setItems、dispose 同步发出定向取消；prepare 尚未返回时也按 gen 与列表代际取消迟到凭据。包内 owner 增 cancelOwned，标记凭据和槽永久取消，释放自己的影子；提交等待前后、换指与返回检查均包含取消状态，不提升已释放影子，不递增全局 op 或放弃其他槽。
@@ -834,9 +834,9 @@ A26、A28、A29、A30 没有改写其他既有断言。A28 的 F4 widget 用例�
 
 4. P2 宿主抢源漏节点结束：_superseded 在清空 _onScreen 前调用 _endNode(superseded)，沿用原节点与原 epoch；不发节点失败，不放弃宿主新影子。前贴片与正片各一条回归同时检查恰好一次、原身份、后续加载不重复结束，以及宿主新影子可正常提交。移除这行修复后 **2 条变红**，恢复后通过。既有断言改写 **0**；分析范围沿用 lib test（0 issues），全量 --concurrency=3：**2228 条通过**。
 
-终审修复汇总：新增 15 条（其中真实引擎异步送达对照 1 条），四条缺陷的唯一变红用例分别 4/4/4/2，共 14 条；第 3 条的额外守卫突变重用同四条，不重复累计。既有断言没有删减、放宽或改写；F5 三条扩成两种故障驱动并改标题，原异常兜底不能覆盖正常返回的 giveUp。四次独立提交，每次 lib test 分析 0 issues、全量通过后提交。根目录分析的 49 条无关既有问题未修，列为验证范围偏差；没有把 lib test 的 0 issues 声称为根目录分析 0。未使用真机、未启动应用、未转派、未 push、未切分支、未 stash/reset，CLAUDE.md 未改写；禁止提交路径均未暂存（工作区原有三份插件生成文件修改保留）。
+终审修复汇总：新增 15 条（其中真实播放器异步送达对照 1 条），四条缺陷的唯一变红用例分别 4/4/4/2，共 14 条；第 3 条的额外守卫突变重用同四条，不重复累计。既有断言没有删减、放宽或改写；F5 三条扩成两种故障驱动并改标题，原异常兜底不能覆盖正常返回的 giveUp。四次独立提交，每次 lib test 分析 0 issues、全量通过后提交。根目录分析的 49 条无关既有问题未修，列为验证范围偏差；没有把 lib test 的 0 issues 声称为根目录分析 0。未使用真机、未启动应用、未转派、未 push、未切分支、未 stash/reset，CLAUDE.md 未改写；禁止提交路径均未暂存（工作区原有三份插件生成文件修改保留）。
 
-→ **CP1：引擎、切换与 B 块真机核对**
+→ **CP1：播放器、切换与 B 块真机核对**
 
 #### 轨道 A2 块（会话层）
 
@@ -844,21 +844,21 @@ A26、A28、A29、A30 没有改写其他既有断言。A28 的 F4 widget 用例�
 |---|---|---|---|---|---|---|---|
 | A17 | `refactor(mova): 广告排期纯逻辑抽到 core/session/timeline.dart` | 机械 | `ads.dart`、新 `core/session/timeline.dart` | 150–250（搬） | CP1 | 不改；`dueMidRoll` 公开签名保留 | ads_test 98 条原样绿 |
 | A18 | `feat(mova): 广告位与倒计时改用可暂停时钟` | 行为 | 新 `core/session/ad_clock.dart`、`ads.dart` | 200–300 | A17 | +12（5.3 的 11）；可能改写 ≤3 条 `delayRemaining` 断言 | 时钟默认运行，只在观测到 `state.playing` true→false 时暂停；`delayRemaining` 改由时钟给（展示与到期统一口径）；`_loadTimer` 仍是独立墙钟期限 |
-| A20 | `fix(mova): 回正片与回广告继承播放意图` | 行为 | `cutover_engine.dart`（`_commitNow`）、`ads.dart` | 60–120 | A18、A19 | +8（5.3 的 12、13）；**改写约 8–12 条断言（测试替身旧引擎预置意图）** | 见 3.3。原因 [已核]：影子“意图为真才开播”后，测试里旧引擎从未 `open`、`playbackIntent` 恒 false，这些“影子 `play` 被调用”的断言会变红：`test/core/cutover/cutover_engine_test.dart:373`、`cutover_keep_alive_test.dart:84,95,105`、`cutover_warm_mute_test.dart:67,202`、`cutover_engine_defects_test.dart:322`（以上 7 处已核；其余几条在 A20 开工时跑一遍确定） |
-| A21 | `fix(mova): MovaPlayer 关闭 media_kit 自带的后台暂停，改走引擎路径` | 行为 | `ui/player.dart`、`ui/guard/auto_pause.dart`（作用域标记） | 120–220 | A20、CP0 结论 | +6 widget：无守卫时切后台→`api.pause()` 被调用、意图为 false；有祖先守卫时 MovaPlayer 不动作；`Video` 收到两个参数；+2：audioOnly（无 `Video` 渲染面）不注册生命周期监听 | 默认可见行为不变（切后台仍暂停），待拍板 3；**只在有 `Video` 渲染面时启用**，否则 audioOnly 会在后台被停播，CP2 加 audioOnly 后台一组 |
+| A20 | `fix(mova): 回正片与回广告继承播放意图` | 行为 | `cutover.dart`（`_commitNow`）、`ads.dart` | 60–120 | A18、A19 | +8（5.3 的 12、13）；**改写约 8–12 条断言（测试替身旧播放器预置意图）** | 见 3.3。原因 [已核]：影子“意图为真才开播”后，测试里旧播放器从未 `open`、`playbackIntent` 恒 false，这些“影子 `play` 被调用”的断言会变红：`test/core/cutover/cutover_test.dart:373`、`cutover_keep_alive_test.dart:84,95,105`、`cutover_warm_mute_test.dart:67,202`、`cutover_defects_test.dart:322`（以上 7 处已核；其余几条在 A20 开工时跑一遍确定） |
+| A21 | `fix(mova): MovaPlayer 关闭 media_kit 自带的后台暂停，改走播放器路径` | 行为 | `ui/player.dart`、`ui/guard/auto_pause.dart`（作用域标记） | 120–220 | A20、CP0 结论 | +6 widget：无守卫时切后台→`api.pause()` 被调用、意图为 false；有祖先守卫时 MovaPlayer 不动作；`Video` 收到两个参数；+2：audioOnly（无 `Video` 渲染面）不注册生命周期监听 | 默认可见行为不变（切后台仍暂停），待拍板 3；**只在有 `Video` 渲染面时启用**，否则 audioOnly 会在后台被停播，CP2 加 audioOnly 后台一组 |
 | A22 | `refactor(mova): 引入 MovaSession，MovaAds 状态机原样迁入，MovaAds 改为转发壳` | 机械 | 新 `core/session/session.dart`（~1200 搬）、`ads.dart`（剩 ~250） | 1200–1500（搬） | A21 | 不改；ads_test、ads_session_test、ad_first_frame_test、openness_ad_test、`ad_stale_first_frame_test` 与 `test/core/cutover/` 全部零改动绿（口径：A22 的 diff 不含 `test/`；A20 已改写的断言发生在 A22 之前，不算在内） | `MovaSession` 本提交不导出；`--color-moved` 显示几乎全是搬迁 |
-| A23 | `feat(mova): 公开 MovaSession：多条目、按集广告、load 返回接受结果` | 新增 | `session.dart`、`core/model/playlist.dart`（`adBreaks`）、`lib/mova.dart` | 300–500 | A22 | +15 | 直接构造时 `api is MovaCutover` 自动启用；经 `MovaAds` 构造时仍按显式 `cutover:` 参数（旧语义） |
+| A23 | `feat(mova): 公开 MovaSession：多条目、按集广告、load 返回接受结果` | 新增 | `session.dart`、`core/model/playlist.dart`（`adBreaks`）、`lib/mova.dart` | 300–500 | A22 | +15 | 直接构造时 `api is IMovaCutover` 自动启用；经 `MovaAds` 构造时仍按显式 `cutover:` 参数（旧语义） |
 | A24 | `feat(mova): 会话事件带 nodeId 与 epoch，节点身份取代广告位对象身份` | 行为 | 新 `core/session/events.dart`、`timeline.dart`、`session.dart` | 150–250 | A23 | +8；含"pod 里两条 const 同参数广告各播一次" | |
 | A25 | `feat(mova): MovaPlaylist(api, ads:) 走会话，MovaAds.load 返回 Future<bool>` | 行为 | `playlist.dart`、`ads.dart`、README 片段 | 120–230 | A23 | +10（5.3 的 14）；+2：`playlist.enabled=false` 时会话路径 next/previous/自动连播 no-op | 旧 `MovaPlaylist(api)` 行为逐字不变；需要 `MovaAds.session` 访问口（2.3） |
 | A26 | `feat(mova): 会话失败仲裁` | 行为 | 新 `core/session/arbiter.dart`、`session.dart` | 150–250 | A25、A15 | +10（5.3 的 10；recovery 开时广告失败只由一层处理） | 见 3.3 |
 | A27 | `fix(mova): pod 串播事件归属、预热参数与时机` | 行为 | `session.dart`、新 `core/session/transition.dart` | 100–200 | A26 | +8 | 会话改用 prepare+commit 替代一次性 `cutoverTo`；广告方向 plan `rate: 1.0`、`pauseWhenReady: true`、就绪期限取 `adReadyTimeout`；预热 cue 取"素材剩余、广告位剩余"的较小值 |
-| A28 | `fix(mova): 换指窗口不转发旧引擎暂停态，补发影子期生命周期事件，放弃原因可观测` | 行为 | `cutover_engine.dart`、`core/events/events.dart` | 150–250 | A20 | +8 | `MovaCutoverChange.reason` 可选字段 |
-| A29 | `feat(mova): 前跳越过多个中插的补播策略` | 新增 | `timeline.dart`、`ad_config.dart` | 80–150 | A24 | +5 | 默认 `all`（现状） |
+| A28 | `fix(mova): 换指窗口不转发旧播放器暂停态，补发影子期生命周期事件，放弃原因可观测` | 行为 | `cutover.dart`、`core/events/events.dart` | 150–250 | A20 | +8 | `MovaCutoverChange.reason` 可选字段 |
+| A29 | `feat(mova): 前跳越过多个中插的补播策略` | 新增 | `timeline.dart`、`ad_opts.dart` | 80–150 | A24 | +5 | 默认 `all`（现状） |
 | A30 | `fix(mova): NextUp 与广告覆盖层读会话节点` | 行为 | `ui/components/next_up.dart`、广告覆盖层组件 | 60–120 | A24 | +4 widget | 不传会话时保持旧判据 |
 
-**A2 块子计划（2026-11-03，逐 Task 见 [2026-11-03-a2-session.md](2026-11-03-a2-session.md)，主会话拍板见其第 12 节）**：A17–A30 共 13 个提交，测试合计约 N0+105（总计划估 +96）。要点：A22 的 `MovaAds` 改为"同步返回内部 Future、不加 async 包装"的转发壳以保住微任务顺序；A27 的包内能力 `MovaWarmOwner` 扩展 F4 落地的 `core/cutover/acceptance.dart`（不另起平行接口）；A20 只认 `playbackIntent`（自写引擎不维护意图时换指后停在暂停，CHANGELOG 写明）；A26 正片终结错误进 `contentError` 并回 idle（改了 A05 刚定的契约，CHANGELOG 写明）。
+**A2 块子计划（2026-11-03，逐 Task 见 [2026-11-03-a2-session.md](2026-11-03-a2-session.md)，主会话拍板见其第 12 节）**：A17–A30 共 13 个提交，测试合计约 N0+105（总计划估 +96）。要点：A22 的 `MovaAds` 改为"同步返回内部 Future、不加 async 包装"的转发壳以保住微任务顺序；A27 的包内能力 `IMovaWarmOwner` 扩展 F4 落地的 `core/cutover/acceptance.dart`（不另起平行接口）；A20 只认 `playbackIntent`（自写播放器不维护意图时换指后停在暂停，CHANGELOG 写明）；A26 正片终结错误进 `contentError` 并回 idle（改了 A05 刚定的契约，CHANGELOG 写明）。
 
-**A28 追加范围（H77，2026-11-03 S00c 定性后并入）**：cutover 代理的 `state` 与 `events` 走两条独立订阅链，事件会领先 `state`（原始证据 `matrix-r1030-final-hls.json:records[961]`：`MovaBufferChange(false)` 到达时 `state.buffering` 仍为 true），验收矩阵 A2 与 E.MovaBufferChange/SizeChange/QualityChange 因此 FAIL。A28 把代理的 state/events 合并为同一投递序列（事件携带的载荷与同一时刻的 `state` 一致，并带 epoch），并为普通 `MovaEngine` 补一组"事件载荷与接收时 state 一致"的单测以区分普通引擎是否也有差异（现有证据区分不了，S00c 原稿"普通引擎也有差异"证据不足）；预计 +4 测试。修复后四个矩阵项应转 PASS。
+**A28 追加范围（H77，2026-11-03 S00c 定性后并入）**：cutover 代理的 `state` 与 `events` 走两条独立订阅链，事件会领先 `state`（原始证据 `matrix-r1030-final-hls.json:records[961]`：`MovaBufferChange(false)` 到达时 `state.buffering` 仍为 true），验收矩阵 A2 与 E.MovaBufferChange/SizeChange/QualityChange 因此 FAIL。A28 把代理的 state/events 合并为同一投递序列（事件携带的载荷与同一时刻的 `state` 一致，并带 epoch），并为普通 `Mova` 补一组"事件载荷与接收时 state 一致"的单测以区分普通播放器是否也有差异（现有证据区分不了，S00c 原稿"普通播放器也有差异"证据不足）；预计 +4 测试。修复后四个矩阵项应转 PASS。
 
 → **CP2：会话、广告与后台真机核对**
 
@@ -866,23 +866,23 @@ A26、A28、A29、A30 没有改写其他既有断言。A28 的 F4 widget 用例�
 
 | # | 提交 | 类型 | 主要文件 | 规模 | 依赖 | 测试 | 完成判据 |
 |---|---|---|---|---|---|---|---|
-| C01 | `docs(mova): 示例统一用 createMovaEngine，MovaEngine() 构造说明与 debug 提示` | 文档/行为（仅 debug） | `README.md`、`engine.dart` 类注释 | 50–100 | — | +1 | README 首例、时移、拦截器示例全部改；**首例 `engine.open()` 补 `await` 与 `catch`**（README:106 [已核]，现在未 await 未 catch，`open` 抛出即未处理异常）；裸构造在 debug 下打一次提示 |
-| C02 | `fix(mova): MovaMini.show 遵守 enabled，修正无缝切换示例` | 行为 | `ui/mini/mini.dart`、`README.md`、`platform_impl/wiring.dart`、`core/stt/service.dart`（debug 提示） | 60–120 | — | +4 | Codex 异议 2：补 cutover 关闭、STT 无引擎的 debug 一次性提示与只读状态（getter 命名 [待核]）；[已核] `show()`（mini.dart:121）不查 enabled，`showInPage`（:174）查；README:478 的示例得到关闭的直通代理 |
-| C03 | `fix(mova): MovaView 只比较引擎实际读取的配置节` | 行为 | `ui/view.dart`、`core/options/options.dart`（`engineSectionsEqual`） | 100–200 | — | +5：父组件重建、内联 `MovaOpts` 不再重建引擎；debug 下连续 N 帧 options 不等时提示 | [已核] view.dart:188 |
-| C04 | `feat(mova): MovaChrome 承接每视图 UI 交互态，旧引擎接口桥接一个版本` | 新增/API | 新 `ui/chrome/`、组件、`core/api.dart`（dartdoc + CHANGELOG 公告，不加成员级注解）、`engine.dart`、`cutover_engine.dart` | 600–1000 | B01、B14、B15、B16 | 已落地 C04a–C04d；实测 +32 → 2301；拖动与按钮续期（P1-13）；多视图互不串扰 | 旧接口一个版本内保留；无视图行为不变；详见文末 C04 落地记录 |
+| C01 | `docs(mova): 示例统一用 createMova，Mova() 构造说明与 debug 提示` | 文档/行为（仅 debug） | `README.md`、`mova.dart` 类注释 | 50–100 | — | +1 | README 首例、时移、拦截器示例全部改；**首例 `mova.open()` 补 `await` 与 `catch`**（README:106 [已核]，现在未 await 未 catch，`open` 抛出即未处理异常）；裸构造在 debug 下打一次提示 |
+| C02 | `fix(mova): MovaMini.show 遵守 enabled，修正无缝切换示例` | 行为 | `ui/mini/mini.dart`、`README.md`、`platform_impl/wiring.dart`、`core/stt/service.dart`（debug 提示） | 60–120 | — | +4 | Codex 异议 2：补 cutover 关闭、STT 无播放器的 debug 一次性提示与只读状态（getter 命名 [待核]）；[已核] `show()`（mini.dart:121）不查 enabled，`showInPage`（:174）查；README:478 的示例得到关闭的直通代理 |
+| C03 | `fix(mova): MovaView 只比较播放器实际读取的配置节` | 行为 | `ui/view.dart`、`core/options/options.dart`（`movaSectionsEqual`） | 100–200 | — | +5：父组件重建、内联 `MovaOpts` 不再重建播放器；debug 下连续 N 帧 options 不等时提示 | [已核] view.dart:188 |
+| C04 | `feat(mova): MovaChrome 承接每视图 UI 交互态，旧播放器接口桥接一个版本` | 新增/API | 新 `ui/chrome/`、组件、`core/api.dart`（dartdoc + CHANGELOG 公告，不加成员级注解）、`mova.dart`、`cutover.dart` | 600–1000 | B01、B14、B15、B16 | 已落地 C04a–C04d；实测 +32 → 2301；拖动与按钮续期（P1-13）；多视图互不串扰 | 旧接口一个版本内保留；无视图行为不变；详见文末 C04 落地记录 |
 | C05 | `feat(mova): 应用内全屏路由与返回键处理（默认关）` | 新增 | 新 `ui/fullscreen/`、`ui/player.dart` | 300–500 | C04、B04 | +8 | Windows 转场快照路径要经过 `MovaSnapshotGuard`（Flutter 3.47.0/3.47.1 #190774） |
-| C06 | `feat(mova): MovaPlayerStyle，主题文案手势弹幕样式挪出 MovaOpts` | API | 新 `ui/style/`、`options.dart`（弃用公告，是否加成员级注解见待拍板 18）、组件、`core/model/quality.dart`（去写死中文） | 600–900 | C04 | +29（实测） | 2026-11-04 已落地（两提交，C06e 未裁剪）；查找顺序：widget 参数 > ThemeExtension > `api.options.*`（deprecated）> 默认；切主题不重建引擎 |
-| C07 | `feat(mova): MovaSource 支持请求头、UA 与起播位置，旁路请求统一带头` | 新增 | `core/model/source.dart`、`engine.dart`（start 走寄存）、`preview/fetcher.dart`、抽帧器、`feed_prefetcher.dart` | 250–400 | B12 | +10 | `start` 放在 `MovaSource` 上，不改 `MovaApi.open` 签名；**`MovaHttpFetch.get(Uri)` 加 headers 是对宿主实现的破坏**（待拍板 17）：推荐新增可选能力接口 `MovaHeaderedHttpFetch`、原抽象签名不动，旧 fetcher 退化为不带头并 debug 提示 |
-| C08 | `refactor(mova): barrel 分入口，内部实现标记即将隐藏` | API | `lib/mova.dart` 与新入口 `skin.dart/ads.dart/feed.dart/mini.dart/extend.dart` | 200–300 | C06 | +2（导出面快照测试） | 旧入口继续导出同一符号；内部 helper 用 export 级公告（不触发包内 `deprecated_member_use_from_same_package`）；成员级 `@Deprecated` 是否加见待拍板 18 |
-| C09 | `refactor(mova): STT 撤出主入口` | API | `lib/mova.dart`、新 `lib/stt.dart` | 50–100 | C08 | +1 | 主入口保留一个版本的转导出（export 级公告，不触发包内警告）；`MovaApi.stt` 保留；STT 入口 dartdoc 注明模型下载为实验实现（P1-22） |
-| C10 | `feat(mova): 能力发现统一入口` | 新增 | 新 `core/capability.dart` | 60–120 | — | +4 | `movaCapabilityOf<T>(api)` 穿透 cutover 代理；不改 `MovaApi` |
-| C11 | `fix(mova): createMovaEngine 参数冲突的 debug 断言` | 行为（debug） | `platform_impl/wiring.dart` | 60–100 | — | +3 | 传 kernel 时忽略项提示；Android `tlsVerify` 无 CA 断言；`wiring.dart` 文档写清抽帧器默认 |
-| C12 | `feat(mova): 默认接入连通性探针（按需）` | 行为 | `wiring.dart`、`engine.dart` | 40–80 | 待拍板 5 | +3 | **推翻** wiring.dart:113-134 的"不默认接线"；同提交修 `wiring.dart:118,126` 的过期 tree-shaking 注释 |
-| C13 | `feat(mova): 注入对象所有权与 ABR 策略工厂` | API | `abr_config.dart`（`policyFactory`）、`preview/service.dart`、`stt/service.dart` | 150–250 | — | +6 | 引擎只销毁自建对象；STT 不 dispose 宿主引擎；`policyFactory` 每引擎各取一个实例，解决 `stallPolicy`/`policy` 实例被多引擎共用（P2-24）；`policy` 实例字段保留（不加成员级注解，待拍板 18） |
+| C06 | `feat(mova): MovaPlayerStyle，主题文案手势弹幕样式挪出 MovaOpts` | API | 新 `ui/style/`、`options.dart`（弃用公告，是否加成员级注解见待拍板 18）、组件、`core/model/quality.dart`（去写死中文） | 600–900 | C04 | +29（实测） | 2026-11-04 已落地（两提交，C06e 未裁剪）；查找顺序：widget 参数 > ThemeExtension > `api.options.*`（deprecated）> 默认；切主题不重建播放器 |
+| C07 | `feat(mova): MovaSource 支持请求头、UA 与起播位置，旁路请求统一带头` | 新增 | `core/model/source.dart`、`mova.dart`（start 走寄存）、`preview/fetcher.dart`、抽帧器、`feed_prefetcher.dart` | 250–400 | B12 | +10 | `start` 放在 `MovaSource` 上，不改 `IMovaApi.open` 签名；**`IMovaHttpFetch.get(Uri)` 加 headers 是对宿主实现的破坏**（待拍板 17）：推荐新增可选能力接口 `IMovaHeaderedHttpFetch`、原抽象签名不动，旧 fetcher 退化为不带头并 debug 提示 |
+| C08 | `refactor(mova): barrel 分入口，内部实现标记即将隐藏` | API | `lib/mova.dart` 与新入口 `ui_kit.dart/ads.dart/feed.dart/mini.dart/extend.dart` | 200–300 | C06 | +2（导出面快照测试） | 旧入口继续导出同一符号；内部 helper 用 export 级公告（不触发包内 `deprecated_member_use_from_same_package`）；成员级 `@Deprecated` 是否加见待拍板 18 |
+| C09 | `refactor(mova): STT 撤出主入口` | API | `lib/mova.dart`、新 `lib/stt.dart` | 50–100 | C08 | +1 | 主入口保留一个版本的转导出（export 级公告，不触发包内警告）；`IMovaApi.stt` 保留；STT 入口 dartdoc 注明模型下载为实验实现（P1-22） |
+| C10 | `feat(mova): 能力发现统一入口` | 新增 | 新 `core/capability.dart` | 60–120 | — | +4 | `movaCapabilityOf<T>(api)` 穿透 cutover 代理；不改 `IMovaApi` |
+| C11 | `fix(mova): createMova 参数冲突的 debug 断言` | 行为（debug） | `platform_impl/wiring.dart` | 60–100 | — | +3 | 传 kernel 时忽略项提示；Android `tlsVerify` 无 CA 断言；`wiring.dart` 文档写清抽帧器默认 |
+| C12 | `feat(mova): 默认接入连通性探针（按需）` | 行为 | `wiring.dart`、`mova.dart` | 40–80 | 待拍板 5 | +3 | **推翻** wiring.dart:113-134 的"不默认接线"；同提交修 `wiring.dart:118,126` 的过期 tree-shaking 注释 |
+| C13 | `feat(mova): 注入对象所有权与 ABR 策略工厂` | API | `abr_opts.dart`（`policyFactory`）、`preview/service.dart`、`stt/service.dart` | 150–250 | — | +6 | 播放器只销毁自建对象；STT 不 dispose 宿主播放器；`policyFactory` 每播放器各取一个实例，解决 `stallPolicy`/`policy` 实例被多播放器共用（P2-24）；`policy` 实例字段保留（不加成员级注解，待拍板 18） |
 | C14 | `feat(mova): MovaFeedPlayer 暴露控制器、内置自动暂停、单页失败可见` | API | `ui/feed_player.dart` | 200–300 | B11、B12 | +6 | |
 | C15 | `feat(testing): MovaTestKernel 脚本化模式` | 新增 | `lib/src/testing/` | 150–250 | — | +6 | 宿主不懂首帧判据也能写测试 |
-| C16 | `refactor(mova): 改名遗留收尾` | API | `ui/mini/mini_host.dart`、广告覆盖层、工厂 typedef、`deprecated_names.dart` | 100–200 | — | +2 | 全部 `@Deprecated` 别名 |
-| C17 | `docs(mova): README、SPEC、CHANGELOG、CLAUDE.md、DESIGN 对齐与版本号对账` | 文档 | 见第 9 节 | 400–800（文档） | 全部 | — | 第 9 节清单逐项勾完；顺带修过期 dartdoc：`core/api.dart:368-371`、`core/options/stt_config.dart:36,45`；README 写明 feed 预取与 STT 模型下载的已知限制 |
+| C16 | `refactor(mova): 改名遗留收尾` | API | `ui/mini/mini_host.dart`、广告覆盖层、工厂 typedef、`deprecated_names.dart`（后已整体删除） | 100–200 | — | +2 | 全部 `@Deprecated` 别名 |
+| C17 | `docs(mova): README、SPEC、CHANGELOG、CLAUDE.md、DESIGN 对齐与版本号对账` | 文档 | 见第 9 节 | 400–800（文档） | 全部 | — | 第 9 节清单逐项勾完；顺带修过期 dartdoc：`core/api.dart:368-371`、`core/options/stt_opts.dart:36,45`；README 写明 feed 预取与 STT 模型下载的已知限制 |
 
 **C04/C06 拆分（2026-11-03，逐 Task 子计划见 [2026-11-03-c04-c06-chrome-style.md](2026-11-03-c04-c06-chrome-style.md)）**：C04 拆为 C04a–C04d，C06 拆为 C06a–C06e（C06e 可裁剪），阶梯合计 66 → **73**。C 块内顺序改为 C04 → C06 → C05（依赖不变，C05 的全屏文案与样式直接走 `MovaPlayerStyle`/`MovaStrs`，免得 C06b 二次迁移）。C03 落地时对样式节保守（样式节变化仍重建视图），到 C06d 再放宽。C04/C06 检查点失败需移出时保留 C08/C09，另起提交删掉新类型的 `show` 导出，不连带回退。测试增量 C04 +32、C06 +23（不做 C06e 为 +20），高于本表原估。
 
@@ -893,7 +893,7 @@ A26、A28、A29、A30 没有改写其他既有断言。A28 的 F4 widget 用例�
 ### 3.3 难点提交详述
 
 **A02 cutover 操作代际**
-- 新增 `int _op`，`open()`、`reload()`、`cutoverTo()` 入口、`dispose()` 递增；`prepare()` 不递增（同源去重、异源先 abandon，现有逻辑 cutover_engine.dart:459-467 已覆盖）。
+- 新增 `int _op`，`open()`、`reload()`、`cutoverTo()` 入口、`dispose()` 递增；`prepare()` 不递增（同源去重、异源先 abandon，现有逻辑 cutover.dart:459-467 已覆盖）。
 - 代理 `open/reload`：`_op++; unawaited(abandon());` 再转发。abandon 的同步前缀（:799-836）已经清槽并唤醒等待者，不需要 await。
 - `commit()` 认领时取 `final op = _op` 与槽对象；`_commitNow` 在 `old.pause()`、`_holding`、keepAlive、继承设置、解静音、`shadow.play()`、`_detach` 每个 await 之后检查 `_disposed || op != _op`，过期就只 dispose 已认领的影子（恰好一次）并返回 false，不碰 `_active`、不碰新槽。
 - 收尾（现在的 :710-720）只做"换指 + 本槽相关字段"，`_slot` 若已被新的 prepare 占用就不动它，相位也归新槽。
@@ -926,7 +926,7 @@ A09 只记录：每条路径在 `_loadKernel` 之前写 `_currentLoad`，读取�
 retry 在时移中用规格里的 `timeshiftBehind` 按当前时间重建地址（保持同样的落后量）；failover 清时移。连点两次换档时，第二次的续播点取"上一次尚未落地的续播目标"，不读被清零的 `_lastPosition`（P2-1）。恢复等待首帧期间的用户 seek 改写 `_recoveryPosition`（P2-3）。
 
 **A13 / A14 / A14b 错误模型（一个设计单元，三个提交，顺序固定）**
-- 分级复用 `report/error_policy.dart` 的前缀判据，但它吃的是带子系统前缀的 log 行，`MovaKernel.error` 不带前缀（`kernel.dart:140`）；前缀只在 `MovaStatsProbe.logs`。所以 A13 必须有**内核层接线**：在 `mpv_kernel.dart` 里用 `logs` 前缀产出带分级的错误（可选能力，`MovaKernel` 抽象零新增成员；形态 [待核]，开工前出设计）。内核日志行默认非终结；已知终结前缀（`Failed to initialize a decoder`、`Failed to recognize file format.` 等，CHANGELOG Unreleased 已列）为终结；`END_FILE(error)` 与 `MovaGiveUpError` 为终结。A13 只分类，不改 `state.error` 行为。
+- 分级复用 `report/error_policy.dart` 的前缀判据，但它吃的是带子系统前缀的 log 行，`IMovaKernel.error` 不带前缀（`kernel.dart:140`）；前缀只在 `IMovaStatsProbe.logs`。所以 A13 必须有**内核层接线**：在 `mpv_kernel.dart` 里用 `logs` 前缀产出带分级的错误（可选能力，`IMovaKernel` 抽象零新增成员；形态 [待核]，开工前出设计）。内核日志行默认非终结；已知终结前缀（`Failed to initialize a decoder`、`Failed to recognize file format.` 等，CHANGELOG Unreleased 已列）为终结；`END_FILE(error)` 与 `MovaGiveUpError` 为终结。A13 只分类，不改 `state.error` 行为。
 - **为什么 A13→A14→A14b 不能换序**：若先收窄 `state.error`（原 A13）再订阅 END_FILE（原 A14），两者之间 404 坏地址既没有终结错误、又被收窄，出现行为回退窗口。现在 A14 先让 `END_FILE(error)` 成为终结错误并写 `state.error`，A14b 最后才把非终结错误挡在 `state.error` 之外。
 - A14：recovery 关时也订阅 `endFiles`（懒启动，首次 `open()`），`END_FILE(error)` 转终结错误并清缓冲标志（复用 `_giveUp` 的清理）；`alternatives` 非空而 recovery 关时 debug assert。**封面与 RESTART**：待拍板 7 的“挂了封面就打开 RESTART”在本提交落实（`MovaPlayer(poster:)` 路径经 `observeRestarts` 打开；`MovaView` 已是 `preciseFirstFrame: poster != null`）；原稿“首帧判据不变”只指无封面路径。`openness_host_test.dart:40` 的 `endFilesSubscribed isFalse` 断言要改；同文件 :38-39 的 `movaObserveFlags(...).native/.qoe isFalse` 仍成立。
 - A14b：非终结——照发 `MovaErrorEvent(fatal: false)`、走钩子 `onError`，不写 `state.error`，不弹遮罩。这是对默认行为的破坏性变更，待拍板 16。
@@ -935,16 +935,16 @@ retry 在时移中用规格里的 `timeshiftBehind` 按当前时间重建地址�
 **A18–A21 广告时钟、意图、后台**
 - 时钟默认运行。会话订阅 `api.states`，只在 phase=ad（slot）或 phase=pending（delay）时，把 `playing` 的 true→false 边沿转成 `pause()`、false→true 转成 `resume()`。FakeMovaApi 不推 playing，所以 ads_test 98 条里依赖墙钟到期的用例不受影响（终审 5）。
 - A20 的意图快照：`_commitNow` 在 `await old.pause()` **之前**读 `old.state.playbackIntent`；换指后意图为真才 `shadow.play()`，否则 `shadow.pause()`（让影子意图也为假）。不能用 `wasPlaying`（:663）：广告自然播完时内核 `playing` 本来就是 false，照用会让"前贴片后正片"不起播。普通路径（无 cutover）的 `_api.open(c, autoPlay: 意图快照)` 同理，快照在 `_resumeAfterAd` 入口取。
-- [已核] `MovaState.playbackIntent` 默认 false（state.dart:235），FakeMovaApi 的 open/play/pause 不维护它（fake_api.dart:328-357）。A19 只修 ads 侧的 FakeMovaApi；**A20 自己会让约 8–12 条 cutover 断言变红**（旧引擎在这些测试里从未 `open`，意图恒 false，影子不开播），这些断言由 A20 同提交改写为给测试替身旧引擎预置意图（清单见 3.2 A20 行）。
-- A21：`Video(pauseUponEnteringBackgroundMode: false, resumeUponEnteringForegroundMode: false)`（参数名按评审对 media_kit_video 2.0.1 的引用 [材料]，落地前对 pub cache 里的源码核一遍）；`MovaPlayer` 自带一个最小生命周期监听，切后台时 `api.pause()`（默认开，保持今天"切后台会停"的可见行为），祖先有 `MovaAutoPause` 时让位给守卫。这样后台暂停经过钩子、写对意图，广告时钟也能从 playing 边沿看到。**监听与 `Video` 两个参数只在有 `Video` 渲染面时启用**：audioOnly 引擎没有 `Video`（`renderHandle == null`），media_kit 的后台暂停本来就不存在，自带监听反而会把音频在后台停掉；audioOnly 保持现状（后台继续播，宿主要停自己用 `MovaAutoPause`）。CP2 加 audioOnly 后台一组。
+- [已核] `MovaState.playbackIntent` 默认 false（state.dart:235），FakeMovaApi 的 open/play/pause 不维护它（fake_api.dart:328-357）。A19 只修 ads 侧的 FakeMovaApi；**A20 自己会让约 8–12 条 cutover 断言变红**（旧播放器在这些测试里从未 `open`，意图恒 false，影子不开播），这些断言由 A20 同提交改写为给测试替身旧播放器预置意图（清单见 3.2 A20 行）。
+- A21：`Video(pauseUponEnteringBackgroundMode: false, resumeUponEnteringForegroundMode: false)`（参数名按评审对 media_kit_video 2.0.1 的引用 [材料]，落地前对 pub cache 里的源码核一遍）；`MovaPlayer` 自带一个最小生命周期监听，切后台时 `api.pause()`（默认开，保持今天"切后台会停"的可见行为），祖先有 `MovaAutoPause` 时让位给守卫。这样后台暂停经过钩子、写对意图，广告时钟也能从 playing 边沿看到。**监听与 `Video` 两个参数只在有 `Video` 渲染面时启用**：audioOnly 播放器没有 `Video`（`renderHandle == null`），media_kit 的后台暂停本来就不存在，自带监听反而会把音频在后台停掉；audioOnly 保持现状（后台继续播，宿主要停自己用 `MovaAutoPause`）。CP2 加 audioOnly 后台一组。
 
 **A22 机械搬迁**
 
 搬迁对象是 ads.dart 的整个状态机（约 1200 行）。`MovaAds` 留下构造参数、getter、方法、流的转发，以及"显式 `cutover:` 才启用"的旧语义。判据：五个广告相关测试文件（含 `ad_stale_first_frame_test`）与 `test/core/cutover/` 零改动全绿（A22 的 diff 不含 `test/`）；`--color-moved` 下非搬迁行 < 80 且逐条列出。微任务顺序是最大风险（第 6 节 R-2）：转发一律同步返回内部 Future，不加 `async` 包装。
 
 **A26 失败仲裁的分工**
-- 广告节点：失败仍走 `MovaAdFailPolicy`（宿主策略不变）。引擎 recovery 开着时，会话对广告节点的非终结错误不动作，只认 `MovaPlayFailure(giveUp)`、终结错误或广告自己的 `loadTimeout`；`loadTimeout` 先到时由会话裁决并打开下一节点（新 `open` 自然取代引擎的重试）。
-- 正片节点：recovery 开时等引擎；`giveUp` 或 recovery 关时的终结错误 → `contentError` + `MovaNodeFail(failItem)`；播放列表默认不因失败自动下一集。
+- 广告节点：失败仍走 `IMovaAdFailPolicy`（宿主策略不变）。播放器 recovery 开着时，会话对广告节点的非终结错误不动作，只认 `MovaPlayFailure(giveUp)`、终结错误或广告自己的 `loadTimeout`；`loadTimeout` 先到时由会话裁决并打开下一节点（新 `open` 自然取代播放器的重试）。
+- 正片节点：recovery 开时等播放器；`giveUp` 或 recovery 关时的终结错误 → `contentError` + `MovaNodeFail(failItem)`；播放列表默认不因失败自动下一集。
 - 同一 (epoch, node, attempt) 只结算一次，open 抛出、playerError、loadTimeout 三路合流（5.3 的 10）。被拒或被取代**不是**失败。
 
 ---
@@ -953,7 +953,7 @@ retry 在时移中用规格里的 `timeshiftBehind` 按当前时间重建地址�
 
 通用约束沿用矩阵 §2：基于真实事件取证（原生 path/time-pos、`renderEpoch`、`MovaDone` 事件戳），不用墙钟；URL 加时间戳防缓存；Android 实验前确认亮屏解锁（`dumpsys window | grep isKeyguardShowing`）。设备：STG-AL00（Android 12 arm64，release）+ 本机 Windows（release；profile 只用于需要切 Skia 对照的场景）。本地源走 `example/tool/verify_sources/` + `adb reverse`。
 
-**F3/A17 判据统一**（矩阵 F3-② 写着"<200ms 与 ±500ms 待统一"，ACCEPTANCE-MATRIX.md:375）：本计划以**原生 time-pos 落点与目标差 ≤500ms 且 path 正确**为通过线，同时记录 <200ms 的占比。理由：复测各轮都用 ±500ms，500ms 也是引擎回声抑制的容差（engine.dart:499）。这一条列入待拍板 15。
+**F3/A17 判据统一**（矩阵 F3-② 写着"<200ms 与 ±500ms 待统一"，ACCEPTANCE-MATRIX.md:375）：本计划以**原生 time-pos 落点与目标差 ≤500ms 且 path 正确**为通过线，同时记录 <200ms 的占比。理由：复测各轮都用 ±500ms，500ms 也是播放器回声抑制的容差（mova.dart:499）。这一条列入待拍板 15。
 
 ### 4.0 验证页与脚本清单（CP0–CP2，约 15 个新场景）
 
@@ -971,7 +971,7 @@ retry 在时移中用规格里的 `timeshiftBehind` 按当前时间重建地址�
 |---|---|---|---|
 | 跑批修复验收 | S00 后对当前 main 跑一遍全部可自动批次 | 1 轮 | 新 ledger，作为 CP1–CP3 的对照基线 |
 | F3/A17 precise | 普通/暂停/cutover 三组，HLS | 280 次（沿用 rerun6 口径） | 失败数与失败特征；rerun6 是 279/280 |
-| H28 默认配置 | 同上三组，`createMovaEngine()` 不开泵 | 每组 30，共 90 | 这条路径至今零真机数据（矩阵 §4.2-1） |
+| H28 默认配置 | 同上三组，`createMova()` 不开泵 | 每组 30，共 90 | 这条路径至今零真机数据（矩阵 §4.2-1） |
 | H20/H50 | HLS open 后立刻 seek(15s)；`cutoverTo(hls, at: 12s)` | 各 30 | 矩阵 §4.2-2，用例已写待上机 |
 | H7、H14、H17、H33、H42、A15.miniPip、H37.dispose | gap-assumptions / gap-lifecycle 已写好的用例 | 按用例 | 矩阵 §4.2-3~8 |
 | P0-2 现场 | ads+cutover 开：正片预热中 / 中插 pending 中 / 后贴片后 `load(B)` | 各 10 | 是否播成上一集（原生 path 对账）；作为 A03 的修前对照 |
@@ -990,7 +990,7 @@ retry 在时移中用规格里的 `timeshiftBehind` 按当前时间重建地址�
 - **CP0 六个新验证页 + Android 最小冒烟**（各 1 次，正式次数未跑），见 [CP0 报告](2026-11-03-cp0-pages-and-smoke.md)。修前现场已坐实：P0-2 在 `load(B)` 返回后仍读到上一集 A 243 次（原生位置跨度 8880ms）；pod 第二条广告 `renderEpoch` 0→0（**更正（2026-11-03 A2 子计划核实）**：该页用两条前贴片且未配等待，前贴片默认不等待就绪，按设计走直接 open、不换指，所以这个数字**不能**说明 cutoverTo 回落；pod2 页已改为等待型变体 + 不等待对照，重测前 CLAUDE.md ③ 仍无真机结论）；`Video` 后台暂停参数开时回前台需手动恢复、关时继续播放；暂停加载夹具里 B（WebM）的 sessionStart 3/3 仍报 A 的 MP4。音频焦点维持 manual BLOCKED。
 - 仍欠：上表的正式次数跑批（全量可自动批次、F3/A17 280、H28 90、H20/H50 各 30、gap 用例、P1-3、Windows 组）与 S00 的判据缺口。
 
-### CP1 引擎、切换与 B 块（A16 之后）
+### CP1 播放器、切换与 B 块（A16 之后）
 
 | 项 | 次数 | 通过标准 |
 |---|---|---|
@@ -1024,7 +1024,7 @@ retry 在时移中用规格里的 `timeshiftBehind` 按当前时间重建地址�
 |H20/H50 HLS|60/60|PASS|example/tool/coverage_evidence/matrix-cp1-android-hls-20261103-1708-cp0-parked/cp0-result.json|
 |P0-2 三种触发|30/30|PASS|example/tool/coverage_evidence/matrix-cp1-cp0-p02-20261103-1724/matrix-cp1-cp0-p02-20261103-1724-cp0-p02.json|
 |keepAlive S1/S7/S13/S14|20/20|PASS|example/tool/coverage_evidence/cp1-close-keepalive-review/visual-review.json；example/tool/coverage_evidence/cp1-close-keepalive-core-comparison.json|
-|终审7a|10/10|PASS|example/tool/coverage_evidence/matrix-cp1-close-wakeswap-1838/matrix-cp1-close-wakeswap-1838-cp1-wakeswap.json|
+|终审7a|10/10|PASS|example/tool/coverage_evidence/matrix-cp1-close-wakecutover-1838/matrix-cp1-close-wakecutover-1838-cp1-wakecutover.json|
 |终审7b / fallback|20/20|BLOCKED|example/tool/coverage_evidence/matrix-cp1-close-edgepause-relative-2023/matrix-cp1-close-edgepause-relative-2023-cp1-edgepause.json（旧归因见原1542批次 records[1256,1258,1281,1539,1540]）|
 |H35 / 手选720p重试|20/20|PASS|example/tool/coverage_evidence/matrix-cp1-close-recovery-r3-1853/matrix-cp1-close-recovery-r3-1853-cp1-recovery.json|
 |错误分级|10/10|PASS|example/tool/coverage_evidence/matrix-cp1-close-errclass-1832/matrix-cp1-close-errclass-1832-cp1-errclass.json|
@@ -1037,14 +1037,14 @@ retry 在时移中用规格里的 `timeshiftBehind` 按当前时间重建地址�
 |Windows|12/12|BLOCKED|example/tool/coverage_evidence/win-cp1-close-2043/result.json；doc/plans/2026-11-03-win-quiet-mode.md|
 
 - H28暂停/cutover原0秒读回是在既有链恢复前提前采样，原时序确认下一次seek前已自愈；稳定窗4红→4绿，既有链新增2条回归通过，三模式各30/30。没有产品修复红绿（lib未改）。
-- B14/C06已落地lockToggle，更新完整有序快照；三轮目标12/12 PASS，另立B.skin辅助行。B03底栏专属刺激仍0/3，不拿skin代替。
+- B14/C06已落地lockToggle，更新完整有序快照；三轮目标12/12 PASS，另立B.uiKit 辅助行。B03底栏专属刺激仍0/3，不拿 UI 套件代替。
 - 独立404 END_FILE：原CHECK仅晚于核心fatal33.242ms，早于100ms独立泵，立即释放造成缺采；等待真实END_FILE再释放，新5/5。
 - 7a延迟夹具网络超时调到20s后10/10；恢复限速/预读上限与原生稳定落点后20/20；探测真实滑动直播主源404、备用源和关闭组补齐40/40。
 - 7b/fallback：绝对URI20/20、保留原始相对URI对照20/20，但旧协议错误未复现，服务/产品责任未闭合，因此整行仍BLOCKED。输出形状测试2红→2绿仅证明夹具契约，不能证明旧问题根因。
 - keepAlive：CP0产品revision a5c317f6归档重建同一诊断入口，原生库与原APK哈希一致；S1/S13两版各5轮，S7/S14阶段token、双帧运动、精确ACK及人工联系表齐备。原CP0首轮采图缺失保留BLOCKED并显式补采；当前四场景20/20 PASS。
 - Windows依本次用户约束每项最多3次：F3三模式各1、dispose/V6/V10各3；当前功能12/12 PASS、V10 0崩溃。7次有效启动经win_policy、640×360、NOACTIVATE/TOOLWINDOW，965次只读观察前台违规0。CP0数字基线仍PENDING，F3/dispose/V6“不劣于CP0”仍BLOCKED。本次不能替代原20/30次目标。
 - B块仍缺：OEM系统亮度/Insets字段完整对账、有效抽帧前提、底栏专属刺激、弹幕同口径性能基线/判据。额外POD2公共FirstFrame契约两行仍BLOCKED，不计入本表16行。
-- 检查：Flutter全量2094 PASS，皮肤24、事件泵24、恢复/探测23 PASS，均 --concurrency=3；analyze未与全量并行。Python closeout12、matrix56、Windows策略11 PASS，matrix --check PASS。设备原音量0/常亮7/既有gnirehtet映射已逐值核验恢复，最后APK拉回哈希一致。
+- 检查：Flutter全量2094 PASS，UI 套件24、事件泵24、恢复/探测23 PASS，均 --concurrency=3；analyze未与全量并行。Python closeout12、matrix56、Windows策略11 PASS，matrix --check PASS。设备原音量0/常亮7/既有gnirehtet映射已逐值核验恢复，最后APK拉回哈希一致。
 - 执行偏差：Windows首次CMake配置失败留下Program Files默认安装prefix，后续构建误覆盖既有 `C:\Program Files\mova_example`；无旧备份无法安全恢复，已明确告知用户且未删除既有目录。之后固定本树prefix，并在构建前后核验路径。清单 `example/tool/coverage_evidence/win-cp1-close-2039/external-install-incident.json`。此处不能声称本轮所有写入均在worktree内。
 
 前五提交：a0420953、e3879cbb、7140747b、ca071d9d、f3320979；第六提交为本报告/总计划收口，最终hash见git记录。
@@ -1056,11 +1056,11 @@ retry 在时移中用规格里的 `timeshiftBehind` 按当前时间重建地址�
 | A24/F4 广告各路径（pre/mid/post/pod），正片含 HLS（H15/H20/H50） | 各 5 | 续播误差 ≤500ms；成功无缝提交时 `renderEpoch` 按次递增，直接 open 不要求递增 |
 | 广告中暂停 10s 再续 | 10 | slot 剩余时长误差 ≤300ms；暂停期间不发 completed |
 | 广告中切后台 30s（Android，无守卫与有守卫两组） | 各 10 | 后台不发 completed、不出声；回前台按守卫语义续播 |
-| pod 第二条广告（CLAUDE.md ③） | wait/nowait 各 10 | wait 每条无缝切换（第二条 `renderEpoch` 递增 10/10）；nowait 为当前引擎直接 open 对照，不要求 epoch 递增；两组都核对源与独立首帧 |
+| pod 第二条广告（CLAUDE.md ③） | wait/nowait 各 10 | wait 每条无缝切换（第二条 `renderEpoch` 递增 10/10）；nowait 为当前播放器直接 open 对照，不要求 epoch 递增；两组都核对源与独立首帧 |
 | 播放列表 + 广告 3 集自动连播 | 5 | 每集都有前贴片和中插；`contentEnded` 每集一次 |
 | 倍速恢复（F16）、Q13 预热静音不碰系统音量 | 各 5 | 与 CP0 一致 |
 | 后台暂停所有权：无守卫 MovaPlayer、MovaView(autoPause) V9、PiP F5/A15/A18、直播隐藏 ≥3s 回边缘 H61 | 各 5–10 | 无守卫：后台暂停且意图为假；有守卫：回前台自动续播；PiP 不暂停 |
-| audioOnly 引擎无守卫切后台 30s（A21 只在有 `Video` 渲染面时启用） | 10 | 后台继续出声、`playbackIntent` 不变；同组有渲染面的引擎仍按守卫语义暂停（对照） |
+| audioOnly 播放器无守卫切后台 30s（A21 只在有 `Video` 渲染面时启用） | 10 | 后台继续出声、`playbackIntent` 不变；同组有渲染面的播放器仍按守卫语义暂停（对照） |
 | F1/F7 事件序列、QoE 会话数 | 各 5 | 内部重试与换档不产生新 QoE 会话 |
 | Windows：广告基本路径 5、路由覆盖 V10 20 | 按项 | 0 崩溃 |
 | 项 | 次数 | 通过标准 | 自动证据 | 最终结论 |
@@ -1068,11 +1068,11 @@ retry 在时移中用规格里的 `timeshiftBehind` 按当前时间重建地址�
 | A24/F4 广告各路径（pre/mid/post/pod），正片含 HLS（H15/H20/H50） | 各 5 | 续播误差 ≤500ms；`renderEpoch` 按次递增 | PASS | PASS |
 | 广告中暂停 10s 再续 | 10 | 首帧后按 playing 边沿扣除暂停窗口的有效墙钟误差 ≤300ms；暂停冻结/漂移及不发 completed 校验保留 | PASS（判据修正，离线重判） | PASS（判据修正，离线重判） |
 | 广告中切后台 30s（Android，无守卫与有守卫两组） | 各 10 | 后台不发 completed、不出声；回前台按守卫语义续播；slot 误差按首帧后有效墙钟计算，绝对值 ≤300ms | PASS（判据修正，离线重判） | BLOCKED |
-| pod 第二条广告（CLAUDE.md ③） | wait / nowait 各 10 | wait 每条 renderEpoch 递增；nowait 按既有契约在当前引擎直接 open，不要求 epoch 递增；两条首帧均与 URI 匹配 | PASS（判据修正，离线重判） | PASS（判据修正，离线重判） |
+| pod 第二条广告（CLAUDE.md ③） | wait / nowait 各 10 | wait 每条 renderEpoch 递增；nowait 按既有契约在当前播放器直接 open，不要求 epoch 递增；两条首帧均与 URI 匹配 | PASS（判据修正，离线重判） | PASS（判据修正，离线重判） |
 | 播放列表 + 广告 3 集自动连播 | 5 | 每集都有前贴片和中插；`contentEnded` 每集一次 | PASS | PASS |
 | 倍速恢复（F16）、Q13 预热静音不碰系统音量 | 各 5 | 与 CP0 一致 | PASS | BLOCKED |
 | 后台暂停所有权：无守卫 MovaPlayer、MovaView(autoPause) V9、PiP F5/A15/A18、直播隐藏 ≥3s 回边缘 H61 | 各 5–10 | 无守卫：后台暂停且意图为假；有守卫：回前台自动续播；PiP 不暂停 | PASS | BLOCKED |
-| audioOnly 引擎无守卫切后台 30s（A21 只在有 `Video` 渲染面时启用） | 10 | 后台继续出声、`playbackIntent` 不变；同组有渲染面的引擎仍按守卫语义暂停（对照） | PASS | BLOCKED |
+| audioOnly 播放器无守卫切后台 30s（A21 只在有 `Video` 渲染面时启用） | 10 | 后台继续出声、`playbackIntent` 不变；同组有渲染面的播放器仍按守卫语义暂停（对照） | PASS | BLOCKED |
 | F1/F7 事件序列、QoE 会话数 | 各 5 | 内部重试与换档不产生新 QoE 会话 | BLOCKED | BLOCKED |
 | Windows：广告基本路径 5、路由覆盖 V10 20 | 按项 | 0 崩溃 | BLOCKED | BLOCKED |
 
@@ -1119,7 +1119,7 @@ QoE 缺 `CP2.qoe.manual720.4` 原始 CHECK，9 PASS/1 BLOCKED；Windows 本轮�
 - 全部可自动批次（Android）跑一轮，与 CP0 ledger 对比：**不允许出现新的 FAIL**；BLOCKED 只能是 CP0 已有的那几项。
 - F3/A17 precise 280 再跑一次（C04 搬了控制条计时、C07 的 `start` 走寄存路径），标准同 CP1。
 - C05 全屏路由：Windows 进出 20 次 0 崩溃（转场快照路径）；Android 返回键先退全屏、锁定时提示解锁。
-- C06：切主题与语言 10 次，位置连续、引擎不重建（`renderEpoch`、会话 id 不变）。
+- C06：切主题与语言 10 次，位置连续、播放器不重建（`renderEpoch`、会话 id 不变）。
 - C07：带 Referer 的防盗链 CDN（本地源模拟）上清晰度列表、缩略图、feed 预取都成功。
 - C14：`MovaFeedPlayer` 控制器、内置自动暂停、单页失败可见各 5 次。**C14 排在 CP2 之后，所以检查行放在 CP3 而不是 CP2**。
 - Windows 子集同 CP1。
@@ -1137,12 +1137,12 @@ QoE 缺 `CP2.qoe.manual720.4` 原始 CHECK，9 PASS/1 BLOCKED；Windows 本轮�
 | A02 | 0–3 条 cutover 断言 | 若有断言依赖"提交收尾清空全局影子槽" |
 | A07 | 1–2 条 keepAlive 断言 | `setKeepAlive(false)` 不再等网络重开 |
 | A12 | 测试 rig 默认 fetcher 换 noop 后个别用例核对（`.m3u8` 出现 154 次） | 避免真实 fetcher 在 fakeAsync 留 timeout 计时器 |
-| A14b | 10–25 条（engine_test、overlays_test 等） | 非终结错误不再写 `state.error` |
+| A14b | 10–25 条（mova_test、overlays_test 等） | 非终结错误不再写 `state.error` |
 | A14 | `openness_host_test.dart:40` 的 endFiles 断言 | 推翻"recovery 关时不订阅" |
 | A15 | ads_test 中"任意 MovaErrorEvent 判失败"的用例 | 改为终结错误 |
 | A18 | ≤3 条 `delayRemaining` | 展示改由时钟给 |
 | A19 | 视替身改动而定，逐条列出 | 替身按真实契约维护意图 |
-| A20 | 约 8–12 条 cutover 断言（`cutover_engine_test`、`cutover_keep_alive_test`、`cutover_warm_mute_test`、`cutover_engine_defects_test`） | 影子“意图为真才开播”，旧引擎在测试里从未 open、意图恒 false；改写为替身旧引擎预置意图 |
+| A20 | 约 8–12 条 cutover 断言（`cutover_test`、`cutover_keep_alive_test`、`cutover_warm_mute_test`、`cutover_defects_test`） | 影子“意图为真才开播”，旧播放器在测试里从未 open、意图恒 false；改写为替身旧播放器预置意图 |
 | B15 | 1–3 条 | 同值不再发事件 |
 | C04/C06 | UI 测试改走新接口的一部分 | 旧接口保留桥接，大部分不必改 |
 
@@ -1151,8 +1151,8 @@ A01、A09、A17、A22 四个机械提交**一条都不改**，这是它们的验
 ### 5.2 替身增强（S01）
 
 - **FakeMovaApi**：`openGate`/`playGate`/`pauseGate`/`seekGate`（`Completer`，可选）让测试控制每个 await 的放行时机；`emitDone()`、`emitError(fatal:)`；可选 `pushPlayingOnVerbs`（默认 false，保持终审 5 的前提）；实例编号与 `disposeCount`，用于"恰好释放一次"断言。
-- **门控引擎工厂**：给 `MovaCutoverEngine(engineFactory:)` 用，记录每个影子的源、open/seek/pause/play/dispose 顺序。这样 P0-2、N1 能用**真实** `MovaCutoverEngine` 跑，而不是 `FakeCutoverCtl`。
-- **FakeCutoverCtl**：记录 `prepare` 的源与 plan，`commit` 返回"当前在途预热的源是否与期望一致"的可编程结果（`commitResultFor(source)`），并给 prepare/commit 加门控。现有 33 处用法默认行为不变。
+- **门控播放器工厂**：给 `MovaCutover(movaFactory:)` 用，记录每个影子的源、open/seek/pause/play/dispose 顺序。这样 P0-2、N1 能用**真实** `MovaCutover` 跑，而不是 `FakeCutover`。
+- **FakeCutover**：记录 `prepare` 的源与 plan，`commit` 返回"当前在途预热的源是否与期望一致"的可编程结果（`commitResultFor(source)`），并给 prepare/commit 加门控。现有 33 处用法默认行为不变。
 - **严格命令日志**：跨替身的全局序号，断言"实际执行顺序"。
 
 ### 5.3 必须新增的交错测试
@@ -1162,11 +1162,11 @@ A01、A09、A17、A22 四个机械提交**一条都不改**，这是它们的验
 | 1 | 正片影子 ready → 无前贴片 `load(B)` → commit | 打开的是 B；A 的影子恰好 dispose 一次（真实 cutover） |
 | 2 | 中插倒计时 pending 中 `load(B)` | 广告影子不被当正片提交 |
 | 3 | 后贴片 → idle → `load(B)` | 没有残留影子；B 全新打开 |
-| 4 | commit 已认领、卡在 `old.pause()` → 代理 `open(B)` | 提交放弃，影子释放一次，生效引擎播 B |
+| 4 | commit 已认领、卡在 `old.pause()` → 代理 `open(B)` | 提交放弃，影子释放一次，生效播放器播 B |
 | 5 | commit 已认领、卡在 `old.pause()` → `prepare(C)` | 提交完成后 C 仍在预热、订阅仍在；dispose 时 C 被释放 |
 | 6 | 并发 `cutoverTo(X)`、`cutoverTo(Y)` | 只有 Y 换指；X 过期不回落 open |
 | 7 | 提交途中 dispose | 所有等待者都有结果；影子释放一次 |
-| 8 | `_playContent` 等 commit 时旧广告引擎 tick 越过某中插 offset | 不触发中插（终审 7d） |
+| 8 | `_playContent` 等 commit 时旧广告播放器 tick 越过某中插 offset | 不触发中插（终审 7d） |
 | 9 | `_beginAd`/`_playAd` 的 await 期间 `load` 新内容或 dispose | 不装旧计时器、不恢复 STT 与倍速、相位不回写 |
 | 10 | 同一广告：playerError + open 抛出 + loadTimeout 同时到 | 失败策略只调一次 |
 | 11 | slot 计时中 playing true→false→true；暂停中 skip；暂停中 Done；暂停中 `load` | 剩余时长保留；三路续播只结算一次 |
@@ -1186,7 +1186,7 @@ A01、A09、A17、A22 四个机械提交**一条都不改**，这是它们的验
 
 ### 5.4 fuzz 与 fakeAsync
 
-- 现有 `engine_fuzz_test.dart` 的动作是逐个 await 的，覆盖不到并发。新增一个**带门控的交错 fuzz**：固定种子（每次 CI 跑 20 个种子），随机决定门的放行顺序与 load/pause/prepare/abandon/dispose 的插入点，最多 40 步；不变量只断言"影子恰好释放一次、生效引擎的源等于最后一次被接受的请求、没有挂起的 Future"。失败时打印种子。
+- 现有 `mova_fuzz_test.dart` 的动作是逐个 await 的，覆盖不到并发。新增一个**带门控的交错 fuzz**：固定种子（每次 CI 跑 20 个种子），随机决定门的放行顺序与 load/pause/prepare/abandon/dispose 的插入点，最多 40 步；不变量只断言"影子恰好释放一次、生效播放器的源等于最后一次被接受的请求、没有挂起的 Future"。失败时打印种子。
 - `DateTime.now()` 不跟 fakeAsync（CLAUDE.md 已记录），广告时钟用注入的 `now`，测试传 `() => start.add(async.elapsed)`；**不**为此引入 `package:clock`。
 - 门控测试里避免 `pumpEventQueue` 式的"多跑几轮微任务碰运气"，每个断言前明确放行哪扇门。
 - 计时器泄漏：沿用"widget 测试结束时不能有挂起的 Timer"约束，广告时钟 `cancel()` 必须进 dispose 的同步前缀。
@@ -1207,8 +1207,8 @@ A01、A09、A17、A22 四个机械提交**一条都不改**，这是它们的验
 | R-6 | 范围与成本超支 | 高 | 中 | 每个块结束时对比第 7 节估算，偏差 >40% 时启用 6.3 的裁剪 |
 | R-7 | 长寿分支与 main 冲突（monorepo 里别人在动） | 中 | 中 | 每周 rebase 一次 main，只解决 `mova/` 内冲突；不碰其他子工程 |
 | R-8 | 广告时钟改变计费口径（暂停期间不计） | 低 | 中 | CHANGELOG 明写；这是修错，不是新口径 |
-| R-9 | A14 让每个引擎多一个弱客户端，FFI 销毁竞态 | 低-中 | 高（崩溃） | CP1 A23/F13 120 次、F14 |
-| R-10 | C04 迁移让自定义皮肤失灵 | 中 | 中 | 旧接口桥接一个版本；皮肤专项 S 行在 CP3 跑 |
+| R-9 | A14 让每个播放器多一个弱客户端，FFI 销毁竞态 | 低-中 | 高（崩溃） | CP1 A23/F13 120 次、F14 |
+| R-10 | C04 迁移让自定义 UI 套件失灵 | 中 | 中 | 旧接口桥接一个版本；UI 套件专项 S 行在 CP3 跑 |
 | R-11 | C05 全屏路由踩 Windows 转场快照崩溃（#190774） | 中 | 高（Windows） | CP3 Windows 20 次；路由内渲染面必须挂 `MovaSnapshotGuard` |
 | R-12 | iOS/macOS 未验证 | 确定 | 未知 | 不在范围；文档只写 Android/Windows 通过 |
 
@@ -1220,7 +1220,7 @@ A01、A09、A17、A22 四个机械提交**一条都不改**，这是它们的验
 
 ### 6.3 裁剪与放弃条件（仍然只合并一次）
 
-- **裁剪**：任一检查点在两轮修复后仍不过，就把阶梯截到上一个通过的检查点，把剩余提交留在一个归档分支里，**只合并截断后的前缀**。前缀本身是完整可用的：截在 CP1 等于"B + 引擎与切换修复"，截在 CP2 等于"再加会话层"。
+- **裁剪**：任一检查点在两轮修复后仍不过，就把阶梯截到上一个通过的检查点，把剩余提交留在一个归档分支里，**只合并截断后的前缀**。前缀本身是完整可用的：截在 CP1 等于"B + 播放器与切换修复"，截在 CP2 等于"再加会话层"。
 - **放弃整条分支**：CP0 拿不到基线且人工子集也跑不出可复核数字（即回归无法归因），或 CP1 的 F3/A17 失败率在两轮修复后仍超过 CP0 的 2 倍。放弃时 P0-1（B01）和 P0-2（A01–A03）单独拆成小分支走常规合并，因为它们本身就有价值。
 
 ---
@@ -1256,7 +1256,7 @@ A01、A09、A17、A22 四个机械提交**一条都不改**，这是它们的验
 
 | # | 新增项 | 乐观 | 最可能 | 悲观 | 说明 |
 |---|---|---|---|---|---|
-| 1 | A20 改写约 8–12 条 cutover 断言；A19 前移 | 0.3 | 0.5 | 1.0 | 测试替身旧引擎预置意图 |
+| 1 | A20 改写约 8–12 条 cutover 断言；A19 前移 | 0.3 | 0.5 | 1.0 | 测试替身旧播放器预置意图 |
 | 2 | A12 默认值与测试 rig（默认 fetcher 换 noop，核对 `.m3u8` 用例） | 0.5 | 1.0 | 2.0 | 悲观：改走“推迟到 CP1 后”要二次返工 |
 | 3 | A13/A14 合成一个设计单元（设计 1 + 内核层接线 1.5 + 封面 RESTART 0.5 + 改写 `openness_host_test` 0.5；拆为 A13/A14/A14b 三个提交，提交数 +1） | 2.5 | 3.5 | 6.0 | 悲观：内核接线形态试错一轮 |
 | 4 | 公开 API：C07 破坏性处理（能力接口）+ export 级注解核对 | 0.5 | 1.0 | 5.0 | 悲观含待拍板 18 选“成员级注解”：lib 约 61 处、test 约 24 处要迁移或 ignore（+4） |
@@ -1291,21 +1291,21 @@ A01、A09、A17、A22 四个机械提交**一条都不改**，这是它们的验
 |---|---|---|---|
 | 1 | 播放列表怎么和广告组合 | `MovaPlaylist(api, ads: ads)`，内部与 `MovaAds` 共享同一个 `MovaSession`；不做通用 `opener` 回调 | opener 拿不到接受结果，也解决不了两边各自响应 `MovaDone` 的争抢；共享会话后只有 `contentEnded` 一个推进源 |
 | 2 | `ads.load` 怎么表达接受结果 | `MovaAds.load/loadDeferred` 返回 `Future<bool>`（accepted）；`MovaSession` 返回 `MovaLoadOutcome` 枚举 | `Future<bool>` 是 `Future<void>` 的子类型，调用方零改动；只有覆写 `load` 的子类受影响 |
-| 3 | 广告时钟与后台暂停归谁 | 广告时钟归会话，按观测到的 `playing` 边沿暂停/恢复；后台暂停归 UI 守卫层：`MovaPlayer` 关掉 media_kit 自带的后台暂停，自己经 `api.pause()` 暂停（默认开，保持今天"切后台会停"），有祖先 `MovaAutoPause` 时让位；**只在有 `Video` 渲染面时启用**，audioOnly（无渲染面）保持现状、不被后台停播 | 时钟看 playing 边沿，无论谁暂停都能感知；后台暂停经过引擎后 `playbackIntent` 才可信，A20 的续播判断依赖它 |
-| 4 | STT 去向 | 从主入口撤下（`@Deprecated` 转导出一个版本），`MovaApi.stt` 保留；**引擎选型以 [2026-08-04 定案](../notes/2026-08-04-stt-engine-decision.md) 为准：sherpa-onnx Zipformer**，归 mova_stt 子工程，mova 本体不带任何识别引擎；CLAUDE.md"倾向 whisper.cpp"那段改为指向定案 | 定案晚于 CLAUDE.md 那段（08-04 vs 08-01），有实测依据。mova 本体不新增依赖；mova_stt 的依赖由那边决定（我没有读兄弟目录，"mova_stt 已用 sherpa-onnx"来自评审 §9-3 [材料]） |
+| 3 | 广告时钟与后台暂停归谁 | 广告时钟归会话，按观测到的 `playing` 边沿暂停/恢复；后台暂停归 UI 守卫层：`MovaPlayer` 关掉 media_kit 自带的后台暂停，自己经 `api.pause()` 暂停（默认开，保持今天"切后台会停"），有祖先 `MovaAutoPause` 时让位；**只在有 `Video` 渲染面时启用**，audioOnly（无渲染面）保持现状、不被后台停播 | 时钟看 playing 边沿，无论谁暂停都能感知；后台暂停经过播放器后 `playbackIntent` 才可信，A20 的续播判断依赖它 |
+| 4 | STT 去向 | 从主入口撤下（`@Deprecated` 转导出一个版本），`IMovaApi.stt` 保留；**播放器选型以 [2026-08-04 定案](../notes/2026-08-04-stt-recognizer-decision.md) 为准：sherpa-onnx Zipformer**，归 mova_stt 子工程，mova 本体不带任何识别播放器；CLAUDE.md"倾向 whisper.cpp"那段改为指向定案 | 定案晚于 CLAUDE.md 那段（08-04 vs 08-01），有实测依据。mova 本体不新增依赖；mova_stt 的依赖由那边决定（我没有读兄弟目录，"mova_stt 已用 sherpa-onnx"来自评审 §9-3 [材料]） |
 | 5 | 网络探针默认接线 | 接，但按需：只有预览策略是 `wifiOnly` 且真要拉远程资源时才创建探针并查询。**这会推翻 `wiring.dart:113-134` 的"探针不默认接线"** | 原依据是 tree-shaking，但 `connectivity_plus` 已是 pubspec 硬依赖，原生插件照样注册；不接线时 `wifiOnly` 等于 always，默认策略名不副实。按需创建回应了 Codex"运行时监听有成本"的顾虑 |
-| 6 | 判失败不依赖 recovery | 做：recovery 关时也订阅 `END_FILE(error)` 并转终结错误；recovery 本身仍默认关。**这会推翻"recovery 关时不订阅 endFiles"**（`openness_host_test` 锚定的那条） | 坏地址长时间转圈、没有任何事件（README:188 自己承认，[材料]）是默认配置下的硬伤；代价是每个引擎一个弱客户端 |
-| 7 | 原生事件泵懒启动 | 首次 `open()` 时才建弱客户端（池里从未打开的引擎没有客户端）；挂了 poster 时额外打开 RESTART（精确首帧，**落实在 A14**；原稿 A14 写“首帧判据不变”而没有任何提交落实这条，已补）。**这会推翻 `MovaPlayer(poster:)` 路径下"精确首帧默认关"**（`MovaView` 已经是 `preciseFirstFrame: poster != null`，view.dart `_create`） | 有封面却拿不到精确首帧，封面会过早撤掉；懒启动控制了 6 带来的成本 |
+| 6 | 判失败不依赖 recovery | 做：recovery 关时也订阅 `END_FILE(error)` 并转终结错误；recovery 本身仍默认关。**这会推翻"recovery 关时不订阅 endFiles"**（`openness_host_test` 锚定的那条） | 坏地址长时间转圈、没有任何事件（README:188 自己承认，[材料]）是默认配置下的硬伤；代价是每个播放器一个弱客户端 |
+| 7 | 原生事件泵懒启动 | 首次 `open()` 时才建弱客户端（池里从未打开的播放器没有客户端）；挂了 poster 时额外打开 RESTART（精确首帧，**落实在 A14**；原稿 A14 写“首帧判据不变”而没有任何提交落实这条，已补）。**这会推翻 `MovaPlayer(poster:)` 路径下"精确首帧默认关"**（`MovaView` 已经是 `preciseFirstFrame: poster != null`，view.dart `_create`） | 有封面却拿不到精确首帧，封面会过早撤掉；懒启动控制了 6 带来的成本 |
 | 8 | 版本号对账 | 由你在 pub.dev 确认实际已发布到哪个版本（本机访问 pub.dev 不通）。本分支所有改动记在 CHANGELOG `Unreleased`；合并后发版号按 0.x 的破坏性规则取下一个 minor | pubspec 是 `0.4.0`、CHANGELOG 有 `0.4.0` 节，CLAUDE.md 写"已发布 0.3.0"，三处对不上（[已核] pubspec.yaml:3、CHANGELOG.md:27） |
 | 9 | CLAUDE.md 小窗后台暂停归因 | CP0 的 P1-14 对照实验有结论后，C17 更正为"media_kit `Video` 默认 `pauseUponEnteringBackgroundMode`"；若真机显示还叠加了 surface 回收，两者都写 | 代码证据指向 media_kit 默认参数，但需要真机分清 |
 | 10 | recovery 关时 `open()` 失败是否继续抛 | 本分支继续抛（同时写终结 `state.error`），CHANGELOG 预告下一版本不再抛 | 和"运行时可恢复错误不 throw"的约束一致，但直接改会让现有 `try/catch` 宿主行为突变 |
-| 11 | auto 档由 mova ABR 接管 | 加开关 `MovaAbrConfig.manageAuto`，默认关 | 新能力默认关；且 mpv auto 是否静态选档要 CP0 证实。**P1-3 的默认值策略**：本分支不把 auto 接管设为默认，P1-3 只算修到“列表可用、手选档不被覆盖”；CP0 若证实 mpv auto 在限速下确是静态最高档，再回来问是否默认开 |
-| 12 | 引擎就绪后自探测清晰度 | `probeVariants` 默认开，**A12 同提交把测试 rig 的默认 fetcher 换成 noop**；备选：把默认值推迟到 CP1 之后（A12 先只加开关、默认关，P1-3“命令式 open 后列表非空”随之推迟） | 为什么要动 rig：测试里 `.m3u8` 出现 154 次，真实 `MovaEngine`+假内核会落到真实 `MovaIoHttpFetcher`，在 fakeAsync 里留 timeout 计时器，破坏 pendingTimers 断言。另外这是修缺陷：今天 `MovaPlayer.initState` 已经会探测，只是时序依赖挂载时机；同会话去重，不会多一次请求 |
+| 11 | auto 档由 mova ABR 接管 | 加开关 `MovaAbrOpts.manageAuto`，默认关 | 新能力默认关；且 mpv auto 是否静态选档要 CP0 证实。**P1-3 的默认值策略**：本分支不把 auto 接管设为默认，P1-3 只算修到“列表可用、手选档不被覆盖”；CP0 若证实 mpv auto 在限速下确是静态最高档，再回来问是否默认开 |
+| 12 | 播放器就绪后自探测清晰度 | `probeVariants` 默认开，**A12 同提交把测试 rig 的默认 fetcher 换成 noop**；备选：把默认值推迟到 CP1 之后（A12 先只加开关、默认关，P1-3“命令式 open 后列表非空”随之推迟） | 为什么要动 rig：测试里 `.m3u8` 出现 154 次，真实 `Mova`+假内核会落到真实 `MovaIoHttpFetcher`，在 fakeAsync 里留 timeout 计时器，破坏 pendingTimers 断言。另外这是修缺陷：今天 `MovaPlayer.initState` 已经会探测，只是时序依赖挂载时机；同会话去重，不会多一次请求 |
 | 13 | `MovaAds`/`MovaPlaylist` 是否本分支标 `@Deprecated` | 不标，作为 `MovaSession` 的薄适配器长期保留；文档推荐新代码用 `MovaSession` | 适配器很薄，保留成本低；先看宿主迁移反馈 |
 | 14 | C04/C05/C06（约 19 人天）是否留在本分支 | 留 | 你要求一次理清；它们和 A/B 无代码依赖，检查点失败时可整体移出（6.3） |
-| 15 | F3/A17 判据口径 | 原生 time-pos 落点 ≤500ms 且 path 正确为通过；同时记录 <200ms 占比 | 复测历轮都用 ±500ms；500ms 也是引擎回声抑制容差（engine.dart:499） |
+| 15 | F3/A17 判据口径 | 原生 time-pos 落点 ≤500ms 且 path 正确为通过；同时记录 <200ms 占比 | 复测历轮都用 ±500ms；500ms 也是播放器回声抑制容差（mova.dart:499） |
 | 16 | `state.error` 只放终结错误（A14b） | 做：非终结内核日志不再写 `state.error`、不弹遮罩，`MovaErrorEvent` 仍照发（`fatal=false`）。**对默认行为是破坏性变更**：靠 `state.error != null` 判失败的宿主会漏判一部分以前会报的错。先让 A14 的 END_FILE 终结错误落地再收窄；CHANGELOG Breaking 小节 + README 错误一节 + 迁移指引（改听 `MovaErrorEvent` / `MovaPlayFailure`）。备选（零破坏）：新增 `state.fatalError`，`state.error` 保持原样，遮罩改读新字段 | 非终结日志（如 mpv 的 cplayer 噪声）已造成误报遮罩；但直接收窄会让现有宿主的失败判断突变，所以要你明确点头 |
-| 17 | C07 `MovaHttpFetch` 加请求头 | 新增可选能力接口 `MovaHeaderedHttpFetch`，**不改** `get(Uri)` 签名；旧 fetcher 退化为不带头 + debug 提示 | 直接给 `get` 加 `headers` 会让宿主自写的 `implements MovaHttpFetch` 覆写签名不匹配、编译失败（破坏性）；与本计划“不往抽象类加成员”一致 |
+| 17 | C07 `IMovaHttpFetch` 加请求头 | 新增可选能力接口 `IMovaHeaderedHttpFetch`，**不改** `get(Uri)` 签名；旧 fetcher 退化为不带头 + debug 提示 | 直接给 `get` 加 `headers` 会让宿主自写的 `implements IMovaHttpFetch` 覆写签名不匹配、编译失败（破坏性）；与本计划“不往抽象类加成员”一致 |
 | 18 | `@Deprecated` 策略（C04/C06/C08/C09/C13） | 不加成员级 `@Deprecated`，只在 CHANGELOG 与 dartdoc 公告“下个版本弃用”；C08/C09 用 export 级转导出（不触发警告）；下个版本再统一加注解 | `analysis_options` 继承 flutter_lints，`deprecated_member_use_from_same_package` 对包内 lib 与 test 都报；`MovaOpts.theme/strings/gesture/controls/danmaku` lib 约 61 处读取、test 约 24 处，加注解要么迁移要么处处 ignore（约 +4 人天，已计入悲观档），否则“analyze 0 issues”不成立。备选：加成员级注解 + 同提交迁移/ignore |
 
 可能涉及新依赖、但本计划**不做**的：VAST/VMAP 解析库、`audio_service`、`crypto`（模型 sha256）、`package:clock`。将来要做都需要你先同意。
@@ -1317,9 +1317,9 @@ A01、A09、A17、A22 四个机械提交**一条都不改**，这是它们的验
 | 文档 | 要改什么 |
 |---|---|
 | `CLAUDE.md` | 测试基线（按 3.1 规则已逐块回写，C17 只复核终值）；「当前状态」新增 MovaSession、广告时钟、错误分级、加载规格、cutover 操作代际几节；keepAlive 两处修复；小窗后台暂停归因（待拍板 9）；STT 选型指向 08-04 定案（待拍板 4）；pub.dev 版本对照（待拍板 8）；网络探针与 END_FILE 订阅的新默认（待拍板 5/6/7）；剩余任务 ②③④ 标为已处理；新增本计划链接 |
-| `doc/SPEC.md` | 新增「编排会话（MovaSession）」节（模块、依赖方向、三分法、隐含语义表的精简版）；「无缝引擎切换」补操作代际与 `_WarmSlot`；「广告编排增强」补可暂停时钟（明确仍不依赖媒体时间轴）与 `contentError` 新契约；清晰度节补就绪后自探测与 `manageAuto`；新增错误分级、`MovaChrome`、`MovaPlayerStyle`、barrel 分入口；「宿主易用性」更新 endFiles 订阅规则 |
+| `doc/SPEC.md` | 新增「编排会话（MovaSession）」节（模块、依赖方向、三分法、隐含语义表的精简版）；「无缝播放器切换」补操作代际与 `_WarmSlot`；「广告编排增强」补可暂停时钟（明确仍不依赖媒体时间轴）与 `contentError` 新契约；清晰度节补就绪后自探测与 `manageAuto`；新增错误分级、`MovaChrome`、`MovaPlayerStyle`、barrel 分入口；「宿主易用性」更新 endFiles 订阅规则 |
 | `doc/DESIGN-0.2.0.md` | 不逐段改写；文首加一段说明：会话层、错误模型、UI 交互态的现行设计以 SPEC.md 为准 |
-| `README.md` | 示例统一 `createMovaEngine`（C01 已做，C17 复核）；首屏版本说明；平台表 iOS 改为"未验证"；ads + playlist 改用 `MovaPlaylist(api, ads:)` 或 `MovaSession`；`contentError` 新契约；错误一节（`state.error` 只放终结错误）；后台行为；全屏路由；请求头；新入口文件；keepAlive 有 Windows 真机数据；把约 120 行 libmpv 构建内容挪到 mova-libmpv 文档；删掉 README:62 "交互不在保证范围内"那条，改为仲裁规则；写明不支持 DRM/投屏/离线下载 |
+| `README.md` | 示例统一 `createMova`（C01 已做，C17 复核）；首屏版本说明；平台表 iOS 改为"未验证"；ads + playlist 改用 `MovaPlaylist(api, ads:)` 或 `MovaSession`；`contentError` 新契约；错误一节（`state.error` 只放终结错误）；后台行为；全屏路由；请求头；新入口文件；keepAlive 有 Windows 真机数据；把约 120 行 libmpv 构建内容挪到 mova-libmpv 文档；删掉 README:62 "交互不在保证范围内"那条，改为仲裁规则；写明不支持 DRM/投屏/离线下载 |
 | `CHANGELOG.md` | `Unreleased` 下每个行为提交一条（A05 已随代码写）；Breaking/Deprecated 小节汇总 `@Deprecated` 项与 `Future<bool>` 返回类型；计费口径（广告暂停不计时）；"测试计数"挪出 CHANGELOG 正文（P2-33） |
 | `doc/ACCEPTANCE-MATRIX.md` | 新增会话、广告时钟、错误分级、加载规格的行；F3 判据口径统一（待拍板 15）；§4.2 中已上机的 H 项更新结论；§7 修订记录 |
 | `doc/ROADMAP.md` | 标记本计划完成的项；把 1.4 的暂缓项挂上去 |
@@ -1342,7 +1342,7 @@ A01、A09、A17、A22 四个机械提交**一条都不改**，这是它们的验
 - **归属表覆盖**：P0 2/2、P1 24/24、P2 33/33、P3 6/6、N 9/9、R 12/12、终审新发现 5/5、终审其余 7 条、Codex 异议 6/6、CLAUDE.md 剩余任务 ②③④（7 小项）、评审 §6 14 项、§7 能力缺口全部列入 1.4。
 - **可独立提交**：每个提交只依赖阶梯上更早的提交（依赖列已写）；`@Deprecated` 的提交按 3.1 第 5 条处理 analyze。
 - **行为与机械不混**：机械提交 A01、A09、A17、A22 不改断言；A19 是纯测试提交；行为提交里不夹带搬迁（A21 和 A22 刻意拆开，A20 和 A19 刻意拆开）。
-- **不确定处**：A13 内核层接线的接口形态、B04 opt-out 命名、`MovaHeaderedHttpFetch` 命名、C02 只读状态 getter 命名、lib/test 的 deprecated 读取数（grep 近似值）均 [待核]；A21 的 `Video` 参数名来自评审对依赖源码的引用，落地前要在 pub cache 里核；B06、B12、B05 部分行号来自材料未复核；"mova_stt 用 sherpa-onnx"来自评审，没读兄弟目录；P2-5、P2-16、P2-29、P1-3、P1-14 的真机事实要等 CP0。
+- **不确定处**：A13 内核层接线的接口形态、B04 opt-out 命名、`IMovaHeaderedHttpFetch` 命名、C02 只读状态 getter 命名、lib/test 的 deprecated 读取数（grep 近似值）均 [待核]；A21 的 `Video` 参数名来自评审对依赖源码的引用，落地前要在 pub cache 里核；B06、B12、B05 部分行号来自材料未复核；"mova_stt 用 sherpa-onnx"来自评审，没读兄弟目录；P2-5、P2-16、P2-29、P1-3、P1-14 的真机事实要等 CP0。
 
 
 ## C 块第一批落地记录（2026-11-03）
@@ -1361,21 +1361,21 @@ A01、A09、A17、A22 四个机械提交**一条都不改**，这是它们的验
 
 回退验证方法：C12 把默认真实探针工厂换回恒允许探针；C13 保留公开签名，撤回策略工厂调用、借用标志、内核借用、抽帧器借用以及 STT 的保护；C15 禁用脚本执行；C16 让两个旧字段入口抛错。C12 边界补修撤回自定义来源的默认探针跳过条件，新测试 1 红，恢复后 1 绿。对应新增测试分别全部变红，恢复后分别全部变绿；没有以删除新公开符号导致的编译失败充当本轮回退验证。
 
-**既有断言与夹具调整**：C12 原 wiring 测试只看 `options.preview.probe == null`，这只能证明配置快照未变，不能证明默认未接线；保留该断言并补查延迟包装器，修正测试名称和过期注释。C13 改写 3 条 STT 断言：启动失败从“必须 rethrow”改为完成并回滚（可选识别故障不应泄漏到播放链）；STT 服务与播放引擎各一条“销毁宿主识别器”断言改为不销毁（借用不能被当成所有权转移）。另有 5 项既有测试在新内核借用语义下暴露原隐含前提：audio_only_scenarios、cutover_warm_mute 两项、playback_error、preview/b07；只给这些夹具显式移交 `ownsKernel: true`，原释放断言保持不变。C15/C16 没有改写既有行为断言；C16 仅迁移既有测试的参数名。
+**既有断言与夹具调整**：C12 原 wiring 测试只看 `options.preview.probe == null`，这只能证明配置快照未变，不能证明默认未接线；保留该断言并补查延迟包装器，修正测试名称和过期注释。C13 改写 3 条 STT 断言：启动失败从“必须 rethrow”改为完成并回滚（可选识别故障不应泄漏到播放链）；STT 服务与播放播放器各一条“销毁宿主识别器”断言改为不销毁（借用不能被当成所有权转移）。另有 5 项既有测试在新内核借用语义下暴露原隐含前提：audio_only_scenarios、cutover_warm_mute 两项、playback_error、preview/b07；只给这些夹具显式移交 `ownsKernel: true`，原释放断言保持不变。C15/C16 没有改写既有行为断言；C16 仅迁移既有测试的参数名。
 
 **新增公开 API**（均附中文 dartdoc）：
 
-- C12：`MovaLazyNetProbe`、`MovaEngine.previewProbeFactory` 构造参数、`MovaPreviewService.gateNetwork` 参数/字段。createMovaEngine 默认提供延迟的真实探针工厂；内置 VTT/雪碧图/抽帧到实际远程资源访问处才判断 wifiOnly。缓存、未启用来源、本地资源、VTT 失败冷却不创建或查询默认真实探针。自定义来源接口不暴露实际资源 URL，默认不创建或查询真实探针；仅宿主显式注入探针时保留入口门控。never/always 保持原策略，不改来源协议。
-- C13：`MovaAbrConfig.policyFactory`（优先于旧 policy，每引擎调用一次）、`MovaEngine` 与 `createMovaEngine` 的 `ownsKernel` 参数、预览服务的 `ownsCache/ownsProbe/ownsSources` 参数/字段。旧 policy 实例字段仅在 dartdoc/CHANGELOG 公告下版弃用，不加成员级注解。注入内核、HTTP、缓存、探针、来源、抽帧器、STT 识别器均由宿主持有；默认工厂自建内核及默认预览资源仍归引擎所有；可显式移交内核。
+- C12：`MovaLazyNetProbe`、`Mova.previewProbeFactory` 构造参数、`MovaPreviewService.gateNetwork` 参数/字段。createMova 默认提供延迟的真实探针工厂；内置 VTT/雪碧图/抽帧到实际远程资源访问处才判断 wifiOnly。缓存、未启用来源、本地资源、VTT 失败冷却不创建或查询默认真实探针。自定义来源接口不暴露实际资源 URL，默认不创建或查询真实探针；仅宿主显式注入探针时保留入口门控。never/always 保持原策略，不改来源协议。
+- C13：`MovaAbrOpts.policyFactory`（优先于旧 policy，每播放器调用一次）、`Mova` 与 `createMova` 的 `ownsKernel` 参数、预览服务的 `ownsCache/ownsProbe/ownsSources` 参数/字段。旧 policy 实例字段仅在 dartdoc/CHANGELOG 公告下版弃用，不加成员级注解。注入内核、HTTP、缓存、探针、来源、抽帧器、STT 识别器均由宿主持有；默认工厂自建内核及默认预览资源仍归播放器所有；可显式移交内核。
 - C15：测试入口的 `MovaTestStep`（ready/buffering/position/error/completed 构造器与 after）、`MovaTestKernel.scripted`、普通构造的可选 script 参数。默认普通内核仍完全被动；显式脚本模式自动组合首帧信号，步骤延迟相对上一步，换源和销毁取消旧步骤。
-- C16：`MovaMiniHost.mini` 参数/getter、`MovaAdOverlayComponent.ads` 字段；旧 ctl 参数/getter 与 controller getter 保留带 `@Deprecated` 的兼容入口。
+- C16：`MovaMiniHost.mini` 参数/getter、`MovaAdOverlayComponent.ads` 字段；旧 ctl 参数/getter 与 controller getter 当时保留带 `@Deprecated` 的兼容入口（后来这些兼容入口已随 `deprecated_names.dart` 整体删除）。
 
 **代码核实与计划差异**：
 
 1. 待拍板 5 按用户决定明确推翻“不默认接探针”：connectivity_plus 已是硬依赖，移除 wiring 的过期 tree-shaking 理由；抽帧器仍默认 null。C12 半成品“按远程预览实际请求延迟接入”与内置来源的按需条件一致，保留该实现；复查发现自定义来源可能只读内存，不能凭远程媒体 URL 默认查询连通性，故在 C16 后另补一个 C12 小提交及 1 项测试；默认跳过不透明来源，显式探针仍入口门控，原放行行为保留。
-2. C13 所有权实际涉及 engine/wiring 中的内核、HTTP 与抽帧包装，不只表中列出的 abr_config、preview/service、stt/service；按“只销毁自建对象”扩大到这些实际释放点，并提供显式内核移交入口。策略接口没有 dispose，工厂只解决有状态策略的实例隔离，不发明销毁协议。
+2. C13 所有权实际涉及 mova/wiring 中的内核、HTTP 与抽帧包装，不只表中列出的 abr_config、preview/service、stt/service；按“只销毁自建对象”扩大到这些实际释放点，并提供显式内核移交入口。策略接口没有 dispose，工厂只解决有状态策略的实例隔离，不发明销毁协议。
 3. C15 使用 `test_kernel.dart` 的 part 文件承载步骤类型，分发细节不进入公开 API；没有改生产内核和首帧判据。
-4. C16 对历史提交 `e5794345` 前后代码核实：mini/ad 组件类名和 `MovaEngineFactory` 当时就已是现名；deprecated_names 中现有类型别名也全部带 @Deprecated。故只补实际遗留成员，不虚构 Swap/Feed 工厂旧名。当前 Dart 和既有测试支持枚举经类型别名访问，修正兼容层与 CHANGELOG 中相反的旧说明。
+4. C16 对历史提交 `e5794345` 前后代码核实：mini/ad 组件类名和 `MovaFactory` 当时就已是现名；`deprecated_names.dart`（当时存在、后已整体删除）中现有类型别名也全部带 @Deprecated。故只补实际遗留成员，不虚构旧工厂别名。当前 Dart 和既有测试支持枚举经类型别名访问，修正兼容层与 CHANGELOG 中相反的旧说明。
 5. 第 8 节第 17/18 项保持本批已拍板默认：不改 `get(Uri)`；成员级弃用公告策略不变，C16 明确要求的兼容别名除外。
 
 本次续作实测新增 18 项（原预期 17 项，额外一项覆盖不透明来源边界），最终 2269 项通过；从 2234 基线累计增加 35 项。
@@ -1412,16 +1412,16 @@ CHANGELOG 已补三项行为变化。功能范围无偏差；请求身份与控�
 | C04c | `8c96f4d2` | 11 | 11 / 11：回退绑定及组件迁移；另单独移除纪元判断，换指用例 1 红 | 2296（217 文件） | 0 issues |
 | C04d | 本记录同提交 | 5 | 5 / 5：拖动与续期 3 红；常显及旧路径空操作 2 红 | 2301（218 文件） | 0 issues |
 
-**落地行为与兼容性**：MovaChrome 管理每视图控制条、HUD、拖动和预览；桥接引擎默认每个 MovaPlayer 创建一份，借入实例只绑定/解绑，宿主负责销毁。换 API 保留适用的 chrome 实例并重新播种，换 chrome 时组件按 `(api, chrome)` 重挂订阅。旧 UI 动词有视图时广播，旧读者镜像以后写者为准；无视图时继续原计时与就绪路径。非桥接 MovaApi 默认沿用旧接口，显式传入 chrome 可启用独立交互态。拖动期间强制可见并暂停自动隐藏，松手重新计时；控制栏按下和按钮指针、键盘、语义激活会续期，隐式悬停/焦点/快捷键唤出保留常显标记。
+**落地行为与兼容性**：MovaChrome 管理每视图控制条、HUD、拖动和预览；桥接播放器默认每个 MovaPlayer 创建一份，借入实例只绑定/解绑，宿主负责销毁。换 API 保留适用的 chrome 实例并重新播种，换 chrome 时组件按 `(api, chrome)` 重挂订阅。旧 UI 动词有视图时广播，旧读者镜像以后写者为准；无视图时继续原计时与就绪路径。非桥接 IMovaApi 默认沿用旧接口，显式传入 chrome 可启用独立交互态。拖动期间强制可见并暂停自动隐藏，松手重新计时；控制栏按下和按钮指针、键盘、语义激活会续期，隐式悬停/焦点/快捷键唤出保留常显标记。
 
-**公开 API**：新增 `kMovaHudDuration`；导出 `MovaChrome`（ValueListenable、value/uiState/uiStates、show/hide/toggle/showHud/setDragging、maybeOf/of、dispose、touch）；新增 `MovaPlayer.chrome`。新增入口和成员均有中文 dartdoc。`MovaApi` 零新增成员；MovaEngine/MovaCutoverEngine 的 `uiReady/linkUi` 实现包内 MovaUiBridge，桥及连接集合不从公开入口导出。六个旧 UI 成员只补 dartdoc 与 Unreleased 公告，不加成员级 @Deprecated；core 不导入 Flutter，purity_test 原样保留。
+**公开 API**：新增 `kMovaHudDuration`；导出 `MovaChrome`（ValueListenable、value/uiState/uiStates、show/hide/toggle/showHud/setDragging、maybeOf/of、dispose、touch）；新增 `MovaPlayer.chrome`。新增入口和成员均有中文 dartdoc。`IMovaApi` 零新增成员；Mova/MovaCutover 的 `uiReady/linkUi` 实现包内 IMovaUiBridge，桥及连接集合不从公开入口导出。六个旧 UI 成员只补 dartdoc 与 Unreleased 公告，不加成员级 @Deprecated；core 不导入 Flutter，purity_test 原样保留。
 
 **既有断言改写：0**。view_test 仍保留 C03 对样式节的保守重建断言，本次不做 C06；旧核心及非桥接 UI 断言原样运行。子计划 C04d 断言 5 若把键盘聚焦也计入“按钮交互”，原有 B16 聚焦唤出就会产生一次 showControls；新增用例分别验证指针激活零新增调用、聚焦后的键盘激活不增加调用，未删除原行为。
 
 **与子计划的差异及验证方式**：
 
-1. 计划基于 `7275bd5c` 的行号已失效；按当前符号定位，保留第一批 engine/cutover/player/view 改动。A28 已在换指时重放影子 MovaReady，照抄“每次 Ready 都显隐”会重新显示已隐藏控制条。本次在 chrome 按 renderEpoch 跳过该次初始化，额外用独立回退确认，不改 `_commitNow`。
-2. 引擎和代理共用包内纯 Dart 连接集合，统一广播、镜像、首连/末次断开及同步关闭；无视图旧路径未改。按钮可能像 B16 测试那样独立挂载，不存在 MovaScope，因此激活续期用可空的 chrome 查找；指针与语义激活也覆盖续期。
+1. 计划基于 `7275bd5c` 的行号已失效；按当前符号定位，保留第一批 mova/cutover/player/view 改动。A28 已在换指时重放影子 MovaReady，照抄“每次 Ready 都显隐”会重新显示已隐藏控制条。本次在 chrome 按 renderEpoch 跳过该次初始化，额外用独立回退确认，不改 `_commitNow`。
+2. 播放器和代理共用包内纯 Dart 连接集合，统一广播、镜像、首连/末次断开及同步关闭；无视图旧路径未改。按钮可能像 B16 测试那样独立挂载，不存在 MovaScope，因此激活续期用可空的 chrome 查找；指针与语义激活也覆盖续期。
 3. 初次基线 2262 绿、7 条因 `.dart_tool/b09` 父目录缺失失败；只预建忽略目录，无测试断言改写。C04a 标准单轮全量 2277 绿。此后标准长轮次随机出现“Connection closed before test suite loaded”或“did not complete”，无相应断言栈；曾观察到评审 worktree 同时有 tester，但因果未确定。VM service 试跑也有中断；实验快测模式报告忽略 concurrency 且路径解析失败，已弃用，其结果不计验证。
 4. C04b 起使用完整 `rg --files test -g '*_test.dart'` 清单分批串行运行，每批都执行 `Get-Process flutter_tester -ErrorAction SilentlyContinue | Stop-Process` 后 `flutter test ... --concurrency=2 --reporter expanded`；中断批次在源码不变时重试，真实断言失败立即停止。清单核对无遗漏，汇报数量取每批成功轮的实测和，不把中断或编译错误算作功能红测。analyze 与完整清单测试串行；每提交均为 0 issues + 全部文件通过。各批日志、清单及累计结果保存在忽略的 `.dart_tool/c04*-results.json` 等本地验证产物中。
 5. 同步/异步测试按实际 Stream.multi 与 widget 测试时钟推进：流关闭在真实异步区核实，代理提交和取消订阅用 pump 与真实微任务交替推进，避免假内核测试等待自己的暂停时钟；既有测试不改。
@@ -1435,30 +1435,30 @@ C04 实测新增 32 项，从 2269 增至 2301。C04a–C04d 代码、回归、�
 
 ### 提交 1：C06a + C06b + C06c（4f3f7410）
 
-- 新增 MovaPlayerStyle（五节 ThemeExtension、copyWith、离散 lerp、值相等与五个 xxxOf 查找口）、MovaDanmakuStyle（五字段、fromConfig/applyTo）；MovaPlayer.style / MovaView.style；MovaStrs 新增 14 个字符串字段与 labelWithValue，新增 movaDefaultLabelWithValue。新增公开入口均附中文 dartdoc。
-- 当前基线 UI 实际 59 处样式读取全部迁移（旧计划为 56 处；加 core 三处共 62 处，而非旧表 59）；保留 engine.dart 三处无视图兼容读取。内置按钮显式传入标签；旧第三方按钮仍保留图标反查回落。弹幕仅迁移样式，enabled/items 及条目引用保留。控制条在依赖更新时重读样式；只有配置真正变化才更新挂起计时，不让无关重建续期。
-- 新增测试 19（类型/查找链 8、视图 5、源码守卫 1、文案 5），保留类型和测试，对查找、消费、默认值及值对象契约做行为回退/变异后实测 19 红，恢复 19 绿。比子计划的前三 Task 18 项多 1：自动隐藏和快捷键拆为独立用例。真实引擎切主题 10 次，缓冲颜色更新，open/MovaSourceChange 只有一次，renderEpoch 不变。
+- 新增 MovaPlayerStyle（五节 ThemeExtension、copyWith、离散 lerp、值相等与五个 xxxOf 查找口）、MovaDanmakuStyle（五字段、fromOpts/applyTo）；MovaPlayer.style / MovaView.style；MovaStrs 新增 14 个字符串字段与 labelWithValue，新增 movaDefaultLabelWithValue。新增公开入口均附中文 dartdoc。
+- 当前基线 UI 实际 59 处样式读取全部迁移（旧计划为 56 处；加 core 三处共 62 处，而非旧表 59）；保留 mova.dart 三处无视图兼容读取。内置按钮显式传入标签；旧第三方按钮仍保留图标反查回落。弹幕仅迁移样式，enabled/items 及条目引用保留。控制条在依赖更新时重读样式；只有配置真正变化才更新挂起计时，不让无关重建续期。
+- 新增测试 19（类型/查找链 8、视图 5、源码守卫 1、文案 5），保留类型和测试，对查找、消费、默认值及值对象契约做行为回退/变异后实测 19 红，恢复 19 绿。比子计划的前三 Task 18 项多 1：自动隐藏和快捷键拆为独立用例。真实播放器切主题 10 次，缓冲颜色更新，open/MovaSourceChange 只有一次，renderEpoch 不变。
 - flutter analyze lib test：0 issues。全量只运行一次，--concurrency=3：2331 通过、7 失败（b09_test.dart 的 .dart_tool/b09 父目录缺失，全部为 setUp 失败）；建立工作区测试目录后只重跑该文件，7/7 通过，完整清单合计 2338 项全部覆盖。没有 OOM、没有加载断连、未降并发或分片重跑全量。
 - 实测总数与用户标注基线 2301 存在 18 项差额：2338 - 新增 19 = 2319；未额外运行基线，不能把 2319 记为另一次基线实测。以本次实际日志计数为准。
 - 既有断言改写：0。core 清晰度兼容中文常量按会话批次划分留到提交 2；界面已改读文案。Deprecated 只做 dartdoc 与 CHANGELOG 公告，无成员级注解。
 
 ### 提交 2：C06d + C06e（本记录同提交）
 
-- MovaOpts.engineSectionsEqual 仅比较 preview/live/abr/stt/cutover/report/recovery/keepAlive，排除五个样式节及 C03 已排除的三类宿主配置。MovaView 以最新 options 下发兼容回落，保留引擎 options 构造快照；闭包、弹幕列表更新只改视图。
+- MovaOpts.movaSectionsEqual 仅比较 preview/live/abr/stt/cutover/report/recovery/keepAlive，排除五个样式节及 C03 已排除的三类宿主配置。MovaView 以最新 options 下发兼容回落，保留播放器 options 构造快照；闭包、弹幕列表更新只改视图。
 - 清晰度中文提为公开常量 kMovaAutoQualityLabel / kMovaUnknownQualityLabel；值仍是“自动/未知”，UI 已走 MovaStrs，下个版本改中性值只做公告，本次不破坏宿主自绘标签。
 - 新增公开 API：MovaIcons（20 个 IconData 字段、const 构造与值相等），MovaPlayerStyle.icons / iconsOf 及对应构造、copyWith 参数，MovaTheme.progressColor（int?，null 保留宿主 SliderTheme）。颜色覆盖 activeTrackColor/thumbColor。图标覆盖 chrome，feed 社交及抖音点赞动画按原定范围不在集合中，并非裁剪。
-- 20 个图标字段：pip、quality、aspectRatio、rotate、enterFullscreen、exitFullscreen、lock、unlock、subtitles、subtitlesOff、speed、backToLive、play、pause、volumeOff、volumeUp、brightness、retry、check、closeMini。所有新增公开入口均有中文 dartdoc；core 未引入 Flutter，MovaApi 零新增成员。
+- 20 个图标字段：pip、quality、aspectRatio、rotate、enterFullscreen、exitFullscreen、lock、unlock、subtitles、subtitlesOff、speed、backToLive、play、pause、volumeOff、volumeUp、brightness、retry、check、closeMini。所有新增公开入口均有中文 dartdoc；core 未引入 Flutter，IMovaApi 零新增成员。
 - 新增测试 10（五个样式节各 1 + 内联闭包/弹幕列表 1、图标/进度颜色 3、清晰度兼容常量 1），保留类型和用例做行为回退/默认值变异后 10 红，恢复 10 绿；没有用删除类型造成编译失败充数。相比子计划 C06d/e 的 5 项多 5：逐节验证增加 4，常量兼容验证增加 1。
 - 唯一一次全量 flutter test --concurrency=3：2348/2348 通过。全量后复核默认兼容性，给既有新增默认图标用例补了“回到直播：回到直播”原有完整提示断言，先实测 1 红再修复为显式 labelWithValue；只重跑受影响文件（icons/strings/bottom_bar 合计 11 项通过，live_bar 7 项通过）。其中一次命令误写不存在的 live_controls_test.dart，11 个实际用例均通过，纠正路径后只补跑 live_bar_test.dart；这不是随机加载断连。未再次跑全量。
 - flutter analyze lib test：最终 0 issues；全量与 analyze 未并行。每次测试前清理 flutter_tester，所有测试使用 --concurrency=3；无 OOM、无随机加载断连、未降并发、未分片重复全量。
 
 ### 既有用例改写与最终差异
 
-- 既有用例改写 1：view_test.dart 的 changed options 用例，触发配置从 theme.accentColor 改为 preview.frameWidth=99；原有“两个引擎、旧引擎已销毁、新引擎重开原 URI”三条断言逐字保留。旧触发项把主题变化当作引擎配置变化，C06 后这一前提不成立。没有削弱重建行为验证。
+- 既有用例改写 1：view_test.dart 的 changed options 用例，触发配置从 theme.accentColor 改为 preview.frameWidth=99；原有“两个播放器、旧播放器已销毁、新播放器重开原 URI”三条断言逐字保留。旧触发项把主题变化当作播放器配置变化，C06 后这一前提不成立。没有削弱重建行为验证。
 - 提交 1 的 MovaStrs 新增字段完整列表：play、pause、pip、aspectRatio、rotate、enterFullscreen、exitFullscreen、lock、unlock、subtitles、speed、action、closeMini、unknownQuality、labelWithValue；默认格式函数为 movaDefaultLabelWithValue。MovaPlayerStyle 最终共六节（前五节复用旧类型），MovaDanmakuStyle 仅五个展示字段。
 - 累计新增 29 项，每条均有红绿证据；子计划原估 23 项，本次细拆覆盖多 6 项。完整清单从第一批 2338 到最终 2348；与会话标注 2301 基线相差的 18 项仍按第一批说明保留，不倒填基线实测。
 - 偏差：真实读取为 UI 59 + core 3；清晰度 core 常量按用户分批要求放提交 2；回到直播提示兼容修正在提交 2 完成。弃用仅 dartdoc + CHANGELOG，无成员级 @Deprecated。
-- 裁剪项：无。C06a–C06e 全部落地；CP3 真机/应用验证按用户约束未执行。MovaView 引擎 options 保留构造快照、弹幕 enabled/items 仍在旧配置、无桥接 API 的 chrome 行为仍走旧路径，均为兼容设计。
+- 裁剪项：无。C06a–C06e 全部落地；CP3 真机/应用验证按用户约束未执行。MovaView 播放器 options 保留构造快照、弹幕 enabled/items 仍在旧配置、无桥接 API 的 chrome 行为仍走旧路径，均为兼容设计。
 - 未修改 CLAUDE.md；不 push、不切分支、不 stash/reset；未暂存或提交 generated_plugin、doc/notes、matrix-run 计划与兄弟工程。
 ### 终审修复（2026-11-04）
 
@@ -1469,8 +1469,8 @@ C04 实测新增 32 项，从 2269 增至 2301。C04a–C04d 代码、回归、�
 | 预览会话与组件拖动生命周期（终审 P2-1、P2-3） | `1f7b08ef` | 4 | 4（收图/取消隔离 2，底栏/横滑卸载 2） | 2305 | lib/test 0 issues |
 | 末次解绑计时交接与 HUD 重入（终审 P2-2、P2-4） | 本小节同提交 | 7 | 6（解绑 4，HUD 2）；另 1 项验证非末次解绑互不影响 | 2312 | lib/test 0 issues |
 
-1. **预览隔离**：内置服务按视图创建独立会话，各自持有防抖、请求代次、结果流和取消权；缓存、探针和来源共享，来源调用仍串行。换指后关闭旧会话并重建新会话；自定义预览可实现可选 `MovaPreviewSessions`，原有非会话 API 保持兼容。
-2. **末次解绑**：将原有 Timer 的责任交还旧引擎/镜像，只替换回调，HUD 与控制条保留剩余期限，常显不新建隐藏计时；清理解绑视图及镜像中的拖动/预览。拖动中离开则按取消拖动恢复隐藏；非末次解绑只释放自己的计时。普通引擎和真实 cutover 代理均有无额外 showControls 的回归。
+1. **预览隔离**：内置服务按视图创建独立会话，各自持有防抖、请求代次、结果流和取消权；缓存、探针和来源共享，来源调用仍串行。换指后关闭旧会话并重建新会话；自定义预览可实现可选 `IMovaPreviewSessions`，原有非会话 API 保持兼容。
+2. **末次解绑**：将原有 Timer 的责任交还旧播放器/镜像，只替换回调，HUD 与控制条保留剩余期限，常显不新建隐藏计时；清理解绑视图及镜像中的拖动/预览。拖动中离开则按取消拖动恢复隐藏；非末次解绑只释放自己的计时。普通播放器和真实 cutover 代理均有无额外 showControls 的回归。
 3. **组件卸载**：底栏缓存 UI 端口并只释放自己尚未结束的拖动，横滑组件同步覆盖；dispose 不再查找祖先 context。锁定卸载后立即清空 dragging/previewAt，解锁后自动隐藏照常。
 4. **HUD 重入**：先登记可取消计时器，再通知监听器，重入只保留最新计时器；到期回调检查销毁状态。回归覆盖同步再 showHud 及重入后微任务销毁。
 
@@ -1480,22 +1480,22 @@ C04 实测新增 32 项，从 2269 增至 2301。C04a–C04d 代码、回归、�
 
 ### C07：媒体规格与旁路请求头
 
-- MovaSource 新增 headers、userAgent、start、requestHeaders，pick 透传，sameAs 纳入三项；显式 UA 覆盖同名头及 mpv user-agent。mpv http-header-fields 用长度前缀转义分隔符。start 仅用于点播，负值钳零；在新流类型落入状态后，经原 seek 寄存链等待时长，不改 MovaApi.open。直播切点播也验证不会向旧内核立即 seek。
-- 新增 MovaHeaderedHttpFetch.getWithHeaders 与 movaFetchWithHeaders；原 get(Uri) 不动。默认 IO 实现逐请求带头，旧实现无头退化，每实例 assert 内提示一次。core 提示采用 print + Zone 验证，避免依赖 Flutter；全量纯净性守卫曾发现 debugPrint 导入，修复后原断言通过。
-- VTT、雪碧图、清晰度探测、预览门控包装器、feed Range 预取均接请求头。抽帧新增可选 MovaHeaderedFramePuller.extractWithHeaders，不改旧端口；默认 MovaFrameExtractor 支持带头，同地址换头重开，旧自写抽帧器沿旧入口调用。新增公开成员均有中文 dartdoc。
+- MovaSource 新增 headers、userAgent、start、requestHeaders，pick 透传，sameAs 纳入三项；显式 UA 覆盖同名头及 mpv user-agent。mpv http-header-fields 用长度前缀转义分隔符。start 仅用于点播，负值钳零；在新流类型落入状态后，经原 seek 寄存链等待时长，不改 IMovaApi.open。直播切点播也验证不会向旧内核立即 seek。
+- 新增 IMovaHeaderedHttpFetch.getWithHeaders 与 movaFetchWithHeaders；原 get(Uri) 不动。默认 IO 实现逐请求带头，旧实现无头退化，每实例 assert 内提示一次。core 提示采用 print + Zone 验证，避免依赖 Flutter；全量纯净性守卫曾发现 debugPrint 导入，修复后原断言通过。
+- VTT、雪碧图、清晰度探测、预览门控包装器、feed Range 预取均接请求头。抽帧新增可选 IMovaHeaderedFramePuller.extractWithHeaders，不改旧端口；默认 MovaFrameExtractor 支持带头，同地址换头重开，旧自写抽帧器沿旧入口调用。新增公开成员均有中文 dartdoc。
 - 新增测试 10：UA 合并、播放选项编码、sameAs、pick、旧 fetcher 单次提示、IO 请求隔离、VTT/雪碧图、抽帧、起播寄存、清晰度/预取。保留类型做行为回退：组合移除新行为 9 红，单独回退 sameAs 1 红，去重覆盖 10；恢复 10 绿。回退脚本 finally 逐字节恢复生产文件。初次回退发现 VTT/抽帧期望从被测 getter 派生会漏检，改为固定期望后验证变红；这是新增用例完善，既有断言改写 0。
-- 每次测试前执行指定 flutter_tester 清理，全部 --concurrency=3；唯一一次全量为 2335 通过、2 项断言失败（既有真实时间 seek 重发计数 + 新导入触发既有纯净性守卫）、1 个套件加载断连（video_rect），同时报告 tree 1 项与 top_bar 12 项未完成。仅补跑受影响文件：source_headers/purity/engine/top_bar 合计 121 绿，tree 8 绿，video_rect 8 绿；按全量缺口去重后完整覆盖 **2358 项**（2335 + 2 + 13 + 8），不把重复补跑相加。不重跑全量、未 OOM、未降并发、未分片。seek 原断言未改，独立补跑通过。
+- 每次测试前执行指定 flutter_tester 清理，全部 --concurrency=3；唯一一次全量为 2335 通过、2 项断言失败（既有真实时间 seek 重发计数 + 新导入触发既有纯净性守卫）、1 个套件加载断连（video_rect），同时报告 tree 1 项与 top_bar 12 项未完成。仅补跑受影响文件：source_headers/purity/mova/top_bar 合计 121 绿，tree 8 绿，video_rect 8 绿；按全量缺口去重后完整覆盖 **2358 项**（2335 + 2 + 13 + 8），不把重复补跑相加。不重跑全量、未 OOM、未降并发、未分片。seek 原断言未改，独立补跑通过。
 - 最终 flutter analyze lib test 为 0 issues。根目录 analyze 包含 example、packages 及 HarmonyOS 试验目录的既有问题，沿用此前落地记录的 lib/test 范围。首次未解析依赖的检查无效，执行 flutter pub get 后复验；生成插件文件副作用不暂存。
 - 与计划差异：为兼容旧抽帧实现增加可选能力接口；默认抽帧器另接受可选 headers 参数。CP3 真机/应用验证按用户约束不执行。未改 CLAUDE.md，不 push/切分支/stash/reset；仅操作本 worktree 的 mova 目录。
 
 ### C14：Feed 控制入口、自动暂停与单页失败
 
-- 新增 MovaFeedPlayerController（ChangeNotifier）：feed、activeIndex、activeApi、jumpToPage、pause、play；controller 由宿主持有，池/引擎仍归组件所有。替换控制器和卸载解绑，未绑定命令为空操作；索引语义沿用 core feed 的最近开始绑定索引，打开在途也能查询/控制已绑定 API。跳当前页走该页重试。
-- MovaFeedPlayer 新增 controller、autoPause、routeObservers、errorBuilder；MovaFeedErrorBuilder 接收 context/index/error/retry。autoPause 默认复用 MovaAutoPauseConfig，仅包裹整条 PageView，不给每个页面各建可见性守卫；null 禁用本组件守卫，底层 MovaPlayer 原有生命周期行为不变。guard 内根据当前 API 换绑，翻页静音仍由池管理；后台/Tab 暂停和恢复只作用于当前页。
+- 新增 MovaFeedPlayerCtrl（ChangeNotifier）：feed、activeIndex、activeApi、jumpToPage、pause、play；ctrl 由宿主持有，池/播放器仍归组件所有。替换控制器和卸载解绑，未绑定命令为空操作；索引语义沿用 core feed 的最近开始绑定索引，打开在途也能查询/控制已绑定 API。跳当前页走该页重试。
+- MovaFeedPlayer 新增 ctrl、autoPause、routeObservers、errorBuilder；MovaFeedErrorBuilder 接收 context/index/error/retry。autoPause 默认复用 MovaAutoPauseOpts，仅包裹整条 PageView，不给每个页面各建可见性守卫；null 禁用本组件守卫，底层 MovaPlayer 原有生命周期行为不变。guard 内根据当前 API 换绑，翻页静音仍由池管理；后台/Tab 暂停和恢复只作用于当前页。
 - 捕获当前激活及页面 loader 抛错；open false 在 core 池撤销绑定后转为可见失败；open 抛错不再逸出 widget；就绪页面通过状态流显示终结错误。默认使用 MovaPlayerStyle 的错误/重试文案，宿主可自绘；加载/打开失败走该页重新激活，播放中失败走 reload。错误和请求票据随保留窗口裁剪，普通 rebuild 不重复失败请求；当前页 loader 失败会暂停上一页，继续滑到健康页不受阻。null 结束占位、默认 cover、预热复用、封面和池所有权的既有断言均保留。
-- 新增公开 API 都有中文 dartdoc，入口经既有 mova.dart 的 feed_player 导出。只改 ui/feed_player.dart，不改 MovaApi/core feed/pool 抽象。
-- 新增 6 项 widget 测试：控制器命令与通知、换绑/卸载所有权、后台暂停恢复、非活跃 Tab/禁用守卫、loader 失败/显式重试/停止旧页声音/继续浏览、open false/抛错/播放中失败与重试。保留类型分三组回退行为：控制器绑定 2 红、旁路守卫 2 红、移除错误记录与展示 2 红；恢复 6 绿。各轮 finally 逐字节恢复生产文件。暂停变异初稿破坏空值提升而编译失败，不计入红测；修正为保留判空后旁路守卫，实测 2 项行为红。调试期间修正新夹具的 MovaApi.source 访问（收窄为 FakeMovaApi）与非法生命周期跳转；未改既有断言（0）。
-- flutter analyze lib test：0 issues。唯一一次全量 --concurrency=3 --machine：2341 绿、3 项未完成（b12 1、b14 2），另有 purity/progress_snapshot/mini 三个套件加载前连接关闭。仅补跑这 5 个文件，29/29 通过；按文件替换中断结果后，机器日志与完整 test 文件清单核对：**229 个文件、2364 项全部通过，无漏文件、无额外文件、无跳过**。不将重复补跑叠加到总数；engine_test 内两个同名参数用例分别计数，不按名称误去重。未重复全量、未 OOM、未降并发、未分片；每轮开跑前均执行指定 flutter_tester 清理。
+- 新增公开 API 都有中文 dartdoc，入口经既有 mova.dart 的 feed_player 导出。只改 ui/feed_player.dart，不改 IMovaApi/core feed/pool 抽象。
+- 新增 6 项 widget 测试：控制器命令与通知、换绑/卸载所有权、后台暂停恢复、非活跃 Tab/禁用守卫、loader 失败/显式重试/停止旧页声音/继续浏览、open false/抛错/播放中失败与重试。保留类型分三组回退行为：控制器绑定 2 红、旁路守卫 2 红、移除错误记录与展示 2 红；恢复 6 绿。各轮 finally 逐字节恢复生产文件。暂停变异初稿破坏空值提升而编译失败，不计入红测；修正为保留判空后旁路守卫，实测 2 项行为红。调试期间修正新夹具的 IMovaApi.source 访问（收窄为 FakeMovaApi）与非法生命周期跳转；未改既有断言（0）。
+- flutter analyze lib test：0 issues。唯一一次全量 --concurrency=3 --machine：2341 绿、3 项未完成（b12 1、b14 2），另有 purity/progress_snapshot/mini 三个套件加载前连接关闭。仅补跑这 5 个文件，29/29 通过；按文件替换中断结果后，机器日志与完整 test 文件清单核对：**229 个文件、2364 项全部通过，无漏文件、无额外文件、无跳过**。不将重复补跑叠加到总数；mova_test 内两个同名参数用例分别计数，不按名称误去重。未重复全量、未 OOM、未降并发、未分片；每轮开跑前均执行指定 flutter_tester 清理。
 - 相比计划的实质差异：暴露带通知的宿主控制器而非移交内部对象所有权；单页失败同时覆盖加载、打开拒绝/抛错及运行中终结错误，显式重试避免重建空转，当前页 loader 失败停止旧页声音。新增条数与计划 +6 一致，无裁剪。CHANGELOG Unreleased 已记行为变化。CP3 真机/启动应用验证按用户约束未执行。
 - 本批两笔提交均由当前执行者亲自完成，未转派；不改 CLAUDE.md，不 push/切分支/stash/reset，不暂存生成插件文件、doc/notes、matrix-run 计划或兄弟项目。
 
@@ -1503,20 +1503,20 @@ C04 实测新增 32 项，从 2269 增至 2301。C04a–C04d 代码、回归、�
 ### C05 落地记录（2026-11-04）
 
 - 基于本 worktree detached HEAD `3765e7f6`（会话给定基线 2375），由当前执行者亲自完成一个提交，未转派；仅修改 `E:\workspaces\wt-mova-c5\mova`，未改 CLAUDE.md，未启动应用或使用真机。
-- 新增公开 API 仅 `MovaPlayer.fullscreenRoute` 构造参数/字段（中文 dartdoc，默认 false）。关闭时直接返回原有构建体，不增加路由监听、PopScope 或额外视图。开启时监听原 API 的 fullscreen/pip/mini 状态，由根 Navigator 推送 `mova/fullscreen`；同 API 多视图最多持有一个路由，隐藏页面不抢占路由。返回键经原 `setFullscreen(false)` 退出，锁定时使用生效的 `MovaStrs.unlock` 提示；换 API、关闭开关和卸载只清理自有路由，API/引擎仍归宿主。
-- 遵守 C04 D7：路由里的 MovaPlayer 不共享内联 chrome；桥接引擎按 C04 既定规则自建 chrome，继承旧读者可见态并在 ready 后计时。退出用内联 MovaUiPort.show（有 chrome 时走 chrome）唤出控制条；路由 `autoLoadQualities: false`。无桥接 API 延续 C04 的旧路径兼容规则。路由直接传生效的 MovaPlayerStyle 六节与 legacy 回落，支持全屏期间视图样式更新；不新增全屏专用样式或文案类型。
-- 方向推导、系统栏还原、PiP 回流发起引擎归属完全沿用既有 core。路由携带祖先 MovaGuardScope 的 API/parent 链，避免后台兜底绕过宿主配置。额外修改 `ui/guard/auto_pause.dart` 的路由遮挡识别：同 API 自有全屏路由不作为 routeCovered，其他覆盖照常生效；这是退出全屏状态先于路由移除时避免瞬时暂停所需的接口补充，包含根/嵌套 Navigator。原 B13 fullscreen/pip/mini 豁免不变。路由不透明遮挡标志为 false，画面由黑色 Scaffold 全覆盖，保留内联 ticker。
+- 新增公开 API 仅 `MovaPlayer.fullscreenRoute` 构造参数/字段（中文 dartdoc，默认 false）。关闭时直接返回原有构建体，不增加路由监听、PopScope 或额外视图。开启时监听原 API 的 fullscreen/pip/mini 状态，由根 Navigator 推送 `mova/fullscreen`；同 API 多视图最多持有一个路由，隐藏页面不抢占路由。返回键经原 `setFullscreen(false)` 退出，锁定时使用生效的 `MovaStrs.unlock` 提示；换 API、关闭开关和卸载只清理自有路由，API/播放器仍归宿主。
+- 遵守 C04 D7：路由里的 MovaPlayer 不共享内联 chrome；桥接播放器按 C04 既定规则自建 chrome，继承旧读者可见态并在 ready 后计时。退出用内联 MovaUiPort.show（有 chrome 时走 chrome）唤出控制条；路由 `autoLoadQualities: false`。无桥接 API 延续 C04 的旧路径兼容规则。路由直接传生效的 MovaPlayerStyle 六节与 legacy 回落，支持全屏期间视图样式更新；不新增全屏专用样式或文案类型。
+- 方向推导、系统栏还原、PiP 回流发起播放器归属完全沿用既有 core。路由携带祖先 MovaGuardScope 的 API/parent 链，避免后台兜底绕过宿主配置。额外修改 `ui/guard/auto_pause.dart` 的路由遮挡识别：同 API 自有全屏路由不作为 routeCovered，其他覆盖照常生效；这是退出全屏状态先于路由移除时避免瞬时暂停所需的接口补充，包含根/嵌套 Navigator。原 B13 fullscreen/pip/mini 豁免不变。路由不透明遮挡标志为 false，画面由黑色 Scaffold 全覆盖，保留内联 ticker。
 - Windows：内联 opt-in 子树和整个全屏路由均包 MovaSnapshotGuard（包括宿主自定义 surface），继续通过 movaSnapshotGuardNeeded 判平台；默认渲染面已有的守卫保留。对应 Flutter 3.47.0/3.47.1 #190774；本机 SDK 3.47.0，仅做 widget/渲染对象验证，不宣称原生进出 20 次已通过。
 - 新增 8 项 widget 测试，覆盖默认关闭/运行时开关、返回/不重复清晰度探测、锁定提示/样式更新、chrome 播种隔离与计时、Windows 自定义 surface 守卫、B13 根/嵌套路由与后台守卫归属及普通页面遮挡、换 API/卸载所有权、同 API 多视图与 PiP/mini 回流。回退路由入口（保留新 API 使测试正常编译）仅跑 `test/ui/fullscreen/fullscreen_test.dart`，实测 8 红/0 绿，finally 逐字节恢复；恢复后 8 绿。既有测试与断言改写 **0**。
 - 验证：唯一一次完整 `flutter test --concurrency=3` 实测 2375 绿、8 红（230 个测试文件，2383 项，给定基线 2375 + 新增 8）。其中 B09 的 7 项在 setUp 因 worktree 缺少 `.dart_tool/b09` 失败；补建忽略目录，未改该测试。另 1 项为既有 C06 style_access 源码守卫：新增路由配置传递调用了受限的 movaLegacyOptionsOf；生产代码改为直接传递 MovaStyleScope.legacy，保持旧断言。仅补跑 b09/style_access/fullscreen 三个文件，16/16 绿；替换失败结果后共 **2383 项通过**，重复跑到的 8 项 C05 不叠加计数。全量没有 OOM、断连、降并发或分片，未重复全量；全量及补跑前均执行指定的 flutter_tester 清理。最终 `flutter analyze lib test` 0 issues，git diff --check 通过；CHANGELOG Unreleased 已记录行为变化。
-- 与总计划差异：生产改动除新 `ui/fullscreen/`、`ui/player.dart` 外，补充守卫路由识别；完整复用 C04/C06 的 chrome 与样式接口，不新增 MovaApi 成员、平台端口或依赖。不改变转屏与 PiP 所有权，不做 OS 级窗口全屏；CP3 真机/启动应用验证按用户约束未执行。不 push/切分支/stash/reset，不暂存 generated_plugin、doc/notes、matrix-run 或兄弟工程。
+- 与总计划差异：生产改动除新 `ui/fullscreen/`、`ui/player.dart` 外，补充守卫路由识别；完整复用 C04/C06 的 chrome 与样式接口，不新增 IMovaApi 成员、平台端口或依赖。不改变转屏与 PiP 所有权，不做 OS 级窗口全屏；CP3 真机/启动应用验证按用户约束未执行。不 push/切分支/stash/reset，不暂存 generated_plugin、doc/notes、matrix-run 或兄弟工程。
 ## C08/C09 落地记录（2026-11-04）
 
-- C08 与 C09 合为本记录同一个提交，由当前执行者亲自完成，未转派。新增 `lib/skin.dart`、`ads.dart`、`feed.dart`、`mini.dart`、`extend.dart` 与 `stt.dart` 六个能力入口，均有中文 library dartdoc。皮肤入口覆盖组件、插槽、作用域、chrome 和 style；广告、feed、小窗按各自模块导出；extend 提供会话、cutover、预览、平台端口及上报接缝。
+- C08 与 C09 合为本记录同一个提交，由当前执行者亲自完成，未转派。新增 `lib/ui_kit.dart`、`ads.dart`、`feed.dart`、`mini.dart`、`extend.dart` 与 `stt.dart` 六个能力入口，均有中文 library dartdoc。UI 套件入口覆盖组件、插槽、作用域、chrome 和 style；广告、feed、小窗按各自模块导出；extend 提供会话、cutover、预览、平台端口及上报接缝。
 - `mova.dart` 继续转导出相同声明；原有 `show` 限定逐字保留，不扩大会话内部类型的导出范围。广告、小窗、STT 分入口同时导出自己的配置，主入口原本已通过 `options.dart` 导出这些符号。没有新增类型、成员、依赖或运行行为，`lib/src` 实现逐字不变，旧别名及既有弃用注解保持原样。
-- 内部 helper 在相应 export 上公告下个版本从公开入口隐藏，覆盖平台适配实现、预览 hash/platform kind/service、STT service、feed 引擎池及上报 session id；主入口的 extend 转导出同时公告。按待拍板 18，不新增成员级 `@Deprecated`，不产生包内弃用使用告警。
-- STT 从主入口的逐文件直导出改为 `export 'stt.dart'`，主入口公告只保留一个版本，建议使用 `package:mova/stt.dart`；`MovaApi.stt` 保留。STT 入口明确“模型下载为实验实现”，本包不内置识别引擎，下载及缓存实现保持原样。
-- 新增测试恰好 3 项：①主入口兼容导出快照及代表类型身份；②五个分入口的模块快照、路由与 helper 公告；③STT 快照、主入口兼容路由、类型身份、getter 签名与实验实现公告。快照固定源文件路径与 `show/hide` 约束，递归处理转导出；旧入口的 143 条快照从拆分前源码生成，结合 `lib/src` 零改动证明原符号面保留，并非声称抽样类型能覆盖全部符号。新入口快照分别为 skin 30、ads 5、feed 6、mini 6、extend 45、stt 16 条。
+- 内部 helper 在相应 export 上公告下个版本从公开入口隐藏，覆盖平台适配实现、预览 hash/platform kind/service、STT service、feed 播放器池及上报 session id；主入口的 extend 转导出同时公告。按待拍板 18，不新增成员级 `@Deprecated`，不产生包内弃用使用告警。
+- STT 从主入口的逐文件直导出改为 `export 'stt.dart'`，主入口公告只保留一个版本，建议使用 `package:mova/stt.dart`；`IMovaApi.stt` 保留。STT 入口明确“模型下载为实验实现”，本包不内置识别播放器，下载及缓存实现保持原样。
+- 新增测试恰好 3 项：①主入口兼容导出快照及代表类型身份；②五个分入口的模块快照、路由与 helper 公告；③STT 快照、主入口兼容路由、类型身份、getter 签名与实验实现公告。快照固定源文件路径与 `show/hide` 约束，递归处理转导出；旧入口的 143 条快照从拆分前源码生成，结合 `lib/src` 零改动证明原符号面保留，并非声称抽样类型能覆盖全部符号。新入口快照分别为 UI kit 30、ads 5、feed 6、mini 6、extend 45、stt 16 条。
 - 回退验证只跑 `test/public_api/export_surface_test.dart`，保留所有新入口和类型，不以编译失败充数：撤回 extend 的既有 hash helper 导出，并把主入口 STT 转导出还原为逐文件直导出，实测 **3 红**；finally 按字节恢复后 **3 绿**。已有断言改写 **0**，已有测试文件修改 **0**。测试证据保存在忽略的 `.dart_tool/c08-red.jsonl` 与 `c08-green.jsonl`。
 - 每轮测试开跑前执行 `Get-Process flutter_tester -ErrorAction SilentlyContinue | Stop-Process`。本提交只启动一次全量 `flutter test --concurrency=3 --machine`：首轮 **2371 绿、7 项夹具错误**；唯一异常文件 `test/core/preview/b09_test.dart` 的 setUp 使用 `Directory('.dart_tool/b09').createTemp`，新 worktree 缺少其父目录，连带 tearDown 报未初始化。仅创建忽略的临时父目录后补跑该文件，**7/7 绿**；未改夹具或既有断言。按文件替换异常结果并与完整测试文件清单核对，最终 **230 文件、2378 项通过**（2375 + 3），无漏文件、跳过或重复计数。无 OOM、断连、降并发或目录分片，未重跑全量。日志为 `.dart_tool/c08-full.jsonl`、`c08-retry.jsonl`。
 - `flutter analyze lib test`：**0 issues**；`dart format` 与 `git diff --check` 通过。analyze 沿用此前落地记录的 lib/test 范围，未扩展到 example、packages 与 HarmonyOS 试验目录。`CHANGELOG.md` Unreleased 已记录分入口、STT 过渡与 helper 公告；运行行为没有变化。
@@ -1530,7 +1530,7 @@ C04 实测新增 32 项，从 2269 增至 2301。C04a–C04d 代码、回归、�
 - [x] CLAUDE.md：基线更新 2386，压缩最近一段 A2/CP1/A/B/C 摘要，保留旧“前一基线”链；
   补 MovaSession、广告时钟、错误分级、加载规格、cutover 代际、待机两处修复、接线默认。
   STT 指向 08-04 Zipformer 定案，②③④ 清账，新增总计划链接及 CP1/CP2/CP3 状态。
-- [x] SPEC.md：现行会话模块/依赖方向/命令三分法/item-node-attempt/语义表；补 _WarmSlot 与包内 MovaWarmOwner，
+- [x] SPEC.md：现行会话模块/依赖方向/命令三分法/item-node-attempt/语义表；补 _WarmSlot 与包内 IMovaWarmOwner，
   可暂停时钟/contentError、清晰度自探测/manageAuto、错误分级、chrome/bridge、style、分入口与导出快照。
   更新 END_FILE、默认探针/抽帧及待机验证边界；历史段落以上方现行规则为准。
 - [x] DESIGN-0.2.0.md：文首说明阶段已实现，保留历史设计，现行会话/错误/UI 与签名指向 SPEC。
@@ -1550,8 +1550,8 @@ C04 实测新增 32 项，从 2269 增至 2301。C04a–C04d 代码、回归、�
 
 C17 行与附带 dartdoc：
 
-- [x] api.dart dispose 改为具体引擎幂等与宿主所有权说明；stt_config.dart 修成真实的
-  createMovaEngine(options: MovaOpts(stt: MovaSttConfig(enabled: true, engine: recognizer)))。
+- [x] api.dart dispose 改为具体播放器幂等与宿主所有权说明；stt_opts.dart 修成真实的
+  createMova(options: MovaOpts(stt: MovaSttOpts(enabled: true, recognizer: recognizer)))。
 - [x] ④#29：patch.dart 与 mova_platform_interface.dart 的公开成员已有注释，补路径未命中规则、
   构造器指引、PiP 查询/回流区别，并修正“每成员都有安全默认”与 getPlatformVersion 抛异常的冲突。
   lib 四文件仅注释改动，行为文本逐项核对。
@@ -1573,7 +1573,7 @@ C17 行与附带 dartdoc：
 - movaObserveFlags.native 保留历史辅助返回值，工厂实际无条件给默认内核 observeNativeEvents:true；
   文档明确首次 open 懒启动 END_FILE，不按 helper 旧返回值误写默认关闭。helper 未改行为。
 - 约 120 行 libmpv 接入长文迁入当前工程消费侧文档，以满足只在 mova 内改的限制，未写独立工程。
-- 当前已有 #29 注释，补语义缺口而非重复添加；小窗旧 surface 归因改为 media_kit 默认行为与现行引擎暂停路径，
+- 当前已有 #29 注释，补语义缺口而非重复添加；小窗旧 surface 归因改为 media_kit 默认行为与现行播放器暂停路径，
   未把未经对照的 surface 假说写成事实。无真机结果新增，CP1 仍未整体通过。
 
 验证：

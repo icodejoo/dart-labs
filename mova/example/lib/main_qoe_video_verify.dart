@@ -21,7 +21,7 @@ const String kFast = 'http://127.0.0.1:8098';
 /// 输出一行。
 void _out(String m) => print(m);
 
-/// 承载页：每个场景创建一个 engine 并把 [MovaPlayer] 挂上屏幕。
+/// 承载页：每个场景创建一个播放器并把 [MovaPlayer] 挂上屏幕。
 class _Host extends StatefulWidget {
   const _Host();
 
@@ -30,8 +30,8 @@ class _Host extends StatefulWidget {
 }
 
 class _HostState extends State<_Host> {
-  /// 当前场景的 engine（页面上展示用）。
-  MovaEngine? _engine;
+  /// 当前场景的播放器（页面上展示用）。
+  Mova? _mova;
 
   @override
   void initState() {
@@ -39,23 +39,23 @@ class _HostState extends State<_Host> {
     Future<void>.delayed(const Duration(seconds: 1), _run);
   }
 
-  /// 单个场景：建 engine 挂到屏幕，执行脚本，dispose，打印上报事件。
-  Future<List<MovaReportEvent>> _scenario(String tag, Future<void> Function(MovaEngine e) script) async {
+  /// 单个场景：建播放器挂到屏幕，执行脚本，dispose，打印上报事件。
+  Future<List<MovaReportEvent>> _scenario(String tag, Future<void> Function(Mova e) script) async {
     final events = <MovaReportEvent>[];
-    final engine = createMovaEngine(
-      options: const MovaOpts(report: MovaReportConfig(qoe: true)),
+    final mova = createMova(
+      options: const MovaOpts(report: MovaReportOpts(qoe: true)),
       reporter: MovaCallbackReporter(events.add),
     );
-    setState(() => _engine = engine);
+    setState(() => _mova = mova);
     await Future<void>.delayed(const Duration(milliseconds: 500)); // 等 Video 控件就绪
     final t0 = DateTime.now();
     try {
-      await script(engine);
+      await script(mova);
     } catch (e) {
       _out('$tag SCRIPT_ERROR $e');
     }
-    setState(() => _engine = null);
-    await engine.dispose();
+    setState(() => _mova = null);
+    await mova.dispose();
     await Future<void>.delayed(const Duration(milliseconds: 500));
     _out('--- $tag events=${events.length}');
     for (final ev in events) {
@@ -102,7 +102,7 @@ class _HostState extends State<_Host> {
 
   @override
   Widget build(BuildContext context) {
-    final e = _engine;
+    final e = _mova;
     return Scaffold(
       backgroundColor: Colors.black,
       body: Center(

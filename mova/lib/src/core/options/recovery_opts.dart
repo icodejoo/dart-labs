@@ -1,0 +1,202 @@
+import '../recovery/fail.dart';
+import 'timeouts.dart';
+
+/// Start-up/stall timeouts and how to recover from them. Off by default: with
+/// [enabled] false no timer is created, no stream is subscribed and `open()`
+/// failures still throw to the caller exactly as before.
+///
+/// 起播/卡顿超时以及如何从中恢复。默认关闭：[enabled] 为 false 时不创建任何计时器、
+/// 不订阅任何流，`open()` 的失败也照旧抛给调用方。
+///
+/// Example / 示例:
+/// ```dart
+/// createMova(options: const MovaOpts(
+///   recovery: MovaRecoveryOpts(enabled: true, startTimeout: Duration(seconds: 8)),
+/// ));
+/// ```
+class MovaRecoveryOpts {
+  /// Master switch.
+  ///
+  /// 总开关。
+  final bool enabled;
+
+  /// 兜底看门狗：一次尝试从武装到首帧的最长等待；`null`（默认）由 [timeouts] 的 mpv 起播窗口
+  /// 加 [kMovaWatchdogMargin] 派生，显式值优先。mpv 的错误事件（END_FILE error）才是触发重连的
+  /// 主路径，看门狗只覆盖 mpv 不报错的卡死。
+  ///
+  /// Fallback watchdog: longest wait from an attempt being armed to its first
+  /// frame. `null` (default) derives it from the mpv start window in
+  /// [timeouts] plus [kMovaWatchdogMargin]; an explicit value wins. mpv's own
+  /// error events (END_FILE error) are the primary reconnect trigger; this only
+  /// covers hangs mpv never reports.
+  final Duration? startTimeout;
+
+  /// 兜底看门狗：出首帧后、播放中连续缓冲的最长时长；`null`（默认）由 [timeouts] 的 mpv
+  /// 卡顿窗口加 [kMovaWatchdogMargin] 派生，显式值优先；要彻底关闭用 [stallWatchdog]。
+  ///
+  /// Fallback watchdog: longest continuous buffering after the first frame
+  /// while playing. `null` (default) derives it from the mpv stall window in
+  /// [timeouts] plus [kMovaWatchdogMargin]; an explicit value wins. Turn it off
+  /// with [stallWatchdog].
+  final Duration? stallTimeout;
+
+  /// 是否启用卡顿看门狗（默认 true）；设为 false 则完全不报卡顿超时（取代旧的 `stallTimeout: null`）。
+  ///
+  /// Whether the stall watchdog runs (default true); false never reports a stall
+  /// timeout (replaces the old `stallTimeout: null`).
+  final bool stallWatchdog;
+
+  /// 统一超时配置，open 前透传给 mpv，并作为看门狗派生值的依据，见 [MovaTimeouts]。
+  ///
+  /// Unified timeouts forwarded to mpv before each open and the basis for the
+  /// derived watchdog deadlines, see [MovaTimeouts].
+  final MovaTimeouts timeouts;
+
+  /// Whether a live source reaching its end counts as a failure (default true).
+  ///
+  /// 直播源走到结尾是否算失败（默认 true）。
+  final bool liveEndIsFailure;
+
+  /// Injectable recovery rule; `null` selects the default: VOD uses
+  /// [MovaRetryThenFailover] (one retry per address), live uses
+  /// [MovaLiveReconnect] unless [liveReconnect] is turned off.
+  ///
+  /// 可注入的恢复规则；`null` 选用默认规则：点播用 [MovaRetryThenFailover]（每个地址重试
+  /// 一次），直播用 [MovaLiveReconnect]（除非关掉 [liveReconnect]）。
+  final IMovaRecoveryPolicy? policy;
+
+  /// Whether the default policy keeps reconnecting live sources with
+  /// exponential backoff (default true), so a publisher that restarts is picked
+  /// up again. Set false to give live the same one-retry rule as VOD. Ignored
+  /// when [policy] is set; VOD is never affected.
+  ///
+  /// 默认策略是否对直播源持续指数退避重连（默认 true），使推流端重启后能自动接上。设为 false
+  /// 则直播与点播一样只重试一次。设置了 [policy] 时忽略；点播不受影响。
+  final bool liveReconnect;
+
+  /// Creates the options; the defaults are the recommended ones, only
+  /// [enabled] needs flipping.
+  ///
+  /// 创建配置；默认值即推荐值，一般只需打开 [enabled]。
+  const MovaRecoveryOpts({
+    this.enabled = false,
+    this.startTimeout,
+    this.stallTimeout,
+    this.stallWatchdog = true,
+    this.timeouts = const MovaTimeouts(),
+    this.liveEndIsFailure = true,
+    this.policy,
+    this.liveReconnect = true,
+  });
+
+  /// The policy actually in effect.
+  ///
+  /// 实际生效的策略。
+  IMovaRecoveryPolicy get effectivePolicy =>
+      policy ?? (liveReconnect ? const MovaDefaultRecovery() : const MovaRetryThenFailover());
+
+  /// [uri] 实际生效的起播看门狗期限：显式 [startTimeout]，否则 mpv 起播窗口 + [kMovaWatchdogMargin]。
+  ///
+  /// The start watchdog deadline in effect for [uri]: the explicit
+  /// [startTimeout], else the mpv start window plus [kMovaWatchdogMargin].
+  ///
+  /// - [uri]: 正在加载的地址 / the address being loaded
+  ///
+  /// Returns the deadline / 返回期限。
+  ///
+  /// Example / 示例:
+  /// ```dart
+  /// const MovaRecoveryOpts().startTimeoutFor('whep://h'); // 85s（60+10+10+5）
+  /// ```
+  ///
+  /// - [networkOverride]: the source's own network-timeout, wins over [timeouts] / 按源 network-timeout，优先于 [timeouts]
+  Duration startTimeoutFor(String uri, {Duration? networkOverride}) =>
+      startTimeout ?? timeouts.startWindowFor(uri, networkOverride: networkOverride) + kMovaWatchdogMargin;
+
+  /// [uri] 实际生效的卡顿看门狗期限；[stallWatchdog] 为 false 时为 `null`。
+  ///
+  /// The stall watchdog deadline in effect for [uri]; `null` when
+  /// [stallWatchdog] is false.
+  ///
+  /// - [uri]: 正在播放的地址 / the address being played
+  ///
+  /// Returns the deadline or null / 返回期限或 null。
+  ///
+  /// - [networkOverride]: the source's own network-timeout / 按源 network-timeout
+  Duration? stallTimeoutFor(String uri, {Duration? networkOverride}) {
+    if (!stallWatchdog) return null;
+    return stallTimeout ?? timeouts.stallWindowFor(uri, networkOverride: networkOverride) + kMovaWatchdogMargin;
+  }
+
+  /// Debug-checks the timeouts are positive; called by the player on
+  /// construction (a `Duration` comparison cannot live in a `const` initializer).
+  ///
+  /// debug 下检查超时为正；由播放器构造时调用（`Duration` 比较不能写在 `const` 构造器
+  /// 的初始化列表里）。
+  void assertValid() {
+    assert(
+      startTimeout == null || startTimeout! > Duration.zero,
+      'MovaRecoveryOpts.startTimeout must be positive or null',
+    );
+    assert(
+      stallTimeout == null || stallTimeout! > Duration.zero,
+      'MovaRecoveryOpts.stallTimeout must be positive or null',
+    );
+  }
+
+  /// Returns a copy with the given fields replaced.
+  ///
+  /// 返回替换了指定字段的拷贝。
+  ///
+  /// - [enabled]: replacement master switch / 替换用的总开关
+  /// - [startTimeout]: replacement start deadline / 替换用的起播期限
+  /// - [stallTimeout]: replacement stall deadline / 替换用的卡顿期限
+  /// - [clearStallTimeout]: reset the stall deadline to derived (`null`) / 把卡顿期限重置为派生（`null`）
+  /// - [stallWatchdog]: replacement stall-watchdog switch / 替换用的卡顿看门狗开关
+  /// - [timeouts]: replacement unified timeouts / 替换用的统一超时配置
+  /// - [liveEndIsFailure]: replacement live-end rule / 替换用的直播结尾规则
+  /// - [policy]: replacement policy / 替换用的策略
+  /// - [clearPolicy]: reset the policy to the default / 把策略重置为默认
+  /// - [liveReconnect]: replacement live-reconnect switch / 替换用的直播重连开关
+  ///
+  /// Returns the new options / 返回新配置。
+  MovaRecoveryOpts copyWith({
+    bool? enabled,
+    Duration? startTimeout,
+    Duration? stallTimeout,
+    bool clearStallTimeout = false,
+    bool? stallWatchdog,
+    MovaTimeouts? timeouts,
+    bool? liveEndIsFailure,
+    IMovaRecoveryPolicy? policy,
+    bool clearPolicy = false,
+    bool? liveReconnect,
+  }) {
+    return MovaRecoveryOpts(
+      enabled: enabled ?? this.enabled,
+      startTimeout: startTimeout ?? this.startTimeout,
+      stallTimeout: clearStallTimeout ? null : (stallTimeout ?? this.stallTimeout),
+      stallWatchdog: stallWatchdog ?? this.stallWatchdog,
+      timeouts: timeouts ?? this.timeouts,
+      liveEndIsFailure: liveEndIsFailure ?? this.liveEndIsFailure,
+      policy: clearPolicy ? null : (policy ?? this.policy),
+      liveReconnect: liveReconnect ?? this.liveReconnect,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is MovaRecoveryOpts &&
+          enabled == other.enabled &&
+          startTimeout == other.startTimeout &&
+          stallWatchdog == other.stallWatchdog &&
+          timeouts == other.timeouts &&
+          stallTimeout == other.stallTimeout &&
+          liveEndIsFailure == other.liveEndIsFailure &&
+          policy == other.policy &&
+          liveReconnect == other.liveReconnect;
+
+  @override
+  int get hashCode => Object.hash(enabled, startTimeout, stallTimeout, stallWatchdog, timeouts, liveEndIsFailure, policy, liveReconnect);
+}

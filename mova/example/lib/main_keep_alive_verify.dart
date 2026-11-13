@@ -10,11 +10,11 @@ import 'package:mova/src/platform_impl/mpv_event_backend_ffi.dart';
 import 'verify_auto/auto_kit.dart';
 import 'verify_auto/keep_alive_auto.dart';
 
-/// 低功耗待机（keepAlive）的真机验证页（计划 doc/plans/2026-10-23-standby-mode.md 的 Task 10 用）。
+/// 低功耗待机（keepAlive）的真机验证页（计划 doc/plans/2026-10-23-keep-alive-mode.md 的 Task 10 用）。
 ///
 /// 一个页面只验这一件事：直播被隐藏时保持流连接、不出画面不出声，再显示时只恢复视频解码。
-/// 所有日志以固定前缀 `[STANDBY]` 加"页面启动起算的毫秒数"打印，方便
-/// `adb logcat | grep STANDBY`。
+/// 所有日志以固定前缀 `[KEEP_ALIVE]` 加"页面启动起算的毫秒数"打印，方便
+/// `adb logcat | grep KEEP_ALIVE`。
 ///
 /// 跑法（三个源按需替换，不传的源按钮置灰；地址每次打开都会自动追加 `?t=<微秒时间戳>` 防缓存）：
 /// `flutter run --release -t lib/main_keep_alive_verify.dart \
@@ -24,9 +24,9 @@ import 'verify_auto/keep_alive_auto.dart';
 ///
 /// 用法：
 /// - 「隐藏」开关用 `TickerMode(enabled: false)` 包住播放器，模拟切 Tab；
-/// - 「待机/唤醒」按钮走命令式入口 `MovaKeepAlive.setKeepAlive`；
-/// - 下方开关切换 `hiddenMode`（守卫自动处理）与 `MovaKeepAliveConfig` 各项，改动会让 `MovaView` 重建引擎；
-/// - 每秒一行 `position` 与 `cache-speed`（`MovaStatsProbe.sample().inputBps`），用来看待机期间网络是否持续。
+/// - 「待机/唤醒」按钮走命令式入口 `IMovaKeepAlive.setKeepAlive`；
+/// - 下方开关切换 `hiddenMode`（守卫自动处理）与 `MovaKeepAliveOpts` 各项，改动会让 `MovaView` 重建播放器；
+/// - 每秒一行 `position` 与 `cache-speed`（`IMovaStatsProbe.sample().inputBps`），用来看待机期间网络是否持续。
 ///
 /// 本页的手动模式只在 `flutter analyze` 层面验证过，没有上机；测量方法与判据见计划 Task 10。
 ///
@@ -37,7 +37,7 @@ import 'verify_auto/keep_alive_auto.dart';
 /// `S5_SECONDS`、`S16_DELAYS`。详见 `verify_auto/keep_alive_auto.dart`。
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  MovaEngine.ensureInitialized();
+  Mova.ensureInitialized();
   runApp(MaterialApp(home: kAutoRun ? const KeepAliveAutoPage() : const _KeepAlivePage()));
 }
 
@@ -51,7 +51,7 @@ const String _kFlvSilent = String.fromEnvironment('FLV_SILENT');
 const String _kHls = String.fromEnvironment('HLS');
 
 /// 日志固定前缀，便于 logcat 过滤。
-const String _kTag = '[STANDBY]';
+const String _kTag = '[KEEP_ALIVE]';
 
 /// 待机验证页。
 class _KeepAlivePage extends StatefulWidget {
@@ -86,11 +86,11 @@ class _KeepAlivePageState extends State<_KeepAlivePage> {
   /// 待机最长时长（秒）。
   int _maxSeconds = 30;
 
-  /// 当前引擎与它所用的内核（取统计用）。
-  MovaApi? _api;
+  /// 当前播放器与它所用的内核（取统计用）。
+  IMovaApi? _api;
   MovaMpvKernel? _kernel;
 
-  /// 当前引擎事件订阅与进度订阅。
+  /// 当前播放器事件订阅与进度订阅。
   StreamSubscription<MovaEvent>? _eventSub;
   StreamSubscription<MovaProg>? _progSub;
 
@@ -143,8 +143,8 @@ class _KeepAlivePageState extends State<_KeepAlivePage> {
     _log('open $label');
   }
 
-  /// 构造引擎：自己建内核，才能拿到 `MovaStatsProbe`；引擎创建后订阅关心的事件。
-  MovaApi _makeEngine(MovaOpts options) {
+  /// 构造播放器：自己建内核，才能拿到 `IMovaStatsProbe`；播放器创建后订阅关心的事件。
+  IMovaApi _makeMova(MovaOpts options) {
     final kernel = MovaMpvKernel(
       lazyVideo: true,
       observeQoeSignals: true,
@@ -152,11 +152,11 @@ class _KeepAlivePageState extends State<_KeepAlivePage> {
       backendFactory: (native, addr) => createFfiMpvEventBackend(native, addr, pollInDebug: kDebugMode),
     );
     _kernel = kernel;
-    return createMovaEngine(kernel: kernel, options: options, preciseFirstFrame: true);
+    return createMova(kernel: kernel, options: options, preciseFirstFrame: true);
   }
 
-  /// 引擎创建后接事件。
-  void _onEngine(MovaApi api) {
+  /// 播放器创建后接事件。
+  void _onMova(IMovaApi api) {
     _api = api;
     unawaited(_eventSub?.cancel());
     unawaited(_progSub?.cancel());
@@ -190,19 +190,19 @@ class _KeepAlivePageState extends State<_KeepAlivePage> {
   /// 命令式待机/唤醒。
   Future<void> _command(bool on) async {
     final api = _api;
-    if (api is! MovaKeepAlive) {
-      _log('engine has no keepAlive capability');
+    if (api is! IMovaKeepAlive) {
+      _log('player has no keepAlive capability');
       return;
     }
-    final phase = await (api as MovaKeepAlive).setKeepAlive(on);
+    final phase = await (api as IMovaKeepAlive).setKeepAlive(on);
     _log('setKeepAlive($on) -> ${phase.name}');
   }
 
   @override
   Widget build(BuildContext context) {
     final options = MovaOpts(
-      recovery: const MovaRecoveryConfig(enabled: true),
-      keepAlive: MovaKeepAliveConfig(
+      recovery: const MovaRecoveryOpts(enabled: true),
+      keepAlive: MovaKeepAliveOpts(
         maxDuration: Duration(seconds: _maxSeconds),
         allowHls: _allowHls,
         silentStreams: _silentPause ? MovaSilentKeepAlive.pause : MovaSilentKeepAlive.keepDecoding,
@@ -220,11 +220,11 @@ class _KeepAlivePageState extends State<_KeepAlivePage> {
                 source: _source,
                 fit: MovaFit.cover,
                 poster: const ColoredBox(color: Color(0xFF223344), child: Center(child: Text('POSTER'))),
-                skin: const MovaMinimalSkin(),
+                uiKit: const MovaMinimalUiKit(),
                 options: options,
-                autoPause: MovaAutoPauseConfig(hiddenMode: _hiddenMode),
-                engineFactory: _makeEngine,
-                onEngine: _onEngine,
+                autoPause: MovaAutoPauseOpts(hiddenMode: _hiddenMode),
+                movaFactory: _makeMova,
+                onMova: _onMova,
                 onOpenError: (e, s) => _log('openError $e'),
               ),
             ),

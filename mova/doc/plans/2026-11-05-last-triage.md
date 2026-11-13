@@ -4,11 +4,11 @@
 
 ## 1. headers 池暂停截图：14/30 空图
 
-结论：未挂渲染面的 lazyVideo 引擎 screenshot 返回 null 是设计；但不能用该设计解释本轮 14 次失败，也不能据此改成 PASS。现有证据更指向挂载后的暂停截图就绪时机或原生截图路径，离线无法进一步排除其中任一原因。
+结论：未挂渲染面的 lazyVideo 播放器 screenshot 返回 null 是设计；但不能用该设计解释本轮 14 次失败，也不能据此改成 PASS。现有证据更指向挂载后的暂停截图就绪时机或原生截图路径，离线无法进一步排除其中任一原因。
 
-代码依据：wiring.dart 默认 lazyVideo=true；mpv_kernel.dart 的 screenshot 在 audioOnly 或 _controller==null 时直接返回 null。engine_pool.bind 负责 open/暂停预热，不保证独立的像素截图能力；ready/首帧事件也不等于可取得编码图像。
+代码依据：wiring.dart 默认 lazyVideo=true；mpv_kernel.dart 的 screenshot 在 audioOnly 或 _controller==null 时直接返回 null。feed_pool.bind 负责 open/暂停预热，不保证独立的像素截图能力；ready/首帧事件也不等于可取得编码图像。
 
-关键反证：example/lib/verify_auto/cp3_pages_auto.dart 的 nativePath(pool) 已先 await h.mount(engine, raw:true)，再 pool.bind；h.mount 等待两个 endOfFrame。截图还直接调用 (engine.renderHandle as VideoController).player.screenshot，绕过了 kernel 的 _controller==null 返回分支。因此本轮不是简单的“无控制器导致 kernel 返回 null”。
+关键反证：example/lib/verify_auto/cp3_pages_auto.dart 的 nativePath(pool) 已先 await h.mount(player, raw:true)，再 pool.bind；h.mount 等待两个 endOfFrame。截图还直接调用 (player.renderHandle as VideoController).player.screenshot，绕过了 kernel 的 _controller==null 返回分支。因此本轮不是简单的“无控制器导致 kernel 返回 null”。
 
 第三轮六个目录的 *cp3-headers.json（numbers.nativePaths.pool.observations.authorized）共 30 组：16 次 81259 字节、14 次 null；空图同样有 restart、rendered=true、duration=120000、640x360、playing=false、error=null。restart 与元数据不能证明原生 screenshot 在该时刻必有图。
 

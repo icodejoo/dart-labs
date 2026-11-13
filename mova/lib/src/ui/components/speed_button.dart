@@ -17,13 +17,13 @@ const List<double> _kSpeedSteps = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0];
 /// Playback-rate cycling button; label shows the active multiplier (e.g.
 /// `1.5x`), tap advances to the next step in [_kSpeedSteps], wrapping around.
 ///
-/// Purely a UI addition over the existing [MovaApi.setRate] — no new core
+/// Purely a UI addition over the existing [IMovaApi.setRate] — no new core
 /// capability was needed.
 ///
 /// 播放倍速循环切换按钮；标签展示当前倍速（如 `1.5x`），点击切换到
 /// [_kSpeedSteps] 中的下一档，到头后回绕。
 ///
-/// 只是在既有 [MovaApi.setRate] 之上新增的 UI——无需任何新的 core 能力。
+/// 只是在既有 [IMovaApi.setRate] 之上新增的 UI——无需任何新的 core 能力。
 class MovaSpeedButtonComponent extends MovaComponent {
   /// Creates the speed-button leaf component.
   ///
@@ -45,7 +45,7 @@ class MovaSpeedButtonComponent extends MovaComponent {
   /// Builds the button with one formatted caption for text and semantics.
   ///
   /// 构建按钮，文字与语义复用同一份格式化说明。
-  Widget build(BuildContext context, MovaApi api, List<Widget> children) {
+  Widget build(BuildContext context, IMovaApi api, List<Widget> children) {
     final theme = MovaPlayerStyle.themeOf(context);
     final suffix = MovaPlayerStyle.stringsOf(context).speedSuffix;
     return MovaSelect<double>(

@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mova/src/core/events/events.dart';
 import 'package:mova/src/core/model/source.dart';
-import 'package:mova/src/core/options/report_config.dart';
+import 'package:mova/src/core/options/report_opts.dart';
 import 'package:mova/src/core/report/collector.dart';
 import 'package:mova/src/core/report/report.dart';
 import 'package:mova/src/core/report/stats_probe.dart';
@@ -11,14 +11,14 @@ import 'package:mova/src/core/report/stats_probe.dart';
 import '../../support/fake_api.dart';
 
 void main() {
-  group('MovaStatsProbe — degrades gracefully, never errors', () {
+  group('IMovaStatsProbe — degrades gracefully, never errors', () {
     test('a collector with probe: null does not throw and just skips enrichment', () async {
       final events = StreamController<MovaEvent>.broadcast();
       final received = <MovaReportEvent>[];
       final collector = MovaQoeCollector(
         events: events.stream,
         reporter: MovaCallbackReporter(received.add),
-        config: const MovaReportConfig(qoe: true),
+        opts: const MovaReportOpts(qoe: true),
       );
       collector.onOpen(const MovaSource('https://host/a.mp4'), autoPlay: true);
       await Future<void>.delayed(Duration.zero);
@@ -93,7 +93,7 @@ void main() {
         final collector = MovaQoeCollector(
           events: events.stream,
           reporter: MovaCallbackReporter(received.add),
-          config: const MovaReportConfig(qoe: true),
+          opts: const MovaReportOpts(qoe: true),
           probe: probe,
         );
         collector.onOpen(const MovaSource('https://host/a.mp4'), autoPlay: true);
@@ -122,7 +122,7 @@ void main() {
         final c = MovaQoeCollector(
           events: events.stream,
           reporter: MovaCallbackReporter(got.add),
-          config: const MovaReportConfig(qoe: true),
+          opts: const MovaReportOpts(qoe: true),
           probe: probe,
         );
         c.onOpen(const MovaSource('https://host/a.mp4'), autoPlay: true);

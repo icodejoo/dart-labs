@@ -103,34 +103,34 @@ mpv 的实时播放管线。
 
 ### 2.3 通用注入口子——不是"MCP 专用"，是复用既有模式
 
-砍掉 MCP 专项之后，缺口不需要专门补：延续 `MovaVolumePort`/`MovaCallbackVolumePort` 那套
+砍掉 MCP 专项之后，缺口不需要专门补：延续 `IMovaVolume`/`MovaCallbackVolume` 那套
 "抽象端口 + 默认实现 + 可注入覆盖"模式，宿主想在 Linux 上或想覆盖平台原生实现时，可以
-自己实现 `MovaSttEngine`（内部想接什么后端都行——云端 API、自建模型、自己的 MCP 调用），
-经 `createMovaEngine(stt: MyEngine())` 注入。这个口子**通用性比"专门集成 MCP"更强**（不
+自己实现 `IMovaStt`（内部想接什么后端都行——云端 API、自建模型、自己的 MCP 调用），
+经 `createMova(stt: MyMova())` 注入。这个口子**通用性比"专门集成 MCP"更强**（不
 锁定某一种后端形状），且不需要额外设计，是既有套路的直接复用，零增量成本。
 
 ## 3. 架构落点
 
-- **core 端口抽象**（`lib/src/core/`，暂拟 `MovaSttEngine`）：输入"URI + 时间范围"，输出
+- **core 端口抽象**（`lib/src/core/`，暂拟 `IMovaStt`）：输入"URI + 时间范围"，输出
   带时间戳的文本片段流（**抽 PCM 这一步下沉到原生实现内部**，不在 core/Dart 侧过一遍字节，
-  见 §1）。默认实现按平台探测原生能力，探测不到则 noop/关闭（同 `MovaFallbackBrightnessPort`
-  的风格）；真实原生实现放 `lib/src/platform_impl/`（`NativeSttEngine` 之类，
+  见 §1）。默认实现按平台探测原生能力，探测不到则 noop/关闭（同 `MovaFallbackBrightness`
+  的风格）；真实原生实现放 `lib/src/platform_impl/`（`NativeSttMova` 之类，
   Android/iOS/macOS/Windows 分别实现，Linux 无实现即关闭）。
 - **音频抽取路径**：见 §1，走各平台原生轻量抽取 API（Android `MediaExtractor`+
   `MediaCodec`、iOS `AVAssetReader`），**不额外起 media_kit `Player`**，抽取与 STT 调用
   在同一次原生方法调用内完成。
 - **字幕渲染路径——待定，非已拍板**：倾向 Flutter 侧叠层组件（新增一个类似
-  `MovaPreviewComponent` 的叠层组件，挂在既有组件树/皮肤/补丁机制上，不改变 `MovaApi` 之外的
+  `MovaPreviewComponent` 的叠层组件，挂在既有组件树/UI 套件/补丁机制上，不改变 `IMovaApi` 之外的
   契约）——理由是避免破坏组件化/`MovaTheme` 主题化架构、避免被画面的 `Transform.scale`/
   裁剪连带影响。但用户认为 mpv 原生字幕渲染（`libass`，喂 `sub-add`/字幕轨）路径仍可能
   有用，**要求先保留 `libass`、等瘦身构建实测出体积数字后再综合权衡**，不要现在就删。
   两条路的取舍详见
   [../../../mova-libmpv/doc/notes/2026-07-31-libmpv-slimming-options.md](../../../mova-libmpv/doc/notes/2026-07-31-libmpv-slimming-options.md) §5
   （2026-08-13 迁到 `mova-libmpv`）。
-  下文（`MovaApi.subtitles`、字幕叠层组件）按 Flutter 侧方案描述，**若最终改走 mpv 原生
+  下文（`IMovaApi.subtitles`、字幕叠层组件）按 Flutter 侧方案描述，**若最终改走 mpv 原生
   渲染，这部分需要重新设计**。
-- **`MovaApi` 面**（若走 Flutter 侧方案）：预计新增 `MovaApi.subtitles`（字幕流，同 `preview`
-  的形状）+ `MovaSubChg` 一类事件，具体签名留到实现阶段确定。
+- **`IMovaApi` 面**（若走 Flutter 侧方案）：预计新增 `IMovaApi.subtitles`（字幕流，同 `preview`
+  的形状）+ 字幕变化一类事件，具体签名留到实现阶段确定。
 
 ## 4. 与二期 ffmpeg 瘦身（未开始的遗留任务 #4）的协同点
 
@@ -143,7 +143,7 @@ media_kit 自带的隐藏 Player 模式就能起步。
 - **可行性结论**：可行，**不需要新增任何第三方依赖**——全部走操作系统自带能力 + 现有
   平台原生插件的自然扩展。
 - **技术方向**：独立解码路径（仿阶段 B）+ **平台原生 STT 优先、否则关闭** + 通用
-  `MovaSttEngine` 注入口子（非 MCP 专用）+ 字幕叠层组件。
+  `IMovaStt` 注入口子（非 MCP 专用）+ 字幕叠层组件。
 - **已否决**：whisper.cpp 作为默认引擎（推翻第一版结论，理由见 §0）；MCP 作为专项兜底
   （理由见 §2.2）。
 - **待用户决策后才能转化为逐 Task 计划的点**：
@@ -158,11 +158,11 @@ media_kit 自带的隐藏 Player 模式就能起步。
 1. **Spike：用 media_kit 隐藏 Player 独立解码一段音频——已完成（2026-07-31），结论见
    附录 A：可行，但机制与最初设想不同**（要用 `Media(start:, end:)` 圈定范围 + 等
    `stream.completed`，不能靠 wall-clock `pause()`）。
-2. `MovaSttEngine` 端口抽象 + noop 默认实现。
+2. `IMovaStt` 端口抽象 + noop 默认实现。
 3. Android 原生实现（ML Kit GenAI Speech Recognition）——现有插件基础上扩展，风险最低，
    优先做通。
 4. iOS 原生实现（`SFSpeechAudioBufferRecognitionRequest`）——现有插件基础上扩展。
-5. 字幕叠层组件 + `MovaApi.subtitles` 面 + 事件表，先在 Android/iOS 跑通闭环。
+5. 字幕叠层组件 + `IMovaApi.subtitles` 面 + 事件表，先在 Android/iOS 跑通闭环。
 6. 视 §5 待决点决定是否/何时投入 macOS 新插件与 Windows SAPI 实现。
 7. 真机验证（含识别延迟、准确率、CPU/电量开销的实测）。
 
@@ -176,7 +176,7 @@ media_kit 自带的隐藏 Player 模式就能起步。
   https://developer.apple.com/videos/play/wwdc2025/277/
 - Android ML Kit GenAI Speech Recognition（支持文件/音频源输入）
   https://developers.google.com/ml-kit/genai/speech-recognition/android
-- Windows `System.Speech.Recognition.SpeechRecognitionEngine`（`SetInputToAudioStream`
+- Windows `System.Speech.Recognition.SpeechRecognitionMova`（`SetInputToAudioStream`
   等，支持任意音频流输入）
   https://learn.microsoft.com/en-us/dotnet/api/system.speech.recognition.speechrecognitionengine
 - Linux 无标准 freedesktop STT API 的现状

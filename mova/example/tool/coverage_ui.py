@@ -14,8 +14,8 @@ actions += [('zoom',v) for v in ['-1','0','1','2','100','1']]
 actions += [('volume',v) for v in ['0','50','100','30']]
 actions += [('brightness',v) for v in ['0','.25','.75','1','.5']]
 actions += [('lock','true'),('lock','false'),('fullscreen','true'),('fullscreen','false')]
-actions += [('orientation',v) for v in ['landscape','portrait','auto']]
-actions += [('skin',v) for v in ['bilibili','minimal','mini','default']]
+actions += [('orient',v) for v in ['landscape','portrait','auto']]
+actions += [('uiKit',v) for v in ['bilibili','minimal','mini','default']]
 for i,(action,value) in enumerate(actions):
     d=request('/run?'+urllib.parse.urlencode({'group':'video','action':action,'value':value}))
     end=time.monotonic()+40

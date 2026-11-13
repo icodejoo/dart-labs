@@ -1,4 +1,4 @@
-import '../options/mini_config.dart';
+import '../options/mini_opts.dart';
 
 /// An axis-aligned rectangle in logical pixels, in the host window's
 /// coordinate space. A tiny stand-in for `Rect`: `core/` must not import
@@ -107,15 +107,15 @@ class MovaMiniInsets {
 
 /// Decides where the mini window lands after a drag ends.
 ///
-/// Pure logic, injected via [MovaMiniConfig.placement] so a host can replace
+/// Pure logic, injected via [MovaMiniOpts.placement] so a host can replace
 /// the built-in corner snapping with its own (free positioning, magnetic
 /// grid, single-edge dock, …) without forking the widget.
 ///
 /// 决定小窗在一次拖动结束后落在哪里。
 ///
-/// 纯逻辑，经 [MovaMiniConfig.placement] 注入，宿主可以在不 fork widget 的
+/// 纯逻辑，经 [MovaMiniOpts.placement] 注入，宿主可以在不 fork widget 的
 /// 前提下把内置的吸角换成自己的（自由摆放、磁吸网格、单边停靠……）。
-abstract class MovaMiniPlacement {
+abstract class IMovaMiniPlacement {
   /// Returns the resting rectangle for [current] inside [bounds].
   ///
   /// - [current]: where the finger released it / 手指松开时的位置
@@ -254,7 +254,7 @@ MovaMiniRect rectForCorner(
 ///
 /// 内置落点策略：先钳进边界，再（[snap] 为真时）沿水平方向滑到窗口中心更靠近
 /// 的那一侧，并遵守 [margin] 与安全区 [MovaMiniInsets]。
-class MovaCornerSnap implements MovaMiniPlacement {
+class MovaCornerSnap implements IMovaMiniPlacement {
   /// Creates the built-in corner-snapping placement policy.
   ///
   /// 创建内置的吸角落点策略。

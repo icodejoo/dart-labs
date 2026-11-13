@@ -13,7 +13,7 @@ class _Probe extends MovaAlwaysAllowNetProbe {
   Future<bool> allowHeavy() async { queries++; return allowed; }
 }
 
-class _Fetch implements MovaHttpFetch {
+class _Fetch implements IMovaHttpFetch {
   final urls = <Uri>[];
   @override
   Future<Uint8List?> get(Uri url) async {
@@ -26,7 +26,7 @@ class _Fetch implements MovaHttpFetch {
   Future<void> close() async {}
 }
 
-class _Fallback implements MovaThumbSource {
+class _Fallback implements IMovaThumbSource {
   int calls = 0;
   @override
   String get name => 'fallback';
@@ -41,22 +41,22 @@ class _Fallback implements MovaThumbSource {
   Future<void> dispose() async {}
 }
 
-MovaEngine _engine(_Probe probe, _Fetch fetch, List<MovaPreviewBlockReason> blocks,
+Mova _mova(_Probe probe, _Fetch fetch, List<MovaPreviewBlockReason> blocks,
     {String? vttUrl}) {
-  final engine = MovaEngine(kernel: FakeKernel(), fetcher: fetch,
+  final mova = Mova(kernel: FakeKernel(), fetcher: fetch,
     options: MovaOpts(
-      controls: const MovaCtrlsConfig(autoHide: false),
-      abr: const MovaAbrConfig(probeVariants: false),
-      preview: MovaPreviewConfig(probe: probe, cache: MovaMemoryThumbCache(),
+      controls: const MovaCtrlsOpts(autoHide: false),
+      abr: const MovaAbrOpts(probeVariants: false),
+      preview: MovaPreviewOpts(probe: probe, cache: MovaMemoryThumbCache(),
         debounce: Duration.zero, vttUrl: vttUrl, onBlocked: blocks.add),
     ));
-  addTearDown(engine.dispose);
-  return engine;
+  addTearDown(mova.dispose);
+  return mova;
 }
 
-Future<void> _request(MovaEngine engine) async {
-  engine.preview.requestAt(const Duration(seconds: 12));
-  await (engine.preview as MovaPreviewService).drain();
+Future<void> _request(Mova mova) async {
+  mova.preview.requestAt(const Duration(seconds: 12));
+  await (mova.preview as MovaPreviewService).drain();
 }
 
 void main() {
@@ -64,14 +64,14 @@ void main() {
     final probe = _Probe();
     final fetch = _Fetch();
     final blocks = <MovaPreviewBlockReason>[];
-    final engine = _engine(probe, fetch, blocks);
-    await engine.open(const MovaSource('https://host/a.mp4'));
-    await _request(engine);
+    final mova = _mova(probe, fetch, blocks);
+    await mova.open(const MovaSource('https://host/a.mp4'));
+    await _request(mova);
     expect(fetch.urls, isEmpty);
     expect(blocks, [MovaPreviewBlockReason.network]);
     probe.allowed = true;
-    await _request(engine);
-    expect(engine.preview.current, isNotNull);
+    await _request(mova);
+    expect(mova.preview.current, isNotNull);
     expect(fetch.urls.map((u) => u.path), ['/a.mp4.vtt', '/sprite.jpg']);
     expect(blocks, hasLength(1));
   });
@@ -80,20 +80,20 @@ void main() {
     final probe = _Probe();
     final fetch = _Fetch();
     final blocks = <MovaPreviewBlockReason>[];
-    final engine = _engine(probe, fetch, blocks, vttUrl: 'file:///local.vtt');
+    final mova = _mova(probe, fetch, blocks, vttUrl: 'file:///local.vtt');
     final fallback = _Fallback();
-    (engine.preview as MovaPreviewService).sources.add(fallback);
-    await engine.open(const MovaSource('https://host/a.mp4'));
+    (mova.preview as MovaPreviewService).sources.add(fallback);
+    await mova.open(const MovaSource('https://host/a.mp4'));
     // 本地轨指向远程雪碧图，门控必须使用资源地址。
     // 显式远程图片使轨缓存命中后仍能单独识别策略拒绝。
-    await _request(engine);
-    expect(engine.preview.current, isNull);
+    await _request(mova);
+    expect(mova.preview.current, isNull);
     expect(fetch.urls.map((u) => u.path), ['/local.vtt']);
     expect(blocks, [MovaPreviewBlockReason.network]);
     expect(fallback.calls, 0, reason: '策略拒绝由服务结算，不能当普通失败继续兜底');
     probe.allowed = true;
-    await _request(engine);
-    expect(engine.preview.current, isNotNull);
+    await _request(mova);
+    expect(mova.preview.current, isNotNull);
     expect(fetch.urls.map((u) => u.path), ['/local.vtt', '/sprite.jpg']);
     expect(blocks, hasLength(1));
   });

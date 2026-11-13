@@ -10,7 +10,7 @@ import 'package:mova/src/core/stt/model_spec.dart';
 /// Records downloads without making network requests.
 ///
 /// 记录下载，不发起网络请求。
-class _Fetcher implements MovaHttpFetch {
+class _Fetcher implements IMovaHttpFetch {
   int calls = 0;
 
   /// Returns a small model fixture.

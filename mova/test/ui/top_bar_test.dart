@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mova/src/core/events/events.dart';
 import 'package:mova/src/core/model/fit.dart';
-import 'package:mova/src/core/model/orientation.dart';
+import 'package:mova/src/core/model/orient_mode.dart';
 import 'package:mova/src/core/model/quality.dart';
 import 'package:mova/src/core/model/source.dart';
 import 'package:mova/src/core/options/options.dart';
@@ -65,13 +65,13 @@ void main() {
       // From the default auto state, one tap forces landscape.
       await t.tap(find.byIcon(Icons.screen_rotation_rounded));
       await t.pump();
-      expect(api.calls, contains('setOrientation'));
-      expect(api.lastOrientation, MovaOrientation.landscape);
+      expect(api.calls, contains('setOrient'));
+      expect(api.lastOrient, MovaOrientMode.landscape);
 
       // A second tap flips landscape → portrait.
       await t.tap(find.byIcon(Icons.screen_rotation_rounded));
       await t.pump();
-      expect(api.lastOrientation, MovaOrientation.portrait);
+      expect(api.lastOrient, MovaOrientMode.portrait);
     } finally {
       debugDefaultTargetPlatformOverride = null;
       await api.dispose();

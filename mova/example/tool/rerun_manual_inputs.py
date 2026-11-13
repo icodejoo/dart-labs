@@ -27,9 +27,9 @@ def touch(*args):
         raise RuntimeError('foreground guard rejected input')
     return adb('shell','input',*args)
 def mini_point(data,fraction=.5):
-    """Map the actual controller rectangle to this device's physical pixels.
+    """Map the actual mini window (`MovaMini`) rectangle to this device's physical pixels.
 
-    将控制器实际矩形按本机2.55像素比映射为触点。
+    将小窗（`MovaMini`）实际矩形按本机2.55像素比映射为触点。
     """
     row=next(r for r in reversed(data['records']) if r['kind']=='MINI_INFO');r=row['rect']
     if not row['showing']:raise RuntimeError('mini not visible')
@@ -40,13 +40,13 @@ def mini_point(data,fraction=.5):
     return str(round((r['left']+r['width']*fraction)*2.55)),str(round((r['top']+r['height']*.5)*2.55))
 mode=sys.argv[1] if len(sys.argv)>1 else 'mini'
 update('开始安全实触 '+mode,[],['- 触点来自实际mini矩形，预览等待真实thumb；仅测试包前台时注入，原始证据rerun-manual-*。'])
-call(mode+'-hide','miniHide');call(mode+'-cleanup','dispose');call(mode+'-start',style='custom',preview='true');call(mode+'-portrait','orientation',value='portrait');call(mode+'-auto','orientation',value='auto')
+call(mode+'-hide','miniHide');call(mode+'-cleanup','dispose');call(mode+'-start',style='custom',preview='true');call(mode+'-portrait','orient',value='portrait');call(mode+'-auto','orient',value='auto')
 if mode=='mini':
     call('mini-show','miniHost');d=call('mini-before','miniInfo');x,y=mini_point(d)
     touch('swipe',x,y,'400','1200','800');d=call('mini-drag','miniInfo')
     x,y=mini_point(d,.25);touch('tap',x,y);d=call('mini-tap','miniInfo')
     x,y=mini_point(d,.25);touch('swipe',x,y,'950',y,'90');call('mini-real-fling','miniInfo')
-    call('mini-landscape','orientation',value='landscape');call('mini-portrait','orientation',value='portrait');call('mini-close','miniClose')
+    call('mini-landscape','orient',value='landscape');call('mini-portrait','orient',value='portrait');call('mini-close','miniClose')
 elif mode=='preview':
     call('preview-pause','pause');call('preview-controls','controls',value='sticky')
     touch('motionevent','DOWN','300','2307');touch('motionevent','MOVE','650','2307')

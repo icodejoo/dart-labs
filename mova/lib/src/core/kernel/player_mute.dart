@@ -2,7 +2,7 @@
 /// Unsupported implementations may return false; callers continue without mute.
 ///
 /// 可选的播放器预热静音，独立于系统音量和待机。不支持时返回 false，调用方不静音。
-abstract class MovaPlayerMute {
+abstract class IMovaPlayerMute {
   /// Sets or releases only the warm-up mute owned by this capability. Idempotent;
   /// preserves the original mute and any keepAlive mute. Never throws.
   ///
@@ -12,6 +12,6 @@ abstract class MovaPlayerMute {
   ///
   /// Returns whether the operation succeeded / 返回操作是否成功。
   ///
-  /// Example / 示例：`if (kernel is MovaPlayerMute) await kernel.setWarmMute(true);`
+  /// Example / 示例：`if (kernel is IMovaPlayerMute) await kernel.setWarmMute(true);`
   Future<bool> setWarmMute(bool on);
 }

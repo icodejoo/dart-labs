@@ -1,0 +1,451 @@
+import 'dart:async';
+
+import 'package:mova/src/testing/hooks.dart';
+import 'package:fake_async/fake_async.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:mova/src/core/mova.dart';
+import 'package:mova/src/core/events/events.dart';
+import 'package:mova/src/core/model/source.dart';
+import 'package:mova/src/core/options/options.dart';
+import 'package:mova/src/core/recovery/fail.dart';
+import 'package:mova/src/core/report/stats_probe.dart';
+
+import '../../support/fake_kernel.dart';
+
+/// A policy that throws, to prove a host rule can never break the player.
+///
+/// 会抛异常的策略，用来证明宿主规则绝不能打断播放器。
+class _ThrowingPolicy implements IMovaRecoveryPolicy {
+  @override
+  MovaRecoveryDecision onFailure(MovaPlayFail fail) =>
+      throw StateError('host bug');
+}
+
+/// A player over [kernel] with recovery on (unless [recovery] says otherwise)
+/// and the control bar's auto-hide timer off, so the only timers left pending
+/// are the ones recovery itself creates.
+///
+/// 基于 [kernel] 的播放器：recovery 默认开启，并关掉控制条自动隐藏计时器，使得剩余的
+/// 挂起计时器只可能来自 recovery 本身。
+class _Rig {
+  _Rig(
+    this.kernel, {
+    MovaRecoveryOpts recovery = const MovaRecoveryOpts(startTimeout: Duration(seconds: 10), stallTimeout: Duration(seconds: 10), enabled: true),
+  }) : mova = Mova(fetcher: const MovaTestHttpFetch(),
+         kernel: kernel,
+         options: MovaOpts(
+           recovery: recovery,
+           controls: const MovaCtrlsOpts(autoHide: false),
+         ),
+       ) {
+    mova.events.listen(events.add);
+  }
+
+  final FakeKernel kernel;
+  final Mova mova;
+  final List<MovaEvent> events = [];
+
+  List<MovaPlayFailure> get failures =>
+      events.whereType<MovaPlayFailure>().toList();
+
+  /// Opens [uri] and lets microtasks settle.
+  ///
+  /// 打开 [uri] 并让微任务落定。
+  void open(
+    FakeAsync async, {
+    String uri = 'https://h/a.m3u8',
+    bool autoPlay = true,
+    MovaStreamType type = MovaStreamType.vod,
+  }) {
+    mova.open(MovaSource(uri, type: type), autoPlay: autoPlay);
+    async.flushMicrotasks();
+  }
+
+  /// Lands the first frame through the buffering falling edge.
+  ///
+  /// 经 buffering 下降沿让首帧落地。
+  void land(FakeAsync async) {
+    kernel.emitBuffering(true);
+    kernel.emitBuffering(false);
+    async.flushMicrotasks();
+  }
+}
+
+void main() {
+  // 首次 open 抛错与首帧超时都须保留 start，且同内容备用地址继承同一点。
+  for (final throws in [false, true]) {
+    for (final failover in [false, true]) {
+      test('P2 首帧前恢复保留起播位置 throws=$throws failover=$failover', () {
+        fakeAsync((async) {
+          final k = FakeKernel();
+          if (throws) k.openError = StateError('open');
+          final r = _Rig(k);
+          r.mova.open(
+            const MovaSource(
+              'https://h/a.m3u8',
+              alternatives: ['https://h/b.m3u8'],
+              start: Duration(seconds: 60),
+            ),
+          );
+          async.flushMicrotasks();
+          if (!throws) async.elapse(const Duration(seconds: 10));
+          k.openError = null;
+          async.elapse(const Duration(seconds: 1));
+          expect(k.openedUris, hasLength(2));
+          if (failover) {
+            // 不给重试首帧，继续失败并切换到备用地址。
+            async.elapse(const Duration(seconds: 10));
+            expect(k.openedUris.last, 'https://h/b.m3u8');
+          }
+          k.emitDuration(const Duration(minutes: 10));
+          async.flushMicrotasks();
+          r.land(async);
+          expect(k.lastSeek, const Duration(seconds: 60));
+          unawaited(r.mova.dispose());
+          async.flushMicrotasks();
+        });
+      });
+    }
+  }
+
+  // 已出画后必须沿用实际续播点，不能退回 source.start。
+  test('P2 已渲染后的恢复仍使用失败位置', () {
+    fakeAsync((async) {
+      // 模拟内核确认起播 seek，再推进真实进度。
+      final k = FakeKernel()..echoSeeks = true;
+      final r = _Rig(k);
+      r.mova.open(
+        const MovaSource('https://h/a.m3u8', start: Duration(seconds: 60)),
+      );
+      async.flushMicrotasks();
+      k.emitDuration(const Duration(minutes: 10));
+      r.land(async);
+      k.emitPosition(const Duration(seconds: 90));
+      async.flushMicrotasks();
+      k.emitBuffering(true);
+      async.flushMicrotasks();
+      async.elapse(const Duration(seconds: 11));
+      k.emitDuration(const Duration(minutes: 10));
+      r.land(async);
+      expect(k.lastSeek, const Duration(seconds: 90));
+      unawaited(r.mova.dispose());
+      async.flushMicrotasks();
+    });
+  });
+  const tenSeconds = Duration(seconds: 10);
+  const oneSecond = Duration(seconds: 1);
+
+  test(
+    '1. disabled (default): open() still throws, no recovery events or timer, END_FILE still observed',
+    () {
+      fakeAsync((async) {
+        final k = FakeStatsKernel()..openError = StateError('boom');
+        final r = _Rig(k, recovery: const MovaRecoveryOpts(startTimeout: Duration(seconds: 10), stallTimeout: Duration(seconds: 10), ));
+        Object? thrown;
+        r.mova
+            .open(const MovaSource('https://h/a.m3u8'))
+            .catchError((Object e) {
+              thrown = e;
+              return false;
+            });
+        async.flushMicrotasks();
+        expect(thrown, isA<StateError>());
+        async.elapse(const Duration(minutes: 5));
+        expect(r.failures, isEmpty);
+        expect(k.endFilesSubscribed, isTrue);
+        expect(async.pendingTimers, isEmpty);
+
+        final ok = _Rig(
+          FakeStatsKernel(),
+          recovery: const MovaRecoveryOpts(startTimeout: Duration(seconds: 10), stallTimeout: Duration(seconds: 10), ),
+        );
+        ok.open(async);
+        expect(
+          async.pendingTimers,
+          isEmpty,
+          reason: 'no watchdog timer may exist when recovery is off',
+        );
+      });
+    },
+  );
+
+  test(
+    '2. enabled: no first frame by startTimeout fails once with retry, then reloads the same uri after 1s',
+    () {
+      fakeAsync((async) {
+        final k = FakeKernel();
+        final r = _Rig(k);
+        r.open(async);
+        async.elapse(tenSeconds);
+        expect(r.failures, hasLength(1));
+        final f = r.failures.single;
+        expect(f.fail.kind, MovaPlayFailKind.startTimeout);
+        expect(f.fail.attempt, 1);
+        expect(f.action, MovaRecoveryAction.retry);
+        expect(k.openedUris, hasLength(1));
+        async.elapse(oneSecond);
+        expect(k.openedUris, ['https://h/a.m3u8', 'https://h/a.m3u8']);
+      });
+    },
+  );
+
+  test(
+    '3. the second timeout gives up: MovaGiveUpError in state, exactly one error event, kernel paused',
+    () {
+      fakeAsync((async) {
+        final k = FakeKernel();
+        final r = _Rig(k);
+        r.open(async);
+        async.elapse(tenSeconds + oneSecond + tenSeconds);
+        expect(r.failures, hasLength(2));
+        expect(r.failures.last.fail.attempt, 2);
+        expect(r.failures.last.action, MovaRecoveryAction.giveUp);
+        expect(r.mova.state.error, isA<MovaGiveUpError>());
+        final errors = r.events.whereType<MovaErrorEvent>().toList();
+        expect(errors, hasLength(1));
+        expect(errors.single.error, isA<MovaGiveUpError>());
+        expect(k.calls, contains('pause'));
+        async.elapse(const Duration(minutes: 5));
+        expect(
+          r.failures,
+          hasLength(2),
+          reason: 'nothing more happens after giving up',
+        );
+      });
+    },
+  );
+
+  test(
+    '4. a first frame inside the deadline: no failure however long we wait',
+    () {
+      fakeAsync((async) {
+        final r = _Rig(FakeKernel());
+        r.open(async);
+        async.elapse(const Duration(seconds: 3));
+        r.land(async);
+        async.elapse(const Duration(minutes: 10));
+        expect(r.failures, isEmpty);
+      });
+    },
+  );
+
+  test(
+    '5. autoPlay:false does not time out; play() starts the clock from zero',
+    () {
+      fakeAsync((async) {
+        final k = FakeKernel();
+        final r = _Rig(k);
+        r.open(async, autoPlay: false);
+        async.elapse(const Duration(minutes: 5));
+        expect(r.failures, isEmpty);
+        r.mova.play();
+        async.flushMicrotasks();
+        async.elapse(const Duration(seconds: 9));
+        expect(r.failures, isEmpty);
+        async.elapse(oneSecond);
+        expect(r.failures.single.fail.kind, MovaPlayFailKind.startTimeout);
+      });
+    },
+  );
+
+  test(
+    '6. a stall after the first frame fails with stallTimeout; a VOD retry resumes at the failed position',
+    () {
+      fakeAsync((async) {
+        final k = FakeKernel();
+        final r = _Rig(k);
+        r.open(async);
+        k.emitDuration(const Duration(minutes: 10));
+        r.land(async);
+        k.emitPosition(const Duration(seconds: 30));
+        async.flushMicrotasks();
+        k.emitBuffering(true);
+        async.flushMicrotasks();
+        async.elapse(tenSeconds);
+        final f = r.failures.single.fail;
+        expect(f.kind, MovaPlayFailKind.stallTimeout);
+        expect(f.afterFirstFrame, isTrue);
+        expect(f.waited, tenSeconds);
+        async.elapse(oneSecond);
+        expect(k.openedUris, hasLength(2));
+        k.emitDuration(const Duration(minutes: 10));
+        async.flushMicrotasks();
+        expect(k.lastSeek, isNull);
+        r.land(async);
+        expect(k.lastSeek, const Duration(seconds: 30));
+      });
+    },
+  );
+
+  test('7. pausing during a stall stops the stall clock', () {
+    fakeAsync((async) {
+      final k = FakeKernel();
+      final r = _Rig(k);
+      r.open(async);
+      r.land(async);
+      k.emitBuffering(true);
+      async.flushMicrotasks();
+      async.elapse(const Duration(seconds: 5));
+      r.mova.pause();
+      async.flushMicrotasks();
+      async.elapse(const Duration(minutes: 5));
+      expect(r.failures, isEmpty);
+    });
+  });
+
+  test(
+    '8. enabled + open() throwing: open() completes, openThrew is reported, the retry succeeds and announces ready once',
+    () {
+      fakeAsync((async) {
+        final k = FakeKernel()..openError = StateError('boom');
+        final r = _Rig(k);
+        var completed = false;
+        r.mova
+            .open(const MovaSource('https://h/a.m3u8'))
+            .then((_) => completed = true);
+        async.flushMicrotasks();
+        expect(completed, isTrue);
+        expect(r.failures.single.fail.kind, MovaPlayFailKind.openThrew);
+        expect(r.failures.single.fail.error, isA<StateError>());
+        expect(r.events.whereType<MovaReady>(), isEmpty);
+        k.openError = null;
+        async.elapse(oneSecond);
+        expect(k.openedUris, hasLength(2));
+        expect(r.events.whereType<MovaReady>(), hasLength(1));
+        expect(r.events.whereType<MovaSourceChange>(), hasLength(1));
+      });
+    },
+  );
+
+  test(
+    '9. a live source reaching its end is liveEnded; liveEndIsFailure:false ignores it',
+    () {
+      fakeAsync((async) {
+        final k = FakeKernel();
+        final r = _Rig(k);
+        r.open(async, type: MovaStreamType.live);
+        k.emitCompleted(true);
+        async.flushMicrotasks();
+        expect(r.failures.single.fail.kind, MovaPlayFailKind.liveEnded);
+
+        final k2 = FakeKernel();
+        final quiet = _Rig(
+          k2,
+          recovery: const MovaRecoveryOpts(startTimeout: Duration(seconds: 10), stallTimeout: Duration(seconds: 10),
+            enabled: true,
+            liveEndIsFailure: false,
+          ),
+        );
+        quiet.open(async, type: MovaStreamType.live);
+        k2.emitCompleted(true);
+        async.flushMicrotasks();
+        expect(quiet.failures, isEmpty);
+
+        final k3 = FakeKernel();
+        final vod = _Rig(k3);
+        vod.open(async);
+        k3.emitCompleted(true);
+        async.flushMicrotasks();
+        expect(
+          vod.failures,
+          isEmpty,
+          reason: 'a VOD source finishing is not a failure',
+        );
+      });
+    },
+  );
+
+  test(
+    '10. native END_FILE(error) fails immediately; END_FILE(stop) does not',
+    () {
+      fakeAsync((async) {
+        final k = FakeStatsKernel();
+        final r = _Rig(k);
+        r.open(async);
+        k.emitEndFile(MovaEndFileReason.stop);
+        async.flushMicrotasks();
+        expect(r.failures, isEmpty);
+        k.emitEndFile(MovaEndFileReason.error);
+        async.flushMicrotasks();
+        expect(r.failures.single.fail.kind, MovaPlayFailKind.nativeEndError);
+        expect(r.failures.single.fail.waited, Duration.zero);
+      });
+    },
+  );
+
+  test(
+    '11. opening another source during the retry delay cancels the pending retry',
+    () {
+      fakeAsync((async) {
+        final k = FakeKernel();
+        final r = _Rig(k);
+        r.open(async);
+        async.elapse(tenSeconds);
+        expect(r.failures, hasLength(1));
+        r.open(async, uri: 'https://h/b.m3u8');
+        async.elapse(const Duration(seconds: 3));
+        expect(k.openedUris, ['https://h/a.m3u8', 'https://h/b.m3u8']);
+      });
+    },
+  );
+
+  test(
+    '12. landing after a failure announces MovaRecovered and restarts the attempt count',
+    () {
+      fakeAsync((async) {
+        final k = FakeKernel();
+        final r = _Rig(k);
+        r.open(async);
+        async.elapse(tenSeconds + oneSecond);
+        expect(k.openedUris, hasLength(2));
+        r.land(async);
+        final recovered = r.events.whereType<MovaRecovered>().toList();
+        expect(recovered, hasLength(1));
+        expect(recovered.single.attempts, 1);
+        k.emitBuffering(true);
+        async.flushMicrotasks();
+        async.elapse(tenSeconds);
+        expect(r.failures.last.fail.kind, MovaPlayFailKind.stallTimeout);
+        expect(r.failures.last.fail.attempt, 1);
+        expect(r.failures.last.fail.streak, 1);
+      });
+    },
+  );
+
+  test(
+    '13. a throwing policy is treated as give-up and never breaks the player',
+    () {
+      fakeAsync((async) {
+        final k = FakeKernel();
+        final r = _Rig(
+          k,
+          recovery: MovaRecoveryOpts(startTimeout: Duration(seconds: 10), stallTimeout: Duration(seconds: 10),
+            enabled: true,
+            policy: _ThrowingPolicy(),
+          ),
+        );
+        r.open(async);
+        expect(() => async.elapse(tenSeconds), returnsNormally);
+        expect(r.failures.single.action, MovaRecoveryAction.giveUp);
+        expect(r.mova.state.error, isA<MovaGiveUpError>());
+      });
+    },
+  );
+
+  test('14. dispose() during the retry delay: nothing fires afterwards', () {
+    fakeAsync((async) {
+      final k = FakeKernel();
+      final r = _Rig(k);
+      r.open(async);
+      async.elapse(tenSeconds);
+      expect(r.failures, hasLength(1));
+      final before = r.events.length;
+      unawaited(r.mova.dispose());
+      async.flushMicrotasks();
+      async.elapse(const Duration(minutes: 5));
+      expect(r.events.length, before);
+      expect(k.openedUris, hasLength(1));
+      expect(async.pendingTimers, isEmpty);
+    });
+  });
+}

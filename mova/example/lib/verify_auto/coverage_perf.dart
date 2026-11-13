@@ -11,7 +11,7 @@ import 'package:mova/src/core/kernel/mpv_kernel.dart';
 import 'package:mova/src/platform_impl/frame_yield.dart';
 import 'coverage_gap.dart' show gap;
 
-final perfSurfaces = ValueNotifier<List<MovaApi>>([]);
+final perfSurfaces = ValueNotifier<List<IMovaApi>>([]);
 // All three feed surfaces stay mounted while the viewport scrolls between them.
 final perfScroll = ScrollController();
 final _perf = PerfRunner();
@@ -22,7 +22,7 @@ const _frameBudgetMicros = 16667;
 
 class PerfRunner {
   final natives = <NativePlayer>[];
-  final engines = <MovaEngine>[];
+  final movas = <Mova>[];
   final previous = <NativePlayer, Map<String, double>>{};
   final subscriptions = <StreamSubscription<dynamic>>[];
   Map<String, Object?> latest = {};
@@ -49,14 +49,14 @@ class PerfRunner {
     }
   }
 
-  MovaEngine factory({bool audio = false, bool cutover = false}) {
+  Mova factory({bool audio = false, bool cutover = false}) {
     gap.log('CALL', {
-      'method': 'createMovaEngine',
+      'method': 'createMova',
       'audioOnly': audio,
       'cutover': cutover,
     });
     // Inject the production kernel to retain native handles, including audioOnly.
-    // Every engine still uses the production createMovaEngine wiring.
+    // Every player still uses the production createMova wiring.
     final player = Player();
     final kernel = MovaMpvKernel(
       player: player,
@@ -65,41 +65,41 @@ class PerfRunner {
       mountYield: movaFrameYield,
     );
     natives.add(player.platform as NativePlayer);
-    final engine = createMovaEngine(
+    final mova = createMova(
       kernel: kernel,
       audioOnly: audio,
       options: MovaOpts(
-        cutover: MovaCutoverConfig(
+        cutover: MovaCutoverOpts(
           enabled: cutover,
           trigger: const MovaEagerWarm(),
         ),
       ),
     );
-    engines.add(engine);
+    movas.add(mova);
     gap.log('RET', {
-      'method': 'createMovaEngine',
-      'engine': engines.length - 1,
+      'method': 'createMova',
+      'mova': movas.length - 1,
     });
     subscriptions.add(
-      engine.events.listen(
+      mova.events.listen(
         (e) => gap.log('EVENT', {
-          'engine': engines.indexOf(engine),
+          'mova': movas.indexOf(mova),
           'type': '${e.runtimeType}',
           'payload': gap.payload(e),
-          'state': engine.state.toString(),
+          'state': mova.state.toString(),
         }),
       ),
     );
     subscriptions.add(
-      engine.states.listen((s) {
-        gap.api = engine;
+      mova.states.listen((s) {
+        gap.api = mova;
         gap.log('STATE', gap.state());
       }),
     );
-    return engine;
+    return mova;
   }
 
-  Future<void> mount(List<MovaApi> apis) async {
+  Future<void> mount(List<IMovaApi> apis) async {
     perfSurfaces.value = apis;
     await WidgetsBinding.instance.endOfFrame;
   }
@@ -218,13 +218,13 @@ class PerfRunner {
         if (!live) 'loop-file': 'inf',
       },
     );
-    MovaApi? api;
-    MovaFeedEnginePool? pool;
+    IMovaApi? api;
+    MovaFeedPool? pool;
     try {
       gap.log('BEGIN', {'scene': scene});
       gap.log('STEP', {'scene': scene, 'seconds': seconds, 'url': source.uri});
       if (scene == 'feed') {
-        pool = MovaFeedEnginePool(engineFactory: () => factory(), size: 3);
+        pool = MovaFeedPool(movaFactory: () => factory(), size: 3);
         for (var i = 0; i < 3; i++) {
           gap.log('CALL', {
             'method': 'pool.bind',
@@ -232,19 +232,19 @@ class PerfRunner {
             'url': source.uri,
           });
           final pending = pool.bind(i, source);
-          await mount([for (final e in engines) e]);
+          await mount([for (final e in movas) e]);
           await pending;
           gap.log('RET', {'method': 'pool.bind', 'index': i});
         }
         await gap.call('pool.focus', {'index': 0}, () => pool!.focus(0));
       } else if (scene == 'cutover') {
-        api = MovaCutoverEngine(engineFactory: () => factory(cutover: true));
+        api = MovaCutover(movaFactory: () => factory(cutover: true));
         await mount([api]);
         await gap.call('open', {'url': source.uri}, () => api!.open(source));
         await gap.call(
           'prepare',
           {'url': source.uri},
-          () => (api as MovaCutoverEngine).prepare(
+          () => (api as MovaCutover).prepare(
             source,
             plan: const MovaWarmPlan(
               trigger: MovaEagerWarm(),
@@ -279,7 +279,7 @@ class PerfRunner {
             'index': index,
           }, () => pool!.focus(index));
           await perfScroll.animateTo(
-            engines.indexWhere((e) => identical(e, pool!.slotFor(index)!.api)) *
+            movas.indexWhere((e) => identical(e, pool!.slotFor(index)!.api)) *
                 perfScroll.position.viewportDimension,
             duration: const Duration(milliseconds: 350),
             curve: Curves.linear,
@@ -297,10 +297,10 @@ class PerfRunner {
         }
         if (scene == 'cutover') {
           gap.log('STATE', {
-            'phase': (api as MovaCutoverEngine).cutoverPhase.name,
-            'engineCount': natives.length,
+            'phase': (api as MovaCutover).cutoverPhase.name,
+            'movaCount': natives.length,
           });
-          if (natives.length != 2) throw StateError('dual engine absent');
+          if (natives.length != 2) throw StateError('dual player absent');
         }
         // Bound retained framework rows: stdout and host JSONL keep full evidence.
         if (gap.rows.length > 500) {
@@ -354,7 +354,7 @@ class PerfRunner {
         }
         subscriptions.clear();
         natives.clear();
-        engines.clear();
+        movas.clear();
         previous.clear();
         gap.api = null;
         busy = false;

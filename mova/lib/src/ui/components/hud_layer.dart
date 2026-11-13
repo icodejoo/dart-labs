@@ -41,7 +41,7 @@ class MovaHudLayerComponent extends MovaComponent {
   ];
 
   @override
-  Widget build(BuildContext context, MovaApi api, List<Widget> children) {
+  Widget build(BuildContext context, IMovaApi api, List<Widget> children) {
     return Stack(children: children);
   }
 }
@@ -70,7 +70,7 @@ class MovaVolumeHudComponent extends MovaComponent {
   ///
   /// 音量 HUD 激活时构建音量徽标。
   @override
-  Widget build(BuildContext context, MovaApi api, List<Widget> children) {
+  Widget build(BuildContext context, IMovaApi api, List<Widget> children) {
     return _hudWhen(
       MovaHud.volume,
       (context) => MovaSelect<double>(
@@ -110,7 +110,7 @@ class MovaBrightnessHudComponent extends MovaComponent {
   ///
   /// 亮度 HUD 激活时构建亮度徽标。
   @override
-  Widget build(BuildContext context, MovaApi api, List<Widget> children) {
+  Widget build(BuildContext context, IMovaApi api, List<Widget> children) {
     return _hudWhen(
       MovaHud.brightness,
       (context) => MovaSelect<double>(
@@ -127,16 +127,16 @@ class MovaBrightnessHudComponent extends MovaComponent {
 /// Seek-preview HUD; visible only while [MovaUiState.hud] is [MovaHud.seek].
 ///
 /// Two call paths feed this component different fields: horizontal drag-seek
-/// (via [MovaApi.setDragging]) only ever populates [MovaUiState.previewAt], while
-/// double-tap seek (via [MovaApi.showHud]'s `text` param) populates
+/// (via [IMovaApi.setDragging]) only ever populates [MovaUiState.previewAt], while
+/// double-tap seek (via [IMovaApi.showHud]'s `text` param) populates
 /// [MovaUiState.hudText] instead, since [MovaUiState.previewAt] also drives the
 /// scrub-preview thumbnail bubble and double-tap must not trigger that.
 /// [MovaUiState.hudText] wins when both happen to be set.
 ///
 /// 拖动进度预览 HUD；仅在 [MovaUiState.hud] 为 [MovaHud.seek] 时可见。
 ///
-/// 两条调用路径给本组件喂不同字段：横向拖动进度（经 [MovaApi.setDragging]）只
-/// 填充 [MovaUiState.previewAt]；双击进度（经 [MovaApi.showHud] 的 `text` 参数）
+/// 两条调用路径给本组件喂不同字段：横向拖动进度（经 [IMovaApi.setDragging]）只
+/// 填充 [MovaUiState.previewAt]；双击进度（经 [IMovaApi.showHud] 的 `text` 参数）
 /// 则填充 [MovaUiState.hudText]——因为 [MovaUiState.previewAt] 同时驱动着拖动
 /// 预览缩略图气泡，双击不能触发它。两者都有值时以 [MovaUiState.hudText] 为准。
 class MovaSeekHudComponent extends MovaComponent {
@@ -160,7 +160,7 @@ class MovaSeekHudComponent extends MovaComponent {
   ///
   /// 用显式文字或拖动位置构建进度徽标。
   @override
-  Widget build(BuildContext context, MovaApi api, List<Widget> children) {
+  Widget build(BuildContext context, IMovaApi api, List<Widget> children) {
     return _hudWhen(
       MovaHud.seek,
       (context) => MovaUiSelect<({String? hudText, Duration? previewAt})>(
@@ -201,7 +201,7 @@ class MovaZoomHudComponent extends MovaComponent {
   ///
   /// 缩放 HUD 激活时构建缩放徽标。
   @override
-  Widget build(BuildContext context, MovaApi api, List<Widget> children) {
+  Widget build(BuildContext context, IMovaApi api, List<Widget> children) {
     return _hudWhen(
       MovaHud.zoom,
       (context) => MovaSelect<double>(

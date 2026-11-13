@@ -13,7 +13,7 @@ Future<void> _sleep([int ms = 600]) =>
     Future<void>.delayed(Duration(milliseconds: ms));
 
 Future<void> _open(Cp3Harness h) async {
-  final a = createMovaEngine();
+  final a = createMova();
   await h.mount(a);
   await a.open(h.source('a'));
   await h.until(() => a.state.rendered);
@@ -106,7 +106,7 @@ Future<void> runTheme(Cp3Harness h) async {
           delta >= 0 &&
           delta < 1500 &&
           a.state.renderEpoch == epoch &&
-          before['engine'] == after['engine'] &&
+          before['mova'] == after['mova'] &&
           identityHashCode(session) == sessionId &&
           observed,
     );
@@ -174,25 +174,25 @@ Future<void> runHeaders(Cp3Harness h) async {
           await thumb.dispose();
         }
       }
-      final MovaApi engine = path == 'pool-ready-cutover'
-          ? MovaCutoverEngine(
-              engineFactory: () => createMovaEngine(preciseFirstFrame: true),
+      final IMovaApi mova = path == 'pool-ready-cutover'
+          ? MovaCutover(
+              movaFactory: () => createMova(preciseFirstFrame: true),
             )
-          : createMovaEngine(preciseFirstFrame: true);
+          : createMova(preciseFirstFrame: true);
       final signals = <String>[];
-      final frameSub = engine.events.listen((event) {
+      final frameSub = mova.events.listen((event) {
         if (event is MovaFirstFrame) signals.add(event.signal.name);
       });
-      final pool = MovaFeedEnginePool(engineFactory: () => engine, size: 1);
+      final pool = MovaFeedPool(movaFactory: () => mova, size: 1);
       try {
-        await h.mount(engine, raw: true);
+        await h.mount(mova, raw: true);
         final pauseClock = Stopwatch()..start();
         await pool.bind(1, source).timeout(const Duration(seconds: 20));
         final bindReturnedMs = pauseClock.elapsedMilliseconds;
         final accepted = pool.slotFor(1)?.ready == true;
         if (path.startsWith('pool-ready')) {
           final at = pauseClock.elapsedMilliseconds;
-          final image = await (engine as MovaFrameCapture).screenshot();
+          final image = await (mova as IMovaFrameCapture).screenshot();
           final returnedMs = pauseClock.elapsedMilliseconds;
           var decoded = false;
           if (image != null && image.isNotEmpty) {
@@ -214,30 +214,30 @@ Future<void> runHeaders(Cp3Harness h) async {
             'captureAtMs': at,
             'captureReturnedMs': returnedMs,
             'captureWaitMs': returnedMs - at,
-            'paused': !engine.state.playing,
+            'paused': !mova.state.playing,
             'firstFrameSignals': signals,
-            'state': h.snapshot(engine),
+            'state': h.snapshot(mova),
             'readySignal': 'nonempty screenshot result',
           };
-          return accepted && decoded && !engine.state.playing;
+          return accepted && decoded && !mova.state.playing;
         }
 
         await h.until(
           () =>
-              engine.state.error != null ||
-              (engine.state.rendered &&
-                  engine.state.duration > Duration.zero &&
-                  engine.state.width > 0 &&
-                  engine.state.height > 0),
+              mova.state.error != null ||
+              (mova.state.rendered &&
+                  mova.state.duration > Duration.zero &&
+                  mova.state.width > 0 &&
+                  mova.state.height > 0),
           seconds: 20,
         );
         final mediaReady =
-            engine.state.error == null &&
-            engine.state.rendered &&
-            engine.state.duration > Duration.zero &&
-            !engine.state.playing;
+            mova.state.error == null &&
+            mova.state.rendered &&
+            mova.state.duration > Duration.zero &&
+            !mova.state.playing;
         // 首帧 gate 可由 size/grace 兜底；实际采到图像才认领解码预热成功。
-        final controller = engine.renderHandle as VideoController;
+        final controller = mova.renderHandle as VideoController;
         final shots = <Map<String, Object?>>[];
         var renderedFutureReady = false;
         if (r4 && mediaReady) {
@@ -251,7 +251,7 @@ Future<void> runHeaders(Cp3Harness h) async {
         }
         final firstShotAtMs = pauseClock.elapsedMilliseconds;
         final image = mediaReady
-            ? await (engine.renderHandle as VideoController).player
+            ? await (mova.renderHandle as VideoController).player
                   .screenshot(format: 'image/jpeg')
                   .timeout(const Duration(seconds: 10))
             : null;
@@ -310,7 +310,7 @@ Future<void> runHeaders(Cp3Harness h) async {
         observations[auth ? 'authorized' : 'denied'] = {
           'accepted': accepted,
           'decoded': decoded,
-          'state': h.snapshot(engine),
+          'state': h.snapshot(mova),
           'firstFrameSignals': signals,
           'imageBytes': image?.length,
           'bindReturnedMs': bindReturnedMs,
@@ -322,13 +322,13 @@ Future<void> runHeaders(Cp3Harness h) async {
       } on Object catch (error) {
         observations[auth ? 'authorized' : 'denied'] = {
           'error': '$error',
-          'state': h.snapshot(engine),
+          'state': h.snapshot(mova),
         };
         return false;
       } finally {
         await pool.dispose();
         await frameSub.cancel();
-        await h.release(disposeEngine: false);
+        await h.release(disposeMova: false);
       }
     }
 
@@ -377,7 +377,7 @@ Future<void> runHeaders(Cp3Harness h) async {
       Future<bool> attempt(bool auth) async {
         final s = source(auth);
         if (variant == 'quality') {
-          final a = createMovaEngine();
+          final a = createMova();
           await h.mount(a);
           try {
             try {
@@ -553,11 +553,11 @@ Future<void> runHeaders(Cp3Harness h) async {
 }
 
 Future<void> runFeedplayer(Cp3Harness h) async {
-  final ctl = MovaFeedPlayerController();
+  final ctrl = MovaFeedPlayerCtrl();
   var failures = 0;
   final feed = MovaFeedPlayer(
-    controller: ctl,
-    engineFactory: createMovaEngine,
+    ctrl: ctrl,
+    movaFactory: createMova,
     prefetchDepth: 0,
     loader: (index) async {
       if (index == 2) throw StateError('CP3 deliberate loader failure');
@@ -573,44 +573,44 @@ Future<void> runFeedplayer(Cp3Harness h) async {
   h.customSurface = feed;
   h.refresh();
   await h.frame();
-  await h.until(() => ctl.activeApi?.state.rendered ?? false);
-  h.api = ctl.activeApi;
+  await h.until(() => ctrl.activeApi?.state.rendered ?? false);
+  h.api = ctrl.activeApi;
   h.observe(h.api!);
   for (var i = 0; i < 5; i++) {
     final before = h.snapshot();
-    ctl.jumpToPage(i.isEven ? 1 : 0);
+    ctrl.jumpToPage(i.isEven ? 1 : 0);
     await h.until(
       () =>
-          ctl.activeIndex == (i.isEven ? 1 : 0) &&
-          (ctl.activeApi?.state.rendered ?? false),
+          ctrl.activeIndex == (i.isEven ? 1 : 0) &&
+          (ctrl.activeApi?.state.rendered ?? false),
     );
-    h.api = ctl.activeApi;
-    await ctl.pause();
+    h.api = ctrl.activeApi;
+    await ctrl.pause();
     await _sleep(150);
-    final paused = !(ctl.activeApi?.state.playing ?? true);
-    await ctl.play();
-    await h.until(() => ctl.activeApi!.state.playing);
-    h.check('controller.$i', {
+    final paused = !(ctrl.activeApi?.state.playing ?? true);
+    await ctrl.play();
+    await h.until(() => ctrl.activeApi!.state.playing);
+    h.check('ctrl.$i', {
       'before': before,
       'after': h.snapshot(),
-      'observed': {'index': ctl.activeIndex, 'paused': paused},
+      'observed': {'index': ctrl.activeIndex, 'paused': paused},
     }, pass: paused);
     final visible = h.snapshot();
     h.tickerEnabled = false;
     h.refresh();
     await _sleep();
     final hidden = h.snapshot();
-    final stopped = !ctl.activeApi!.state.playing;
+    final stopped = !ctrl.activeApi!.state.playing;
     h.tickerEnabled = true;
     h.refresh();
-    await h.until(() => ctl.activeApi!.state.playing);
+    await h.until(() => ctrl.activeApi!.state.playing);
     h.check('autoPause.$i', {
       'before': visible,
       'after': hidden,
       'observed': h.snapshot(),
     }, pass: stopped);
     final start = failures;
-    ctl.jumpToPage(2);
+    ctrl.jumpToPage(2);
     await _sleep();
     final errorVisible = h.elements().any(
       (e) => e.widget is Text && (e.widget as Text).data == 'CP3 PAGE FAILURE',
@@ -620,25 +620,25 @@ Future<void> runFeedplayer(Cp3Harness h) async {
       'after': {'failures': failures},
       'observed': errorVisible,
     }, pass: errorVisible && failures > start);
-    ctl.jumpToPage(0);
+    ctrl.jumpToPage(0);
     await h.until(
-      () => ctl.activeIndex == 0 && (ctl.activeApi?.state.rendered ?? false),
+      () => ctrl.activeIndex == 0 && (ctrl.activeApi?.state.rendered ?? false),
     );
-    h.api = ctl.activeApi;
+    h.api = ctrl.activeApi;
   }
-  // Feed owns all engines. Detach before generic harness cleanup.
+  // Feed owns all players. Detach before generic harness cleanup.
   h.api = null;
   h.customSurface = const SizedBox();
   h.refresh();
   await h.frame();
-  ctl.dispose();
+  ctrl.dispose();
 }
 
 Future<void> runC04chrome(Cp3Harness h) async {
   final chrome = MovaChrome();
   h.chrome = chrome;
   h.style = const MovaPlayerStyle(
-    controls: MovaCtrlsConfig(autoHideDelay: _delay),
+    controls: MovaCtrlsOpts(autoHideDelay: _delay),
   );
   await _open(h);
   for (var i = 0; i < 5; i++) {
@@ -667,7 +667,7 @@ Future<void> runC04chrome(Cp3Harness h) async {
     await _sleep(250);
     h.style = MovaPlayerStyle(
       theme: MovaTheme(accentColor: i.isEven ? 0xff00ff00 : 0xffff0000),
-      controls: const MovaCtrlsConfig(autoHideDelay: _delay),
+      controls: const MovaCtrlsOpts(autoHideDelay: _delay),
     );
     h.refresh();
     await _sleep(600);
@@ -695,14 +695,14 @@ class _BottomMarker extends MovaComponent {
   @override
   MovaSlot get slot => MovaSlot.bottom;
   @override
-  Widget build(BuildContext context, MovaApi api, List<Widget> children) =>
+  Widget build(BuildContext context, IMovaApi api, List<Widget> children) =>
       const Text('CP3 BOTTOM');
 }
 
 Future<void> runCp1gap(Cp3Harness h) async {
-  final a = createMovaEngine(
+  final a = createMova(
     options: const MovaOpts(
-      live: MovaLiveConfig(
+      live: MovaLiveOpts(
         seekMode: MovaLiveSeekMode.dvr,
         dvrWindow: Duration(minutes: 2),
       ),
@@ -734,7 +734,7 @@ Future<void> runCp1gap(Cp3Harness h) async {
       for (final remove in [true, false]) {
         h.customSurface = MovaPlayer(
           api: a,
-          skin: MovaDefaultSkin(
+          uiKit: MovaDefaultUiKit(
             patches: [
               remove
                   ? MovaPatch.remove('bottomBar/$name')

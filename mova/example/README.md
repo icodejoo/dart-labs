@@ -14,7 +14,7 @@ and are not demos.
 | `lib/main.dart` | The general demo: VOD, live, time-shift, feed and preview |
 | `lib/main_seamless_test.dart` | Automated acceptance for the seamless ad -> content cutover |
 | `lib/main_ad_orchestration_verify.dart` | No-click acceptance run for ad orchestration |
-| `lib/main_keep_alive_verify.dart` | Hidden-card keep-alive (standby) verification |
+| `lib/main_keep_alive_verify.dart` | Hidden-card keep-alive verification |
 | `lib/main_coverage_api.dart` | API coverage run, including the in-app mini window (`MovaMini`) |
 | `lib/main_qoe_verify.dart` | QoE reporting verification (TTFF, stalls, session end reasons) |
 | `lib/main_host_ergonomics_verify.dart` | Host ergonomics (first frame, poster, recovery, auto-pause) verification |

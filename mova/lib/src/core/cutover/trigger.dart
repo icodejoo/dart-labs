@@ -26,7 +26,7 @@ class MovaWarmCue {
 /// Decides whether warming should start now for a given [MovaWarmCue].
 ///
 /// 依据给定的 [MovaWarmCue] 判定此刻是否应开始预热。
-abstract class MovaWarmTrigger {
+abstract class IMovaWarmTrigger {
   /// Returns whether to start warming now.
   ///
   /// 返回此刻是否应开始预热。
@@ -40,17 +40,17 @@ abstract class MovaWarmTrigger {
 /// Warms up [lead] before a predictable switch point, and never at all for
 /// clips shorter than [minDuration].
 ///
-/// The ad case: an ad's length is known, so the two engines only overlap for
+/// The ad case: an ad's length is known, so the two players only overlap for
 /// the last second or two instead of the whole break — same peak cost, far
 /// smaller time-integral of that cost, and a far smaller chance of actually
 /// hitting the SoC's concurrent hardware-decode session limit.
 ///
 /// 在可预测的切换点前 [lead] 开始预热；片长短于 [minDuration] 则完全不预热。
 ///
-/// 广告场景：广告时长基本已知，因此两个引擎只在最后一两秒重叠，而非整个广告
+/// 广告场景：广告时长基本已知，因此两个播放器只在最后一两秒重叠，而非整个广告
 /// 全程——峰值开销不变，但开销的时间积分小得多，真撞上 SoC 硬解并发 session
 /// 上限的概率也小得多。
-class MovaLeadWarm implements MovaWarmTrigger {
+class MovaLeadWarm implements IMovaWarmTrigger {
   /// How long before the switch point to start warming.
   ///
   /// 距切换点多久开始预热。
@@ -87,7 +87,7 @@ class MovaLeadWarm implements MovaWarmTrigger {
 /// 立即预热，用于不可预测的切换点。
 ///
 /// 清晰度切换场景：用户点了某一档，线索就是"现在"。
-class MovaEagerWarm implements MovaWarmTrigger {
+class MovaEagerWarm implements IMovaWarmTrigger {
   /// Creates an eager trigger.
   ///
   /// 创建一个立即触发策略。

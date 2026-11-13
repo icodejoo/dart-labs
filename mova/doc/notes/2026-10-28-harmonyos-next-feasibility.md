@@ -8,7 +8,7 @@
 ## 0. 结论摘要
 
 1. **Flutter-OH 现状**：稳定档最新是 `3.41.9+ohos-1.0.2`（Dart **3.11.5**）；3.44（Dart 3.12.2）只有 beta/canary；3.47（Dart 3.13.5）是 preview。
-2. **mova 的 `sdk: ^3.12.2` 与鸿蒙稳定档不兼容，但差距极小**：实测整个 `lib/`+`test/` 只有一处 Dart 3.12 特性（私有命名参数，`cutover_engine.dart:75`）。改一行后，在 Flutter 3.41.9（Dart 3.11.5）上 `analyze` 0 问题、**1744 项单测全过**；再改 3 处 Flutter API，3.35.7（Dart 3.9.2）同样全过。
+2. **mova 的 `sdk: ^3.12.2` 与鸿蒙稳定档不兼容，但差距极小**：实测整个 `lib/`+`test/` 只有一处 Dart 3.12 特性（私有命名参数，`cutover.dart:75`）。改一行后，在 Flutter 3.41.9（Dart 3.11.5）上 `analyze` 0 问题、**1744 项单测全过**；再改 3 处 Flutter API，3.35.7（Dart 3.9.2）同样全过。
 3. **依赖层面没有硬阻塞**：`screen_brightness`、`path_provider`、`connectivity_plus` 都有鸿蒙实现；mova 自己的原生插件只有 5 个通道调用，且 Dart 侧全部兜住了 `MissingPluginException`，零 ArkTS 也能降级跑起来。
 4. **真正的难点在内核**：media_kit 官方不支持鸿蒙，社区有两个 fork（CPF-Flutter 官方适配版：纯软解；Predidit 版：真机硬解，MatePad mini API 26 验证过）。mova 自建的 libmpv（n9.0.2 + WHEP）没有鸿蒙产物。
 5. **FFI 与外部纹理都有出处**，但 mova 用到的 `NativeCallable.listener` + `mpv_create_weak_client` 在鸿蒙上没人验证过，是 spike 第一优先项。
@@ -45,7 +45,7 @@
 
 | 特性 | 引入版本 | 出现处 | 降级改写 |
 |---|---|---|---|
-| 私有命名参数 `{required this._x}` | **Dart 3.12** | `lib/src/core/cutover/cutover_engine.dart:75`（1 处；测试里 34 处报错都是它的连锁，调用点不用改） | 简单，改成 `{required MovaEngineFactory engineFactory}) : _engineFactory = engineFactory`，**对外签名不变** |
+| 私有命名参数 `{required this._x}` | **Dart 3.12** | `lib/src/core/cutover/cutover.dart:75`（1 处；测试里 34 处报错都是它的连锁，调用点不用改） | 简单，改成 `{required MovaFactory movaFactory}) : _movaFactory = movaFactory`，**对外签名不变** |
 | 通配符变量 `(_, _, _) =>` | Dart 3.7 | `lib/src/ui/components/next_up.dart:171`；`test/ui/auto_pause_test.dart:144`；example 3 个文件 5 处 | 简单，只有目标 Dart < 3.7（Flutter-OH 3.27 及以下）才需要改成 `_, __, ___` |
 | null-aware elements `[?x]` | Dart 3.8 | 仅 `example/lib/verify_auto/keep_alive_auto.dart:108`（验证脚本） | 简单，仅 example，仅 Dart < 3.8 |
 | dot shorthands / extension type / 模式新特性 | 3.10 / 3.3 / 3.0 | **未出现**（降到 3.6 也不报错） | — |
@@ -57,7 +57,7 @@
 | 目标 SDK | 结果 | 需要的改动 |
 |---|---|---|
 | Flutter 3.44.9 / Dart 3.12.2 | `analyze` 0 问题，**1744 项测试全过** [实测] | 无，原样可用 |
-| Flutter 3.41.9 / Dart 3.11.5 | 原样 35 个错（全是私有命名参数连锁）；改 §2.1 第一行后 **0 问题、1744 项全过** [实测] | 1 处（cutover_engine.dart） |
+| Flutter 3.41.9 / Dart 3.11.5 | 原样 35 个错（全是私有命名参数连锁）；改 §2.1 第一行后 **0 问题、1744 项全过** [实测] | 1 处（cutover.dart） |
 | Flutter 3.35.7 / Dart 3.9.2 | 在上一步基础上还有 2 个错：`TickerModeData` 类型、`TickerMode.getValuesNotifier`；改后 **0 问题、1744 项全过** [实测] | `lib/src/ui/guard/auto_pause.dart` 3 处：`ValueListenable<bool>? _ticker`、`TickerMode.getNotifier(context)`、`!(_ticker?.value ?? true)` |
 | Flutter 3.27.4 / Dart 3.6.2 | **未装 SDK**，仅语言层推断：再加 §2.1 第二行（lib 1 处）；Flutter API 缺口未知 [待验证] | — |
 
@@ -76,7 +76,7 @@
 | `media_kit ^1.2.6` | 有两个 fork，见 §5 | CPF `br_3.35`：media_kit **1.2.6**（与约束吻合）；Predidit `main`：**1.1.11**（不吻合，需 override） | 官方 media_kit 无 ohos |
 | `media_kit_video ^2.0.1` | 同上 | CPF `br_3.35`：**2.0.1**（吻合）；Predidit：1.2.5（不吻合） | pub.dev 声明的平台里无 ohos |
 | `media_kit_libs_video ^1.0.7` | CPF 仓内有 `media_kit_libs_ohos_video`，**不在 pub.dev**；Predidit 用 native assets 自带 libmpv，"不再依赖任何 media_kit_libs_* 插件" | 保留该依赖在鸿蒙上应无害（它只拉 android/ios/… 子包）[待验证] | 软解/硬解取决于 libmpv 产物，见 §5 |
-| `connectivity_plus ^6.1.5` | CPF `flutter_plus_plugins` tag `connectivity_plus-7.0.0-ohos.1.0.0`（2026-08-04） | **7.0.0 与 mova 的 ^6.1.5 冲突**；pub.dev 上的 `connectivity_plus_ohos 0.0.3` 是 2024-05 的 Dart2 时代产物，不可用 | 仅 `net_probe_impl.dart`/`wiring.dart`/`preview_config.dart` 用到；可 override、升 `^7`（API 差异未核）或抽成可选端口 |
+| `connectivity_plus ^6.1.5` | CPF `flutter_plus_plugins` tag `connectivity_plus-7.0.0-ohos.1.0.0`（2026-08-04） | **7.0.0 与 mova 的 ^6.1.5 冲突**；pub.dev 上的 `connectivity_plus_ohos 0.0.3` 是 2024-05 的 Dart2 时代产物，不可用 | 仅 `net_probe_impl.dart`/`wiring.dart`/`preview_opts.dart` 用到；可 override、升 `^7`（API 差异未核）或抽成可选端口 |
 | `screen_brightness ^2.1.11` | **pub.dev 的 2.1.11 已声明 ohos**，联邦实现 `screen_brightness_ohos 2.1.4`（2026-06-14，要求 `flutter >=3.27.4-ohos-1.0.5`） | Flutter 3.41.9 下 `pub get` 实测自动解析进 lock [实测] | 无需额外工作 |
 | `path_provider ^2.1.5` | pub.dev 上 `path_provider_ohos 2.2.1`（2026-08-19） | 非 endorsed，**宿主需显式依赖 `path_provider_ohos`** | 仅 `mpv_audio_extractor_impl.dart` 与两个目录端口的默认实现用到 |
 | `plugin_platform_interface`、`meta ^1.16.0` | 纯 Dart | Flutter-OH 3.41 固定 `meta 1.17.0`，在 mova 范围内 [实测：3.41.9 lock 为 meta 1.17.0] | 无问题 |
@@ -101,7 +101,7 @@
 |---|---|---|---|
 | `isPipSupported` | — → `bool` | PiP 按钮是否显示 | `MissingPluginException` → `false`（按钮自动隐藏） |
 | `enterPip` | `{width,height}` → `bool` | 进入系统画中画 | → `false` |
-| `getSystemVolume` | — → `double?`（0–100） | 系统媒体音量读取 | → `null`，引擎改走播放器音量路径 |
+| `getSystemVolume` | — → `double?`（0–100） | 系统媒体音量读取 | → `null`，mova 改走内核音量路径 |
 | `setSystemVolume` | `{percent}` → `bool` | 系统媒体音量设置 | → `false` |
 | `pipChanged`（原生→Dart 推送） | `bool` | PiP 状态回传 | 不推送则 `state.pip` 不变 |
 | `getPlatformVersion` | — → `String?` | 脚手架遗留，无业务用途 | — |
@@ -114,7 +114,7 @@
 
 | 位置 | 现状 | 鸿蒙上的结果 |
 |---|---|---|
-| `core/preview/platform_kind.dart` | `Platform.isAndroid/isIOS/…`，其余 `other` | 落到 `other`；`MovaPreviewConfig.extractPlatforms` 默认集合已含 `other`，预览抽帧不被禁用 |
+| `core/preview/platform_kind.dart` | `Platform.isAndroid/isIOS/…`，其余 `other` | 落到 `other`；`MovaPreviewOpts.extractPlatforms` 默认集合已含 `other`，预览抽帧不被禁用 |
 | `ui/components/top_bar.dart:326` | 方向按钮仅 `android/iOS` | 鸿蒙隐藏，要显示需加 `TargetPlatform.ohos`（1 行） |
 | `platform_impl/wiring.dart:42` | `switch(defaultTargetPlatform)` 有 `default` | 系统音量端口为 `null` |
 
@@ -124,7 +124,7 @@
 |---|---|---|
 | `dart:ffi` 可用 | **可用**。Flutter-OH 支持 `flutter create -t plugin_ffi --platforms ohos`；Predidit 版 media_kit 全部依赖 FFI，在 MatePad mini（API 26）真机跑通 | [源码] Flutter-OH README 指令表；Predidit PR #43 |
 | libmpv 如何进包 | Predidit：Flutter native assets 构建钩子（`media_kit/hook/src/ohos.dart`）按 OHOS SDK 识别目标，打包 arm64 `libmpv.so` + `libmedia_kit_event_loop.so` + `libc++_shared.so`；注意 Flutter-OH 以 **Linux 目标**向钩子上报 OHOS 编译器。CPF：随包 `media_kit_libs_ohos_video` | [源码] |
-| 外部纹理 | 引擎有 `ohos_external_texture_gl.cpp` / `ohos_external_texture_vulkan.cpp`；ArkTS 侧 `TextureRegistry` → `SurfaceTextureEntry.getTextureId()/getSurfaceId()`，surfaceId 即 `OHNativeWindow` 句柄交给打了补丁的 mpv（`vo=gpu-next`，属性 `ohos-surface-size`，EGL 上下文 `ra_ctx_openharmony`） | [源码] Flutter-OH `engine/src/flutter/shell/platform/ohos/`；Predidit `media_kit_video/ohos/.../VideoOutput.ets` 与 `ohos_video_controller/real.dart` |
+| 外部纹理 | Flutter 引擎有 `ohos_external_texture_gl.cpp` / `ohos_external_texture_vulkan.cpp`；ArkTS 侧 `TextureRegistry` → `SurfaceTextureEntry.getTextureId()/getSurfaceId()`，surfaceId 即 `OHNativeWindow` 句柄交给打了补丁的 mpv（`vo=gpu-next`，属性 `ohos-surface-size`，EGL 上下文 `ra_ctx_openharmony`） | [源码] Flutter-OH `engine/src/flutter/shell/platform/ohos/`；Predidit `media_kit_video/ohos/.../VideoOutput.ets` 与 `ohos_video_controller/real.dart` |
 | mova 用到的 FFI 构造 | `NativeCallable<…>.listener` + `mpv_set_wakeup_callback` + `mpv_create_weak_client` + `mpv_wait_event`，依赖 `package:media_kit/generated/libmpv/bindings.dart` 与 `NativePlayer.handle`（`mpv_event_backend_ffi.dart`）。debug 下走 100ms 轮询，**release 才用原生回调** | [源码] mova |
 | 风险 | CPF 仓库里有过一次"Flutter 3.38+/Dart 3.10+ 的 FFI 回调崩溃"修复被回滚（Android 侧，上游 #1350）；`NativeCallable.listener` 在 Flutter-OH 的 release AOT 上**无人验证** | [待验证] spike 第一优先项 |
 | 模拟器 | Predidit 的 `OhosVideoController.create` 在模拟器上**直接抛 `UnsupportedError`**；libmpv 产物仅 arm64；Flutter-OH FAQ 称模拟器不支持 vulkan | [源码] |
@@ -152,7 +152,7 @@
 | B1 | mova `sdk: ^3.12.2` > 鸿蒙稳定档 Dart 3.11.5（3.44 仅 beta） | **高（决策项）** | 三选一：①等 3.44 稳定；②降到 `^3.11.0` + 改 1 行；③降到 `^3.9.0` + 改 4 行。②③会改动 mova 的 SDK 约束，需你定 | ②约 0.5h；③约 1–2h；都已有实测验证 |
 | B2 | media_kit 无官方鸿蒙支持，宿主要用 git fork + `dependency_overrides`（发布到 pub.dev 的包不能带 git 依赖） | 高 | 选 CPF `br_3.35`（版本号吻合、软解）或 Predidit（硬解、版本号不吻合）。mova 本体仍依赖 pub.dev 的 media_kit，由宿主 override | spike 1–2 天 |
 | B3 | mova 自建 libmpv（n9.0.2 + mpv 0.41 + WHEP，瘦身）**没有鸿蒙产物**；现有 fork 的 libmpv 分别是 n6.1 软解 / Predidit 带 ohcodec | 高（仅路线 A） | 路线 A 需在 OH NDK 上构建：`--enable-ohcodec` + 鸿蒙 mpv 补丁（EGL 上下文、surface-size）；或先借用 Predidit 产物验证 mova 逻辑 | 借用产物：1–2 天；自建：以周计 |
-| B4 | FFI 事件泵在鸿蒙未验证（`NativeCallable.listener` + weak client，release 才走回调） | 中 | spike 真机验证；失败时 `createMovaEngine` 退化为 100ms 轮询（debug 已有） | 0.5–1 天 |
+| B4 | FFI 事件泵在鸿蒙未验证（`NativeCallable.listener` + weak client，release 才走回调） | 中 | spike 真机验证；失败时 `createMova` 退化为 100ms 轮询（debug 已有） | 0.5–1 天 |
 | B5 | 仅 arm64 真机，模拟器不可用 | 中 | 准备真机；CI 无法跑真机用例 | 环境问题 |
 | B6 | `connectivity_plus ^6.1.5` 与鸿蒙适配版 7.0.0 冲突 | 低 | override，或升 `^7`（需核 API），或把网络探测改成可选端口 | 0.5 天 |
 | B7 | `path_provider_ohos` 非 endorsed | 低 | 文档要求宿主显式依赖 | 0.1 天 |
@@ -166,8 +166,8 @@
 | | A 移植 libmpv（沿用 media_kit） | B 系统 AVPlayer 内核 | C fvp（libmdk） |
 |---|---|---|---|
 | Dart/Flutter 下限 | 同 B1（media_kit fork 要 Dart ≥3.10 / 3.1） | **最宽松**，只取决于 mova 自身约束 | 最宽松（`^3.4.0`，`flutter >=3.22.0`） |
-| 依赖 | media_kit git fork + libmpv 产物 + native assets 钩子 | 不需 media_kit/FFI；但 mova 主包 `pubspec` 仍依赖 media_kit，鸿蒙构建会触发其钩子，**需把 mpv 内核拆出主包或做条件依赖** | 新增 `fvp`；需实现新 `MovaKernel` |
-| mova 代码改动 | **几乎为零**（`MovaMpvKernel`、FFI 事件泵、cutover、keepAlive、QoE、WHEP 全保留） | 新写 `MovaKernel`；丢失依赖 mpv 的能力：keepAlive（`vid`/`mute`）、抽帧预览、cutover 双引擎的 `renderHandle` 路径、原生事件泵与 `MovaStatsProbe`、WHEP | 同 B，且能力更少（无 mpv 属性）；授权与二进制分发需核 |
+| 依赖 | media_kit git fork + libmpv 产物 + native assets 钩子 | 不需 media_kit/FFI；但 mova 主包 `pubspec` 仍依赖 media_kit，鸿蒙构建会触发其钩子，**需把 mpv 内核拆出主包或做条件依赖** | 新增 `fvp`；需实现新 `IMovaKernel` |
+| mova 代码改动 | **几乎为零**（`MovaMpvKernel`、FFI 事件泵、cutover、keepAlive、QoE、WHEP 全保留） | 新写 `IMovaKernel`；丢失依赖 mpv 的能力：keepAlive（`vid`/`mute`）、抽帧预览、cutover 双播放器的 `renderHandle` 路径、原生事件泵与 `IMovaStatsProbe`、WHEP | 同 B，且能力更少（无 mpv 属性）；授权与二进制分发需核 |
 | 硬解 | 取决于 libmpv 产物（Predidit 已有；CPF 无） | 系统自带 | libmdk 自带 |
 | 主要风险 | B3、B4（libmpv 产物与 FFI 回调） | 功能面缩水与行为差异（seek/缓冲/直播时移语义不同于 mpv） | 闭源二进制、鸿蒙 PR 少（2 个）、成熟度待测 |
 | 参考实现 | Predidit PR #40/#43、Kazumi | `openharmony-sig/flutter_packages` 的 `video_player` ohos 版（tag `video_player-v2.11.1-ohos-1.0.1`）[源码，仅看 tag 未读代码] | fvp `ohos/` 目录 |
@@ -184,7 +184,7 @@
 | Flutter-OH | 建议先上 **`3.41.9+ohos-1.0.2`**（提交 `62357a93`，Dart 3.11.5），备选 3.44.9 beta；设 `FLUTTER_STORAGE_BASE_URL=https://flutter-ohos.obs.cn-south-1.myhuaweicloud.com`，换源后清 `bin/cache` | 本机 `git` 协议连 gitcode 被重置，clone 需代理/镜像；`api.gitcode.com`、`raw.gitcode.com` 可用；官方版 3.35.7/3.41.9/3.44.9 已装在 `E:\sdk\flutter-<ver>`，可用于上游对照，不是 Flutter-OH |
 | mova 侧 | 按 B1 选一种降下限方案（或直接用 3.44.9 beta 免改）；example 去掉 `mova_stt`/`sherpa_onnx`；`dependency_overrides` 指 media_kit fork | — |
 | libmpv | 路线 A 验证：先用 Predidit 的 arm64 产物（native assets）；自建则需 OH NDK + 鸿蒙 mpv 补丁 + ffmpeg `--enable-ohcodec` | — |
-| 验证项（按优先级） | ① 3.41.9-ohos + mova + fork 最小播放；② release 下 FFI 事件泵（`NativeCallable.listener`）；③ 首帧/纹理/`rendered`；④ `hwdec-current`；⑤ `SystemChrome` 全屏/方向；⑥ keepAlive 的 `vid` 切换、cutover 双引擎 | 用基于真实事件的测量，不用墙钟 |
+| 验证项（按优先级） | ① 3.41.9-ohos + mova + fork 最小播放；② release 下 FFI 事件泵（`NativeCallable.listener`）；③ 首帧/纹理/`rendered`；④ `hwdec-current`；⑤ `SystemChrome` 全屏/方向；⑥ keepAlive 的 `vid` 切换、cutover 双播放器 | 用基于真实事件的测量，不用墙钟 |
 
 ## 附：未能核实 / 没做的事
 

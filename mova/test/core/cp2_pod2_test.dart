@@ -26,7 +26,7 @@ const _content = MovaSource('https://host/content.mp4');
 Future<void> _first(AdOperationRig rig) async {
   final loading = rig.ads.load(_content);
   await settleOperations();
-  await rig.ready(rig.engines.last);
+  await rig.ready(rig.movas.last);
   expect(await loading, isTrue);
   expect(rig.api.state.renderEpoch, 1);
 }
@@ -40,7 +40,7 @@ void main() {
         final first = rig.api.active as FakeMovaApi;
         first.emitDone();
         await settleOperations();
-        final second = rig.engines.last;
+        final second = rig.movas.last;
         expect(second, isNot(same(first)));
         await rig.ready(second);
         expect(rig.api.active, same(second));
@@ -50,11 +50,11 @@ void main() {
       } finally {
         await rig.dispose();
       }
-      expect(rig.engines.every((e) => e.disposeCount == 1), isTrue);
+      expect(rig.movas.every((e) => e.disposeCount == 1), isTrue);
     }
   });
 
-  test('CP2 第二条影子初始化失败按契约硬切主引擎且不增长纪元', () async {
+  test('CP2 第二条影子初始化失败按契约硬切主播放器且不增长纪元', () async {
     final rig = AdOperationRig(breaks: _pod);
     addTearDown(rig.dispose);
     await _first(rig);
@@ -62,7 +62,7 @@ void main() {
     final gate = rig.gateShadow = Completer<void>();
     first.emitDone();
     await settleOperations();
-    final failed = rig.engines.last;
+    final failed = rig.movas.last;
     expect(failed, isNot(same(first)));
     // 仅注入原生资源不可用的结果，验证既有 fallback，并非制造新的产品错误。
     failed.openThrows = StateError('decoder resource exhausted');

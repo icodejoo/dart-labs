@@ -10,17 +10,17 @@ import 'subtitle_dir_provider.dart';
 /// Caches per-chunk transcription results for the streaming-chunked STT
 /// pipeline (see `doc/plans/2026-08-06-stt-streaming-chunked-transcription.md`),
 /// keyed by `(sourceKey, chunkIndex)` — a distinct concept from
-/// [MovaSttSubtitleStore], which caches one whole-source result from a
+/// [IMovaSttSubtitleStore], which caches one whole-source result from a
 /// single-shot batch transcription. Re-opening the same source only
 /// re-queues the chunks that never finished; [SttChunkState.done] chunks
 /// load straight from here.
 ///
 /// 流式分片转写流水线（见
 /// `doc/plans/2026-08-06-stt-streaming-chunked-transcription.md`）的按分片
-/// 缓存，按 `(sourceKey, chunkIndex)` 做 key——与 [MovaSttSubtitleStore]（缓存
+/// 缓存，按 `(sourceKey, chunkIndex)` 做 key——与 [IMovaSttSubtitleStore]（缓存
 /// 一次性整段批量转写结果）是不同的概念。重新打开同一来源时，只有没转完的
 /// 分片需要重新入队；已 `done` 的分片直接从这里加载。
-abstract class MovaSttChunkSubtitleStore {
+abstract class IMovaSttChunkSubtitleStore {
   /// Returns the cached cues for chunk [chunkIndex] of [sourceKey], or null
   /// if that chunk hasn't been cached yet.
   ///
@@ -54,15 +54,15 @@ abstract class MovaSttChunkSubtitleStore {
   Future<void> removeAllChunks(String sourceKey);
 }
 
-/// The production [MovaSttChunkSubtitleStore]: one `.srt` file per
+/// The production [IMovaSttChunkSubtitleStore]: one `.srt` file per
 /// `(sourceKey, chunkIndex)` pair, named by [fnv1a64] of a composite key —
 /// same key-shape convention as [MovaFileSttSubtitleStore] and the
 /// scrub-preview cache's `defaultCacheKey`.
 ///
-/// 生产环境的 [MovaSttChunkSubtitleStore]：每个 `(sourceKey, chunkIndex)` 组合
+/// 生产环境的 [IMovaSttChunkSubtitleStore]：每个 `(sourceKey, chunkIndex)` 组合
 /// 一个 `.srt` 文件，以复合 key 的 [fnv1a64] 命名——与 [MovaFileSttSubtitleStore]
 /// 和拖动预览缓存的 `defaultCacheKey` 是同一套 key 命名约定。
-class MovaFileSttChunkSubtitleStore implements MovaSttChunkSubtitleStore {
+class MovaFileSttChunkSubtitleStore implements IMovaSttChunkSubtitleStore {
   /// Creates a file-based per-chunk subtitle store.
   ///
   /// 创建一个基于文件的按分片字幕存储。
@@ -77,7 +77,7 @@ class MovaFileSttChunkSubtitleStore implements MovaSttChunkSubtitleStore {
   /// Resolves the cache directory.
   ///
   /// 解析缓存目录。
-  final MovaSttSubtitleDirProvider dir;
+  final IMovaSttSubtitleDirProvider dir;
 
   @override
   Future<List<MovaSttCue>?> loadChunk(String sourceKey, int chunkIndex) async {

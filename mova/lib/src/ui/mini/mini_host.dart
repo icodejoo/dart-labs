@@ -29,7 +29,7 @@ import 'mini_window.dart';
 /// Example / 示例:
 /// ```dart
 /// MaterialApp(
-///   builder: (context, child) => MovaMiniHost(mini: miniCtl, child: child!),
+///   builder: (context, child) => MovaMiniHost(mini: mini, child: child!),
 ///   home: const HomePage(),
 /// )
 /// ```
@@ -37,29 +37,15 @@ class MovaMiniHost extends StatefulWidget {
   /// Creates the host wrapper around [child].
   ///
   /// 创建包裹 [child] 的宿主壳。
-  /// [mini] 是小窗状态；旧 [ctl] 参数兼容一个版本，两者仅传其一。
-  /// [child] 是应用内容，返回跨路由小窗宿主。
+  /// [mini] 是小窗状态，[child] 是应用内容，返回跨路由小窗宿主。
   /// 示例：`MovaMiniHost(mini: mini, child: app)`。
-  const MovaMiniHost({
-    super.key,
-    MovaMini? mini,
-    @Deprecated('Use mini') MovaMini? ctl,
-    required this.child,
-  }) : assert(mini != null || ctl != null, 'mini is required'),
-       assert(mini == null || ctl == null, 'Pass only mini or ctl'),
-       _mini = mini ?? ctl;
+  const MovaMiniHost({super.key, required this.mini, required this.child});
 
   /// The route-independent mini-window state.
   ///
   /// 独立于路由的小窗状态。
   /// 返回宿主借用的小窗状态；示例：`host.mini.close()`。
-  MovaMini get mini => _mini!;
-  final MovaMini? _mini;
-
-  /// [mini] 的旧名，返回同一个小窗对象；保留一个版本。
-  /// 迁移示例：`host.mini`。
-  @Deprecated('Use mini')
-  MovaMini get ctl => mini;
+  final MovaMini mini;
 
   /// The app content (normally the [Navigator]).
   ///
@@ -74,33 +60,33 @@ class _MovaMiniHostState extends State<MovaMiniHost> {
   @override
   void initState() {
     super.initState();
-    widget.mini.addListener(_onCtl);
+    widget.mini.addListener(_onMini);
   }
 
   @override
   void didUpdateWidget(covariant MovaMiniHost oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.mini != widget.mini) {
-      oldWidget.mini.removeListener(_onCtl);
-      widget.mini.addListener(_onCtl);
+      oldWidget.mini.removeListener(_onMini);
+      widget.mini.addListener(_onMini);
     }
   }
 
   @override
   void dispose() {
-    widget.mini.removeListener(_onCtl);
+    widget.mini.removeListener(_onMini);
     super.dispose();
   }
 
-  void _onCtl() => setState(() {});
+  void _onMini() => setState(() {});
 
   @override
   Widget build(BuildContext context) {
     final api = widget.mini.api;
-    final cfg = api?.options.mini;
+    final opts = api?.options.mini;
     final shows = api != null &&
-        cfg != null &&
-        cfg.enabled &&
+        opts != null &&
+        opts.enabled &&
         widget.mini.mount == MovaMiniMount.persistent;
     return Stack(
       children: [
@@ -109,9 +95,9 @@ class _MovaMiniHostState extends State<MovaMiniHost> {
           Positioned.fill(
             child: MovaMiniWindow(
               key: const ValueKey('movaMiniWindow'),
-              ctl: widget.mini,
+              mini: widget.mini,
               api: api,
-              config: cfg,
+              opts: opts,
             ),
           ),
       ],

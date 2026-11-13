@@ -7,7 +7,7 @@ import 'package:mova/mova.dart';
 import '../support/fake_kernel.dart';
 
 /// 带会话标记的识别器；模拟异步任务捕获旧代际。
-class _Recognizer extends MovaNoopSttEngine implements MovaSttSessionEngine {
+class _Recognizer extends MovaNoopStt implements IMovaSttSession {
   /// 字幕出口。
   final out = StreamController<MovaSttCue>.broadcast();
 
@@ -196,7 +196,7 @@ void main() {
   test('换源不改 isRunning，旧任务迟到 cue 被丢弃，新代际 cue 可用', () async {
     final recognizer = _Recognizer();
     final service = MovaSttService(
-      config: MovaSttConfig(enabled: true, engine: recognizer),
+      opts: MovaSttOpts(enabled: true, recognizer: recognizer),
     );
     addTearDown(service.dispose);
     service.attach(const MovaSource('a'));
@@ -227,7 +227,7 @@ void main() {
   test('旧端口无标记 cue 仅首源兼容，重复打开同源也不收旧结果', () async {
     final recognizer = _Recognizer();
     final service = MovaSttService(
-      config: MovaSttConfig(enabled: true, engine: recognizer),
+      opts: MovaSttOpts(enabled: true, recognizer: recognizer),
     );
     addTearDown(service.dispose);
     service.attach(const MovaSource('a'));
@@ -241,25 +241,25 @@ void main() {
     expect(service.current, isNull);
     expect(service.isRunning, isFalse);
   });
-  test('audioOnly 引擎不启动 STT、不订阅 cue，仍报告 disabled', () async {
+  test('audioOnly 播放器不启动 STT、不订阅 cue，仍报告 disabled', () async {
     final recognizer = _Recognizer();
     final reasons = <MovaSttBlockReason>[];
-    final engine = createMovaEngine(
+    final mova = createMova(
       kernel: FakeKernel.audioOnly(),
       audioOnly: true,
       options: MovaOpts(
-        preview: const MovaPreviewConfig(enabled: false),
-        stt: MovaSttConfig(
+        preview: const MovaPreviewOpts(enabled: false),
+        stt: MovaSttOpts(
           enabled: true,
-          engine: recognizer,
+          recognizer: recognizer,
           onBlocked: reasons.add,
         ),
       ),
     );
-    addTearDown(engine.dispose);
-    await engine.open(const MovaSource('a'));
-    await engine.stt.start();
-    expect(engine.stt.isRunning, isFalse);
+    addTearDown(mova.dispose);
+    await mova.open(const MovaSource('a'));
+    await mova.stt.start();
+    expect(mova.stt.isRunning, isFalse);
     expect(recognizer.starts, 0);
     expect(recognizer.out.hasListener, isFalse);
     expect(reasons, [MovaSttBlockReason.disabled]);

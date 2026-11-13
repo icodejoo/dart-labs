@@ -44,7 +44,7 @@ enum MovaHud {
 /// Immutable snapshot of transient UI/gesture interaction state.
 ///
 /// Covers state that belongs to the controls layer's interaction model
-/// rather than the playback engine itself — control-bar visibility, active
+/// rather than the player itself — control-bar visibility, active
 /// drag gesture, HUD overlay, and seek-preview position.
 ///
 /// 临时性 UI/手势交互状态的不可变快照。

@@ -30,37 +30,37 @@ class _SlowOpenApi extends FakeMovaApi {
   }
 }
 
-/// Hands out fake engines to [MovaFeedPlayer] and keeps every one, so tests can
+/// Hands out fake players to [MovaFeedPlayer] and keeps every one, so tests can
 /// assert on how many the pool built and what it did with them.
 ///
-/// 向 [MovaFeedPlayer] 发放假引擎并保留每一个，供测试断言池建了多少个引擎、
+/// 向 [MovaFeedPlayer] 发放假播放器并保留每一个，供测试断言池建了多少个播放器、
 /// 对它们做了什么。
 class _Fleet {
-  /// Creates a fleet whose engines each delay [openDelay] before their
+  /// Creates a fleet whose players each delay [openDelay] before their
   /// `open()` resolves.
   ///
-  /// 创建一个 fleet，其每个引擎的 `open()` 都会延迟 [openDelay] 才完成。
+  /// 创建一个 fleet，其每个播放器的 `open()` 都会延迟 [openDelay] 才完成。
   ///
-  /// - [openDelay]: per-engine open latency / 每个引擎的打开延迟
+  /// - [openDelay]: per-player open latency / 每个播放器的打开延迟
   _Fleet({this.openDelay = Duration.zero});
 
-  /// Per-engine open latency.
+  /// Per-player open latency.
   ///
-  /// 每个引擎的打开延迟。
+  /// 每个播放器的打开延迟。
   final Duration openDelay;
 
-  /// Every engine handed out, in creation order.
+  /// Every player handed out, in creation order.
   ///
-  /// 已发放的所有引擎，按创建顺序排列。
+  /// 已发放的所有播放器，按创建顺序排列。
   final List<_SlowOpenApi> created = <_SlowOpenApi>[];
 
-  /// Creates and records one engine; pass this as `engineFactory`.
+  /// Creates and records one player; pass this as `movaFactory`.
   ///
-  /// 创建并记录一个引擎；把它作为 `engineFactory` 传入。
+  /// 创建并记录一个播放器；把它作为 `movaFactory` 传入。
   ///
-  /// Returns the newly created fake engine.
+  /// Returns the newly created fake player.
   ///
-  /// 返回新创建的假引擎。
+  /// 返回新创建的假播放器。
   _SlowOpenApi make() {
     final api = _SlowOpenApi()..openDelay = openDelay;
     created.add(api);
@@ -72,7 +72,7 @@ void main() {
   for (final initial in ['empty', 'cached', 'pending']) {
     testWidgets('replacing feed loader clears $initial results', (t) async {
       final fleet = _Fleet();
-      final controller = MovaFeedPlayerController();
+      final ctrl = MovaFeedPlayerCtrl();
       final gate = Completer<MovaFeedItem?>();
       /// Resolves the previous dataset, optionally behind a gate.
       ///
@@ -89,35 +89,35 @@ void main() {
           ? const MovaFeedItem(source: MovaSource('https://host/new.mp4'))
           : null;
       await t.pumpWidget(MaterialApp(home: MovaFeedPlayer(
-        controller: controller, engineFactory: fleet.make, loader: oldLoader,
+        ctrl: ctrl, movaFactory: fleet.make, loader: oldLoader,
       )));
       await t.pumpAndSettle();
-      final oldFeed = controller.feed;
+      final oldFeed = ctrl.feed;
       await t.pumpWidget(MaterialApp(home: MovaFeedPlayer(
-        controller: controller, engineFactory: fleet.make, loader: newLoader,
+        ctrl: ctrl, movaFactory: fleet.make, loader: newLoader,
       )));
       await t.pumpAndSettle();
       if (initial == 'pending') {
         gate.complete(null);
         await t.pumpAndSettle();
       }
-      expect(controller.feed, isNot(same(oldFeed)));
-      expect(controller.feed?.peek(0)?.source.uri, 'https://host/new.mp4');
-      expect(controller.activeApi, isNotNull);
+      expect(ctrl.feed, isNot(same(oldFeed)));
+      expect(ctrl.feed?.peek(0)?.source.uri, 'https://host/new.mp4');
+      expect(ctrl.activeApi, isNotNull);
       expect(fleet.created.last.openedUris, contains('https://host/new.mp4'));
       expect(
         t.widget<PageView>(find.byType(PageView)).childrenDelegate.estimatedChildCount,
         1,
       );
       await t.pumpWidget(const SizedBox());
-      controller.dispose();
+      ctrl.dispose();
     });
   }
   testWidgets('defaults to cover fit so switching items never letterbox-jumps', (t) async {
     final fleet = _Fleet();
     await t.pumpWidget(MaterialApp(
       home: MovaFeedPlayer(
-        engineFactory: fleet.make,
+        movaFactory: fleet.make,
         loader: (i) async => MovaFeedItem(source: MovaSource('https://h/$i.mp4')),
       ),
     ));
@@ -131,7 +131,7 @@ void main() {
     final fleet = _Fleet();
     await t.pumpWidget(MaterialApp(
       home: MovaFeedPlayer(
-        engineFactory: fleet.make,
+        movaFactory: fleet.make,
         loader: (i) async => MovaFeedItem(source: MovaSource('https://h/$i.mp4')),
         fit: MovaFit.contain,
       ),
@@ -145,7 +145,7 @@ void main() {
     final fleet = _Fleet();
     await t.pumpWidget(MaterialApp(
       home: MovaFeedPlayer(
-        engineFactory: fleet.make,
+        movaFactory: fleet.make,
         loader: (i) async =>
             MovaFeedItem(source: MovaSource('https://h/$i.mp4'), authorName: 'author$i'),
       ),
@@ -157,14 +157,14 @@ void main() {
     expect(find.text('@author0'), findsOneWidget);
   });
 
-  testWidgets('each page gets its own engine, the neighbour parked rather than '
+  testWidgets('each page gets its own player, the neighbour parked rather than '
       'playing — the whole point of the pool: swiping lands on a surface that '
       'is already live instead of a black flash or the previous page\'s stale '
       'last frame', (t) async {
     final fleet = _Fleet();
     await t.pumpWidget(MaterialApp(
       home: MovaFeedPlayer(
-        engineFactory: fleet.make,
+        movaFactory: fleet.make,
         loader: (i) async => MovaFeedItem(source: MovaSource('https://h/$i.mp4')),
       ),
     ));
@@ -172,17 +172,17 @@ void main() {
 
     final uris = fleet.created.map((a) => a.source?.uri).toSet();
     expect(uris, containsAll(<String>['https://h/0.mp4', 'https://h/1.mp4']));
-    expect(fleet.created.length, greaterThan(1), reason: 'the neighbour must have its own engine');
+    expect(fleet.created.length, greaterThan(1), reason: 'the neighbour must have its own player');
     final neighbour = fleet.created.firstWhere((a) => a.source?.uri == 'https://h/1.mp4');
     expect(neighbour.lastAutoPlay, isFalse);
   });
 
-  testWidgets('swiping up activates the next page on the engine already warmed '
+  testWidgets('swiping up activates the next page on the player already warmed '
       'for it', (t) async {
     final fleet = _Fleet();
     await t.pumpWidget(MaterialApp(
       home: MovaFeedPlayer(
-        engineFactory: fleet.make,
+        movaFactory: fleet.make,
         loader: (i) async =>
             MovaFeedItem(source: MovaSource('https://h/$i.mp4'), authorName: 'author$i'),
       ),
@@ -201,19 +201,19 @@ void main() {
     expect(find.text('@author1'), findsOneWidget);
   });
 
-  testWidgets('a page whose engine has not finished opening shows the '
+  testWidgets('a page whose player has not finished opening shows the '
       'placeholder under its normal chrome, then swaps to the video surface', (t) async {
     final fleet = _Fleet(openDelay: const Duration(milliseconds: 300));
     await t.pumpWidget(MaterialApp(
       home: MovaFeedPlayer(
-        engineFactory: fleet.make,
+        movaFactory: fleet.make,
         loader: (i) async =>
             MovaFeedItem(source: MovaSource('https://h/$i.mp4'), authorName: 'author$i'),
         placeholderBuilder: (context, item) =>
             const ColoredBox(key: Key('feedPlaceholder'), color: Color(0xFF123456)),
       ),
     ));
-    // Long enough for the item to load, not for the engine to finish opening.
+    // Long enough for the item to load, not for the player to finish opening.
     await t.pump();
     await t.pump();
     await t.pump(const Duration(milliseconds: 50));
@@ -222,11 +222,11 @@ void main() {
     expect(find.text('@author0'), findsOneWidget, reason: 'chrome renders over the placeholder');
 
     // Advance the clock explicitly rather than with `pumpAndSettle`: the
-    // engines' open latency is a timer nothing schedules a frame for, so
+    // players' open latency is a timer nothing schedules a frame for, so
     // `pumpAndSettle` would return without ever reaching it. Neighbours are
     // warmed one after another, hence enough headroom for several opens.
     //
-    // 显式推进时钟而非用 `pumpAndSettle`：引擎的打开延迟是一个不会驱动任何
+    // 显式推进时钟而非用 `pumpAndSettle`：播放器的打开延迟是一个不会驱动任何
     // 帧调度的定时器，`pumpAndSettle` 会在还没走到它之前就返回。邻居是逐个
     // 预热的，因此要留出够几次 open 的余量。
     for (var i = 0; i < 10; i++) {
@@ -240,7 +240,7 @@ void main() {
     final fleet = _Fleet();
     await t.pumpWidget(MaterialApp(
       home: MovaFeedPlayer(
-        engineFactory: fleet.make,
+        movaFactory: fleet.make,
         loader: (i) async => MovaFeedItem(source: MovaSource('https://h/$i.mp4')),
         placeholderBuilder: (context, item) =>
             const ColoredBox(key: Key('feedPlaceholder'), color: Color(0xFF123456)),
@@ -259,7 +259,7 @@ void main() {
     final fleet = _Fleet();
     await t.pumpWidget(MaterialApp(
       home: MovaFeedPlayer(
-        engineFactory: fleet.make,
+        movaFactory: fleet.make,
         loader: (i) async => MovaFeedItem(source: MovaSource('https://h/$i.mp4')),
         placeholderBuilder: (context, item) =>
             const ColoredBox(key: Key('feedPlaceholder'), color: Color(0xFF123456)),
@@ -279,7 +279,7 @@ void main() {
     expect(t.widget<AnimatedOpacity>(posterOpacity.first).opacity, 1);
   });
 
-  testWidgets('posterUntilFirstFrame fades the poster out once the engine reports rendered', (t) async {
+  testWidgets('posterUntilFirstFrame fades the poster out once the player reports rendered', (t) async {
     final fleet = await pumpPosterFeed(t);
     for (final api in fleet.created) {
       api.push(const MovaState(rendered: true, width: 1080, height: 1920));
@@ -290,10 +290,10 @@ void main() {
   });
 
   testWidgets('an ended feed (loader returns null) shows a black placeholder '
-      'without crashing or allocating an engine', (t) async {
+      'without crashing or allocating a player', (t) async {
     final fleet = _Fleet();
     await t.pumpWidget(MaterialApp(
-      home: MovaFeedPlayer(engineFactory: fleet.make, loader: (i) async => null),
+      home: MovaFeedPlayer(movaFactory: fleet.make, loader: (i) async => null),
     ));
     await t.pumpAndSettle();
 
@@ -301,12 +301,12 @@ void main() {
     expect(fleet.created, isEmpty);
   });
 
-  testWidgets('disposes every pooled engine when the feed is torn down — the '
-      'host never sees these engines, so nothing else can free them', (t) async {
+  testWidgets('disposes every pooled player when the feed is torn down — the '
+      'host never sees these players, so nothing else can free them', (t) async {
     final fleet = _Fleet();
     await t.pumpWidget(MaterialApp(
       home: MovaFeedPlayer(
-        engineFactory: fleet.make,
+        movaFactory: fleet.make,
         loader: (i) async => MovaFeedItem(source: MovaSource('https://h/$i.mp4')),
       ),
     ));

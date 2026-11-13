@@ -6,8 +6,8 @@ Keep all raw result lines and failure stacks; do not relabel them as PASS.
 Harness issue 1: paths created by the controller used mixed slash/backslash
 separators; production resolve returns a canonical Windows path. Literal string
 membership checks falsely rejected the same adopted path. S2/1 raw ORPHANS
-expected engine_4c6ff248; C READY actually returned engine_4c6ff248. The same
-oracle error rejected S4's engine_legacy_orphan adopter in repetitions 2/3.
+expected mova_4c6ff248; C READY actually returned mova_4c6ff248. The same
+oracle error rejected S4's mova_legacy_orphan adopter in repetitions 2/3.
 Fix: canonicalize created roots and the legacy orphan using the actual
 resolveSymbolicLinks() result before any comparison. No lib/ changes.
 

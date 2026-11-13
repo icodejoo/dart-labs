@@ -10,9 +10,9 @@ import '../../support/warm_mute_kernel.dart';
 Future<void> _settle() =>
     Future<void>.delayed(const Duration(milliseconds: 220));
 
-/// Drives a real engine to the cutover policy's ready state.
+/// Drives a real player to the cutover policy's ready state.
 ///
-/// 驱动真实引擎达到切换策略的就绪状态。
+/// 驱动真实播放器达到切换策略的就绪状态。
 Future<void> _ready(FakeKernel k) async {
   k.emitBuffer(const Duration(seconds: 10));
   await _settle();
@@ -22,9 +22,9 @@ Future<void> _ready(FakeKernel k) async {
   }
 }
 
-/// Runs warm-up and commit against real engines with recording volume ports.
+/// Runs warm-up and commit against real players with recording volume ports.
 ///
-/// 用真实引擎和记录音量端口运行预热及提交。
+/// 用真实播放器和记录音量端口运行预热及提交。
 void main() {
   for (final mute in [true, false]) {
     test(
@@ -32,16 +32,16 @@ void main() {
       () async {
         final writes = <double>[];
         final kernels = <FakeWarmMuteKernel>[];
-        final api = MovaCutoverEngine(
-          engineFactory: () {
+        final api = MovaCutover(
+          movaFactory: () {
             final k = FakeWarmMuteKernel();
             kernels.add(k);
-            return MovaEngine(
+            return Mova(
               kernel: k, ownsKernel: true,
-              volume: MovaCallbackVolumePort(writes.add, onGet: () async => 37),
+              volume: MovaCallbackVolume(writes.add, onGet: () async => 37),
               options: MovaOpts(
-                cutover: MovaCutoverConfig(enabled: true, muteWhileWarm: mute),
-                controls: const MovaCtrlsConfig(autoHide: false),
+                cutover: MovaCutoverOpts(enabled: true, muteWhileWarm: mute),
+                controls: const MovaCtrlsOpts(autoHide: false),
               ),
             );
           },
@@ -88,16 +88,16 @@ void main() {
     () async {
       final writes = <double>[];
       final kernels = <FakeKernel>[];
-      final api = MovaCutoverEngine(
-        engineFactory: () {
+      final api = MovaCutover(
+        movaFactory: () {
           final k = FakeKernel();
           kernels.add(k);
-          return MovaEngine(
+          return Mova(
             kernel: k, ownsKernel: true,
-            volume: MovaCallbackVolumePort(writes.add, onGet: () async => 37),
+            volume: MovaCallbackVolume(writes.add, onGet: () async => 37),
             options: const MovaOpts(
-              cutover: MovaCutoverConfig(enabled: true),
-              controls: MovaCtrlsConfig(autoHide: false),
+              cutover: MovaCutoverOpts(enabled: true),
+              controls: MovaCtrlsOpts(autoHide: false),
             ),
           );
         },
@@ -119,16 +119,16 @@ void main() {
     () async {
       final writes = <double>[];
       final kernels = <FakeWarmMuteKernel>[];
-      final api = MovaCutoverEngine(
-        engineFactory: () {
+      final api = MovaCutover(
+        movaFactory: () {
           final k = FakeWarmMuteKernel();
           kernels.add(k);
-          return MovaEngine(
+          return Mova(
             kernel: k, ownsKernel: true,
-            volume: MovaCallbackVolumePort(writes.add),
+            volume: MovaCallbackVolume(writes.add),
             options: const MovaOpts(
-              cutover: MovaCutoverConfig(enabled: true),
-              controls: MovaCtrlsConfig(autoHide: false),
+              cutover: MovaCutoverOpts(enabled: true),
+              controls: MovaCtrlsOpts(autoHide: false),
             ),
           );
         },
@@ -171,16 +171,16 @@ void main() {
       final kernels = <FakeWarmMuteKernel>[];
       final writes = <double>[];
       final events = <MovaEvent>[];
-      final api = MovaCutoverEngine(
-        engineFactory: () {
+      final api = MovaCutover(
+        movaFactory: () {
           final k = FakeWarmMuteKernel();
           kernels.add(k);
-          return MovaEngine(
+          return Mova(
             kernel: k, ownsKernel: true,
-            volume: MovaCallbackVolumePort(writes.add),
+            volume: MovaCallbackVolume(writes.add),
             options: const MovaOpts(
-              cutover: MovaCutoverConfig(enabled: true),
-              controls: MovaCtrlsConfig(autoHide: false),
+              cutover: MovaCutoverOpts(enabled: true),
+              controls: MovaCtrlsOpts(autoHide: false),
             ),
           );
         },

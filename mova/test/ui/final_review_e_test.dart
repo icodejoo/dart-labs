@@ -65,7 +65,7 @@ class _MiniApi extends FakeMovaApi {
   ///
   /// 启用小窗并设置进入门闩。
   _MiniApi()
-    : super(options: const MovaOpts(mini: MovaMiniConfig(enabled: true)));
+    : super(options: const MovaOpts(mini: MovaMiniOpts(enabled: true)));
   final gate = Completer<void>();
 
   /// Blocks entry while allowing immediate cancellation.
@@ -92,7 +92,7 @@ class _Marker extends MovaComponent {
   ///
   /// 构建可见的替换标记。
   @override
-  Widget build(BuildContext context, MovaApi api, List<Widget> children) =>
+  Widget build(BuildContext context, IMovaApi api, List<Widget> children) =>
       const Text('custom');
 }
 
@@ -110,7 +110,7 @@ class _FullWidthControl extends MovaComponent {
   ///
   /// 构建需要有界横向约束的控件。
   @override
-  Widget build(BuildContext context, MovaApi api, List<Widget> children) =>
+  Widget build(BuildContext context, IMovaApi api, List<Widget> children) =>
       const SizedBox(
         key: ValueKey('fullWidthControl'),
         width: double.infinity,
@@ -124,9 +124,9 @@ class _FullWidthControl extends MovaComponent {
 class _SeekApi extends FakeMovaApi {
   String mode = 'reject';
 
-  /// Emits only the target actually accepted by the engine.
+  /// Emits only the target actually accepted by the player.
   ///
-  /// 仅发出引擎实际接受的目标。
+  /// 仅发出播放器实际接受的目标。
   @override
   Future<void> seek(Duration target) async {
     if (mode == 'fail') throw StateError('seek failed');
@@ -134,9 +134,9 @@ class _SeekApi extends FakeMovaApi {
   }
 }
 
-/// Rewrites or refuses the real engine's seek request.
+/// Rewrites or refuses the real player's seek request.
 ///
-/// 改写或拒绝真实引擎的跳转请求。
+/// 改写或拒绝真实播放器的跳转请求。
 class _SeekHook extends MovaHook {
   /// Selects the accepted target; null rejects the request.
   ///
@@ -158,10 +158,10 @@ void main() {
   for (final action in ['hide', 'close']) {
     testWidgets('E2 no-op $action preserves pending close callback', (t) async {
       final api = FakeMovaApi(
-        options: const MovaOpts(mini: MovaMiniConfig(enabled: true)),
+        options: const MovaOpts(mini: MovaMiniOpts(enabled: true)),
       );
       final mini = MovaMini();
-      final closed = <MovaApi>[];
+      final closed = <IMovaApi>[];
       mini.onClosed = closed.add;
       await mini.show(api);
       api.pauseGate = Completer<void>();
@@ -186,8 +186,8 @@ void main() {
       t,
     ) async {
       final kernel = FakeKernel();
-      final api = MovaEngine(
-        options: const MovaOpts(preview: MovaPreviewConfig(enabled: false)),
+      final api = Mova(
+        options: const MovaOpts(preview: MovaPreviewOpts(enabled: false)),
         fetcher: const MovaTestHttpFetch(),
         kernel: kernel,
         interceptors: [_SeekHook(target)],
@@ -236,7 +236,7 @@ void main() {
     t,
   ) async {
     final api = FakeMovaApi(
-      options: const MovaOpts(mini: MovaMiniConfig(enabled: true)),
+      options: const MovaOpts(mini: MovaMiniOpts(enabled: true)),
     );
     final mini = MovaMini();
     await mini.show(api);
@@ -321,7 +321,7 @@ void main() {
       t,
     ) async {
       final api = FakeMovaApi(
-        options: const MovaOpts(mini: MovaMiniConfig(enabled: true)),
+        options: const MovaOpts(mini: MovaMiniOpts(enabled: true)),
       );
       final mini = MovaMini();
       late BuildContext context;
@@ -468,7 +468,7 @@ void main() {
       await t.pumpWidget(
         MaterialApp(
           home: MovaFeedPlayer(
-            engineFactory: () {
+            movaFactory: () {
               final api = FakeMovaApi();
               fleet.add(api);
               return api;
@@ -501,7 +501,7 @@ void main() {
       t,
     ) async {
       final api = FakeMovaApi(
-        options: const MovaOpts(mini: MovaMiniConfig(enabled: true)),
+        options: const MovaOpts(mini: MovaMiniOpts(enabled: true)),
       );
       final mini = MovaMini();
       late BuildContext context;
@@ -551,7 +551,7 @@ void main() {
       t,
     ) async {
       final api = FakeMovaApi(
-        options: const MovaOpts(mini: MovaMiniConfig(enabled: true)),
+        options: const MovaOpts(mini: MovaMiniOpts(enabled: true)),
       );
       final mini = MovaMini();
       late BuildContext context;

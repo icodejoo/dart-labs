@@ -8,7 +8,7 @@ import 'package:mova/mova.dart';
 import '../../support/fake_kernel.dart';
 
 /// 可挂起首个请求的来源，记录实际执行的桶。
-class _Source implements MovaThumbSource {
+class _Source implements IMovaThumbSource {
   /// 首次执行时通知测试。
   final started = Completer<void>();
   /// 首个请求的返回门闩。
@@ -37,7 +37,7 @@ class _Source implements MovaThumbSource {
 }
 
 /// 挂起网络判定并可模拟首次异常的探针。
-class _Probe implements MovaNetProbe {
+class _Probe implements IMovaNetProbe {
   /// 测试控制的网络判定门闩。
   Completer<bool>? gate;
   /// 下一次判定是否抛出异常。
@@ -72,7 +72,7 @@ class _Cache extends MovaMemoryThumbCache {
 }
 
 /// 返回可修改的预置字节并记录请求。
-class _Fetcher implements MovaHttpFetch {
+class _Fetcher implements IMovaHttpFetch {
   /// URL 到响应字节的映射。
   final responses = <String, Uint8List>{};
   /// 实际访问的 URL。
@@ -86,7 +86,7 @@ class _Fetcher implements MovaHttpFetch {
 }
 
 /// 记录抽帧次数，直播时不应调用。
-class _Puller implements MovaFramePuller {
+class _Puller implements IMovaFramePuller {
   /// 已调用的抽帧次数。
   int calls = 0;
   /// 返回预置帧。
@@ -103,9 +103,9 @@ class _Puller implements MovaFramePuller {
 }
 
 /// 创建零防抖的服务，支持自定义探针和缓存。
-MovaPreviewService _service(List<MovaThumbSource> sources, {MovaNetProbe? probe, MovaThumbCache? cache}) =>
+MovaPreviewService _service(List<IMovaThumbSource> sources, {IMovaNetProbe? probe, IMovaThumbCache? cache}) =>
     MovaPreviewService(
-      config: const MovaPreviewConfig(enabled: true, debounce: Duration.zero),
+      opts: const MovaPreviewOpts(enabled: true, debounce: Duration.zero),
       cache: cache ?? MovaMemoryThumbCache(), probe: probe ?? MovaAlwaysAllowNetProbe(), sources: sources,
     )..attach(const MovaSource('https://host/a.mp4'));
 
@@ -197,17 +197,17 @@ void main() {
     await s.dispose();
   });
 
-  test('audioOnly 引擎即使开启预览也不探测 VTT', () async {
+  test('audioOnly 播放器即使开启预览也不探测 VTT', () async {
     final f = _Fetcher();
-    final engine = createMovaEngine(kernel: FakeKernel.audioOnly(), audioOnly: true,
-      pip: MovaNoopPipPort(), orientation: MovaNoopOrientationPort(), brightness: MovaFallbackBrightnessPort(),
-      fetcher: f, options: MovaOpts(preview: MovaPreviewConfig(enabled: true,
+    final mova = createMova(kernel: FakeKernel.audioOnly(), audioOnly: true,
+      pip: MovaNoopPip(), orient: MovaNoopOrient(), brightness: MovaFallbackBrightness(),
+      fetcher: f, options: MovaOpts(preview: MovaPreviewOpts(enabled: true,
         debounce: Duration.zero, cache: MovaMemoryThumbCache(), network: MovaPreviewNet.always)));
-    await engine.open(const MovaSource('https://host/a.mp4'));
-    engine.preview.requestAt(Duration.zero);
-    await (engine.preview as MovaPreviewService).drain();
+    await mova.open(const MovaSource('https://host/a.mp4'));
+    mova.preview.requestAt(Duration.zero);
+    await (mova.preview as MovaPreviewService).drain();
     expect(f.asked, isEmpty);
-    expect(engine.preview.current, isNull);
-    await engine.dispose();
+    expect(mova.preview.current, isNull);
+    await mova.dispose();
   });
 }

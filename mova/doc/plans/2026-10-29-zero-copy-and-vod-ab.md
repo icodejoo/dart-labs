@@ -11,7 +11,7 @@
 | arm64 `libmpv.so` sha256 | `798cde9e27e3761dd5f8f065693e4669b5499d5807618f81a74e0d3a88dc230b`（旧版，新旧两包均核对一致） |
 | A 的包 | `com.icodejoo.mova.mova_example.coverage`（`main_coverage_suite.dart` 的 `hwdec` 组，页面 `main_hwdec_matrix_verify.dart`） |
 | B/C 新 lib 包 | `...coverage.abnew`，签名 apk sha256 `1781774476691813de081324562097f9e44d90fc96b43975692c3f6c392db4e1`（HEAD，`da88564` 之后） |
-| B/C 旧 lib 包 | `...coverage.abold`，sha256 `d99415cc6e3262eba9b8cab505aed617b34cd943f58fd7963197cbb7198d19fd`（`warm.dart`/`cutover_engine.dart` 取 `da88564~1`；两版 lib 仅此两文件有差，`git diff da88564~1 HEAD -- lib` 已核对） |
+| B/C 旧 lib 包 | `...coverage.abold`，sha256 `d99415cc6e3262eba9b8cab505aed617b34cd943f58fd7963197cbb7198d19fd`（`warm.dart`/`cutover.dart` 取 `da88564~1`；两版 lib 仅此两文件有差，`git diff da88564~1 HEAD -- lib` 已核对） |
 | 构建 | `tool/coverage_build.py lib/main_coverage_suite.dart -I tool/ab_id.init.gradle -PabId=<id>`；zipalign + debug.keystore 签名；两包 applicationId 不同，可并存，B/C 新旧**交错**跑（每进程 5 轮，新-旧-新-旧…各 8 进程）抵消设备漂移 |
 | 设备 | 机主已解锁亮屏，`isKeyguardShowing=false`，USB 供电；`stay_on`=7、`screen_off_timeout`=2147483647 未改动 |
 | 本机源 | `live_server.py`（18080：`live.flv`/`vod.mp4`/`ad.mp4`）；A 的样本用 `range_server.py`（18090，206 已核实）。注意：B/C 的 `vod.mp4` 由 `live_server` 提供，它只对「起点 >0 的开放式 Range」回 206，`bytes=0-N` 回 200；本轮 server.log 里没有出现起点 >0 的请求（mpv 一次顺序读完 1.7MB），所以 B 没有真正用到 Range seek。新旧两版用同一服务，对比公平，但这不是「seek 走 Range」的验证 |
@@ -52,7 +52,7 @@ A-codec 里 12 次可硬解的 zero 请求，**4 次回落**（h264_720 zero-3�
 | pip | 2/3 | ZZC |
 | bg | 2/3 | ZZC |
 | **合计（非 cutover）** | **16/30（回落 14 次，47%）** | |
-| cutover（h264_720、hevc8，广告与正片两个引擎） | **6/6，无一回落** | ZZZ，ZZZ |
+| cutover（h264_720、hevc8，广告与正片两个播放器） | **6/6，无一回落** | ZZZ，ZZZ |
 
 与「上一次运行 / 进程复用 / 解码器实例数」的关系（只读证据得出，不做因果断言）：
 
@@ -60,7 +60,7 @@ A-codec 里 12 次可硬解的 zero 请求，**4 次回落**（h264_720 zero-3�
 - **与解码器实例数无关**：`media.resource_manager` 快照里回落与非回落轮都只有 1 个 client（h264_fs zero-3 甚至有 2 个 client，仍是真零拷贝）。注意 rm.txt 文件名按 id 复用，被后面的场景覆盖，只能当旁证。
 - **同一样本在不同进程里结果不同**：hevc8 在 codec 场景 zero-1/2 真零拷贝，在 shot 场景三次全回落——说明是**非确定性**，不由样本决定。
 - 日志（`MediaCodec`/`ACodec`）里回落轮与非回落轮都只创建同名 OMX 解码器，没有可区分的报错行；mpv 日志未转发到 logcat，**没有回落原因的直接证据**。
-- 一个**仅作假设、未验证**的线索：cutover 场景 6/6 零回落，而该场景影子引擎创建后主动读 `renderHandle`（急切建 `VideoController`），其余场景走懒创建；回落可能与「解码器初始化时渲染面是否已就绪」有关。需要对 `lazyVideo=false` 做对照才能下结论。
+- 一个**仅作假设、未验证**的线索：cutover 场景 6/6 零回落，而该场景影子播放器创建后主动读 `renderHandle`（急切建 `VideoController`），其余场景走懒创建；回落可能与「解码器初始化时渲染面是否已就绪」有关。需要对 `lazyVideo=false` 做对照才能下结论。
 
 含义：**请求零拷贝并不保证拿到零拷贝**，宿主若依赖「零拷贝才有的行为」必须读回 `hwdec-current` 校验。
 
@@ -92,7 +92,7 @@ top 的 `%CPU` 是按单核计的进程占比，播放中取 3 次采样中位�
 |---|---|---|
 | 截图 shot（A-shot） | h264_720 与 hevc8 各 3 次：`kernelShot` 18 次全部非黑（luma 127.6–127.7，colorful ≥0.99），`bytes` 在 zero 与 copy 间同量级（23.0–24.1 万）；errors 0。注意其中真零拷贝只有 2 次（h264_720 zero-1/3），其余回落，所以「**真零拷贝时 mpv screenshot 可用」只有 2 个样本**；`hwdec-current=mediacodec` 时 `bytes` 227–231k 与 copy 的 230–232k 无差 | 同样通过（样本少） |
 | 预览抽帧 extract（A-extract） | 首次跑：copy-1/zero-1/copy-2 出图（帧 268420 字节、luma 127.5，耗时 1887/2199/2553ms）；**zero-2 起进入 `MediaCodec configureCodec returning error -12` 重试循环，10501 次，持续约 8 分钟直到 runner 超时，页面未完成（无 `AUTORUN DONE`）**。重跑（A-extract-rerun，3 轮）未再卡死，但**第 2 次起抽帧失败**（`frame=null`，耗时 270–345ms）：copy-1/zero-1/copy-2 成功，zero-2、copy-3、zero-3 失败，每个失败轮各 1 条 `-12`（zero-2、copy-3）/`-1`（zero-3）。即**同一进程第 3 次抽帧开始失败，copy 配置也同样失败**，不是零拷贝独有；首次那次 8 分钟重试循环是迄今唯一一次，出现在 zero 配置 | **缺口（两配置都有问题，零拷贝多一次卡死，n 太小不能说零拷贝更差）**：抽帧器在同进程反复使用后撞上硬解码器实例上限（`-12`=ENOMEM），属 `MovaFrameExtractor` 的资源占用问题 |
-| cutover（A-cutover，h264_720、hevc8 各 3 次） | 12/12 `swappedBack=true`、`epoch=2`、errors 0，广告与正片的 `hwdec-current` 在 zero 配置下 6/6 为 `mediacodec`（全库最稳的零拷贝场景）；`swappedToAd` 618–1107ms（copy 618–988，zero 629–1107，同量级）；`skipToCommit` 50–59ms，内核截图均非黑；续播误差 `resumeErrMs` copy −1200…−1867、zero −1167…−1734（该字段口径是页面自己的，两配置同量级） | 同样通过（且零拷贝更稳） |
+| cutover（A-cutover，h264_720、hevc8 各 3 次） | 12/12 `cutoverBack=true`、`epoch=2`、errors 0，广告与正片的 `hwdec-current` 在 zero 配置下 6/6 为 `mediacodec`（全库最稳的零拷贝场景）；`cutoverToAd` 618–1107ms（copy 618–988，zero 629–1107，同量级）；`skipToCommit` 50–59ms，内核截图均非黑；续播误差 `resumeErrMs` copy −1200…−1867、zero −1167…−1734（该字段口径是页面自己的，两配置同量级） | 同样通过（且零拷贝更稳） |
 | 小窗 mini（A-mini，h264_720 ×3） | 页内与跨路由位置连续推进到 17s，`miniFlag=true`，errors 0；zero-1/2 回落（见 A2），zero-3 真零拷贝并通过。真零拷贝只有 1 次 | 同样通过（真零拷贝样本仅 1 次） |
 | PiP（A-pip，h264_720 ×3） | `enterPip=true`，`pipChange` 进入 51–54ms 都成功，errors 0，PiP 内 `hwdec-current` 与进入前一致；退出后内核截图非黑。zero-1/2 真零拷贝通过；zero-2 与 copy-2/3 的 `pipChangeOutMs=null`（本轮未记到退出事件，copy 同样 null，非零拷贝特有） | 同样通过（退出事件读数不足） |
 | 切后台 bg（A-bg，h264_720 ×3） | 生命周期序列 6/6 一致（`inactive>hidden>paused>…>resumed`），`pauseProp=yes`、`autoResumed=false`（回前台不自动续播，是已知的 Android 行为），手动 play 后 `afterManualPlay` 推进 ~3s；`hwdec-current` 回前台前后不变；errors 0 | 同样通过 |
@@ -111,7 +111,7 @@ top 的 `%CPU` 是按单核计的进程占比，播放中取 3 次采样中位�
 
 ## B. 点播 cutover 续播落点：新 lib vs 旧 lib 同条件 A/B
 
-页面 `main_q13_mute_verify.dart` 的 `Q13V`：本地 `vod.mp4`，正片先播 3s，`playAdNow` 中插广告，广告起播 1s 后 `skip()`；误差 = 提交后首个位置 − 广告接管时正片位置（进度流约 250ms 一次，误差口径含 ±250ms 采样量级）。新旧各 **40 次**（8 进程 × 5 轮，交错），全部 `swapped=true`、提交后 `mute=no`。统计脚本 `tool/ab_stats_b.py`。
+页面 `main_q13_mute_verify.dart` 的 `Q13V`：本地 `vod.mp4`，正片先播 3s，`playAdNow` 中插广告，广告起播 1s 后 `skip()`；误差 = 提交后首个位置 − 广告接管时正片位置（进度流约 250ms 一次，误差口径含 ±250ms 采样量级）。新旧各 **40 次**（8 进程 × 5 轮，交错），全部 `cutover=true`、提交后 `mute=no`。统计脚本 `tool/ab_stats_b.py`。
 
 | 组 | n | 中位 | 平均 | 最大 | 最小 | 通过 |
 |---|---|---|---|---|---|---|

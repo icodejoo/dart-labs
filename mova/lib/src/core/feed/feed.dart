@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import '../model/feed_item.dart';
-import 'engine_pool.dart';
+import 'feed_pool.dart';
 import 'feed_prefetcher.dart';
 
 /// Resolves the feed item at [index], or `null` to signal the feed ends
@@ -12,14 +12,14 @@ import 'feed_prefetcher.dart';
 /// 没有更多条目）。
 typedef MovaFeedLoader = Future<MovaFeedItem?> Function(int index);
 
-/// Drives a [MovaFeedEnginePool] through a vertical feed of [MovaFeedItem]s
+/// Drives a [MovaFeedPool] through a vertical feed of [MovaFeedItem]s
 /// (bilibili/douyin-style "swipe for next video"): the page the viewer is on
-/// plays on its own engine while its neighbours are already opened and
+/// plays on its own player while its neighbours are already opened and
 /// parked on theirs, so a swipe swaps between two live surfaces instead of
 /// tearing one down and rebuilding it.
 ///
-/// Replaces the original single-engine design (one engine, repeated
-/// [MovaFeedEnginePool.bind]-equivalent `open()` calls) — see doc/SPEC.md's
+/// Replaces the original single-player design (one player, repeated
+/// [MovaFeedPool.bind]-equivalent `open()` calls) — see doc/SPEC.md's
 /// feed entry for the black-flash / stale-frame artifacts that forced the
 /// change and the on-device memory measurement that made a pool affordable.
 ///
@@ -27,34 +27,34 @@ typedef MovaFeedLoader = Future<MovaFeedItem?> Function(int index);
 /// (`MovaFeedPlayer`) owns the `PageView` and the pool's lifetime, calls
 /// [activate] on page settle, and [slotFor]/[peek] to render each page.
 ///
-/// 用一个 [MovaFeedEnginePool] 驱动纵向 feed 的 [MovaFeedItem] 列表
-/// （bilibili/抖音式"上滑下一个视频"）：观众所在页在自己的引擎上播放，相邻页
-/// 早已在各自引擎上打开并停住，因此一次上滑是在两个活着的画面之间交换，而非
+/// 用一个 [MovaFeedPool] 驱动纵向 feed 的 [MovaFeedItem] 列表
+/// （bilibili/抖音式"上滑下一个视频"）：观众所在页在自己的播放器上播放，相邻页
+/// 早已在各自播放器上打开并停住，因此一次上滑是在两个活着的画面之间交换，而非
 /// 推倒一个再重建。
 ///
-/// 它取代了最初的单引擎设计（一个引擎，反复 `open()` 切换）——迫使这次改动的
-/// 黑屏闪烁/残留旧帧两个瑕疵，以及让引擎池变得可负担的真机内存实测，见
+/// 它取代了最初的单播放器设计（一个播放器，反复 `open()` 切换）——迫使这次改动的
+/// 黑屏闪烁/残留旧帧两个瑕疵，以及让播放器池变得可负担的真机内存实测，见
 /// doc/SPEC.md 的 feed 条目。
 ///
 /// 不是 Flutter widget——这是纯粹、可测试的 core 逻辑。UI 层
 /// （`MovaFeedPlayer`）持有 `PageView` 与池的生命周期，在翻页定格时调用
 /// [activate]，用 [slotFor]/[peek] 渲染每一页。
 class MovaFeed {
-  /// Creates a feed controller.
+  /// Creates a [MovaFeed].
   ///
-  /// 创建一个 feed 控制器。
+  /// 创建一个 [MovaFeed]。
   ///
-  /// - [pool]: the engine pool this controller drives; the caller owns its
-  ///   lifetime and disposes it / 该控制器驱动的引擎池；其生命周期由调用方
+  /// - [pool]: the player pool this feed drives; the caller owns its
+  ///   lifetime and disposes it / 该 feed 驱动的播放器池；其生命周期由调用方
   ///   持有并负责释放
   /// - [loader]: resolves items by index / 按索引解析条目
   /// - [prefetchDepth]: how many items ahead of the active one get their
-  ///   *network* path warmed. Indices the pool already holds an engine for
+  ///   *network* path warmed. Indices the pool already holds a player for
   ///   are skipped — those are being opened for real, so a duplicate ranged
   ///   GET would buy nothing. Defaults conservatively to 1 (see doc/SPEC.md's
   ///   device-tiering conclusion — this stays host-configurable rather than
   ///   mova guessing device class) / 提前预热多少条条目的*网络*链路。池中
-  ///   已有引擎的索引会被跳过——那些正在被真正打开，重复发一次 Range GET 毫无
+  ///   已有播放器的索引会被跳过——那些正在被真正打开，重复发一次 Range GET 毫无
   ///   收益。默认取保守值 1（见 doc/SPEC.md 的设备分档结论——这项保持宿主可配，
   ///   而非 mova 自行猜测机型档位）
   /// - [prefetcher]: warm-up strategy; defaults to
@@ -64,13 +64,13 @@ class MovaFeed {
     required this.pool,
     required this.loader,
     this.prefetchDepth = 1,
-    MovaFeedPrefetcher? prefetcher,
+    IMovaFeedPrefetcher? prefetcher,
   }) : prefetcher = prefetcher ?? const MovaNetworkWarmFeedPrefetcher();
 
-  /// The engine pool this controller drives.
+  /// The player pool this feed drives.
   ///
-  /// 该控制器驱动的引擎池。
-  final MovaFeedEnginePool pool;
+  /// 该 feed 驱动的播放器池。
+  final MovaFeedPool pool;
 
   /// Resolves items by index.
   ///
@@ -85,7 +85,7 @@ class MovaFeed {
   /// Warm-up strategy applied to items within [prefetchDepth].
   ///
   /// 应用于 [prefetchDepth] 范围内条目的预热策略。
-  final MovaFeedPrefetcher prefetcher;
+  final IMovaFeedPrefetcher prefetcher;
 
   /// Resolved items, keyed by index; also doubles as the local like-state
   /// store (see [toggleLike]).
@@ -121,10 +121,10 @@ class MovaFeed {
   /// 最近一次传入 [activate] 的索引。
   int? get activeIndex => _activeIndex;
 
-  /// The pool slot bound to [index], or `null` if no engine currently holds
+  /// The pool slot bound to [index], or `null` if no player currently holds
   /// it (the page fell outside the warm window, e.g. mid-fling).
   ///
-  /// 绑定到 [index] 的池 slot；若当前没有引擎持有它则为 `null`（该页落在了
+  /// 绑定到 [index] 的池 slot；若当前没有播放器持有它则为 `null`（该页落在了
   /// 热窗口之外，例如快速连划途中）。
   ///
   /// - [index]: the feed index to look up / 要查询的 feed 索引
@@ -203,7 +203,7 @@ class MovaFeed {
   bool _isCurrent(int generation) => !_disposed && generation == _generation;
 
   /// Makes [index] the playing page: narrows the pool's warm window around
-  /// it, binds and plays its engine, and warms its neighbours in the
+  /// it, binds and plays its player, and warms its neighbours in the
   /// background.
   ///
   /// Does nothing if [loader] resolves `null` for [index] (feed ended).
@@ -218,7 +218,7 @@ class MovaFeed {
   /// matters.
   ///
   /// 把 [index] 变成正在播放的那一页：把池的热窗口收拢到它周围，绑定并播放
-  /// 它的引擎，同时在后台预热它的邻居。
+  /// 它的播放器，同时在后台预热它的邻居。
   ///
   /// 若 [loader] 对 [index] 解析出 `null`（feed 已到尽头）则什么也不做。
   /// 邻居预热与网络预取都是发射后不管：它们的失败绝不会在此暴露，也不会阻塞
@@ -259,8 +259,8 @@ class MovaFeed {
   /// need to land on the page the viewer actually stopped on).
   ///
   /// Serialising matters even with a pool: two overlapping activations would
-  /// each call [MovaFeedEnginePool.retain] with their own window and then race
-  /// for a free engine, so the loser could evict the very binding the winner
+  /// each call [MovaFeedPool.retain] with their own window and then race
+  /// for a free player, so the loser could evict the very binding the winner
   /// just made — leaving the video on a page whose chrome (author/social
   /// rail) the UI has already moved past.
   ///
@@ -268,8 +268,8 @@ class MovaFeed {
   /// 处理到之前就被取代的目标会被静默跳过（快速连续上滑最终只需要落在观众
   /// 真正停留的那一页）。
   ///
-  /// 即使有了引擎池，串行化依然必要：两次重叠的激活会各自用自己的窗口调用
-  /// [MovaFeedEnginePool.retain]，再争抢空闲引擎，落败的一方可能把胜出方刚建立
+  /// 即使有了播放器池，串行化依然必要：两次重叠的激活会各自用自己的窗口调用
+  /// [MovaFeedPool.retain]，再争抢空闲播放器，落败的一方可能把胜出方刚建立
   /// 的绑定淘汰掉——导致画面停在一个 chrome（作者/社交竖排）早已翻过去的页面上。
   Future<void> _runActivateLoop() async {
     try {
@@ -300,10 +300,10 @@ class MovaFeed {
 
           final window = movaFeedWindow(index, pool.size);
           // Retain *before* binding: the active page must be able to take an
-          // engine even when the pool is already full, and the pages worth
+          // player even when the pool is already full, and the pages worth
           // keeping are exactly the ones still in the new window.
           //
-          // 先 retain 再绑定：池已满时活跃页也必须能取到引擎，而值得留下的
+          // 先 retain 再绑定：池已满时活跃页也必须能取到播放器，而值得留下的
           // 恰好就是仍在新窗口内的那些页。
           pool.retain(window);
           _activeIndex = index;
@@ -322,7 +322,7 @@ class MovaFeed {
           // playing from a previous activation would keep its audio going
           // under the page the viewer is actually watching.
           //
-          // 池中其余引擎必须安静下来——上一次激活遗留的、仍在播放的邻居，会在
+          // 池中其余播放器必须安静下来——上一次激活遗留的、仍在播放的邻居，会在
           // 观众真正在看的这一页底下继续出声。
           await pool.focus(index);
 
@@ -339,14 +339,14 @@ class MovaFeed {
     }
   }
 
-  /// Opens every non-active index in [window] on its own pooled engine,
+  /// Opens every non-active index in [window] on its own pooled player,
   /// parked (not playing) on its first frame, so swiping onto it swaps to an
   /// already-live surface.
   ///
   /// Best-effort: a neighbour that fails to load or open just means that one
   /// page falls back to the placeholder when reached.
   ///
-  /// 把 [window] 中每个非活跃索引在各自的池引擎上打开、停住（不播放）在首帧，
+  /// 把 [window] 中每个非活跃索引在各自的池播放器上打开、停住（不播放）在首帧，
   /// 使滑到它时是切到一个已经活着的画面。
   ///
   /// 尽力而为：某个邻居加载或打开失败，只意味着滑到那一页时会退回占位。
@@ -373,9 +373,9 @@ class MovaFeed {
   }
 
   /// Warms the network path (DNS/TCP/TLS/CDN edge) for the [prefetchDepth]
-  /// items ahead of [index] that no pooled engine is already opening.
+  /// items ahead of [index] that no pooled player is already opening.
   ///
-  /// 为 [index] 往后 [prefetchDepth] 条中、尚无池引擎正在打开的条目预热网络
+  /// 为 [index] 往后 [prefetchDepth] 条中、尚无池播放器正在打开的条目预热网络
   /// 链路（DNS/TCP/TLS/CDN 边缘节点）。
   ///
   /// - [index]: the active feed index / 当前活跃的 feed 索引
@@ -395,8 +395,8 @@ class MovaFeed {
         if (!_isCurrent(generation)) return;
         if (item == null) continue;
         final strategy = prefetcher;
-        if (strategy is MovaGuardedFeedPrefetcher) {
-          await (strategy as MovaGuardedFeedPrefetcher).primeWhileCurrent(
+        if (strategy is IMovaGuardedFeedPrefetcher) {
+          await (strategy as IMovaGuardedFeedPrefetcher).primeWhileCurrent(
             item.source,
             () => _isCurrent(generation),
           );

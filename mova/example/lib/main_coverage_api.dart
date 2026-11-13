@@ -17,15 +17,15 @@ import 'verify_auto/coverage_widgets.dart' as widgets;
 void main() {
   runZonedGuarded(() {
     S00eBinding.ensureTracing();
-    MovaEngine.ensureInitialized();
+    Mova.ensureInitialized();
     runApp(MaterialApp(navigatorObservers:[widgets.coverageRouteObserver],builder:(context,child)=>MovaMiniHost(mini:mini,child:child!),home:const CoverageHome()));
   }, (e, s) => mark('UNCAUGHT', {'error': '$e', 'stack': '$s'}));
 }
 
 final clock = Stopwatch()..start();
-final screen = ValueNotifier<MovaApi?>(null);
+final screen = ValueNotifier<IMovaApi?>(null);
 final probeTree = ValueNotifier<Widget?>(null);
-final skin = ValueNotifier<MovaSkin>(const MovaDefaultSkin());
+final uiKit = ValueNotifier<IMovaUiKit>(const MovaDefaultUiKit());
 final mini = MovaMini()
   ..onClosed = ((a)=>mark('MINI_CLOSED',snapshot(a)))
   ..onTapContent = ((a)=>mark('MINI_TAPPED',snapshot(a)));
@@ -38,7 +38,7 @@ String status = 'idle';
 MovaProg latest = const MovaProg();
 final records = <Map<String, Object?>>[];
 final events = <MovaEvent>[];
-final progressOf=<MovaApi,MovaProg>{};
+final progressOf=<IMovaApi,MovaProg>{};
 
 /// Writes evidence to logcat and an inspectable HTTP journal.
 ///
@@ -69,14 +69,14 @@ MovaSource source([String path = 'vod.mp4']) => MovaSource(
 /// Captures actual event payload and the snapshot seen by its subscriber.
 ///
 /// 记录事件载荷以及订阅者接收时的状态快照。
-void observe(MovaApi api) {
+void observe(IMovaApi api) {
   ReceiptAudit(api, mark);
-  api.preview.thumbs.listen((t)=>mark('PREVIEW_THUMB',{'engine':identityHashCode(api),'at':t?.at.inMilliseconds,'bytes':t?.bytes.length,'title':api.state.sourceTitle}));
+  api.preview.thumbs.listen((t)=>mark('PREVIEW_THUMB',{'mova':identityHashCode(api),'at':t?.at.inMilliseconds,'bytes':t?.bytes.length,'title':api.state.sourceTitle}));
   api.progress.listen((p) {latest = p;progressOf[api]=p;});
   api.events.listen((e) {
     events.add(e);
     final payload = eventPayload(e);
-    mark('EVENT', {'engine':identityHashCode(api),'event': e.runtimeType.toString(), 'payload': payload, 'state': snapshot(api)});
+    mark('EVENT', {'mova':identityHashCode(api),'event': e.runtimeType.toString(), 'payload': payload, 'state': snapshot(api)});
   });
 }
 
@@ -95,7 +95,7 @@ Map<String, Object?> eventPayload(MovaEvent e) => switch (e) {
       MovaZoomChange() => {'zoom': e.zoom},
       MovaLockChange() => {'value': e.value},
       MovaFullScreenChange() => {'value': e.value},
-      MovaOrientationChange() => {'orientation': e.orientation.name},
+      MovaOrientChange() => {'orient': e.orient.name},
       MovaMiniChange() => {'mini': e.mini},
       MovaPipChange() => {'value': e.value},
       MovaQualityListChange() => {'qualities': e.qualities.map((q) => '${q.label}:${q.uri}').toList()},
@@ -114,12 +114,12 @@ Map<String, Object?> eventPayload(MovaEvent e) => switch (e) {
       _ => <String, Object?>{},
 };
 
-Map<String, Object?> snapshot(MovaApi a) => {
+Map<String, Object?> snapshot(IMovaApi a) => {
   'playing': a.state.playing, 'intent': a.state.playbackIntent, 'buffering': a.state.buffering,
   'duration': a.state.duration.inMilliseconds, 'position': (progressOf[a]??latest).position.inMilliseconds,
   'size': '${a.state.width}x${a.state.height}', 'volume': a.state.volume, 'brightness': a.state.brightness,
   'rate': a.state.rate, 'fit': a.state.fit.name, 'zoom': a.state.zoom, 'locked': a.state.locked,
-  'fullscreen': a.state.fullscreen, 'orientation': a.state.orientation.name, 'pip': a.state.pip,
+  'fullscreen': a.state.fullscreen, 'orient': a.state.orient.name, 'pip': a.state.pip,
   'mini': a.state.mini, 'rendered': a.state.rendered, 'epoch': a.state.renderEpoch,
   'sourceIndex': a.state.sourceIndex, 'keepAlive': a.state.keepAlivePhase.name,
   'quality': a.state.currentQuality?.label,
@@ -141,7 +141,7 @@ Object? streamValue(Object? value) => switch (value) {
     'duration': value.duration.inMicroseconds, 'width': value.width, 'height': value.height,
     'volume': value.volume, 'brightness': value.brightness, 'rate': value.rate, 'fit': value.fit.name,
     'zoom': value.zoom, 'locked': value.locked, 'fullscreen': value.fullscreen, 'pip': value.pip,
-    'mini': value.mini, 'orientation': value.orientation.name, 'rendered': value.rendered,
+    'mini': value.mini, 'orient': value.orient.name, 'rendered': value.rendered,
     'epoch': value.renderEpoch, 'sourceIndex': value.sourceIndex, 'keepAlive': value.keepAlivePhase.name,
     'quality': value.currentQuality?.uri, 'qualities': value.qualities.map((q) => '${q.label}:${q.uri}').toList(),
     'type': value.type.name, 'title': value.sourceTitle, 'error': '${value.error}',
@@ -220,9 +220,9 @@ class _CoverageHomeState extends State<CoverageHome> {
   Future<void> basic(bool cutover) async {
     events.clear();
     final reports = <MovaReportEvent>[];
-    MovaEngine factory() => createMovaEngine(audioOnly: true,
-      reporter: MovaCallbackReporter(reports.add), options: const MovaOpts(report: MovaReportConfig(qoe: false)));
-    final MovaApi a = cutover ? MovaCutoverEngine(engineFactory: factory) : factory();
+    Mova factory() => createMova(audioOnly: true,
+      reporter: MovaCallbackReporter(reports.add), options: const MovaOpts(report: MovaReportOpts(qoe: false)));
+    final IMovaApi a = cutover ? MovaCutover(movaFactory: factory) : factory();
     observe(a);
     final streams = <Stream<dynamic>>[a.events, a.states, a.progress, a.uiStates];
     mark('STREAM_FLAGS',{'broadcast':streams.map((s)=>s.isBroadcast).toList(),'types':streams.map((s)=>s.runtimeType.toString()).toList(),'cutover':cutover});
@@ -332,18 +332,18 @@ class _CoverageHomeState extends State<CoverageHome> {
   Future<void> video(Map<String, String> args) async {
     widgetMode.value=false;
     final previous=screen.value;
-    late final MovaApi a;
+    late final IMovaApi a;
     if (previous == null) {
       final custom=args['style']=='custom';
-      MovaEngine factory()=>createMovaEngine(audioOnly:args['audio']=='true',preciseFirstFrame: true,options:MovaOpts(mini:MovaMiniConfig(enabled:args['miniEnabled']!='false'),
-        preview:MovaPreviewConfig(enabled:args['preview']=='true',network:MovaPreviewNet.always,vttUrl:'http://127.0.0.1:18084/${args['slowPreview']=='true'?'slowthumbs.vtt':'thumbs.vtt'}'),
-        live:const MovaLiveConfig(seekMode:MovaLiveSeekMode.dvr,dvrWindow:Duration(seconds:12),edgeThreshold:Duration(seconds:1)),
-        gesture:args['mapping']=='remap'?const MovaGestureConfig(horizontal:MovaGestureAction.volume,leftVertical:MovaGestureAction.seek):const MovaGestureConfig(),
-        controls:custom?const MovaCtrlsConfig(autoHideDelay:Duration(milliseconds:800)):const MovaCtrlsConfig(),
+      Mova factory()=>createMova(audioOnly:args['audio']=='true',preciseFirstFrame: true,options:MovaOpts(mini:MovaMiniOpts(enabled:args['miniEnabled']!='false'),
+        preview:MovaPreviewOpts(enabled:args['preview']=='true',network:MovaPreviewNet.always,vttUrl:'http://127.0.0.1:18084/${args['slowPreview']=='true'?'slowthumbs.vtt':'thumbs.vtt'}'),
+        live:const MovaLiveOpts(seekMode:MovaLiveSeekMode.dvr,dvrWindow:Duration(seconds:12),edgeThreshold:Duration(seconds:1)),
+        gesture:args['mapping']=='remap'?const MovaGestureOpts(horizontal:MovaGestureAction.volume,leftVertical:MovaGestureAction.seek):const MovaGestureOpts(),
+        controls:custom?const MovaCtrlsOpts(autoHideDelay:Duration(milliseconds:800)):const MovaCtrlsOpts(),
         theme:custom?const MovaTheme(bufferingSize:60,bufferingStrokeWidth:8,bufferingColor:0xFFFF0000):const MovaTheme(),
         strings:custom?const MovaStrs(fitContain:'COVERAGE FIT',quality:'COVERAGE QUALITY'):const MovaStrs(),
-        danmaku:MovaDanmakuConfig(enabled:custom,items:List.generate(8,(i)=>MovaDanmakuItem(text:'COVERAGE BULLET $i',time:Duration(seconds:i+2))))));
-      a=args['cutover']=='true'?MovaCutoverEngine(engineFactory:factory):factory();
+        danmaku:MovaDanmakuOpts(enabled:custom,items:List.generate(8,(i)=>MovaDanmakuItem(text:'COVERAGE BULLET $i',time:Duration(seconds:i+2))))));
+      a=args['cutover']=='true'?MovaCutover(movaFactory:factory):factory();
       observe(a); screen.value = a;
       await settle(500); await a.open(args['url']==null?source():MovaSource(args['url']!,type:args['live']=='true'?MovaStreamType.live:MovaStreamType.vod));
       await until(() => a.state.rendered && (args['audio']=='true'||a.state.width > 0));
@@ -356,7 +356,7 @@ class _CoverageHomeState extends State<CoverageHome> {
       case 'volume': await a.setVolume(double.parse(args['value']!));
       case 'brightness': await a.setBrightness(double.parse(args['value']!));
       case 'fullscreen': await a.setFullscreen(args['value'] == 'true');
-      case 'orientation': await a.setOrientation(MovaOrientation.values.byName(args['value']!));
+      case 'orient': await a.setOrient(MovaOrientMode.values.byName(args['value']!));
       case 'mini': await a.setMini(args['value'] == 'true');
       case 'pip': mark('PIP_RETURN', {'value': await a.enterPip()});
       case 'pause': await a.pause();
@@ -370,7 +370,7 @@ class _CoverageHomeState extends State<CoverageHome> {
       case 'seek': await a.seek(Duration(milliseconds:int.parse(args['value']!)));
       case 'rate': await a.setRate(double.parse(args['value']!));
       case 'backEdge': await a.backToLiveEdge();
-      case 'keepAlive': await (a as MovaKeepAlive).setKeepAlive(args['value']=='true');
+      case 'keepAlive': await (a as IMovaKeepAlive).setKeepAlive(args['value']=='true');
       case 'controls': a.showControls(sticky:args['value']=='sticky');
       case 'rebuild': rebuild.value++;
       case 'declarativeFit': declaredFit=MovaFit.values.byName(args['value']!); rebuild.value++;
@@ -384,30 +384,30 @@ class _CoverageHomeState extends State<CoverageHome> {
       case 'miniInfo':
         final r=mini.rect;
         mark('MINI_INFO',{'apiNull':mini.api==null,'showing':mini.isShowing(a),'mount':mini.mount.name,'rect':r==null?null:{'left':r.left,'top':r.top,'width':r.width,'height':r.height}});
-      case 'skin':
-        skin.value = switch(args['value']) {
-          'bilibili' => MovaBilibiliSkin(),
-          'minimal' => const MovaMinimalSkin(), 'mini' => const MovaMiniSkin(),
-          'minimalError' => const MovaMinimalSkin(showError:true),
-          'minimalEmpty' => const MovaMinimalSkin(showBuffering:false),
-          _ => const MovaDefaultSkin(),
+      case 'uiKit':
+        uiKit.value = switch(args['value']) {
+          'bilibili' => MovaBilibiliUiKit(),
+          'minimal' => const MovaMinimalUiKit(), 'mini' => const MovaMiniUiKit(),
+          'minimalError' => const MovaMinimalUiKit(showError:true),
+          'minimalEmpty' => const MovaMinimalUiKit(showBuffering:false),
+          _ => const MovaDefaultUiKit(),
         };
       case 'dispose':
         screen.value = null; await settle(); await a.dispose();
     }
-    if(action=='skin' && args['value']=='patch') {skin.value=MovaDefaultSkin(patches:[MovaPatch.add(MovaSlot.overlay,CoverageBadge())]);}
+    if(action=='uiKit' && args['value']=='patch') {uiKit.value=MovaDefaultUiKit(patches:[MovaPatch.add(MovaSlot.overlay,CoverageBadge())]);}
     await settle(400);
     if (!mounted) return;
     mark('VIDEO', {'action': action, 'state': snapshot(a), 'handle': '${a.renderHandle.runtimeType}',
       'window': {'w':View.of(context).physicalSize.width,'h':View.of(context).physicalSize.height},
       'padding': {'top':View.of(context).viewPadding.top,'bottom':View.of(context).viewPadding.bottom},
       'dpr':View.of(context).devicePixelRatio,
-      'components': skin.value.components().toString()});
+      'components': uiKit.value.components().toString()});
   }
 
   Future<void> disposeStress() async {
     for (var i = 0; i < 120; i++) {
-      final a = createMovaEngine(audioOnly: true);
+      final a = createMova(audioOnly: true);
       await a.open(source(), autoPlay: i.isEven);
       await a.dispose().timeout(const Duration(seconds: 10));
       if (i % 20 == 19) mark('MEM_SAMPLE', {'round': i + 1, 'rss': ProcessInfo.currentRss});
@@ -417,7 +417,7 @@ class _CoverageHomeState extends State<CoverageHome> {
 
   Future<void> testing() async {
     MovaTesting.useTestKernels();
-    final a = createMovaEngine();
+    final a = createMova();
     await a.open(MovaSource(source().uri,mpvOptions:const {'network-timeout':'7'})); await a.setBrightness(0.2); await a.setFullscreen(true);
     final pip = await a.enterPip();
     check('A33', MovaTesting.kernels.length == 1 && !pip && a.renderHandle == null, 'kernels=${MovaTesting.kernels.length} pip=$pip');
@@ -426,7 +426,7 @@ class _CoverageHomeState extends State<CoverageHome> {
   }
 
   Future<void> playlist() async {
-    final a = createMovaEngine(audioOnly: true, options: MovaOpts(playlist: MovaPlaylistConfig(items: [
+    final a = createMova(audioOnly: true, options: MovaOpts(playlist: MovaPlaylistOpts(items: [
       MovaPlaylistItem(source: source('ad.mp4')), MovaPlaylistItem(source: source()),
     ])));
     observe(a);
@@ -446,10 +446,10 @@ class _CoverageHomeState extends State<CoverageHome> {
     builder: (context, probe, _) => probe != null ? Scaffold(body: probe) : ValueListenableBuilder<bool>(valueListenable:widgetMode,
     builder:(context,mode,_)=>mode?widgets.CoverageWidgets(key:widgets.coverageWidgetKey):Scaffold(body: SafeArea(child: Column(children: [
     const Text('MOVA device coverage — adb :18083'),
-    Expanded(child: ValueListenableBuilder<MovaApi?>(valueListenable: screen, builder: (context, a, _) => a == null
-      ? const Center(child: Text('Ready')) : ValueListenableBuilder<MovaSkin>(valueListenable: skin,
+    Expanded(child: ValueListenableBuilder<IMovaApi?>(valueListenable: screen, builder: (context, a, _) => a == null
+      ? const Center(child: Text('Ready')) : ValueListenableBuilder<IMovaUiKit>(valueListenable: uiKit,
         builder: (context, s, _) => ValueListenableBuilder<int>(valueListenable:rebuild,
-          builder:(context,t,_)=>MovaPlayer(api:a,skin:s,fit:declaredFit,posterFade:const Duration(seconds:2),
+          builder:(context,t,_)=>MovaPlayer(api:a,uiKit:s,fit:declaredFit,posterFade:const Duration(seconds:2),
             poster:poster?const ColoredBox(color:Colors.teal,child:Center(child:Text('COVERAGE POSTER'))):null,
             surface:customSurface?const ColoredBox(color:Colors.orange,child:Center(child:Text('CUSTOM SURFACE'))):null))))),
   ])))));
@@ -465,5 +465,5 @@ class CoverageBadge extends MovaComponent {
   @override
   MovaSlot get slot=>MovaSlot.overlay;
   @override
-  Widget build(BuildContext context,MovaApi api,List<Widget> children)=>const Positioned(top:100,left:30,child:Text('PATCH VISIBLE',style:TextStyle(color:Colors.red,fontSize:30)));
+  Widget build(BuildContext context,IMovaApi api,List<Widget> children)=>const Positioned(top:100,left:30,child:Text('PATCH VISIBLE',style:TextStyle(color:Colors.red,fontSize:30)));
 }

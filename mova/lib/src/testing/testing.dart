@@ -1,11 +1,11 @@
 import 'hooks.dart';
 import 'test_kernel.dart';
 
-/// Switches `createMovaEngine()` to [MovaTestKernel]s for the current test, so
-/// widgets that build their engine through it (`MovaView`, or your own code)
+/// Switches `createMova()` to [MovaTestKernel]s for the current test, so
+/// widgets that build their player through it (`MovaView`, or your own code)
 /// can be pumped without `MediaKit.ensureInitialized()`.
 ///
-/// 在当前测试里把 `createMovaEngine()` 切换为使用 [MovaTestKernel]，让经由它构建引擎的
+/// 在当前测试里把 `createMova()` 切换为使用 [MovaTestKernel]，让经由它构建播放器的
 /// 组件（`MovaView` 或你自己的代码）无需 `MediaKit.ensureInitialized()` 即可 pump。
 ///
 /// Example / 示例:
@@ -16,11 +16,11 @@ import 'test_kernel.dart';
 abstract final class MovaTesting {
   static final List<MovaTestKernel> _kernels = <MovaTestKernel>[];
 
-  /// While installed, `createMovaEngine()` builds `MovaEngine(kernel: factory())`
+  /// While installed, `createMova()` builds `Mova(kernel: factory())`
   /// with no-op platform ports and a memory-only thumbnail cache; an explicitly
   /// passed `kernel:`/port still wins.
   ///
-  /// 安装期间，`createMovaEngine()` 构建 `MovaEngine(kernel: factory())`，平台端口用空
+  /// 安装期间，`createMova()` 构建 `Mova(kernel: factory())`，平台端口用空
   /// 实现、缩略图只用内存缓存；显式传入的 `kernel:`/端口仍然优先。
   ///
   /// - [factory]: builds each kernel; defaults to a plain [MovaTestKernel] / 构建每个内核；默认是普通的 [MovaTestKernel]

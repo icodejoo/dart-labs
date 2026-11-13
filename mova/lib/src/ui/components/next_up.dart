@@ -17,29 +17,29 @@ import '../slots/slot.dart';
 /// disabled, there is no next item, or the host dismissed it for this item.
 ///
 /// Host-wired: the host constructs a [MovaPlaylist] and passes it in
-/// (e.g. via a skin patch), since the running index lives on the controller,
-/// not on [MovaApi]. Visibility is driven off the throttled progress stream vs.
-/// [MovaState.duration] and [MovaPlaylistConfig.nextUpLeadTime].
+/// (e.g. via a UI kit patch), since the running index lives on [MovaPlaylist],
+/// not on [IMovaApi]. Visibility is driven off the throttled progress stream vs.
+/// [MovaState.duration] and [MovaPlaylistOpts.nextUpLeadTime].
 ///
 /// "下一集"卡片：当前项临近结束时淡入，提供一键跳到下一项。播放列表关闭、没有
 /// 下一项、或宿主已对本项关闭卡片时，不渲染任何内容。
 ///
-/// 由宿主接线：宿主构造一个 [MovaPlaylist] 传入（例如经皮肤补丁），因为
-/// 运行时下标在控制器上、不在 [MovaApi] 上。显隐由节流进度流对比
-/// [MovaState.duration] 与 [MovaPlaylistConfig.nextUpLeadTime] 决定。
+/// 由宿主接线：宿主构造一个 [MovaPlaylist] 传入（例如经 UI 套件补丁），因为
+/// 运行时下标在 [MovaPlaylist] 上、不在 [IMovaApi] 上。显隐由节流进度流对比
+/// [MovaState.duration] 与 [MovaPlaylistOpts.nextUpLeadTime] 决定。
 class MovaNextUpComponent extends MovaComponent {
-  /// Creates the next-up card bound to [controller].
+  /// Creates the next-up card bound to [playlist].
   ///
-  /// 创建绑定到 [controller] 的下一集卡片。
+  /// 创建绑定到 [playlist] 的下一集卡片。
   ///
-  /// - [controller]: the playlist controller driving navigation / 驱动导航的
-  ///   播放列表控制器
-  MovaNextUpComponent(this.controller);
+  /// - [playlist]: the playlist driving navigation / 驱动导航的
+  ///   播放列表（[MovaPlaylist]）
+  MovaNextUpComponent(this.playlist);
 
-  /// The playlist controller this card reads and drives.
+  /// The playlist this card reads and drives.
   ///
-  /// 该卡片读取并驱动的播放列表控制器。
-  final MovaPlaylist controller;
+  /// 该卡片读取并驱动的播放列表。
+  final MovaPlaylist playlist;
 
   /// This component's path segment for `MovaPatch` addressing.
   ///
@@ -53,39 +53,39 @@ class MovaNextUpComponent extends MovaComponent {
   MovaSlot get slot => MovaSlot.overlay;
 
   @override
-  Widget build(BuildContext context, MovaApi api, List<Widget> children) {
+  Widget build(BuildContext context, IMovaApi api, List<Widget> children) {
     if (!api.options.playlist.enabled) return const SizedBox.shrink();
     // A replacement playlist owns fresh subscriptions and dismissal state.
     //
     // 替换后的播放列表使用新的订阅与关闭状态。
     return _NextUpView(
-      key: ObjectKey(controller),
+      key: ObjectKey(playlist),
       api: api,
-      controller: controller,
+      playlist: playlist,
     );
   }
 }
 
 /// Stateful body of [MovaNextUpComponent]: tracks visibility from progress ticks
-/// and resets when the controller moves to another item.
+/// and resets when the playlist moves to another item.
 ///
-/// [MovaNextUpComponent] 的有状态主体：依进度 tick 跟踪显隐，并在控制器切到另一项
+/// [MovaNextUpComponent] 的有状态主体：依进度 tick 跟踪显隐，并在播放列表切到另一项
 /// 时重置。
 class _NextUpView extends StatefulWidget {
   /// Creates the internal next-up view.
   ///
   /// 创建内部的下一集视图。
-  const _NextUpView({super.key, required this.api, required this.controller});
+  const _NextUpView({super.key, required this.api, required this.playlist});
 
   /// The capability surface followed for position/duration.
   ///
   /// 用于跟随位置/时长的能力面。
-  final MovaApi api;
+  final IMovaApi api;
 
-  /// The playlist controller providing the next item and navigation.
+  /// The playlist providing the next item and navigation.
   ///
-  /// 提供下一项与导航的播放列表控制器。
-  final MovaPlaylist controller;
+  /// 提供下一项与导航的播放列表。
+  final MovaPlaylist playlist;
 
   @override
   State<_NextUpView> createState() => _NextUpViewState();
@@ -119,7 +119,7 @@ class _NextUpViewState extends State<_NextUpView> with MovaPlugin<_NextUpView> {
   void initState() {
     super.initState();
     bind(api.progress, _onProgress);
-    final session = movaPlaylistSessions[widget.controller];
+    final session = movaPlaylistSessions[widget.playlist];
     if (session != null) {
       _sessionEpoch = session.cursor.epoch;
       _sessionNode = session.cursor.node;
@@ -141,7 +141,7 @@ class _NextUpViewState extends State<_NextUpView> with MovaPlugin<_NextUpView> {
     // next lead-time window is entered.
     //
     // 切到新项时重新武装卡片：清除关闭标记并隐藏，直到进入下一次提前量窗口。
-    bind(widget.controller.indexChanges, (_) {
+    bind(widget.playlist.indexChanges, (_) {
       setState(() {
         _dismissed = false;
         _visible = false;
@@ -159,10 +159,10 @@ class _NextUpViewState extends State<_NextUpView> with MovaPlugin<_NextUpView> {
     final duration = widget.api.state.duration;
     final lead = widget.api.options.playlist.nextUpLeadTime;
     final remaining = duration - p.position;
-    final session = movaPlaylistSessions[widget.controller];
+    final session = movaPlaylistSessions[widget.playlist];
     final show =
         (session == null || session.cursor.phase == MovaSessionPhase.content) &&
-        widget.controller.hasNext &&
+        widget.playlist.hasNext &&
         !_dismissed &&
         duration > Duration.zero &&
         remaining > Duration.zero &&
@@ -175,7 +175,7 @@ class _NextUpViewState extends State<_NextUpView> with MovaPlugin<_NextUpView> {
   /// 构建下一集卡片，使封面与失败占位尺寸一致。
   @override
   Widget build(BuildContext context) {
-    final next = widget.controller.nextItem;
+    final next = widget.playlist.nextItem;
     if (!_visible || next == null) return const SizedBox.shrink();
     final theme = MovaPlayerStyle.themeOf(context);
     final strings = MovaPlayerStyle.stringsOf(context);
@@ -266,7 +266,7 @@ class _NextUpViewState extends State<_NextUpView> with MovaPlugin<_NextUpView> {
                     label: strings.playNow,
                     color: theme.accentColor,
                     filled: true,
-                    onTap: () => widget.controller.next(),
+                    onTap: () => widget.playlist.next(),
                   ),
                 ],
               ),

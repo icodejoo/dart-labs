@@ -7,11 +7,11 @@ bool cp2BgownerViewOnly = false;
 Future<void> runBgowner(Cp2Harness h) async {
   for(final variant in cp2BgownerViewOnly ? ['view'] : ['plain','view']) {
     for(var run=0;run<h.runs;run++) {
-      final api=cp2Engine(h);final source=cp2Source('long');
+      final api=cp2Mova(h);final source=cp2Source('long');
       if(variant=='view') {
         // A null source renders only the placeholder, without MovaAutoPause.
         // Let the view own opening the same source whose lifecycle we verify.
-        h.customSurface=MovaView(source:source,engineFactory:(_)=>api,autoPause:const MovaAutoPauseConfig());
+        h.customSurface=MovaView(source:source,movaFactory:(_)=>api,autoPause:const MovaAutoPauseOpts());
       } else { h.guarded=variant!='plain'; }
       await h.mount(api);
       try {

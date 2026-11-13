@@ -8,7 +8,7 @@ V2：44100Hz 双声道源 3/3 PASS，48000Hz 单声道源 3/3 PASS。
 每次安装/启动前 dumpsys window 均为 isKeyguardShowing=false。
 
 测量依据：
-V1 为真实文件路径、随机 token、engine_* 目录列表、Directory.stat 和扫描后的文件存在性。
+V1 为真实文件路径、随机 token、mova_* 目录列表、Directory.stat 和扫描后的文件存在性。
 阶段一不 dispose；外部 am force-stop 后 pidof 为空，再安装阶段二保留应用数据并重启。
 V2 调用未注入参数的 MovaAudioExtractor()，等待其返回并关闭播放器后读取真实 WAV。
 遍历 RIFF fmt/data 块，时长 = dataBytes / blockAlign / sampleRate，不使用墙钟推断时长。
@@ -18,11 +18,11 @@ mono48000 为 440Hz，384000 帧。均 signed 16bit、精确 8 秒。
 
 逐轮数字：
 轮次  A目录          B目录          阶段1→重启数  第二provider后  第三provider后  旧目录年龄(s)  结果
-1     engine_HVWHAK  engine_OHBBAD  1→1           2               3               691200         PASS
-2     engine_CNFAMH  engine_ZLJWKO  1→1           2               3               691200         PASS
-3     engine_PUTGEC  engine_QENYOE  1→1           2               3               691200         PASS
-第三个 provider 三轮均收养 engine_fresh，engine_old 均被删除，A/B 均保留。
-每轮释放 provider 后，本轮 engine_*、marker、mtime stamp、状态文件均已删除，remaining=[]。
+1     mova_HVWHAK  mova_OHBBAD  1→1           2               3               691200         PASS
+2     mova_CNFAMH  mova_ZLJWKO  1→1           2               3               691200         PASS
+3     mova_PUTGEC  mova_QENYOE  1→1           2               3               691200         PASS
+第三个 provider 三轮均收养 mova_fresh，mova_old 均被删除，A/B 均保留。
+每轮释放 provider 后，本轮 mova_*、marker、mtime stamp、状态文件均已删除，remaining=[]。
 
 V2 六次均：channels=1 sampleRate=16000 bitsPerSample=16 format=65534
           dataBytes=256000 fileBytes=256068 seconds=8.0，绝对误差 0.0 秒。
@@ -33,7 +33,7 @@ V2 六次均：channels=1 sampleRate=16000 bitsPerSample=16 format=65534
 
 发现的问题与方法偏差：
 1. Android 的 File(directoryPath).setLastModified 不支持目录，错误原文：
-   FileSystemException: Cannot set modification time, path = '/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_old' (OS Error: Is a directory, errno = 21)
+   FileSystemException: Cannot set modification time, path = '/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/mova_old' (OS Error: Is a directory, errno = 21)
    首次脚本三轮均因该夹具问题中断，不能算完整验收；原始输出保留在 pilot-file-mtime-error/。
    修正后的验收仍记录此 API 的真实错误，再以 File.setLastModified 设置临时 stamp，
    读取真实文件 mtime，经 libc.utime 写入目录，最后 Directory.stat 确认实际年龄。
@@ -74,30 +74,30 @@ adb -s 7NQBB23606003715 reverse --remove-all
 
 以下为每个检查项每次运行的真实输出行（逐字摘录，未缩短路径）：
 
-RFV cycle=1 phase=1 PASS V1_PREPARE A=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_HVWHAK token=a6a03d8965de59a9841a2a40f4c6319a count=1 engines=["engine_HVWHAK"] disposed=false
-RFV cycle=1 phase=2 PASS V1_ADOPT A=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_HVWHAK expected=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_HVWHAK token=a6a03d8965de59a9841a2a40f4c6319a expectedToken=a6a03d8965de59a9841a2a40f4c6319a
-RFV cycle=1 phase=2 PASS V1_COUNT before=1 after=1 engines=["engine_HVWHAK"]
-RFV cycle=1 phase=2 PASS V1_SECOND A=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_HVWHAK B=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_OHBBAD AExists=true tokenIntact=true count=2 engines=["engine_HVWHAK","engine_OHBBAD"]
-RFV cycle=1 phase=2 PASS V1_LEGACY_SETUP old=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_old ageSeconds=691200 fresh=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_fresh oldLease=false freshLease=false
-RFV cycle=1 phase=2 PASS V1_PRUNE C=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_fresh oldExists=false freshExists=true count=3 engines=["engine_HVWHAK","engine_OHBBAD","engine_fresh"]
+RFV cycle=1 phase=1 PASS V1_PREPARE A=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/mova_HVWHAK token=a6a03d8965de59a9841a2a40f4c6319a count=1 movas=["mova_HVWHAK"] disposed=false
+RFV cycle=1 phase=2 PASS V1_ADOPT A=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/mova_HVWHAK expected=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/mova_HVWHAK token=a6a03d8965de59a9841a2a40f4c6319a expectedToken=a6a03d8965de59a9841a2a40f4c6319a
+RFV cycle=1 phase=2 PASS V1_COUNT before=1 after=1 movas=["mova_HVWHAK"]
+RFV cycle=1 phase=2 PASS V1_SECOND A=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/mova_HVWHAK B=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/mova_OHBBAD AExists=true tokenIntact=true count=2 movas=["mova_HVWHAK","mova_OHBBAD"]
+RFV cycle=1 phase=2 PASS V1_LEGACY_SETUP old=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/mova_old ageSeconds=691200 fresh=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/mova_fresh oldLease=false freshLease=false
+RFV cycle=1 phase=2 PASS V1_PRUNE C=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/mova_fresh oldExists=false freshExists=true count=3 movas=["mova_HVWHAK","mova_OHBBAD","mova_fresh"]
 RFV cycle=1 phase=2 PASS V2_WAV source=stereo44100 run=1 path=/data/user/0/com.icodejoo.mova.mova_example/cache/mova_stt_audio_1793956873968656.wav channels=1 sampleRate=16000 bitsPerSample=16 format=65534 dataBytes=256000 seconds=8.0 fileBytes=256068
 RFV cycle=1 phase=2 PASS V2_WAV source=stereo44100 run=2 path=/data/user/0/com.icodejoo.mova.mova_example/cache/mova_stt_audio_1793956874178909.wav channels=1 sampleRate=16000 bitsPerSample=16 format=65534 dataBytes=256000 seconds=8.0 fileBytes=256068
 RFV cycle=1 phase=2 PASS V2_WAV source=stereo44100 run=3 path=/data/user/0/com.icodejoo.mova.mova_example/cache/mova_stt_audio_1793956874328446.wav channels=1 sampleRate=16000 bitsPerSample=16 format=65534 dataBytes=256000 seconds=8.0 fileBytes=256068
 RFV cycle=1 phase=2 PASS V2_WAV source=mono48000 run=1 path=/data/user/0/com.icodejoo.mova.mova_example/cache/mova_stt_audio_1793956874450610.wav channels=1 sampleRate=16000 bitsPerSample=16 format=65534 dataBytes=256000 seconds=8.0 fileBytes=256068
 RFV cycle=1 phase=2 PASS V2_WAV source=mono48000 run=2 path=/data/user/0/com.icodejoo.mova.mova_example/cache/mova_stt_audio_1793956874556647.wav channels=1 sampleRate=16000 bitsPerSample=16 format=65534 dataBytes=256000 seconds=8.0 fileBytes=256068
 RFV cycle=1 phase=2 PASS V2_WAV source=mono48000 run=3 path=/data/user/0/com.icodejoo.mova.mova_example/cache/mova_stt_audio_1793956874701620.wav channels=1 sampleRate=16000 bitsPerSample=16 format=65534 dataBytes=256000 seconds=8.0 fileBytes=256068
-RFV cycle=2 phase=1 PASS V1_PREPARE A=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_CNFAMH token=feeded810a3b7c715375bd73dd95c54b count=1 engines=["engine_CNFAMH"] disposed=false
-RFV cycle=2 phase=2 PASS V1_ADOPT A=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_CNFAMH expected=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_CNFAMH token=feeded810a3b7c715375bd73dd95c54b expectedToken=feeded810a3b7c715375bd73dd95c54b
-RFV cycle=2 phase=2 PASS V1_COUNT before=1 after=1 engines=["engine_CNFAMH"]
-RFV cycle=2 phase=2 PASS V1_SECOND A=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_CNFAMH B=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_ZLJWKO AExists=true tokenIntact=true count=2 engines=["engine_CNFAMH","engine_ZLJWKO"]
-RFV cycle=2 phase=2 PASS V1_LEGACY_SETUP old=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_old ageSeconds=691200 fresh=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_fresh oldLease=false freshLease=false
-RFV cycle=2 phase=2 PASS V1_PRUNE C=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_fresh oldExists=false freshExists=true count=3 engines=["engine_CNFAMH","engine_ZLJWKO","engine_fresh"]
-RFV cycle=3 phase=1 PASS V1_PREPARE A=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_PUTGEC token=a067eb67e09ccabbe76ba999d0ec694b count=1 engines=["engine_PUTGEC"] disposed=false
-RFV cycle=3 phase=2 PASS V1_ADOPT A=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_PUTGEC expected=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_PUTGEC token=a067eb67e09ccabbe76ba999d0ec694b expectedToken=a067eb67e09ccabbe76ba999d0ec694b
-RFV cycle=3 phase=2 PASS V1_COUNT before=1 after=1 engines=["engine_PUTGEC"]
-RFV cycle=3 phase=2 PASS V1_SECOND A=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_PUTGEC B=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_QENYOE AExists=true tokenIntact=true count=2 engines=["engine_PUTGEC","engine_QENYOE"]
-RFV cycle=3 phase=2 PASS V1_LEGACY_SETUP old=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_old ageSeconds=691200 fresh=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_fresh oldLease=false freshLease=false
-RFV cycle=3 phase=2 PASS V1_PRUNE C=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_fresh oldExists=false freshExists=true count=3 engines=["engine_PUTGEC","engine_QENYOE","engine_fresh"]
+RFV cycle=2 phase=1 PASS V1_PREPARE A=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/mova_CNFAMH token=feeded810a3b7c715375bd73dd95c54b count=1 movas=["mova_CNFAMH"] disposed=false
+RFV cycle=2 phase=2 PASS V1_ADOPT A=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/mova_CNFAMH expected=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/mova_CNFAMH token=feeded810a3b7c715375bd73dd95c54b expectedToken=feeded810a3b7c715375bd73dd95c54b
+RFV cycle=2 phase=2 PASS V1_COUNT before=1 after=1 movas=["mova_CNFAMH"]
+RFV cycle=2 phase=2 PASS V1_SECOND A=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/mova_CNFAMH B=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/mova_ZLJWKO AExists=true tokenIntact=true count=2 movas=["mova_CNFAMH","mova_ZLJWKO"]
+RFV cycle=2 phase=2 PASS V1_LEGACY_SETUP old=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/mova_old ageSeconds=691200 fresh=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/mova_fresh oldLease=false freshLease=false
+RFV cycle=2 phase=2 PASS V1_PRUNE C=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/mova_fresh oldExists=false freshExists=true count=3 movas=["mova_CNFAMH","mova_ZLJWKO","mova_fresh"]
+RFV cycle=3 phase=1 PASS V1_PREPARE A=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/mova_PUTGEC token=a067eb67e09ccabbe76ba999d0ec694b count=1 movas=["mova_PUTGEC"] disposed=false
+RFV cycle=3 phase=2 PASS V1_ADOPT A=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/mova_PUTGEC expected=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/mova_PUTGEC token=a067eb67e09ccabbe76ba999d0ec694b expectedToken=a067eb67e09ccabbe76ba999d0ec694b
+RFV cycle=3 phase=2 PASS V1_COUNT before=1 after=1 movas=["mova_PUTGEC"]
+RFV cycle=3 phase=2 PASS V1_SECOND A=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/mova_PUTGEC B=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/mova_QENYOE AExists=true tokenIntact=true count=2 movas=["mova_PUTGEC","mova_QENYOE"]
+RFV cycle=3 phase=2 PASS V1_LEGACY_SETUP old=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/mova_old ageSeconds=691200 fresh=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/mova_fresh oldLease=false freshLease=false
+RFV cycle=3 phase=2 PASS V1_PRUNE C=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/mova_fresh oldExists=false freshExists=true count=3 movas=["mova_PUTGEC","mova_QENYOE","mova_fresh"]
 
 进程退出与最终清理原始输出：
 

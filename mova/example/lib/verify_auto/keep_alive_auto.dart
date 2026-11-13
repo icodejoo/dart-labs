@@ -14,13 +14,13 @@ import 'package:mova/src/platform_impl/mpv_event_backend_ffi.dart';
 import 'auto_kit.dart';
 
 /// Scripted AUTORUN mode of `main_keep_alive_verify.dart` (plan
-/// doc/plans/2026-10-23-standby-mode.md, Task 10). Covers the items that do not
+/// doc/plans/2026-10-23-keep-alive-mode.md, Task 10). Covers the items that do not
 /// need Android: S1-S6, S13, S14, S15, S16 and the TickerMode/source-change part
 /// of S17, each [autoRuns] times. S7, S8, S8B are opt-in (`ONLY=S7` ...) and meant for Android
 /// (S8/S8B wait for an operator at the printed `WAIT_*` markers); S9-S12 are not scripted here.
 ///
 /// Every duration comes from real events: `MovaKeepAliveResume.elapsed` (taken by the
-/// engine at the wake-up call and at the landing), `MovaFirstFrame.sinceOpen`,
+/// player at the wake-up call and at the landing), `MovaFirstFrame.sinceOpen`,
 /// event arrival on one monotonic clock and kernel property reads. No seek goes
 /// near EOF and every open appends `?t=<microseconds>`. CPU and traffic are not
 /// measurable from inside the page: the script prints `PHASE <name> begin/end`
@@ -31,7 +31,7 @@ import 'auto_kit.dart';
 /// S1–S6、S13、S14、S15、S16，以及 S17 里 TickerMode/隐藏期间换源的部分，各跑 [autoRuns] 次。
 /// S7–S9、S11 需要 Android；S10/S12 计划里不实现。
 ///
-/// 所有耗时都来自真实事件：`MovaKeepAliveResume.elapsed`（引擎在唤醒调用与落地处取时）、
+/// 所有耗时都来自真实事件：`MovaKeepAliveResume.elapsed`（播放器在唤醒调用与落地处取时）、
 /// `MovaFirstFrame.sinceOpen`、同一单调时钟上的事件到达、内核属性读取。不 seek 到临近 EOF，
 /// 每次打开都追加 `?t=<微秒>`。CPU 与流量在页面内测不了：脚本打印 `PHASE <name> begin/end`
 /// 行（带墙钟时间，仅用于和外部采样器对齐），流量由源服务器按连接记录。
@@ -109,18 +109,18 @@ List<int> parseInts(String raw) => [
   for (final s in raw.split(',')) ?int.tryParse(s.trim()),
 ];
 
-/// One engine configuration of the script.
+/// One player configuration of the script.
 ///
-/// 脚本里的一组引擎配置。
+/// 脚本里的一组播放器配置。
 class _Cfg {
   const _Cfg({
     required this.source,
-    this.keepAlive = const MovaKeepAliveConfig(maxDuration: Duration(seconds: 300)),
+    this.keepAlive = const MovaKeepAliveOpts(maxDuration: Duration(seconds: 300)),
     this.guard = false,
   });
 
   final MovaSource source;
-  final MovaKeepAliveConfig keepAlive;
+  final MovaKeepAliveOpts keepAlive;
   final bool guard;
 }
 
@@ -158,7 +158,7 @@ class KeepAliveAutoPage extends StatefulWidget {
 }
 
 class _KeepAliveAutoPageState extends State<KeepAliveAutoPage> with WidgetsBindingObserver {
-  final AutoLog _out = AutoLog('[STANDBY]');
+  final AutoLog _out = AutoLog('[KEEP_ALIVE]');
   final Stopwatch _clock = Stopwatch()..start();
   final Samples _samples = Samples();
   final Map<String, int> _pass = <String, int>{};
@@ -171,8 +171,8 @@ class _KeepAliveAutoPageState extends State<KeepAliveAutoPage> with WidgetsBindi
   _Cfg? _cfg;
   int _epoch = 0;
   bool _tickerOn = true;
-  Completer<void>? _engineReady;
-  MovaApi? _api;
+  Completer<void>? _movaReady;
+  IMovaApi? _api;
   Player? _player;
   MovaMpvKernel? _kernel;
   EventRecorder<MovaEvent>? _ev;
@@ -264,8 +264,8 @@ class _KeepAliveAutoPageState extends State<KeepAliveAutoPage> with WidgetsBindi
     return MovaSource(stamped, type: MovaStreamType.live);
   }
 
-  /// Builds the engine on a kernel we hold, so mpv properties and stats can be read.
-  MovaApi _makeEngine(MovaOpts options) {
+  /// Builds the player on a kernel we hold, so mpv properties and stats can be read.
+  IMovaApi _makeMova(MovaOpts options) {
     final player = Player();
     final kernel = MovaMpvKernel(
       player: player,
@@ -276,10 +276,10 @@ class _KeepAliveAutoPageState extends State<KeepAliveAutoPage> with WidgetsBindi
     );
     _player = player;
     _kernel = kernel;
-    return createMovaEngine(kernel: kernel, options: options, preciseFirstFrame: true);
+    return createMova(kernel: kernel, options: options, preciseFirstFrame: true);
   }
 
-  void _onEngine(MovaApi api) {
+  void _onMova(IMovaApi api) {
     _api = api;
     _ev = EventRecorder<MovaEvent>(api.events, clock: _clock);
     _pg = EventRecorder<MovaProg>(api.progress, clock: _clock);
@@ -291,7 +291,7 @@ class _KeepAliveAutoPageState extends State<KeepAliveAutoPage> with WidgetsBindi
         'signal': e.signal?.name, 'from': e.from?.name},
         'state': {'keepAlive': api.state.keepAlivePhase.name, 'rendered': api.state.rendered}})}');
     });
-    _engineReady?.complete();
+    _movaReady?.complete();
   }
 
   Future<void> _stop() async {
@@ -312,12 +312,12 @@ class _KeepAliveAutoPageState extends State<KeepAliveAutoPage> with WidgetsBindi
 
   Future<void> _start(_Cfg cfg) async {
     await _stop();
-    _engineReady = Completer<void>();
+    _movaReady = Completer<void>();
     setState(() {
       _cfg = cfg;
       _epoch++;
     });
-    await _engineReady!.future.timeout(const Duration(seconds: 10));
+    await _movaReady!.future.timeout(const Duration(seconds: 10));
   }
 
   Future<Stamped<MovaFirstFrame>?> _firstFrame({int from = 0}) =>
@@ -341,14 +341,14 @@ class _KeepAliveAutoPageState extends State<KeepAliveAutoPage> with WidgetsBindi
     }
   }
 
-  Future<MovaKeepAlivePhase> _keepAlive(bool on) => (_api! as MovaKeepAlive).setKeepAlive(on);
+  Future<MovaKeepAlivePhase> _keepAlive(bool on) => (_api! as IMovaKeepAlive).setKeepAlive(on);
 
   MovaProg? get _lastProg => _pg!.log.lastOrNull?.event;
 
   /// Enters keepAlive, waits [hold], wakes, and returns what the resume event reported (null on timeout)
   /// plus [decodedMs]: ms from the wake call until mpv reports video-out params again (a kernel
   /// property polled every 30 ms, so it is the first decoded frame as the decoder sees it, independent
-  /// of the engine's own landing signal; null when the video never came back within 8 s).
+  /// of the player's own landing signal; null when the video never came back within 8 s).
   Future<({MovaKeepAlivePhase phase, MovaKeepAliveChange? entered, Stamped<MovaKeepAliveResume>? resume, int? decodedMs})> _cycle(Duration hold) async {
     final m0 = _ev!.mark;
     final phase = await _keepAlive(true);
@@ -403,7 +403,7 @@ class _KeepAliveAutoPageState extends State<KeepAliveAutoPage> with WidgetsBindi
   /// S2: can HLS be held (allowHls), what `file-format` reads, does the hold keep the playlist moving.
   Future<void> _s2(int run) async {
     for (final allow in <bool>[false, true]) {
-      final cfg = _Cfg(source: _src(kHlsUrl), keepAlive: MovaKeepAliveConfig(maxDuration: const Duration(seconds: 300), allowHls: allow));
+      final cfg = _Cfg(source: _src(kHlsUrl), keepAlive: MovaKeepAliveOpts(maxDuration: const Duration(seconds: 300), allowHls: allow));
       if (!await _play(cfg)) {
         _verdict('S2', false, 'allowHls=$allow never rendered');
         continue;
@@ -513,7 +513,7 @@ class _KeepAliveAutoPageState extends State<KeepAliveAutoPage> with WidgetsBindi
   /// kernel muted mode bypasses that decision and can end the FLV demuxer.
   Future<void> _s6(int run) async {
     // 本场景验证显式暂停策略；默认 keepDecoding 应由 S3 继续验证。
-    if (!await _play(_Cfg(source: _src(_live(audio: false)), keepAlive: const MovaKeepAliveConfig(
+    if (!await _play(_Cfg(source: _src(_live(audio: false)), keepAlive: const MovaKeepAliveOpts(
       maxDuration: Duration(seconds: 300), silentStreams: MovaSilentKeepAlive.pause,
     )))) {
       return _verdict('S6', false, 'never rendered');
@@ -694,7 +694,7 @@ class _KeepAliveAutoPageState extends State<KeepAliveAutoPage> with WidgetsBindi
 
   /// S17 (the part this page can drive): guard keepAlive via TickerMode, and a source change while hidden.
   Future<void> _s17(int run) async {
-    final cfg = _Cfg(source: _src(_live()), guard: true, keepAlive: const MovaKeepAliveConfig(maxDuration: Duration(seconds: 300)));
+    final cfg = _Cfg(source: _src(_live()), guard: true, keepAlive: const MovaKeepAliveOpts(maxDuration: Duration(seconds: 300)));
     if (!await _play(cfg)) return _verdict('S17', false, 'never rendered');
     var m = _ev!.mark;
     setState(() => _tickerOn = false);
@@ -796,11 +796,11 @@ class _KeepAliveAutoPageState extends State<KeepAliveAutoPage> with WidgetsBindi
                   source: cfg.source,
                   fit: MovaFit.cover,
                   poster: const ColoredBox(color: Color(0xFF223344), child: Center(child: Text('POSTER'))),
-                  skin: const MovaMinimalSkin(),
-                  options: MovaOpts(recovery: const MovaRecoveryConfig(enabled: true), keepAlive: cfg.keepAlive),
-                  autoPause: cfg.guard ? const MovaAutoPauseConfig(hiddenMode: MovaHiddenMode.keepAlive) : null,
-                  engineFactory: _makeEngine,
-                  onEngine: _onEngine,
+                  uiKit: const MovaMinimalUiKit(),
+                  options: MovaOpts(recovery: const MovaRecoveryOpts(enabled: true), keepAlive: cfg.keepAlive),
+                  autoPause: cfg.guard ? const MovaAutoPauseOpts(hiddenMode: MovaHiddenMode.keepAlive) : null,
+                  movaFactory: _makeMova,
+                  onMova: _onMova,
                   onOpenError: (e, s) => _log('openError $e'),
                 ),
               ),

@@ -26,25 +26,25 @@ const String kSlow = 'http://127.0.0.1:8099';
 /// 输出一行。
 void _out(String m) => print(m);
 
-/// 单个场景：起 engine、收集上报事件、执行脚本、dispose，返回事件列表。
+/// 单个场景：起播放器、收集上报事件、执行脚本、dispose，返回事件列表。
 Future<List<MovaReportEvent>> _scenario(
   String tag, {
   required bool qoe,
-  required Future<void> Function(MovaEngine e) script,
+  required Future<void> Function(Mova e) script,
 }) async {
   final events = <MovaReportEvent>[];
-  final engine = createMovaEngine(
+  final mova = createMova(
     audioOnly: true,
-    options: MovaOpts(report: MovaReportConfig(qoe: qoe, minStall: const Duration(milliseconds: 200))),
+    options: MovaOpts(report: MovaReportOpts(qoe: qoe, minStall: const Duration(milliseconds: 200))),
     reporter: MovaCallbackReporter(events.add),
   );
   final t0 = DateTime.now();
   try {
-    await script(engine);
+    await script(mova);
   } catch (e) {
     _out('$tag SCRIPT_ERROR $e');
   }
-  await engine.dispose();
+  await mova.dispose();
   await Future<void>.delayed(const Duration(milliseconds: 500));
   _out('--- $tag qoe=$qoe events=${events.length}');
   for (final ev in events) {
@@ -70,10 +70,10 @@ Future<void> _run() async {
       backendFactory: (n, a) => createFfiMpvEventBackend(n, a, pollInDebug: false),
     );
     final evs = <MovaReportEvent>[];
-    final e = createMovaEngine(
+    final e = createMova(
       kernel: k,
       audioOnly: true,
-      options: const MovaOpts(report: MovaReportConfig(qoe: true)),
+      options: const MovaOpts(report: MovaReportOpts(qoe: true)),
       reporter: MovaCallbackReporter(evs.add),
     );
     final t0 = DateTime.now();

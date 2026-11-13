@@ -4,7 +4,7 @@ import 'package:mova/src/core/state/state.dart';
 import 'package:mova/src/ui/components/overlays.dart';
 
 import 'package:mova/src/ui/player.dart';
-import 'package:mova/src/ui/skins/default_skin.dart';
+import 'package:mova/src/ui/ui_kits/default_ui_kit.dart';
 import 'package:mova/src/core/state/ui_state.dart';
 
 import '../support/fake_api.dart';
@@ -47,14 +47,14 @@ void main() {
     await api.dispose();
   });
 
-  testWidgets('自定义皮肤可保留原 center 门控', (t) async {
+  testWidgets('自定义 UI 套件可保留原 center 门控', (t) async {
     final api = FakeMovaApi();
     api.push(const MovaState(locked: true, error: 'boom'));
     await t.pumpWidget(
       MaterialApp(
         home: MovaPlayer(
           api: api,
-          skin: const MovaDefaultSkin(statusLayerNames: {}),
+          uiKit: const MovaDefaultUiKit(statusLayerNames: {}),
         ),
       ),
     );

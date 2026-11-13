@@ -36,7 +36,7 @@
 
 - 开始收尾：经现有验证页恢复媒体音量30%=6/20，USB常亮恢复7，force-stop隔离包；保留原生设置、进程与屏幕状态，再结束仅本次启动的两个源进程。
 
-- 收尾检查点：隔离包pid为空（force-stop），USB常亮=7，媒体streamVolume=6/20；仍isKeyguardShowing=false、mScreenOnFully=true；本次两个源PID已结束，engine.dart哈希与安装时一致。证据 rerun5-final-state.json / rerun5-final-*.txt。
+- 收尾检查点：隔离包pid为空（force-stop），USB常亮=7，媒体streamVolume=6/20；仍isKeyguardShowing=false、mScreenOnFully=true；本次两个源PID已结束，mova.dart哈希与安装时一致。证据 rerun5-final-state.json / rerun5-final-*.txt。
 
 
 ## 基线与 F3/A17 结果
@@ -147,7 +147,7 @@ target为切档前mpv time-pos，>=8000ms才有效；原生位置>20s或<8s时�
 - 隔离包 `com.icodejoo.mova.mova_example.coverage`；安装后 `lastUpdateTime=2026-10-27 22:33:26`；SERVER build=`rerun5-20261027`，[rerun5-start.json](../../example/tool/coverage_evidence/rerun5-start.json)。
 - Gradle APK SHA256：`b6f8ee11b4cf449a86b9189d4e1c3d3f36b22d07cd8580983202420419058c46`。
 - 重签包与设备拉回APK SHA256一致：`da5a30b91d80cf7ee9d83cfae2cbe9becf11f4e7eb2f6a5c3421416652871508`；[rerun5-build-manifest.json](../../example/tool/coverage_evidence/rerun5-build-manifest.json)。
-- engine.dart SHA256：`a0cde4d49f1ccc5f53e066be7231286cce1743eac57965f2266c7388150796d8`，构建前/安装时/收尾一致，包含_abrHold。release APK不携带Dart源文件，源码身份通过编译输入哈希、含engine.dart的编译依赖、编译AOT与Gradle合并产物一致、strip后AOT与设备包一致建立证据链；[rerun5-build-input.json](../../example/tool/coverage_evidence/rerun5-build-input.json)、[rerun5-build-provenance.json](../../example/tool/coverage_evidence/rerun5-build-provenance.json)、[rerun5-build-dependencies.txt](../../example/tool/coverage_evidence/rerun5-build-dependencies.txt)。
+- mova.dart SHA256：`a0cde4d49f1ccc5f53e066be7231286cce1743eac57965f2266c7388150796d8`，构建前/安装时/收尾一致，包含_abrHold。release APK不携带Dart源文件，源码身份通过编译输入哈希、含mova.dart的编译依赖、编译AOT与Gradle合并产物一致、strip后AOT与设备包一致建立证据链；[rerun5-build-input.json](../../example/tool/coverage_evidence/rerun5-build-input.json)、[rerun5-build-provenance.json](../../example/tool/coverage_evidence/rerun5-build-provenance.json)、[rerun5-build-dependencies.txt](../../example/tool/coverage_evidence/rerun5-build-dependencies.txt)。
 - 沿用coverage.init.gradle、原生库LFS SHA256核对、zipalign、既有debug证书重签和安装；[rerun5-build.log](../../example/tool/coverage_evidence/rerun5-build.log)、[rerun5-install.log](../../example/tool/coverage_evidence/rerun5-install.log)、[rerun5-certificate.txt](../../example/tool/coverage_evidence/rerun5-certificate.txt)。
 
 ## 收尾及范围

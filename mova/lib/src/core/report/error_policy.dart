@@ -23,7 +23,7 @@ class MovaErrorVerdict {
 /// Decides whether a playback error is fatal and what stable code it carries.
 ///
 /// 判定一次播放错误是否致命、以及它对应的稳定错误码。
-abstract class MovaErrorPolicy {
+abstract class IMovaErrorPolicy {
   /// [subsystem] is mpv's own log prefix when known (`vd`/`ad`/`stream`/…),
   /// `null` when the error did not come from the log stream.
   /// [afterFirstFrame] says whether playback had already started.
@@ -38,7 +38,7 @@ abstract class MovaErrorPolicy {
 ///
 /// 基于 mpv 日志 prefix 的默认策略；映射表见
 /// `doc/plans/2026-09-29-telemetry-enhancement.md` §D4。
-class MovaPrefixError implements MovaErrorPolicy {
+class MovaPrefixError implements IMovaErrorPolicy {
   /// Creates the default prefix-based error policy.
   ///
   /// 创建默认的基于 prefix 的错误策略。

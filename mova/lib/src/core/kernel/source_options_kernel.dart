@@ -3,14 +3,14 @@
 ///
 /// 可选的内核能力：只对某一个源生效的 libmpv 选项。不具备此能力的内核会直接忽略
 /// `MovaSource.mpvOptions`。
-abstract class MovaSourceOptionsKernel {
+abstract class IMovaSourceOptionsKernel {
   /// Stages [options] for the very next `open()`: that open applies them just
   /// before loading, and every later open first restores what the previous one
-  /// changed — so options never leak into another source. The engine calls this
+  /// changed — so options never leak into another source. The player calls this
   /// right before each `open()` (an empty map when the source has none).
   ///
   /// 为紧随其后的那一次 `open()` 暂存 [options]：该次 open 在加载前下发它们，之后每次 open
-  /// 都会先还原上一次改动过的属性——因此选项不会泄漏到别的源。引擎在每次 `open()` 前调用
+  /// 都会先还原上一次改动过的属性——因此选项不会泄漏到别的源。播放器在每次 `open()` 前调用
   /// （源没有选项时传空 Map）。
   ///
   /// `demuxer-lavf-o` 这类键值列表选项只并入本源的键（不整体覆盖），还原时只删这些键、

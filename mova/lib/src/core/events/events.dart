@@ -1,17 +1,17 @@
 import '../model/fit.dart';
-import '../model/orientation.dart';
+import '../model/orient_mode.dart';
 import '../model/quality.dart';
 import '../model/source.dart';
-import '../options/preview_config.dart';
-import '../options/stt_config.dart';
+import '../options/preview_opts.dart';
+import '../options/stt_opts.dart';
 import '../recovery/fail.dart';
 import '../render/first_frame.dart';
 import '../keep_alive/keep_alive.dart';
-import '../cutover/ctl.dart';
+import '../cutover/api.dart';
 
-/// Base type of everything broadcast on [MovaApi.events].
+/// Base type of everything broadcast on [IMovaApi.events].
 ///
-/// [MovaApi.events] 上广播的所有事件的基类。
+/// [IMovaApi.events] 上广播的所有事件的基类。
 sealed class MovaEvent {
   /// Base constructor.
   ///
@@ -346,16 +346,16 @@ class MovaFullScreenChange extends MovaEvent {
 /// The forced screen-orientation override changed.
 ///
 /// 强制屏幕方向覆盖发生变化。
-class MovaOrientationChange extends MovaEvent {
+class MovaOrientChange extends MovaEvent {
   /// The new forced-orientation override.
   ///
   /// 新的强制方向覆盖值。
-  final MovaOrientation orientation;
+  final MovaOrientMode orient;
 
-  /// Creates the event with [orientation].
+  /// Creates the event with [orient].
   ///
-  /// 用 [orientation] 创建事件。
-  const MovaOrientationChange(this.orientation);
+  /// 用 [orient] 创建事件。
+  const MovaOrientChange(this.orient);
 }
 
 /// The picture-in-picture state changed.
@@ -470,9 +470,9 @@ enum MovaCutoverEndReason {
   disposed,
 }
 
-/// A seamless engine cutover transitioned to a new phase.
+/// A seamless player cutover transitioned to a new phase.
 ///
-/// 无缝引擎切换迁移到了新的阶段。
+/// 无缝播放器切换迁移到了新的阶段。
 class MovaCutoverChange extends MovaEvent {
   /// The phase now in effect.
   ///
@@ -532,10 +532,10 @@ class MovaErrorEvent extends MovaEvent {
 }
 
 /// A playback attempt failed and recovery decided what to do. Only fires when
-/// `MovaRecoveryConfig.enabled`. Not an error by itself — `MovaState.error` is
+/// `MovaRecoveryOpts.enabled`. Not an error by itself — `MovaState.error` is
 /// set only once recovery gives up.
 ///
-/// 一次播放尝试失败，recovery 已决定如何处理。仅在 `MovaRecoveryConfig.enabled`
+/// 一次播放尝试失败，recovery 已决定如何处理。仅在 `MovaRecoveryOpts.enabled`
 /// 时触发。它本身不是错误——只有 recovery 放弃时才写 `MovaState.error`。
 ///
 /// Example / 示例:
@@ -552,9 +552,9 @@ class MovaPlayFailure extends MovaEvent {
   /// 失败的是什么、第几次。
   final MovaPlayFail fail;
 
-  /// What the engine does next.
+  /// What the player does next.
   ///
-  /// 引擎接下来要做什么。
+  /// 播放器接下来要做什么。
   final MovaRecoveryAction action;
 
   /// Creates the event.

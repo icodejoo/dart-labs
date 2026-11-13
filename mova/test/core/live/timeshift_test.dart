@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mova/src/core/live/timeshift.dart';
-import 'package:mova/src/core/options/live_config.dart';
+import 'package:mova/src/core/options/live_opts.dart';
 import 'package:mova/src/core/state/state.dart';
 
 /// Ten seconds — the product's default "close enough to the edge" threshold.
@@ -12,26 +12,26 @@ void main() {
   group('resolveWindow', () {
     test('falls back to the kernel-reported duration', () {
       const s = MovaState(duration: Duration(minutes: 5));
-      expect(resolveWindow(s, const MovaLiveConfig()), const Duration(minutes: 5));
+      expect(resolveWindow(s, const MovaLiveOpts()), const Duration(minutes: 5));
     });
 
     test('an explicit dvrWindow wins over the duration', () {
       const s = MovaState(duration: Duration(minutes: 5));
-      const cfg = MovaLiveConfig(dvrWindow: Duration(minutes: 2));
-      expect(resolveWindow(s, cfg), const Duration(minutes: 2));
+      const opts = MovaLiveOpts(dvrWindow: Duration(minutes: 2));
+      expect(resolveWindow(s, opts), const Duration(minutes: 2));
     });
 
     test('an injected windowResolver wins over everything', () {
       const s = MovaState(duration: Duration(minutes: 5));
-      final cfg = MovaLiveConfig(
+      final opts = MovaLiveOpts(
         dvrWindow: const Duration(minutes: 2),
         windowResolver: (_) => const Duration(hours: 1),
       );
-      expect(resolveWindow(s, cfg), const Duration(hours: 1));
+      expect(resolveWindow(s, opts), const Duration(hours: 1));
     });
 
     test('an unknown duration resolves to zero, not to a negative window', () {
-      expect(resolveWindow(const MovaState(), const MovaLiveConfig()), Duration.zero);
+      expect(resolveWindow(const MovaState(), const MovaLiveOpts()), Duration.zero);
     });
   });
 

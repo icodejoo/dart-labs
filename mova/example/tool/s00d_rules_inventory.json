@@ -20,7 +20,7 @@
   ],
   "added": {
     "A2": [
-      "A2.engine.receipt",
+      "A2.mova.receipt",
       "A2.cutover.receipt"
     ],
     "A7": [
@@ -523,7 +523,7 @@
   "checks": [
     {
       "matrix_id": "A2",
-      "check_id": "A2.engine.receipt",
+      "check_id": "A2.mova.receipt",
       "file": "example/lib/verify_auto/s00d_receipt.dart"
     },
     {

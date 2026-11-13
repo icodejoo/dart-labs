@@ -22,14 +22,14 @@ const _spikeSources = <String, String>{
 };
 
 /// Spike page for [doc/plans/2026-08-04-quality-native-tracks-spike.md] T1–T3:
-/// drives a raw media_kit [Player] directly (bypassing [MovaKernel], which does
+/// drives a raw media_kit [Player] directly (bypassing [IMovaKernel], which does
 /// not expose tracks yet) and prints `player.stream.tracks.video` /
 /// `player.state.tracks.video` so a real device can confirm whether HLS
 /// variants are reliably enumerated and whether `setVideoTrack` switches
 /// without a visible re-buffer.
 ///
 /// [doc/plans/2026-08-04-quality-native-tracks-spike.md] T1–T3 的探针页面：
-/// 直接驱动裸的 media_kit [Player]（绕开尚未暴露 track 的 [MovaKernel]），打印
+/// 直接驱动裸的 media_kit [Player]（绕开尚未暴露 track 的 [IMovaKernel]），打印
 /// `player.stream.tracks.video` / `player.state.tracks.video`，供真机确认
 /// HLS 变体是否被可靠枚举、`setVideoTrack` 切换是否无明显重缓冲。
 ///

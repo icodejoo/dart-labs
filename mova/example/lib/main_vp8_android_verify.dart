@@ -11,8 +11,8 @@ const String base = String.fromEnvironment('BASE', defaultValue: 'http://127.0.0
 /// 日志前缀，便于 logcat 过滤。
 const String tagPrefix = 'VP8V';
 
-/// 当前挂到界面上的引擎，null 时显示占位。
-final screen = ValueNotifier<MovaApi?>(null);
+/// 当前挂到界面上的播放器，null 时显示占位。
+final screen = ValueNotifier<IMovaApi?>(null);
 
 /// 输出一行带墙钟（仅作人读对时）的 JSON 到 logcat。
 void mark(String kind, Map<String, Object?> data) {
@@ -24,14 +24,14 @@ void mark(String kind, Map<String, Object?> data) {
 void main() {
   runZonedGuarded(() async {
     WidgetsFlutterBinding.ensureInitialized();
-    MovaEngine.ensureInitialized();
+    Mova.ensureInitialized();
     runApp(MaterialApp(
         home: Scaffold(
-            body: ValueListenableBuilder<MovaApi?>(
+            body: ValueListenableBuilder<IMovaApi?>(
                 valueListenable: screen,
                 builder: (_, api, child) => api == null
                     ? const Center(child: Text('VP8 android verify'))
-                    : MovaPlayer(api: api, skin: const MovaMinimalSkin())))));
+                    : MovaPlayer(api: api, uiKit: const MovaMinimalUiKit())))));
     await WidgetsBinding.instance.endOfFrame;
     mark('BEGIN', {});
     for (final f in ['vp8.webm', 'h264.mp4']) {
@@ -60,7 +60,7 @@ Future<String?> prop(NativePlayer n, String k) async {
 Future<void> probe(String file, int run) async {
   final player = Player();
   final kernel = MovaMpvKernel(player: player, lazyVideo: true);
-  final api = createMovaEngine(kernel: kernel, preciseFirstFrame: true);
+  final api = createMova(kernel: kernel, preciseFirstFrame: true);
   final native = player.platform as NativePlayer;
   var errors = 0;
   final errTexts = <String>[];

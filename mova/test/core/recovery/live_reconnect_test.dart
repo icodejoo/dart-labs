@@ -1,6 +1,6 @@
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mova/src/core/engine.dart';
+import 'package:mova/src/core/mova.dart';
 import 'package:mova/src/core/events/events.dart';
 import 'package:mova/src/core/model/source.dart';
 import 'package:mova/src/core/options/options.dart';
@@ -99,17 +99,17 @@ void main() {
     });
   });
 
-  group('MovaRecoveryConfig.liveReconnect', () {
+  group('MovaRecoveryOpts.liveReconnect', () {
     test('默认 true，effectivePolicy 为 MovaDefaultRecovery；false 回到 MovaRetryThenFailover', () {
-      expect(const MovaRecoveryConfig().liveReconnect, isTrue);
-      expect(const MovaRecoveryConfig().effectivePolicy, isA<MovaDefaultRecovery>());
-      expect(const MovaRecoveryConfig(liveReconnect: false).effectivePolicy, isA<MovaRetryThenFailover>());
+      expect(const MovaRecoveryOpts().liveReconnect, isTrue);
+      expect(const MovaRecoveryOpts().effectivePolicy, isA<MovaDefaultRecovery>());
+      expect(const MovaRecoveryOpts(liveReconnect: false).effectivePolicy, isA<MovaRetryThenFailover>());
     });
 
     test('显式 policy 优先；copyWith/==/hashCode 带上该字段', () {
       const custom = MovaFailoverOnly();
-      expect(const MovaRecoveryConfig(policy: custom).effectivePolicy, same(custom));
-      const base = MovaRecoveryConfig(enabled: true);
+      expect(const MovaRecoveryOpts(policy: custom).effectivePolicy, same(custom));
+      const base = MovaRecoveryOpts(enabled: true);
       expect(base.copyWith(liveReconnect: false).liveReconnect, isFalse);
       expect(base.copyWith().liveReconnect, isTrue);
       expect(base, isNot(base.copyWith(liveReconnect: false)));
@@ -117,23 +117,23 @@ void main() {
     });
   });
 
-  group('引擎：直播源推流端重启后自动恢复', () {
+  group('播放器：直播源推流端重启后自动恢复', () {
     test('直播连续多次失败也不放弃，源恢复后 MovaRecovered 且清错误', () {
       fakeAsync((async) {
         final k = FakeKernel();
-        final engine = MovaEngine(
+        final mova = Mova(
           kernel: k,
           options: const MovaOpts(
-            recovery: MovaRecoveryConfig(startTimeout: Duration(seconds: 10), stallTimeout: Duration(seconds: 10), enabled: true),
-            controls: MovaCtrlsConfig(autoHide: false),
+            recovery: MovaRecoveryOpts(startTimeout: Duration(seconds: 10), stallTimeout: Duration(seconds: 10), enabled: true),
+            controls: MovaCtrlsOpts(autoHide: false),
           ),
         );
         final events = <MovaEvent>[];
-        engine.events.listen(events.add);
-        engine.open(const MovaSource('whep+http://h/x/whep', type: MovaStreamType.live));
+        mova.events.listen(events.add);
+        mova.open(const MovaSource('whep+http://h/x/whep', type: MovaStreamType.live));
         async.flushMicrotasks();
         async.elapse(const Duration(minutes: 10));
-        expect(engine.state.error, isNull, reason: '直播不应放弃');
+        expect(mova.state.error, isNull, reason: '直播不应放弃');
         expect(events.whereType<MovaErrorEvent>(), isEmpty);
         final failures = events.whereType<MovaPlayFailure>().toList();
         expect(failures.length, greaterThan(5));
@@ -154,34 +154,34 @@ void main() {
     test('liveReconnect:false 时直播沿用旧默认：第二次失败即放弃', () {
       fakeAsync((async) {
         final k = FakeKernel();
-        final engine = MovaEngine(
+        final mova = Mova(
           kernel: k,
           options: const MovaOpts(
-            recovery: MovaRecoveryConfig(startTimeout: Duration(seconds: 10), stallTimeout: Duration(seconds: 10), enabled: true, liveReconnect: false),
-            controls: MovaCtrlsConfig(autoHide: false),
+            recovery: MovaRecoveryOpts(startTimeout: Duration(seconds: 10), stallTimeout: Duration(seconds: 10), enabled: true, liveReconnect: false),
+            controls: MovaCtrlsOpts(autoHide: false),
           ),
         );
-        engine.open(const MovaSource('https://h/a.flv', type: MovaStreamType.live));
+        mova.open(const MovaSource('https://h/a.flv', type: MovaStreamType.live));
         async.flushMicrotasks();
         async.elapse(const Duration(minutes: 1));
-        expect(engine.state.error, isA<MovaGiveUpError>());
+        expect(mova.state.error, isA<MovaGiveUpError>());
       });
     });
 
     test('点播默认行为不变：第二次失败即放弃', () {
       fakeAsync((async) {
         final k = FakeKernel();
-        final engine = MovaEngine(
+        final mova = Mova(
           kernel: k,
           options: const MovaOpts(
-            recovery: MovaRecoveryConfig(startTimeout: Duration(seconds: 10), stallTimeout: Duration(seconds: 10), enabled: true),
-            controls: MovaCtrlsConfig(autoHide: false),
+            recovery: MovaRecoveryOpts(startTimeout: Duration(seconds: 10), stallTimeout: Duration(seconds: 10), enabled: true),
+            controls: MovaCtrlsOpts(autoHide: false),
           ),
         );
-        engine.open(const MovaSource('https://h/a.mp4'));
+        mova.open(const MovaSource('https://h/a.mp4'));
         async.flushMicrotasks();
         async.elapse(const Duration(minutes: 1));
-        expect(engine.state.error, isA<MovaGiveUpError>());
+        expect(mova.state.error, isA<MovaGiveUpError>());
       });
     });
   });

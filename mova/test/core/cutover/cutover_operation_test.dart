@@ -1,8 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mova/src/core/cutover/cutover_engine.dart';
-import 'package:mova/src/core/cutover/ctl.dart';
+import 'package:mova/src/core/cutover/cutover.dart';
+import 'package:mova/src/core/cutover/api.dart';
 import 'package:mova/src/core/cutover/plan.dart';
 import 'package:mova/src/core/cutover/trigger.dart';
 import 'package:mova/src/core/model/source.dart';
@@ -23,29 +23,29 @@ Future<void> settleOperations() async {
 /// 使用 S01 命令日志与门控替身运行真实切换代理。
 class OperationRig {
   /// 创建启用切换的测试环境；所有影子保留在工厂记录中。
-  OperationRig({void Function(DetachGatedApi engine)? configure}) {
-    api = MovaCutoverEngine(
-      engineFactory: () {
-        final engine = DetachGatedApi(
-          options: const MovaOpts(cutover: MovaCutoverConfig(enabled: true)),
+  OperationRig({void Function(DetachGatedApi mova)? configure}) {
+    api = MovaCutover(
+      movaFactory: () {
+        final mova = DetachGatedApi(
+          options: const MovaOpts(cutover: MovaCutoverOpts(enabled: true)),
           commandLog: factory.log,
         );
-        configure?.call(engine);
-        factory.engines.add(engine);
-        return engine;
+        configure?.call(mova);
+        factory.movas.add(mova);
+        return mova;
       },
     );
-    factory.engines.first.push(factory.engines.first.state.copyWith(playbackIntent: true));
+    factory.movas.first.push(factory.movas.first.state.copyWith(playbackIntent: true));
   }
 
   /// S01 脚手架提供跨实例日志与释放记录。
-  final GatedEngineFactory factory = GatedEngineFactory();
+  final GatedMovaFactory factory = GatedMovaFactory();
 
   /// 被测的真实代理。
-  late final MovaCutoverEngine api;
+  late final MovaCutover api;
 
   /// 当前所有替身。
-  List<FakeMovaApi> get engines => factory.engines;
+  List<FakeMovaApi> get movas => factory.movas;
 
   /// 令指定影子达到默认连续两次的就绪判据。
   Future<void> ready(FakeMovaApi shadow) async {
@@ -62,7 +62,7 @@ class OperationRig {
       MovaSource('https://host/$name.mp4'),
       plan: MovaWarmPlan(trigger: const MovaEagerWarm(), pauseWhenReady: hold),
     );
-    final shadow = engines.last;
+    final shadow = movas.last;
     if (readyNow) await ready(shadow);
     return shadow;
   }
@@ -111,7 +111,7 @@ void main() {
   for (final point in ['pause', 'holding', 'play', 'detach']) {
     for (final releaseCFirst in [true, false]) {
       test('F1 提交独占 $point，C 门闩先释放=$releaseCFirst', () async {
-        final old = rig.engines.first as DetachGatedApi;
+        final old = rig.movas.first as DetachGatedApi;
         old.pushPlayingOnVerbs = true;
         await old.play();
         final a = await rig.warm('A', readyNow: false, hold: point == 'holding');
@@ -151,7 +151,7 @@ void main() {
         expect(old.disposeCount, 1);
         expect(a.disposeCount, 1);
         expect(c.disposeCount, 0);
-        expect(rig.engines.where((e) => !e.disposed && e.state.playing), [c]);
+        expect(rig.movas.where((e) => !e.disposed && e.state.playing), [c]);
         c.push(c.state.copyWith(volume: 23));
         c.pushProgress(const MovaProg(position: Duration(seconds: 7)));
         await settleOperations();
@@ -163,7 +163,7 @@ void main() {
 
   for (final pauseAfterExpiry in [false, true]) {
     test('F-M 被 cutoverTo 取代后继承意图，随后显式暂停=$pauseAfterExpiry', () async {
-      final old = rig.engines.first;
+      final old = rig.movas.first;
       final x = await rig.warm('X');
       final gate = x.playGate = Completer<void>();
       addTearDown(() { if (!gate.isCompleted) gate.complete(); });
@@ -172,7 +172,7 @@ void main() {
       expect(old.state.playbackIntent, isFalse, reason: '内部 pause 已发生');
       final second = rig.api.cutoverTo(const MovaSource('https://host/Y.mp4'));
       await settleOperations();
-      final y = rig.engines.last;
+      final y = rig.movas.last;
       if (!pauseAfterExpiry) await rig.ready(y);
       gate.complete();
       expect(await first, isFalse);
@@ -191,18 +191,18 @@ void main() {
     final gate = Completer<void>();
     var count = 0;
     final local = OperationRig(
-      configure: (engine) {
-        if (count++ == 1) engine.openGate = gate;
+      configure: (mova) {
+        if (count++ == 1) mova.openGate = gate;
       },
     );
     final switching = local.api.cutoverTo(const MovaSource('https://host/X.mp4'));
     await settleOperations();
-    final x = local.engines.last;
+    final x = local.movas.last;
     final c = await local.warm('C');
     gate.complete();
     expect(await switching, isFalse);
-    expect(local.api.active, same(local.engines.first));
-    expect(local.engines.first.source!.uri, 'https://host/X.mp4');
+    expect(local.api.active, same(local.movas.first));
+    expect(local.movas.first.source!.uri, 'https://host/X.mp4');
     expect(c.calls.where((v) => v == 'play'), isEmpty);
     expect(x.disposeCount, 1);
     await local.api.dispose();
@@ -230,7 +230,7 @@ void main() {
           await rig.api.dispose();
         }
         expect(shadow.disposeCount, 1);
-        expect(rig.engines.first.disposeCount, 1);
+        expect(rig.movas.first.disposeCount, 1);
         await rig.api.dispose();
       });
     }
@@ -249,7 +249,7 @@ void main() {
     ];
     await expectLater(rig.api.dispose(), throwsStateError);
     await settleOperations();
-    expect(rig.engines.first.disposeCount, 1);
+    expect(rig.movas.first.disposeCount, 1);
     expect(shadow.disposeCount, 1);
     expect(closed, hasLength(5));
     for (final sub in subscriptions) {
@@ -260,7 +260,7 @@ void main() {
   for (final command in ['open', 'reload', 'dispose']) {
     test('commit 卡在旧 pause 时 $command 作废认领，影子只释放一次', () async {
       final shadow = await rig.warm('A');
-      final old = rig.engines.first;
+      final old = rig.movas.first;
       old.pauseGate = Completer<void>();
       final committing = rig.api.commit();
       await settleOperations();
@@ -281,11 +281,11 @@ void main() {
 
   test('旧 commit 完成后保留 prepare C 的计划、相位与订阅', () async {
     final a = await rig.warm('A');
-    rig.engines.first.pauseGate = Completer<void>();
+    rig.movas.first.pauseGate = Completer<void>();
     final committing = rig.api.commit();
     await settleOperations();
     final c = await rig.warm('C', readyNow: false);
-    rig.engines.first.pauseGate!.complete();
+    rig.movas.first.pauseGate!.complete();
     expect(await committing, isTrue);
     expect(rig.api.active, same(a));
     expect(rig.api.cutoverPhase, MovaCutoverPhase.warming);
@@ -320,7 +320,7 @@ void main() {
     a.playGate!.complete();
     expect(await committing, isFalse);
     expect(a.disposeCount, 1);
-    expect(rig.engines.first.source!.uri, 'https://host/B.mp4');
+    expect(rig.movas.first.source!.uri, 'https://host/B.mp4');
   });
 
   test('等待 holding 时 open B 只释放旧槽', () async {
@@ -339,16 +339,16 @@ void main() {
   test('并发 cutoverTo X/Y 只有 Y 换指，X 不回落抢源', () async {
     final x = rig.api.cutoverTo(const MovaSource('https://host/X.mp4'));
     await settleOperations();
-    final firstShadow = rig.engines.last;
+    final firstShadow = rig.movas.last;
     final y = rig.api.cutoverTo(const MovaSource('https://host/Y.mp4'));
     await settleOperations();
-    final lastShadow = rig.engines.last;
+    final lastShadow = rig.movas.last;
     await rig.ready(lastShadow);
     expect(await x, isFalse);
     expect(await y, isTrue);
     expect(rig.api.active, same(lastShadow));
     expect(firstShadow.disposeCount, 1);
-    expect(rig.engines.first.calls.where((c) => c == 'open'), isEmpty);
+    expect(rig.movas.first.calls.where((c) => c == 'open'), isEmpty);
   });
 
   test('等待 ready 的两个 commit 被 open B 同时唤醒', () async {
@@ -365,11 +365,11 @@ void main() {
   test('影子 open 挂起时 open B，迟到 prepare 不再装订阅', () async {
     // 在工厂创建影子后、open 返回前挂门闩。
     final gate = Completer<void>();
-    final shadow = FakeMovaApi(options: const MovaOpts(cutover: MovaCutoverConfig(enabled: true)))
+    final shadow = FakeMovaApi(options: const MovaOpts(cutover: MovaCutoverOpts(enabled: true)))
       ..openGate = gate;
-    final active = FakeMovaApi(options: const MovaOpts(cutover: MovaCutoverConfig(enabled: true)));
+    final active = FakeMovaApi(options: const MovaOpts(cutover: MovaCutoverOpts(enabled: true)));
     var calls = 0;
-    final api = MovaCutoverEngine(engineFactory: () => calls++ == 0 ? active : shadow);
+    final api = MovaCutover(movaFactory: () => calls++ == 0 ? active : shadow);
     final preparing = api.prepare(
       const MovaSource('https://host/A.mp4'),
       plan: const MovaWarmPlan(trigger: MovaEagerWarm()),
@@ -396,10 +396,10 @@ void main() {
   test('cutoverTo 等 ready 时 dispose 不回落 open', () async {
     final switching = rig.api.cutoverTo(const MovaSource('https://host/A.mp4'));
     await settleOperations();
-    final a = rig.engines.last;
+    final a = rig.movas.last;
     await rig.api.dispose();
     expect(await switching, isFalse);
     expect(a.disposeCount, 1);
-    expect(rig.engines.first.calls.where((c) => c == 'open'), isEmpty);
+    expect(rig.movas.first.calls.where((c) => c == 'open'), isEmpty);
   });
 }

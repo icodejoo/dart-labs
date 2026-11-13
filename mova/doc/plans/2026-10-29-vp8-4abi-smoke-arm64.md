@@ -79,7 +79,7 @@ so：CI run 40838203263（分支 `jelon/vp8-dequeue-spin`，提交 `c29d638`，`
 
 ## 补：原生 media_kit 对照（排除 mova 层）
 
-页面 `example/lib/main_vp8_pure_media_kit.dart`：同一进程内 mova（`createMovaEngine`+`MovaPlayer`）与原生 media_kit（`Player`+`VideoController`+`Video`，不引入 mova）交替各 12 轮，同一旧 so（`27cad80e`）、同一 `vp8.webm`、同样 `vd-lavc-o=ndk_codec=1`，解锁亮屏。证据 `coverage_evidence/vp8-4abi/arm64-pure-vs-mova.log`。
+页面 `example/lib/main_vp8_pure_media_kit.dart`：同一进程内 mova（`createMova`+`MovaPlayer`）与原生 media_kit（`Player`+`VideoController`+`Video`，不引入 mova）交替各 12 轮，同一旧 so（`27cad80e`）、同一 `vp8.webm`、同样 `vd-lavc-o=ndk_codec=1`，解锁亮屏。证据 `coverage_evidence/vp8-4abi/arm64-pure-vs-mova.log`。
 
 | 内核 | 卡死 | 回退 | 解码器打开次数 |
 |---|---|---|---|

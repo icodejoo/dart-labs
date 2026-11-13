@@ -65,7 +65,7 @@
     `_mapEndFileReason` -> `_endFileController.add(...)`（`endFiles`，会话结束原因）。
 - `dispose()`：关 sub、关四个 controller、`await _observeSetup`、`await _player.dispose()`。
   **没有** `unobserveEvent`（靠 player 整体销毁）。
-- 消费方：`MovaStatsProbe.playbackRestarts/endFiles`（`core/report/stats_probe.dart`）->
+- 消费方：`IMovaStatsProbe.playbackRestarts/endFiles`（`core/report/stats_probe.dart`）->
   `MovaQoeCollector`（`core/report/collector.dart`）。上层对来源无感，**接口不变，只换来源**。
 - 退化路径：订阅失败或平台无 `NativePlayer` -> 流为空 -> QoE 层退回 `buffering` 边沿与
   `resolveSessionEnd` 时序推断。本方案沿用该退化路径。
@@ -81,7 +81,7 @@
 | # | 决策 | 理由 |
 |---|------|------|
 | A1 | 用 **弱客户端**（`mpv_create_weak_client`）而非改 media_kit 主 handle 的事件分发 | 独立事件队列，不与 media_kit 抢 `wait_event`；弱客户端不阻塞 `mpv_terminate_destroy` |
-| A2 | 抽象端口 `MovaMpvEventBackend`（纯 Dart 接口）+ 纯逻辑状态机 `MovaMpvEventPump` + FFI 实现 `FfiMpvEventBackend` | 状态机（注册/排空/销毁/幂等）可用假后端做确定性单测，FFI 层只做薄薄一层绑定 |
+| A2 | 抽象端口 `IMovaMpvEventBackend`（纯 Dart 接口）+ 纯逻辑状态机 `MovaMpvEventPump` + FFI 实现 `FfiMpvEventBackend` | 状态机（注册/排空/销毁/幂等）可用假后端做确定性单测，FFI 层只做薄薄一层绑定 |
 | A3 | **排空循环全同步**（`while` 内不 `await`），事件字段在下一次 `wait_event` 前拷成 Dart 值对象 `MovaRawEvent` | mpv 文档：事件指针仅在下次 `wait_event` 前有效；media_kit 的 `await fn.call(event)` 恰是它的隐患来源 |
 | A4 | 只保留三个事件：RESTART、END_FILE、SHUTDOWN。对其它事件 `mpv_request_event(id, 0)` 关闭；**SHUTDOWN 不可关闭**（mpv 源码对 `SHUTDOWN && !enable` 返回 `INVALID_PARAMETER`），必须跳过它，且逐项容错，单项失败不得使整体注册失败 | 新客户端默认收全部事件，无谓唤醒；同时 `PROPERTY_CHANGE` 等我们没订阅的不会入队 |
 | A5 | 唤醒方式：release 用 `NativeCallable<Void Function(Pointer<mpv_handle>)>.listener`；debug（`kDebugMode`）用 `Timer.periodic` 轮询 | 见风险 R3；两种都由后端接口封装，状态机不感知 |
@@ -114,8 +114,8 @@
   `isClosed` 守卫保证不抛 `Bad state: Cannot add`。
 - **I8 注册中途失败可退化**：`handle` 抛错、`create_weak_client` 返回 `nullptr`、`request_event`
   返回负值，均静默退化为空流，且**不泄漏**已创建的客户端（失败路径也要 `mpv_destroy`）。
-- **I9 多引擎互不串扰**：每个 kernel 各自的客户端（名称含自增序号 `mova_qoe_<n>`）、各自的
-  回调闭包；A 引擎的事件绝不出现在 B 的流里；A dispose 不影响 B。
+- **I9 多播放器互不串扰**：每个 kernel 各自的客户端（名称含自增序号 `mova_qoe_<n>`）、各自的
+  回调闭包；A 播放器的事件绝不出现在 B 的流里；A dispose 不影响 B。
 - **I10 核心先死**：收到 `MPV_EVENT_SHUTDOWN`（media_kit 在别处先销毁核心）时，标记不再排空，
   但仍需在 `dispose()` 时 `mpv_destroy` 释放客户端句柄（弱客户端允许在核心销毁后销毁）。
 - **I11 数量守恒**：创建的客户端数 == 销毁的客户端数（假后端计数 + 真机循环验证）。
@@ -143,7 +143,7 @@ class MovaRawEvent {
 }
 
 /// 原生事件后端端口；FFI 实现与测试假实现共用。
-abstract class MovaMpvEventBackend {
+abstract class IMovaMpvEventBackend {
   /// 创建弱客户端；失败返回 false。
   bool createClient(String name);
   /// 只保留指定事件，其余关闭；返回是否全部成功。
@@ -196,7 +196,7 @@ core/kernel 下 import media_kit，本文件同目录同级别；若 purity 测�
 `lib/src/platform_impl/` 并从 wiring 注入，Task 4 相应调整）。
 
 ```dart
-class FfiMpvEventBackend implements MovaMpvEventBackend {
+class FfiMpvEventBackend implements IMovaMpvEventBackend {
   FfiMpvEventBackend(this._mpv, this._ctx, {required bool pollInDebug});
   final generated.MPV _mpv;
   final Pointer<generated.mpv_handle> _ctx;   // 由 NativePlayer.handle 的地址还原
@@ -228,7 +228,7 @@ class FfiMpvEventBackend implements MovaMpvEventBackend {
 - 字段 `_pump`；`dispose()` 顺序改为：关 sub/controller ->
   `await _observeSetup` -> `await _pump?.dispose()` -> `await _player.dispose()`。
 - 删除对 `native.observeEvent` 的全部引用；类注释里"只在锁定的 git 提交上有"改成新说明。
-- 构造函数增加可选注入 `MovaMpvEventBackend Function(NativePlayer)? backendFactory`（仅供测试）。
+- 构造函数增加可选注入 `IMovaMpvEventBackend Function(NativePlayer)? backendFactory`（仅供测试）。
   不改公开签名的其它部分。
 
 单测 `test/core/kernel/mpv_kernel_events_test.dart`（用假 `backendFactory`，不需要真 libmpv；
@@ -257,7 +257,7 @@ CLAUDE.md 顶部第 5 条（git 依赖说明）与"统一上报模块"段落里 
 
 ## 5. 专项测试设计（重点）
 
-全部基于 `MovaMpvEventBackend` 假实现 `FakeMpvEventBackend`（放 `test/support/fake_mpv_event_backend.dart`）：
+全部基于 `IMovaMpvEventBackend` 假实现 `FakeMpvEventBackend`（放 `test/support/fake_mpv_event_backend.dart`）：
 可编程事件队列、手动触发 `wake()`、记录调用序列（`createClient/restrictEvents/armWakeup/poll/destroy`）、
 计数 create/destroy、可注入"创建失败/poll 抛异常/destroy 抛异常"。时间相关用 `fake_async`。
 
@@ -279,7 +279,7 @@ CLAUDE.md 顶部第 5 条（git 依赖说明）与"统一上报模块"段落里 
 11. createClient 返回 false / restrict 失败 / `ready` 抛错（I8）：静默退化，`destroy` 被正确调用
     （若已创建）；start 的 Future 不抛。
 12. SHUTDOWN 事件（I10）：之后不再排空；dispose 仍调用 destroy。
-13. **多引擎并存（I9）**：两个 pump + 两个假后端，A 的事件不出现在 B；A dispose 不影响 B 继续收事件。
+13. **多播放器并存（I9）**：两个 pump + 两个假后端，A 的事件不出现在 B；A dispose 不影响 B 继续收事件。
 14. 名称唯一：连续 N 个 kernel 的客户端名互不相同。
 15. start 重复调用 -> 忽略（幂等）。
 
@@ -312,12 +312,12 @@ URL 加时间戳防缓存；多次取平均。
 | V1 符号导出 | 启动时对 `native.mpv` 调 `mpv_create_weak_client`（经 Task 3 后端）并检查非空；瘦身 libmpv 各 ABI 各跑一次 | 非空；无 `Invalid argument`/符号找不到 |
 | V2 事件到达 | 播放一条真实视频：记录 `MovaState` 首帧事件与 `playbackRestarts` 事件戳；`stop()`/换源/dispose 触发 `endFiles` | RESTART 每次 open 至少 1 次（**seek 后也会再发一次 RESTART**，与上游 observeEvent 语义相同，TTFF 只取首个，核对 collector 已按此处理）；END_FILE reason 与操作对应（stop->STOP、换源->STOP、错误地址->ERROR） |
 | V3 与 media_kit 无冲突 | 同一 kernel 同时读 `position`/`playing`/`buffering` 流与本方案事件 | 播放、seek、暂停、卡顿信号均与改造前一致；无事件丢失（对比 media_kit 自带的 `completed`/`buffering` 计数） |
-| V4 创建销毁循环（并发核心） | 循环 N=200 轮：创建 engine（QoE 开）-> open 真源 -> 随机延迟 0/10/50/200ms -> dispose；其中 1/3 轮在"刚构造即 dispose"，1/3 轮在"open 中途 dispose"，1/3 轮在"事件风暴（快速 seek/换源）中 dispose" | 0 次崩溃/ANR；进程存活；日志无 `use after`/`Callback invoked after it has been deleted`；create/destroy 计数相等（后端加计数日志） |
-| V5 内存走势 | 循环前后与每 20 轮采样：Windows 用 `ProcessInfo.currentRss`；Android 用 `adb shell dumpsys meminfo <pkg>`（Native Heap / TOTAL PSS）。**独立进程测量**（沿用 `main_swap_leak_probe.dart` 方法论）；对照组：同循环但 `observeQoeSignals=false` | 增量在噪声量级、无线性爬升；对比对照组差值在噪声内；判据同 swap 泄漏结论的写法（首轮台阶后进入平台） |
-| V6 并存多引擎 | 同时 2-3 个 engine（含 swap 影子引擎场景）各自订阅；单独 dispose 其中一个 | 其余引擎事件不受影响，无串扰 |
+| V4 创建销毁循环（并发核心） | 循环 N=200 轮：创建 player（QoE 开）-> open 真源 -> 随机延迟 0/10/50/200ms -> dispose；其中 1/3 轮在"刚构造即 dispose"，1/3 轮在"open 中途 dispose"，1/3 轮在"事件风暴（快速 seek/换源）中 dispose" | 0 次崩溃/ANR；进程存活；日志无 `use after`/`Callback invoked after it has been deleted`；create/destroy 计数相等（后端加计数日志） |
+| V5 内存走势 | 循环前后与每 20 轮采样：Windows 用 `ProcessInfo.currentRss`；Android 用 `adb shell dumpsys meminfo <pkg>`（Native Heap / TOTAL PSS）。**独立进程测量**（沿用 `main_cutover_leak_probe.dart` 方法论）；对照组：同循环但 `observeQoeSignals=false` | 增量在噪声量级、无线性爬升；对比对照组差值在噪声内；判据同 cutover 泄漏结论的写法（首轮台阶后进入平台） |
+| V6 并存多播放器 | 同时 2-3 个 player（含 cutover 影子播放器场景）各自订阅；单独 dispose 其中一个 | 其余播放器事件不受影响，无串扰 |
 | V7 主 handle 销毁不挂起 | 记录 `dispose()` 调用到返回、以及其后 5s `Future.delayed(terminate_destroy)` 触发窗口内 UI 帧间隔（用 `SchedulerBinding` 帧回调的真实时间戳） | 无 >100ms 的主线程阻塞（证明弱客户端没有拖住 `mpv_terminate_destroy`）；若失败立即改方案（见 R1） |
 | V8 debug 热重启（Windows） | debug 模式 QoE 开、播放中做 5 次 hot restart | 无崩溃；轮询路径工作；release 路径不受影响 |
-| V9 关闭态回归 | `observeQoeSignals=false` / `MovaReportConfig.qoe=false` | 不创建任何客户端（后端计数 0）；行为与改造前逐字节一致 |
+| V9 关闭态回归 | `observeQoeSignals=false` / `MovaReportOpts.qoe=false` | 不创建任何客户端（后端计数 0）；行为与改造前逐字节一致 |
 | V10 TTFF/会话结束对账 | 与旧 git 依赖版本各跑 10 轮，取 TTFF 与 END_FILE reason 分布对比 | 分布一致（误差在设备噪声内） |
 
 每项记录真实事件戳数字，回写本文档附录与 CLAUDE.md。iOS/macOS 无 Mac，**明确标注未验证**
@@ -365,8 +365,8 @@ URL 加时间戳防缓存；多次取平均。
   遇到热重启崩溃再说？（推荐：接受轮询。）
 - **D2 FFI 后端放置（复审已定）**：`purity_test` 只允许 `kernel/mpv_kernel.dart` 一个文件 import media_kit，
   FFI 后端要 import media_kit 的 bindings，放 core 会违反。定为：端口与 `MovaMpvEventPump` 留 core（纯 Dart），
-  `FfiMpvEventBackend` 放 `lib/src/platform_impl/`，由 `createMovaEngine()` 经 kernel 的 `backendFactory` 注入。不放宽 purity。
-  代价：裸构造 `MpvKernel` 默认无原生事件（走退化路径），与"裸 `MovaEngine()` 平台端口为 noop"的既有约定一致。
+  `FfiMpvEventBackend` 放 `lib/src/platform_impl/`，由 `createMova()` 经 kernel 的 `backendFactory` 注入。不放宽 purity。
+  代价：裸构造 `MpvKernel` 默认无原生事件（走退化路径），与"裸 `Mova()` 平台端口为 noop"的既有约定一致。
 - **D3 `pubspec` 版本约束**：`media_kit: ^1.2.6`（推荐）还是钉死 `1.2.6`？（本方案依赖
   `NativePlayer.mpv`/`handle` 的可见性，大版本升级需重验。）
 - **D4 是否保留旧 git 依赖版本作为 V10 对账基线**：需要在另一个 worktree/分支保留一份旧实现供
@@ -487,7 +487,7 @@ Windows 的"偶发卡住"很可能同因，待验证。验证脚本一律用 `au
 `session_test.dart`。
 
 **Windows 桌面复测（2026-09-30，release，`main_observe_event_verify2.dart`，多次运行）**：V9 关闭态 0 客户端、
-创建/销毁 14/14 全部通过；V6 三引擎并存 4 次里 3 次直接通过、1 次 seek 后未在 2s 窗口内收到 RESTART
+创建/销毁 14/14 全部通过；V6 三播放器并存 4 次里 3 次直接通过、1 次 seek 后未在 2s 窗口内收到 RESTART
 （时序波动，Windows 上窗口偏紧）；V3 4 次里 3 次与无订阅对照完全一致，1 次 `buffering` 计数 5 对 3
 （该计数只取决于 open/seek 时序，不经过本方案代码，判为波动，未复现）；**V7 加了不建弱客户端的对照组**：
 对照 101ms、开订阅 53ms——Windows 上约 100ms 的帧间隔是 media_kit 自身/机器基线，不是本方案造成

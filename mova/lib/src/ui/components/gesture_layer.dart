@@ -7,7 +7,7 @@ import 'package:flutter/widgets.dart';
 
 import '../../core/api.dart';
 import '../../core/model/source.dart';
-import '../../core/options/gesture_config.dart';
+import '../../core/options/gesture_opts.dart';
 import '../../core/state/ui_state.dart';
 import '../format.dart';
 import '../scope/plugin.dart';
@@ -50,14 +50,14 @@ enum _DragMode {
 }
 
 /// Component that recognizes gestures on the video surface (drag/pinch/tap)
-/// and drives the matching [MovaApi] intent — never touching playback state
+/// and drives the matching [IMovaApi] intent — never touching playback state
 /// directly. Which action each direction performs is configurable via
-/// [MovaGestureConfig] (side↔action mapping); defaults follow the mainstream
+/// [MovaGestureOpts] (side↔action mapping); defaults follow the mainstream
 /// convention (left = brightness, right = volume, horizontal = seek). Seek is
 /// gated by `liveSeekable`/`allowWhenLive` for live sources.
 ///
-/// 识别视频画面手势（拖动/捏合/点击）并驱动对应 [MovaApi] 意图的组件——绝不
-/// 直接操作播放状态。每个方向执行哪个动作由 [MovaGestureConfig] 配置（侧别↔动作
+/// 识别视频画面手势（拖动/捏合/点击）并驱动对应 [IMovaApi] 意图的组件——绝不
+/// 直接操作播放状态。每个方向执行哪个动作由 [MovaGestureOpts] 配置（侧别↔动作
 /// 映射）；默认对齐主流约定（左亮度、右音量、横滑进度）。直播源的进度手势受
 /// `liveSeekable`/`allowWhenLive` 门控。
 class MovaGestureLayerComponent extends MovaComponent {
@@ -78,15 +78,15 @@ class MovaGestureLayerComponent extends MovaComponent {
   MovaSlot get slot => MovaSlot.gesture;
 
   @override
-  Widget build(BuildContext context, MovaApi api, List<Widget> children) {
+  Widget build(BuildContext context, IMovaApi api, List<Widget> children) {
     return _GestureLayer(api: api);
   }
 }
 
-/// Stateful gesture recognizer wired to [MovaApi]; holds per-drag snapshots
+/// Stateful gesture recognizer wired to [IMovaApi]; holds per-drag snapshots
 /// that must survive across `onScaleUpdate` calls within one drag.
 ///
-/// 接入 [MovaApi] 的有状态手势识别器；保存单次拖动内、需跨多次
+/// 接入 [IMovaApi] 的有状态手势识别器；保存单次拖动内、需跨多次
 /// `onScaleUpdate` 调用存活的起始快照。
 class _GestureLayer extends StatefulWidget {
   /// Creates the internal gesture widget.
@@ -101,17 +101,17 @@ class _GestureLayer extends StatefulWidget {
   /// The capability surface this gesture layer drives.
   ///
   /// 该手势层驱动的能力面。
-  final MovaApi api;
+  final IMovaApi api;
 
   @override
   State<_GestureLayer> createState() => _GestureLayerState();
 }
 
 /// State machine for [_GestureLayer]; mirrors 0.1.0's
-/// `_MovaGestDetectState` math exactly, re-pointed at [MovaApi] calls.
+/// `_MovaGestDetectState` math exactly, re-pointed at [IMovaApi] calls.
 ///
 /// [_GestureLayer] 的状态机；手势数学与 0.1.0 的
-/// `_MovaGestDetectState` 完全一致，只是出口改为 [MovaApi] 调用。
+/// `_MovaGestDetectState` 完全一致，只是出口改为 [IMovaApi] 调用。
 class _GestureLayerState extends State<_GestureLayer>
     with MovaPlugin<_GestureLayer> {
   /// Which intent the current one-finger drag is driving, if decided.
@@ -157,11 +157,11 @@ class _GestureLayerState extends State<_GestureLayer>
   /// 本次捏合手势开始时拍下的缩放系数，作为 `d.scale` 相乘的基准值。
   double _startZoom = 1.0;
 
-  /// Latest known playback position, tracked from [MovaApi.progress] since
-  /// position does not live on [MovaApi.state].
+  /// Latest known playback position, tracked from [IMovaApi.progress] since
+  /// position does not live on [IMovaApi.state].
   ///
-  /// 已知的最新播放位置，从 [MovaApi.progress] 追踪而来（位置字段不在
-  /// [MovaApi.state] 里）。
+  /// 已知的最新播放位置，从 [IMovaApi.progress] 追踪而来（位置字段不在
+  /// [IMovaApi.state] 里）。
   Duration _lastPosition = Duration.zero;
 
   /// Playback position captured at the start of a drag.
@@ -177,7 +177,7 @@ class _GestureLayerState extends State<_GestureLayer>
   /// Shorthand for the capability surface this state drives.
   ///
   /// 该状态驱动的能力面的简写访问器。
-  MovaApi get _api => widget.api;
+  IMovaApi get _api => widget.api;
 
   @override
   void initState() {
@@ -188,8 +188,8 @@ class _GestureLayerState extends State<_GestureLayer>
     //
     // 订阅生命周期交给 [MovaPlugin.bind]——无需手写 dispose 即会在销毁时取消。
     final api = _api;
-    if (api is MovaProgressSource) {
-      _lastPosition = (api as MovaProgressSource).progressValue.position;
+    if (api is IMovaProgressSource) {
+      _lastPosition = (api as IMovaProgressSource).progressValue.position;
     }
     bind(_api.progress, (p) => _lastPosition = p.position);
     bind(_api.events, (event) {
@@ -231,8 +231,8 @@ class _GestureLayerState extends State<_GestureLayer>
   /// Applies a double-tap seek toward the tapped side, gated the same way
   /// as horizontal drag-seek.
   ///
-  /// Passes the target position as the HUD's [MovaApi.showHud] `text` — this
-  /// path deliberately does *not* go through [MovaApi.setDragging] (which the
+  /// Passes the target position as the HUD's [IMovaApi.showHud] `text` — this
+  /// path deliberately does *not* go through [IMovaApi.setDragging] (which the
   /// drag-seek path uses instead): [MovaUiState.previewAt] is what also drives
   /// the scrub-preview thumbnail bubble, and a double tap is not a drag, so
   /// populating it here would incorrectly pop the bubble up too. Regression:
@@ -241,16 +241,16 @@ class _GestureLayerState extends State<_GestureLayer>
   ///
   /// 按点击侧执行双击快进/快退，门控逻辑与横滑进度一致。
   ///
-  /// 把目标位置作为 HUD 的 [MovaApi.showHud] `text` 参数传入——这条路径刻意
-  /// **不**走 [MovaApi.setDragging]（拖动进度路径走的是这个）：
+  /// 把目标位置作为 HUD 的 [IMovaApi.showHud] `text` 参数传入——这条路径刻意
+  /// **不**走 [IMovaApi.setDragging]（拖动进度路径走的是这个）：
   /// [MovaUiState.previewAt] 同时也驱动着拖动预览缩略图气泡，而双击并非拖动，
   /// 在这里写它会连带错误地弹出气泡。回归说明：改之前双击的进度 HUD 完全没有
   /// 文字，因为它能读的两个字段都没人填过。
   void _onDoubleTap() {
-    final cfg = MovaPlayerStyle.gestureOf(context);
-    if (!cfg.doubleTapSeek || !_seekAllowed) return;
+    final opts = MovaPlayerStyle.gestureOf(context);
+    if (!opts.doubleTapSeek || !_seekAllowed) return;
     final backward = _lastDoubleTapDx < _size.width / 2;
-    final step = cfg.doubleTapStep;
+    final step = opts.doubleTapStep;
     final target = _lastPosition + (backward ? -step : step);
     _api.seek(target);
     movaUiOf(context).showHud(MovaHud.seek, text: formatDuration(target));
@@ -309,17 +309,17 @@ class _GestureLayerState extends State<_GestureLayer>
   }
 
   /// Chooses the axis/side once movement passes the lock threshold; stays
-  /// [_DragMode.undecided] (no fallback) if the config disables the mode
+  /// [_DragMode.undecided] (no fallback) if the options disable the mode
   /// that would otherwise be chosen.
   ///
   /// 位移越过阈值后判定方向/侧别；若配置禁用了本应选中的模式，则保持
   /// [_DragMode.undecided]（不回退到其他模式）。
   _DragMode _decideMode() {
-    final cfg = MovaPlayerStyle.gestureOf(context);
+    final opts = MovaPlayerStyle.gestureOf(context);
     _horizontalDrag = _cum.dx.abs() > _cum.dy.abs();
     final action = _horizontalDrag
-        ? cfg.horizontal
-        : (_startedLeft ? cfg.leftVertical : cfg.rightVertical);
+        ? opts.horizontal
+        : (_startedLeft ? opts.leftVertical : opts.rightVertical);
     switch (action) {
       case MovaGestureAction.seek:
         return _seekAllowed ? _DragMode.seek : _DragMode.undecided;
@@ -358,13 +358,13 @@ class _GestureLayerState extends State<_GestureLayer>
       (_horizontalDrag ? 1 : MovaPlayerStyle.gestureOf(context).vSensitivity);
 
   /// Maps the drag accumulated so far onto a target position, scaled by
-  /// [MovaGestureConfig.hSeekSpanPerScreen] over the full extent of the
+  /// [MovaGestureOpts.hSeekSpanPerScreen] over the full extent of the
   /// gesture surface along the drag's axis. Shared by [_drive]'s live preview and
   /// [_onScaleEnd]'s commit so the two can never disagree on where a drag
   /// lands.
   ///
   /// 把目前累计的横向位移映射到目标位置，按
-  /// [MovaGestureConfig.hSeekSpanPerScreen] 相对手势面整宽换算。供 [_drive]
+  /// [MovaGestureOpts.hSeekSpanPerScreen] 相对手势面整宽换算。供 [_drive]
   /// 的实时预览与 [_onScaleEnd] 的提交共用，使二者对拖动落点的判断绝不会
   /// 不一致。
   Duration _seekTargetFromCum() {
@@ -403,10 +403,10 @@ class _GestureLayerState extends State<_GestureLayer>
   }
 
   /// Commits the seek when a seek drag ends; zoom needs no explicit commit
-  /// beyond the last [MovaApi.setZoom] call already applied.
+  /// beyond the last [IMovaApi.setZoom] call already applied.
   ///
   /// 横滑结束时提交进度；缩放手势结束无需额外提交，最后一次
-  /// [MovaApi.setZoom] 调用即已生效。
+  /// [IMovaApi.setZoom] 调用即已生效。
   void _onScaleEnd(ScaleEndDetails d) {
     if (_dragCurrent && _mode == _DragMode.seek) {
       _api.seek(_seekTargetFromCum());

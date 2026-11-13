@@ -44,7 +44,7 @@
 
 - 开始 rerun4-hls-cutover-extra：{'group': 'new', 'case': 'hls', 'cutover': 'true', 'count': '90'}；保留真实事件、原生读回及画面，以对应判据核验。
 
-- 中断复核检查点：首批cutover 76个结果中75有效、61通过/14失败，run75无门槛且MovaErrorEvent=Failed to open low/index.m3u8；该剔除并不宣称原生打开失败由harness导致，异常另见rerun4-interrupted-session.json。旧9例均有旧path RESTART、无新档位正duration，见rerun4-prior-harness-review.json。受保护源码哈希仍一致；engine.dart为CRLF且无裸LF。
+- 中断复核检查点：首批cutover 76个结果中75有效、61通过/14失败，run75无门槛且MovaErrorEvent=Failed to open low/index.m3u8；该剔除并不宣称原生打开失败由harness导致，异常另见rerun4-interrupted-session.json。旧9例均有旧path RESTART、无新档位正duration，见rerun4-prior-harness-review.json。受保护源码哈希仍一致；mova.dart为CRLF且无裸LF。
 
 - rerun4-hls-cutover-extra 检查点：status=done，本轮切档 90，失败 12，脚本异常 0；证据 rerun4-hls-cutover-extra.json/.png/.logcat.txt。
 
@@ -62,7 +62,7 @@
 
 - 开始收尾：经现有验证页恢复媒体音量30%=6/20，USB常亮恢复7，force-stop隔离包；保留原生设置、进程与屏幕状态，再结束仅本次启动的两个源进程。
 
-- 收尾检查点：隔离包pid为空（force-stop），USB常亮=7，媒体streamVolume=6/20；仍isKeyguardShowing=false、mScreenOnFully=true；本次两个源PID已结束，engine.dart哈希与安装时一致。证据 rerun4-final-state.json / rerun4-final-*.txt。
+- 收尾检查点：隔离包pid为空（force-stop），USB常亮=7，媒体streamVolume=6/20；仍isKeyguardShowing=false、mScreenOnFully=true；本次两个源PID已结束，mova.dart哈希与安装时一致。证据 rerun4-final-state.json / rerun4-final-*.txt。
 
 - 开始交付核验：设备与源已收尾；将门槛前旧path候选与门槛后ABR降档读回分开，避免混称旧档位提前采样；重新导出审计并据此生成报告，校验所有证据链接、保护目录哈希与端口关闭状态。
 
@@ -231,7 +231,7 @@
 - 独立包 `com.icodejoo.mova.mova_example.coverage`；安装前`lastUpdateTime=2026-10-27 21:27:08`，安装后`lastUpdateTime=2026-10-27 21:50:14`；SERVER build=`rerun4-20261027`，[rerun4-start.json](../../example/tool/coverage_evidence/rerun4-start.json)。
 - Gradle APK SHA256：`6fc54fe25f7e9d884cc1d2dd5a228c4991d0221ef3045ba5bf107d5106248a64`。
 - 重签APK及设备拉回APK SHA256相同：`8d4b6ccc2a8aec7d18dca78242f913a0a1fecabc65a40603f19a97198db8707e`；[rerun4-build-manifest.json](../../example/tool/coverage_evidence/rerun4-build-manifest.json)。
-- engine.dart SHA256：`546f9ba38657278c04fca2ececfcc071c8fd57da725149fbbbae2308e1a9a9fe`，起测/安装/收尾一致。受保护lib/test/packages文件与起测哈希逐项一致，未改库代码、未转换engine.dart的CRLF。
+- mova.dart SHA256：`546f9ba38657278c04fca2ececfcc071c8fd57da725149fbbbae2308e1a9a9fe`，起测/安装/收尾一致。受保护lib/test/packages文件与起测哈希逐项一致，未改库代码、未转换mova.dart的CRLF。
 
 ## 收尾及范围
 

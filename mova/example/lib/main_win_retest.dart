@@ -8,7 +8,7 @@ import 'package:mova/src/core/kernel/mpv_kernel.dart';
 import 'package:mova/src/platform_impl/mpv_event_backend_ffi.dart';
 import 'verify_auto/he_auto.dart' as he;
 
-final screen = ValueNotifier<MovaApi?>(null);
+final screen = ValueNotifier<IMovaApi?>(null);
 final label = ValueNotifier<String>('Windows release verification');
 final rows = <Map<String, Object?>>[];
 final timer = Stopwatch()..start();
@@ -42,7 +42,7 @@ Future<void> until(FutureOr<bool> Function() predicate, {int seconds = 20}) asyn
 void main() {
   runZonedGuarded(() {
     WidgetsFlutterBinding.ensureInitialized();
-    MovaEngine.ensureInitialized();
+    Mova.ensureInitialized();
     if (Platform.environment['MOVA_WIN_PAGE'] == 'he') {
       runApp(const MaterialApp(home: he.HeAutoPage()));
       return;
@@ -50,9 +50,9 @@ void main() {
     runApp(MaterialApp(home: Scaffold(body: Column(children: [
       ValueListenableBuilder<String>(valueListenable: label,
         builder: (_, text, child) => Text('$build — $text', style: const TextStyle(fontSize: 22))),
-      Expanded(child: ValueListenableBuilder<MovaApi?>(valueListenable: screen,
+      Expanded(child: ValueListenableBuilder<IMovaApi?>(valueListenable: screen,
         builder: (_, api, child) => api == null ? const Center(child: Text('Ready')) :
-          MovaPlayer(api: api, skin: const MovaMinimalSkin()))),
+          MovaPlayer(api: api, uiKit: const MovaMinimalUiKit()))),
     ]))));
     unawaited(serve());
   }, (e, s) => mark('UNCAUGHT', {'error': '$e', 'stack': '$s'}));
@@ -94,9 +94,9 @@ Future<void> run(Map<String, String> args) async {
   mark('END', {'status': status});
 }
 
-/// Unmounts the surface before disposing only its owned engine.
+/// Unmounts the surface before disposing only its owned player.
 ///
-/// 卸载画面后仅销毁当前验证引擎。
+/// 卸载画面后仅销毁当前验证播放器。
 Future<void> clear() async {
   final a = screen.value;
   screen.value = null;
@@ -106,13 +106,13 @@ Future<void> clear() async {
 
 /// Verifies each of two disposal calls on audio-only normal and enabled proxies.
 ///
-/// 对无界面普通引擎和已启用代理逐次验证两次销毁调用。
+/// 对无界面普通播放器和已启用代理逐次验证两次销毁调用。
 Future<void> disposeProbe() async {
   for (final proxy in [false, true]) {
     mode = proxy ? 'cutover' : 'normal';
-    MovaEngine factory() => createMovaEngine(audioOnly: true,
-      options: MovaOpts(cutover: MovaCutoverConfig(enabled: proxy)));
-    final MovaApi a = proxy ? MovaCutoverEngine(engineFactory: factory) : factory();
+    Mova factory() => createMova(audioOnly: true,
+      options: MovaOpts(cutover: MovaCutoverOpts(enabled: proxy)));
+    final IMovaApi a = proxy ? MovaCutover(movaFactory: factory) : factory();
     final accepted = await a.open(MovaSource('http://127.0.0.1:18094/vod.mp4?t=${DateTime.now().microsecondsSinceEpoch}'));
     await until(() => a.state.duration > Duration.zero);
     mark('DISPOSE_OPEN', {'accepted': accepted, 'audioOnly': a.renderHandle == null,
@@ -133,7 +133,7 @@ Future<void> disposeProbe() async {
 Future<void> zoomProbe(String? value) async {
   mode = 'zoom';
   if (screen.value == null) {
-    final a = createMovaEngine(preciseFirstFrame: true);
+    final a = createMova(preciseFirstFrame: true);
     screen.value = a;
     await WidgetsBinding.instance.endOfFrame;
     await a.open(const MovaSource('http://127.0.0.1:18094/vod.mp4'));
@@ -159,14 +159,14 @@ Future<void> hlsProbe(String selectedMode, int count) async {
   final proxy = mode == 'cutover';
   late Player player;
   late MovaMpvKernel kernel;
-  MovaEngine factory() {
+  Mova factory() {
     player = Player();
     kernel = MovaMpvKernel(player: player, lazyVideo: true, observeNativeEvents: true,
       backendFactory: (n, address) => createFfiMpvEventBackend(n, address, pollInDebug: false));
-    return createMovaEngine(kernel: kernel, preciseFirstFrame: true,
-      options: MovaOpts(cutover: MovaCutoverConfig(enabled: proxy)));
+    return createMova(kernel: kernel, preciseFirstFrame: true,
+      options: MovaOpts(cutover: MovaCutoverOpts(enabled: proxy)));
   }
-  final MovaApi a = proxy ? MovaCutoverEngine(engineFactory: factory) : factory();
+  final IMovaApi a = proxy ? MovaCutover(movaFactory: factory) : factory();
   final native = player.platform as NativePlayer;
   Future<int> position() async => ((double.tryParse(await native.getProperty('time-pos')) ?? -1) * 1000).round();
   var restarts = <int>[];
@@ -226,8 +226,8 @@ Future<void> hlsProbe(String selectedMode, int count) async {
       await a.seek(const Duration(seconds: 9));
       await until(() async => (await position() - 9000).abs() <= 250);
     }
-    // Wait until the engine's source progress stream catches the native readback.
-    // 等引擎所读进度与原生值对齐，避免旧锚点造成验证工具误报。
+    // Wait until the player's source progress stream catches the native readback.
+    // 等播放器所读进度与原生值对齐，避免旧锚点造成验证工具误报。
     await until(() async => (player.state.position.inMilliseconds - await position()).abs() <= 100);
     await pending;
     restarts = <int>[];

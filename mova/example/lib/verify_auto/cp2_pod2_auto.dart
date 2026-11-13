@@ -8,11 +8,11 @@ Future<void> runPod2(Cp2Harness h) async {
       final ad1 = cp2Source('ad');
       final ad2 = cp2Source('ad2');
       final opts = MovaOpts(
-        cutover: const MovaCutoverConfig(
+        cutover: const MovaCutoverOpts(
           enabled: true,
           minWarmDuration: Duration.zero,
         ),
-        ads: MovaAdConfig(
+        ads: MovaAdOpts(
           enabled: true,
           waitForAdReady: MovaAdWaitByKind(pre: wait),
           breaks: [
@@ -30,8 +30,8 @@ Future<void> runPod2(Cp2Harness h) async {
           onAdEvent: (e) => cp2AdEvent(h, e),
         ),
       );
-      final api = MovaCutoverEngine(
-        engineFactory: () => cp2Engine(h, options: opts),
+      final api = MovaCutover(
+        movaFactory: () => cp2Mova(h, options: opts),
       );
       await h.mount(api);
       final ads = MovaAds(api, cutover: api);
@@ -95,12 +95,12 @@ Future<void> runPod2(Cp2Harness h) async {
                 .where((r) => r['event'] == 'MovaDone')
                 .map((r) => r['us'])
                 .toList(),
-            'sameEngine': first['engine'] == second['engine'],
+            'sameMova': first['mova'] == second['mova'],
           },
           pass:
               (wait ? epoch1 > epoch0 : epoch1 >= epoch0) &&
               (!wait || api.state.renderEpoch > epoch1) &&
-              (wait || first['engine'] == second['engine']) &&
+              (wait || first['mova'] == second['mova']) &&
               first['path'] == ad1.uri &&
               second['path'] == ad2.uri,
         );

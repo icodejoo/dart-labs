@@ -22,7 +22,7 @@
 
 | 层 | 现有能力 | 来源 |
 |---|---|---|
-| mova Dart | `MovaLiveReconnect`（1s 起、x2、封顶 30s、永不放弃）、`MovaRetryThenFailover`（点播）、`startTimeout` 10s、`stallTimeout` 10s、`END_FILE(error)` 触发 | `lib/src/core/options/recovery_config.dart`、`recovery/fail.dart`、CHANGELOG 0.3.2 |
+| mova Dart | `MovaLiveReconnect`（1s 起、x2、封顶 30s、永不放弃）、`MovaRetryThenFailover`（点播）、`startTimeout` 10s、`stallTimeout` 10s、`END_FILE(error)` 触发 | `lib/src/core/options/recovery_opts.dart`、`recovery/fail.dart`、CHANGELOG 0.3.2 |
 | mova 源级选项 | `MovaSource.mpvOptions` / `demuxerOptions` / `whepMediaTimeout`，`demuxer-lavf-o` 走 `change-list add/remove`，不冲掉 media_kit 默认的 `protocol_whitelist` 等 | `lib/src/core/kernel/mpv_keyvalue.dart`、CHANGELOG 0.3.2 |
 | mpv | 对 stream 层默认 `reconnect=1`、`reconnect_delay_max=7`；`network-timeout`（默认 60s）折成 `timeout` 微秒注入 | `stream/stream_lavf.c` L404-405、L230-236（v0.41.0） |
 | ffmpeg WHEP 补丁 | `timeout`(信令 HTTP，10s，但 mpv 会注入 60s)、`handshake_timeout` 10s、`first_frame_timeout` 10s、`media_timeout` 5s | `mova-libmpv/patches/ffmpeg-whep/README.md` 选项表 |
@@ -200,7 +200,7 @@ demuxer-lavf-o += handshake_timeout=5000000,first_frame_timeout=8000000,media_ti
 | `startTimeout` | 10s | 点播/HLS 合理（hls.js 首字节 10s、Media3 连接 8s）；**WHEP 偏紧**，因补丁默认握手 10s + 等关键帧 10s 都排在它后面，Dart 先到期则丢失 ffmpeg 给出的具体错误 |
 | `stallTimeout` | 10s | 点播偏紧：与 ffmpeg 约 11s 重连窗口冲突；直播可更短 |
 | `MovaLiveReconnect` | 1s 起、x2、封顶 30s、永不放弃 | 起点与 Media3(0/1s)、hls.js(1s) 一致，合理；封顶 30s 对推流端掉线再恢复略长，建议 10-15s（推流恢复后最多再等一个封顶间隔） |
-| `MovaLiveConfig.durationStep` | 2s | 与超时无关 |
+| `MovaLiveOpts.durationStep` | 2s | 与超时无关 |
 | mpv `network-timeout` | 60s（未改） | 偏长，建议 10-15s |
 | WHEP `media_timeout` | 5s | 低延迟场景合理；弱网移动端偏短（见下） |
 
@@ -221,7 +221,7 @@ demuxer-lavf-o += handshake_timeout=5000000,first_frame_timeout=8000000,media_ti
 
 **P1（Dart 层，小改动、收益确定）**
 
-1. `MovaRecoveryConfig` 允许按源类型取不同超时：至少给 WHEP 源的 `startTimeout` 默认放宽到 >= 15s（或文档明确"WHEP 请自行调大"）。现在 10s 会先于补丁的握手/等关键帧到期。
+1. `MovaRecoveryOpts` 允许按源类型取不同超时：至少给 WHEP 源的 `startTimeout` 默认放宽到 >= 15s（或文档明确"WHEP 请自行调大"）。现在 10s 会先于补丁的握手/等关键帧到期。
 2. 点播的 `stallTimeout` 默认由 10s 提到 15s，或在文档里写明与 ffmpeg 重连窗口（约 11s）的关系。
 3. `MovaLiveReconnect.maxDelay` 默认 30s 改为 15s（或在文档里给"推流端频繁重启"场景的建议值）。
 4. README/文档补一节"分工"：直播不开 `reconnect_streamed`，点播保留 mpv 默认重连，对应 1.5。

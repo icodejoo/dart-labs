@@ -7,11 +7,11 @@ Future<void> runPod2(Cp0Harness h) async {
       final ad1 = h.source('ad');
       final ad2 = h.source('ad2');
       final opts = MovaOpts(
-        cutover: const MovaCutoverConfig(
+        cutover: const MovaCutoverOpts(
           enabled: true,
           minWarmDuration: Duration.zero,
         ),
-        ads: MovaAdConfig(
+        ads: MovaAdOpts(
           enabled: true,
           waitForAdReady: MovaAdWaitByKind(pre: wait),
           breaks: [
@@ -20,9 +20,9 @@ Future<void> runPod2(Cp0Harness h) async {
           ],
         ),
       );
-      final api = MovaCutoverEngine(
-        engineFactory: () =>
-            createMovaEngine(options: opts, preciseFirstFrame: true),
+      final api = MovaCutover(
+        movaFactory: () =>
+            createMova(options: opts, preciseFirstFrame: true),
       );
       await h.mount(api);
       final ads = MovaAds(api, cutover: api);

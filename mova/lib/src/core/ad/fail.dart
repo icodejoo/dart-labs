@@ -16,27 +16,27 @@ enum MovaAdFailKind {
   playerError,
 
   /// The ad was opened but never produced a first frame within
-  /// [MovaAdConfig.loadTimeout].
+  /// [MovaAdOpts.loadTimeout].
   ///
-  /// 广告已打开，但在 [MovaAdConfig.loadTimeout] 内始终没有产出首帧。
+  /// 广告已打开，但在 [MovaAdOpts.loadTimeout] 内始终没有产出首帧。
   loadTimeout,
 
-  /// Warming the ad up in a shadow engine timed out or was given up on, and
-  /// [MovaAdConfig.notReadyAction] chose to drop the break.
+  /// Warming the ad up in a shadow player timed out or was given up on, and
+  /// [MovaAdOpts.notReadyAction] chose to drop the break.
   ///
-  /// 在影子引擎里预热广告超时或被放弃，且 [MovaAdConfig.notReadyAction]
+  /// 在影子播放器里预热广告超时或被放弃，且 [MovaAdOpts.notReadyAction]
   /// 选择了丢弃该广告位。
   warmFailed,
 }
 
-/// One ad failure, fed to a [MovaAdFailPolicy].
+/// One ad failure, fed to a [IMovaAdFailPolicy].
 ///
-/// A plain value object so the recovery rule is unit-testable with no player,
-/// no engine and no Flutter binding.
+/// A plain value object so the recovery rule is unit-testable with no player
+/// and no Flutter binding.
 ///
-/// 一次广告失败，喂给 [MovaAdFailPolicy]。
+/// 一次广告失败，喂给 [IMovaAdFailPolicy]。
 ///
-/// 纯值对象，使兜底规则无需播放器、引擎或 Flutter 绑定即可被测试。
+/// 纯值对象，使兜底规则无需播放器或 Flutter 绑定即可被测试。
 class MovaAdFail {
   /// The break that failed.
   ///
@@ -75,9 +75,9 @@ class MovaAdFail {
   });
 }
 
-/// What the controller should do about a failed ad break.
+/// What the ad orchestration should do about a failed ad break.
 ///
-/// 控制器该拿一条失败的广告位怎么办。
+/// 广告编排该拿一条失败的广告位怎么办。
 enum MovaAdFailAction {
   /// Re-open the same break and try again.
   ///
@@ -99,17 +99,17 @@ enum MovaAdFailAction {
 
 /// Decides how to recover from an ad that would not play.
 ///
-/// The counterpart of [MovaWarmPolicy] on the failure side: a pure, injectable
+/// The counterpart of [IMovaWarmPolicy] on the failure side: a pure, injectable
 /// rule so hosts with a real ad stack (fill-rate targets, make-good
 /// obligations, per-campaign retry budgets) can replace it wholesale instead
 /// of living with mova's opinion.
 ///
 /// 判定一条播不出来的广告该如何兜底。
 ///
-/// 失败侧与 [MovaWarmPolicy] 对应的那一半：纯粹、可注入的规则，使有真实广告
+/// 失败侧与 [IMovaWarmPolicy] 对应的那一半：纯粹、可注入的规则，使有真实广告
 /// 体系的宿主（填充率指标、补播义务、每个 campaign 各自的重试预算）能整体
 /// 替换掉它，而不必忍受 mova 的一家之言。
-abstract class MovaAdFailPolicy {
+abstract class IMovaAdFailPolicy {
   /// Returns the action to take for [failure].
   ///
   /// 返回针对 [failure] 应采取的动作。
@@ -133,7 +133,7 @@ abstract class MovaAdFailPolicy {
 /// 默认策略，[maxRetries] 为 0。对一个坏掉的广告地址重试，代价是让观众为一个
 /// 他本来就没想看的东西再卡一次，因此开箱默认是"观众的时间优先"：丢掉这一条
 /// 素材，保留 pod 的其余部分。有补播义务的宿主可以自行调高 [maxRetries]。
-class MovaAdRetrySkip implements MovaAdFailPolicy {
+class MovaAdRetrySkip implements IMovaAdFailPolicy {
   /// How many retries one break is worth before it is dropped.
   ///
   /// 一条广告位在被丢弃前值得重试几次。
@@ -147,7 +147,7 @@ class MovaAdRetrySkip implements MovaAdFailPolicy {
   ///
   /// Example / 示例:
   /// ```dart
-  /// const MovaAdConfig(failPolicy: MovaAdRetrySkip(maxRetries: 2));
+  /// const MovaAdOpts(failPolicy: MovaAdRetrySkip(maxRetries: 2));
   /// ```
   const MovaAdRetrySkip({this.maxRetries = 0});
 
@@ -167,14 +167,14 @@ class MovaAdRetrySkip implements MovaAdFailPolicy {
 ///
 /// 适合把"一条素材坏了"视为"整份广告响应都可疑"的宿主——失败一次就把画面还给
 /// 观众，而不是带着他把 pod 里可能同样坏掉的其余几条挨个走一遍。
-class MovaAdAbandonPod implements MovaAdFailPolicy {
+class MovaAdAbandonPod implements IMovaAdFailPolicy {
   /// Creates an abandon-the-pod policy.
   ///
   /// 创建一个"放弃整个 pod"的策略。
   ///
   /// Example / 示例:
   /// ```dart
-  /// const MovaAdConfig(failPolicy: MovaAdAbandonPod());
+  /// const MovaAdOpts(failPolicy: MovaAdAbandonPod());
   /// ```
   const MovaAdAbandonPod();
 

@@ -24,7 +24,7 @@ bool movaSnapshotGuardNeeded() => !kIsWeb && defaultTargetPlatform == TargetPlat
 /// 让 [child] 不进 [SnapshotWidget] 的快照（Material 页面转场如 `ZoomPageTransitionsBuilder`
 /// 会在 push/pop 路由时给页面拍快照）。
 ///
-/// 原因：`TextureLayer` 声明自己支持栅格化，宽松模式的 [SnapshotWidget] 会把视频纹理交给引擎的
+/// 原因：`TextureLayer` 声明自己支持栅格化，宽松模式的 [SnapshotWidget] 会把视频纹理交给 Flutter 引擎的
 /// `LayerTree::Flatten`；Windows + Impeller 下 Flutter 3.47.0/3.47.1 在那里解引用空上下文，进程在
 /// `flutter_windows.dll` 里以 `0xC0000005` 退出（flutter/flutter#190774，3.47.2 已修）。开启后子树会
 /// 加一层 `supportsRasterization()` 为 `false` 的图层（和平台视图给出的信号一致），宽松快照于是悄悄

@@ -7,7 +7,7 @@ import 'package:mova/src/core/state/ui_state.dart';
 import 'package:mova/src/ui/components/common.dart';
 import 'package:mova/src/ui/components/gesture_layer.dart';
 import 'package:mova/src/ui/player.dart';
-import 'package:mova/src/ui/skins/default_skin.dart';
+import 'package:mova/src/ui/ui_kits/default_ui_kit.dart';
 import 'package:mova/src/ui/slots/patch.dart';
 
 import '../support/fake_api.dart';
@@ -18,7 +18,7 @@ void main() {
     testWidgets('B14 vSensitivity 对${left ? '亮度' : '音量'}增量生效', (t) async {
       final values = <double>[];
       for (final sensitivity in [0.5, 1.0, 2.0]) {
-        final api = FakeMovaApi(options: MovaOpts(gesture: MovaGestureConfig(vSensitivity: sensitivity)));
+        final api = FakeMovaApi(options: MovaOpts(gesture: MovaGestureOpts(vSensitivity: sensitivity)));
         addTearDown(api.dispose);
         api.push(const MovaState(volume: 20, brightness: 0.2));
         await t.pumpWidget(const SizedBox.shrink());
@@ -35,7 +35,7 @@ void main() {
   testWidgets('B14 横轴音量不受竖滑灵敏度影响', (t) async {
     final values = <double>[];
     for (final sensitivity in [1.0, 3.0]) {
-      final api = FakeMovaApi(options: MovaOpts(gesture: MovaGestureConfig(
+      final api = FakeMovaApi(options: MovaOpts(gesture: MovaGestureOpts(
         horizontal: MovaGestureAction.volume, vSensitivity: sensitivity,
       )));
       addTearDown(api.dispose);
@@ -51,7 +51,7 @@ void main() {
   });
 
   testWidgets('B14 allowWhenLive 关闭仍允许音量和亮度', (t) async {
-    final api = FakeMovaApi(options: const MovaOpts(gesture: MovaGestureConfig(allowWhenLive: false)));
+    final api = FakeMovaApi(options: const MovaOpts(gesture: MovaGestureOpts(allowWhenLive: false)));
     addTearDown(api.dispose);
     api.push(const MovaState(type: MovaStreamType.live, volume: 20, brightness: 0.2));
     await pumpComponent(t, api, MovaGestureLayerComponent());
@@ -70,12 +70,12 @@ void main() {
       MovaPatch.insertAfter('topBar/missing', MovaGestureLayerComponent()),
       const MovaPatch.remove('topBar/'),
     ]) {
-      expect(() => MovaDefaultSkin(patches: [patch]).components(), throwsAssertionError);
+      expect(() => MovaDefaultUiKit(patches: [patch]).components(), throwsAssertionError);
     }
-    expect(() => const MovaDefaultSkin(patches: [
+    expect(() => const MovaDefaultUiKit(patches: [
       MovaPatch.remove('topBar'), MovaPatch.remove('topBar/pipButton'),
     ]).components(), throwsAssertionError);
-    expect(() => const MovaDefaultSkin(patches: [
+    expect(() => const MovaDefaultUiKit(patches: [
       MovaPatch.remove('topBar/pipButton'), MovaPatch.remove('topBar'),
     ]).components(), returnsNormally);
   });
@@ -83,7 +83,7 @@ void main() {
   testWidgets('B14 锁定按钮可从组件树移除', (t) async {
     final api = FakeMovaApi();
     addTearDown(api.dispose);
-    await t.pumpWidget(MaterialApp(home: MovaPlayer(api: api, skin: const MovaDefaultSkin(
+    await t.pumpWidget(MaterialApp(home: MovaPlayer(api: api, uiKit: const MovaDefaultUiKit(
       patches: [MovaPatch.remove(MovaLockToggleComponent.componentName)],
     ))));
     expect(find.byIcon(Icons.lock_open_rounded), findsNothing);

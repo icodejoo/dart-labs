@@ -1,16 +1,16 @@
 import 'models.dart';
 
-/// The scrub-preview capability surface exposed on `MovaApi.preview`.
+/// The scrub-preview capability surface exposed on `IMovaApi.preview`.
 ///
 /// UI components only ever call [requestAt]/[peekAt] and listen to [thumbs];
 /// all policy (debounce, bucketing, network, caching, source order) lives
 /// behind this abstraction in the core layer.
 ///
-/// 挂在 `MovaApi.preview` 上的拖动预览能力面。
+/// 挂在 `IMovaApi.preview` 上的拖动预览能力面。
 ///
 /// UI 组件只会调用 [requestAt]/[peekAt] 并监听 [thumbs]；所有策略（防抖、
 /// 桶对齐、网络、缓存、来源顺序）都藏在该抽象之后的 core 层里。
-abstract class MovaPreviewApi {
+abstract class IMovaPreviewApi {
   /// Emits the thumbnail to display, or null when nothing should be shown.
   ///
   /// 推送应展示的缩略图；无内容可展示时推送 null。
@@ -54,13 +54,13 @@ abstract class MovaPreviewApi {
 }
 
 /// 可选的独立预览会话能力；每个视图独占请求、结果流与取消权。
-abstract interface class MovaPreviewSessions {
+abstract interface class IMovaPreviewSessions {
   /// 新会话借用媒体、缓存和来源，关闭时只释放自身交互资源。
-  MovaPreviewSession openSession();
+  IMovaPreviewSession openSession();
 }
 
 /// 单个视图拥有的预览请求端。
-abstract interface class MovaPreviewSession implements MovaPreviewApi {
+abstract interface class IMovaPreviewSession implements IMovaPreviewApi {
   /// 取消本会话并释放结果流，不销毁共享资源。
   Future<void> dispose();
 }

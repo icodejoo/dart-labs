@@ -28,7 +28,7 @@ import 'verify_auto/he_auto.dart';
 /// `START_TIMEOUT_S`、`STALL_TIMEOUT_S`。详见 `verify_auto/he_auto.dart`。
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  MovaEngine.ensureInitialized();
+  Mova.ensureInitialized();
   runApp(MaterialApp(home: kAutoRun ? const HeAutoPage() : const _VerifyPage()));
 }
 
@@ -59,7 +59,7 @@ class _VerifyPageState extends State<_VerifyPage> {
   /// 页面上展示的最近日志。
   final List<String> _lines = <String>[];
 
-  /// 当前引擎事件订阅。
+  /// 当前播放器事件订阅。
   StreamSubscription<MovaEvent>? _sub;
 
   @override
@@ -102,8 +102,8 @@ class _VerifyPageState extends State<_VerifyPage> {
     _log('reopen ${_source?.uris}');
   }
 
-  /// 引擎创建后订阅关心的事件。
-  void _onEngine(MovaApi api) {
+  /// 播放器创建后订阅关心的事件。
+  void _onMova(IMovaApi api) {
     unawaited(_sub?.cancel());
     _sub = api.events.listen((e) {
       switch (e) {
@@ -140,12 +140,12 @@ class _VerifyPageState extends State<_VerifyPage> {
               source: _source,
               fit: MovaFit.cover,
               poster: const ColoredBox(color: Color(0xFF223344), child: Center(child: Text('POSTER'))),
-              skin: const MovaMinimalSkin(),
+              uiKit: const MovaMinimalUiKit(),
               options: const MovaOpts(
-                recovery: MovaRecoveryConfig(enabled: true, startTimeout: Duration(seconds: 8), stallTimeout: Duration(seconds: 8)),
+                recovery: MovaRecoveryOpts(enabled: true, startTimeout: Duration(seconds: 8), stallTimeout: Duration(seconds: 8)),
               ),
-              autoPause: const MovaAutoPauseConfig(),
-              onEngine: _onEngine,
+              autoPause: const MovaAutoPauseOpts(),
+              onMova: _onMova,
               onOpenError: (e, s) => _log('openError $e'),
             ),
           ),

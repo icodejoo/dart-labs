@@ -26,7 +26,7 @@
 
 - 开始收尾：经现有验证页恢复媒体音量30%=6/20，USB常亮恢复7，force-stop隔离包；保留原生设置、进程与屏幕状态，再结束仅本次启动的两个源进程。
 
-- 收尾检查点：隔离包pid为空（force-stop），USB常亮=7，媒体streamVolume=6/20；仍isKeyguardShowing=false、mScreenOnFully=true；本次两个源PID已结束，engine.dart哈希与安装时一致。证据 rerun7-final-state.json / rerun7-final-*.txt。
+- 收尾检查点：隔离包pid为空（force-stop），USB常亮=7，媒体streamVolume=6/20；仍isKeyguardShowing=false、mScreenOnFully=true；本次两个源PID已结束，mova.dart哈希与安装时一致。证据 rerun7-final-state.json / rerun7-final-*.txt。
 
 
 ## 基线与暂停态结果
@@ -99,7 +99,7 @@ target<8s、未观察到目标档位完成或提前结果按原规则剔除；�
 - 隔离包 `com.icodejoo.mova.mova_example.coverage`，lastUpdateTime=2026-10-27 23:31:27，build=`rerun7-20261027`；[rerun7-start.json](../../example/tool/coverage_evidence/rerun7-start.json)。
 - Gradle APK SHA256：`9ee819bd4d9b436c7b65339a0d32af31fe2a2893a9a506c23893426d78a8292c`。
 - 重签包与设备拉回 APK SHA256：`9ffd31ad0d0afd8307c32ae4151136eb19ba54e8f79aa4d57cc134e623fa6831`，完全一致；[rerun7-build-manifest.json](../../example/tool/coverage_evidence/rerun7-build-manifest.json)。
-- engine.dart SHA256：`9d4116bde6e079f34424748373d6568db7638ad9f6dbb4c2da3f45073dfc8ffc`，构建前、安装时、收尾一致。release 不含Dart源码；通过编译输入哈希、包含 engine.dart 的编译依赖、编译AOT=Gradle合并产物、strip后AOT=设备包建立身份链；[rerun7-build-input.json](../../example/tool/coverage_evidence/rerun7-build-input.json)、[rerun7-build-provenance.json](../../example/tool/coverage_evidence/rerun7-build-provenance.json)、[rerun7-build-dependencies.txt](../../example/tool/coverage_evidence/rerun7-build-dependencies.txt)。
+- mova.dart SHA256：`9d4116bde6e079f34424748373d6568db7638ad9f6dbb4c2da3f45073dfc8ffc`，构建前、安装时、收尾一致。release 不含Dart源码；通过编译输入哈希、包含 mova.dart 的编译依赖、编译AOT=Gradle合并产物、strip后AOT=设备包建立身份链；[rerun7-build-input.json](../../example/tool/coverage_evidence/rerun7-build-input.json)、[rerun7-build-provenance.json](../../example/tool/coverage_evidence/rerun7-build-provenance.json)、[rerun7-build-dependencies.txt](../../example/tool/coverage_evidence/rerun7-build-dependencies.txt)。
 - 沿用 coverage.init.gradle、原生库LFS哈希核对、zipalign、既有debug证书重签；[rerun7-build.log](../../example/tool/coverage_evidence/rerun7-build.log)、[rerun7-install.log](../../example/tool/coverage_evidence/rerun7-install.log)、[rerun7-certificate.txt](../../example/tool/coverage_evidence/rerun7-certificate.txt)。
 
 ## 收尾及范围

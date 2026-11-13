@@ -9,7 +9,7 @@ import 'package:flutter/widgets.dart';
 /// `scope/scope.dart`, `scope/selector.dart`) but is intentionally its own
 /// lightweight [InheritedWidget] rather than folded into [MovaScope]: the
 /// rect is derived from layout constraints (via `LayoutBuilder` in
-/// `player.dart`), not from `MovaApi`'s streams.
+/// `player.dart`), not from `IMovaApi`'s streams.
 ///
 /// 向后代发布视频内容的实际显示矩形（已应用 letterbox 计算，相对播放器容器），
 /// 使叠加层组件能对齐画面本身，而非整个播放器容器。
@@ -17,7 +17,7 @@ import 'package:flutter/widgets.dart';
 /// 查找方式与 [MovaScope]/[MovaSelect]（见 `scope/scope.dart`、
 /// `scope/selector.dart`）保持一致，但刻意做成独立的轻量 [InheritedWidget]而非
 /// 并入 [MovaScope]——该矩形由布局约束推导而来（`player.dart` 里的
-/// `LayoutBuilder`），并非来自 `MovaApi` 的流。
+/// `LayoutBuilder`），并非来自 `IMovaApi` 的流。
 class MovaVideoRectScope extends InheritedWidget {
   /// Wraps [child] with a scope that exposes [rect] to descendants.
   ///

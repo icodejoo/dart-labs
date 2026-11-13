@@ -26,11 +26,11 @@ const waitingPre = MovaAdBreak(
 
 Future<void> enterPod(AdOperationRig rig) async {
   await rig.ads.load(a);
-  rig.engines.first.pushProgress(
+  rig.movas.first.pushProgress(
     const MovaProg(position: Duration(seconds: 1)),
   );
   await settleOperations();
-  await rig.ready(rig.engines.last);
+  await rig.ready(rig.movas.last);
 }
 
 void main() {
@@ -41,7 +41,7 @@ void main() {
     expect(rig.api.state.renderEpoch, 1);
     final old = rig.api.active as FakeMovaApi;
     await done(old);
-    final next = rig.engines.last;
+    final next = rig.movas.last;
     expect(next, isNot(same(old)));
     await rig.ready(next);
     expect(rig.api.state.renderEpoch, 2);
@@ -66,10 +66,10 @@ void main() {
       addTearDown(rig.dispose);
       final loading = rig.ads.load(a);
       await settleOperations();
-      if (wait) await rig.ready(rig.engines.last);
+      if (wait) await rig.ready(rig.movas.last);
       expect(await loading, isTrue);
       await done(rig.api.active as FakeMovaApi);
-      if (wait) await rig.ready(rig.engines.last);
+      if (wait) await rig.ready(rig.movas.last);
       expect(rig.api.state.renderEpoch, wait ? 2 : 0);
       expect((rig.api.active as FakeMovaApi).source, b);
       expect(rig.ads.currentBreak, same(ads[1]));
@@ -81,20 +81,20 @@ void main() {
   });
   test('一次性广告计划使用 1x 停首帧，真实就绪期限取广告期限', () {
     fakeAsync((clock) {
-      final engines = <FakeMovaApi>[];
-      final api = MovaCutoverEngine(
-        engineFactory: () {
+      final movas = <FakeMovaApi>[];
+      final api = MovaCutover(
+        movaFactory: () {
           final e = FakeMovaApi(
             options: const MovaOpts(
-              cutover: MovaCutoverConfig(enabled: true),
-              ads: MovaAdConfig(
+              cutover: MovaCutoverOpts(enabled: true),
+              ads: MovaAdOpts(
                 enabled: true,
                 breaks: [waitingPre],
                 adReadyTimeout: Duration(seconds: 2),
               ),
             ),
           );
-          engines.add(e);
+          movas.add(e);
           return e;
         },
       );
@@ -106,25 +106,25 @@ void main() {
         }),
       );
       clock.flushMicrotasks();
-      expect(engines, hasLength(2));
+      expect(movas, hasLength(2));
       clock.elapse(const Duration(milliseconds: 1999));
       expect(accepted, isFalse);
       clock.elapse(const Duration(milliseconds: 1));
       clock.flushMicrotasks();
       expect(accepted, isTrue);
-      expect(engines.first.source, waitingPre.source);
-      final plain = FakeMovaApi(options: const MovaOpts(ads: MovaAdConfig(
+      expect(movas.first.source, waitingPre.source);
+      final plain = FakeMovaApi(options: const MovaOpts(ads: MovaAdOpts(
         enabled: true, breaks: [waitingPre], adReadyTimeout: Duration(seconds: 2))));
-      final ctl = FakeCutoverCtl()..commitResult = true;
-      final adapter = MovaAds(plain, cutover: ctl);
+      final cutover = FakeCutover()..commitResult = true;
+      final adapter = MovaAds(plain, cutover: cutover);
       unawaited(adapter.load(a)); clock.flushMicrotasks();
-      expect(ctl.lastPlan?.rate, 1.0);
-      expect(ctl.lastPlan?.pauseWhenReady, isTrue);
-      expect((ctl.lastPlan?.policy as MovaBufferWarm).timeout, const Duration(seconds: 2));
+      expect(cutover.lastPlan?.rate, 1.0);
+      expect(cutover.lastPlan?.pauseWhenReady, isTrue);
+      expect((cutover.lastPlan?.policy as MovaBufferWarm).timeout, const Duration(seconds: 2));
       unawaited(adapter.dispose()); clock.flushMicrotasks();
       unawaited(plain.dispose()); clock.flushMicrotasks();
-      unawaited(ctl.dispose()); clock.flushMicrotasks();
-      final plan = movaAdWarmPlan(const MovaAdConfig());
+      unawaited(cutover.dispose()); clock.flushMicrotasks();
+      final plan = movaAdWarmPlan(const MovaAdOpts());
       expect(plan.rate, 1.0);
       expect(plan.pauseWhenReady, isTrue);
       expect(
@@ -132,7 +132,7 @@ void main() {
         const Duration(seconds: 5),
       );
       final custom = movaAdWarmPlan(
-        const MovaAdConfig(adWarmPlan: MovaWarmPlan(pauseWhenReady: true)),
+        const MovaAdOpts(adWarmPlan: MovaWarmPlan(pauseWhenReady: true)),
       );
       expect(custom.rate, 1.0);
       unawaited(ads.dispose());
@@ -145,14 +145,14 @@ void main() {
     final policy = RecordingAdPolicy();
     final api = FakeMovaApi(
       options: MovaOpts(
-        ads: MovaAdConfig(
+        ads: MovaAdOpts(
           enabled: true,
           breaks: const [waitingPre, waitingPre],
           failPolicy: policy,
         ),
       ),
     );
-    final cutover = FakeCutoverCtl()..commitResult = true;
+    final cutover = FakeCutover()..commitResult = true;
     final ads = MovaAds(api, cutover: cutover);
     addTearDown(() async {
       await ads.dispose();
@@ -180,7 +180,7 @@ void main() {
     final rig = AdOperationRig(breaks: [first], gateShadow: gate);
     addTearDown(rig.dispose);
     await rig.ads.load(a);
-    rig.engines.first.pushProgress(
+    rig.movas.first.pushProgress(
       const MovaProg(position: Duration(seconds: 1)),
     );
     await settleOperations();
@@ -189,18 +189,18 @@ void main() {
       b,
       plan: const MovaWarmPlan(trigger: MovaEagerWarm()),
     );
-    final hostShadow = rig.engines.last;
+    final hostShadow = rig.movas.last;
     await settleOperations();
     // Cancellation now ends preparation without waiting for the old open hook.
     //
     // 取消现在会直接结束预热，不再等待旧 open 钩子返回。
     expect(gate.isCompleted, isFalse);
-    expect(rig.engines.first.source, first.source);
+    expect(rig.movas.first.source, first.source);
     expect(hostShadow.disposeCount, 1);
     gate.complete();
     await settleOperations();
-    expect(rig.api.active, same(rig.engines.first));
-    expect(rig.engines.first.source, first.source);
+    expect(rig.api.active, same(rig.movas.first));
+    expect(rig.movas.first.source, first.source);
     expect(hostShadow.disposeCount, 1);
   });
   test('宿主在广告提交窗口直接 open，不回落抢源', () async {
@@ -208,14 +208,14 @@ void main() {
     addTearDown(rig.dispose);
     final loading = rig.ads.load(a);
     await settleOperations();
-    final gate = rig.engines.first.pauseGate = Completer<void>();
-    await rig.ready(rig.engines.last);
+    final gate = rig.movas.first.pauseGate = Completer<void>();
+    await rig.ready(rig.movas.last);
     await rig.api.open(b);
     gate.complete();
     expect(await loading, isFalse);
     await settleOperations();
     expect((rig.api.active as FakeMovaApi).source, b);
-    expect(rig.engines.first.openedUris, [b.uri]);
+    expect(rig.movas.first.openedUris, [b.uri]);
     expect(rig.ads.session.cursor.phase, MovaSessionPhase.idle);
   });
   test('回正片凭据提交被宿主取代不回落 open', () async {
@@ -223,10 +223,10 @@ void main() {
     addTearDown(rig.dispose);
     await rig.ads.load(a);
     final shadow = await rig.warmContent();
-    final ad = rig.engines.first;
+    final ad = rig.movas.first;
     final gate = ad.pauseGate = Completer<void>();
     await done(ad);
-    expect(rig.engines.last, same(shadow));
+    expect(rig.movas.last, same(shadow));
     await rig.api.open(b);
     gate.complete();
     await settleOperations();
@@ -241,22 +241,22 @@ void main() {
         source: b,
         duration: Duration(seconds: 15),
       );
-      final factory = GatedEngineFactory();
-      final api = MovaCutoverEngine(
-        engineFactory: () {
+      final factory = GatedMovaFactory();
+      final api = MovaCutover(
+        movaFactory: () {
           final e = FakeMovaApi(
             options: const MovaOpts(
-              cutover: MovaCutoverConfig(
+              cutover: MovaCutoverOpts(
                 enabled: true,
                 trigger: MovaLeadWarm(
                   lead: Duration(seconds: 2),
                   minDuration: Duration.zero,
                 ),
               ),
-              ads: MovaAdConfig(enabled: true, breaks: [ad]),
+              ads: MovaAdOpts(enabled: true, breaks: [ad]),
             ),
           );
-          factory.engines.add(e);
+          factory.movas.add(e);
           return e;
         },
       );
@@ -264,7 +264,7 @@ void main() {
         ..debugClock = () => DateTime.utc(2026).add(clock.elapsed);
       unawaited(session.load(a));
       clock.flushMicrotasks();
-      final active = factory.engines.first;
+      final active = factory.movas.first;
       active.push(active.state.copyWith(duration: const Duration(seconds: 30)));
       active.pushEvent(
         const MovaFirstFrame(
@@ -276,12 +276,12 @@ void main() {
       clock.elapse(const Duration(seconds: 12));
       active.pushProgress(const MovaProg(position: Duration(seconds: 12)));
       clock.flushMicrotasks();
-      expect(factory.engines, hasLength(1));
+      expect(factory.movas, hasLength(1));
       clock.elapse(const Duration(seconds: 1));
       active.pushProgress(const MovaProg(position: Duration(seconds: 13)));
       clock.flushMicrotasks();
-      expect(factory.engines, hasLength(2));
-      expect(factory.engines.last.source, a);
+      expect(factory.movas, hasLength(2));
+      expect(factory.movas.last.source, a);
       expect(
         movaContentWarmCue(
           mediaDuration: Duration.zero,

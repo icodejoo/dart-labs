@@ -6,7 +6,7 @@ import 'package:flutter/widgets.dart';
 import '../../core/api.dart';
 import '../../core/bus/bus.dart';
 import '../../core/events/events.dart';
-import '../../core/options/controls_config.dart';
+import '../../core/options/controls_opts.dart';
 import '../../core/state/ui_bridge.dart';
 import '../../core/state/ui_state.dart';
 import '../scope/scope.dart';
@@ -23,7 +23,7 @@ class MovaChrome extends ChangeNotifier
   }
 
   final _bus = MovaBus<MovaUiState>(const MovaUiState());
-  MovaCtrlsConfig _controls = const MovaCtrlsConfig();
+  MovaCtrlsOpts _controls = const MovaCtrlsOpts();
   late MovaUiTimers _timers;
 
   MovaUiTimers _newTimers() => MovaUiTimers()
@@ -35,8 +35,8 @@ class MovaChrome extends ChangeNotifier
     };
   bool _sticky = false;
   bool _disposed = false;
-  MovaApi? _api;
-  MovaUiLink? _link;
+  IMovaApi? _api;
+  IMovaUiLink? _link;
   StreamSubscription<MovaEvent>? _eventSub;
   int _binding = 0;
   int _readyEpoch = 0;
@@ -53,7 +53,7 @@ class MovaChrome extends ChangeNotifier
         'MovaChrome.of() requires a MovaPlayer with chrome.',
       ));
 
-  void _bind(MovaApi api) {
+  void _bind(IMovaApi api) {
     assert(!_disposed, '已销毁的 MovaChrome 不能挂载');
     assert(_api == null, '一个 MovaChrome 同一时刻只能挂一个视图');
     if (_disposed) return;
@@ -66,7 +66,7 @@ class MovaChrome extends ChangeNotifier
     scheduleMicrotask(() {
       if (!_disposed && generation == _binding) notifyListeners();
     });
-    final bridge = api is MovaUiBridge ? api as MovaUiBridge : null;
+    final bridge = api is IMovaUiBridge ? api as IMovaUiBridge : null;
     _link = bridge?.linkUi(_ChromeSink(this));
     _link?.mirror(value);
     if (value.controlsVisible && (bridge?.uiReady ?? false)) _armAutoHide();
@@ -102,7 +102,7 @@ class MovaChrome extends ChangeNotifier
     unawaited(_eventSub?.cancel());
     _eventSub = null;
     final link = _link;
-    if (link is MovaUiHandoffLink) {
+    if (link is IMovaUiHandoffLink) {
       link.unlinkWith(MovaUiHandoff(value, timers));
     } else {
       timers.cancel();
@@ -214,23 +214,23 @@ class MovaChrome extends ChangeNotifier
 }
 
 /// 包内：更新视图的控制条配置。
-void movaSetChromeControls(MovaChrome chrome, MovaCtrlsConfig controls) {
+void movaSetChromeControls(MovaChrome chrome, MovaCtrlsOpts controls) {
   if (chrome._controls == controls) return;
   chrome._controls = controls;
   final api = chrome._api;
   if (chrome._timers.hidePending ||
-      (api is MovaUiBridge && (api as MovaUiBridge).uiReady)) {
+      (api is IMovaUiBridge && (api as IMovaUiBridge).uiReady)) {
     chrome._armAutoHide();
   }
 }
 
 /// 包内：绑定视图，种子只继承控制条显隐。
-void movaBindChrome(MovaChrome chrome, MovaApi api) => chrome._bind(api);
+void movaBindChrome(MovaChrome chrome, IMovaApi api) => chrome._bind(api);
 
 /// 包内：解绑视图，保留宿主拥有的实例。
 void movaUnbindChrome(MovaChrome chrome) => chrome._unbind();
 
-class _ChromeSink implements MovaUiSink {
+class _ChromeSink implements IMovaUiSink {
   _ChromeSink(this.chrome);
   final MovaChrome chrome;
   @override
@@ -265,7 +265,7 @@ class MovaUiPort {
   /// 选择视图交互态或旧 API。
   MovaUiPort.of(this._chrome, this._api);
   final MovaChrome? _chrome;
-  final MovaApi _api;
+  final IMovaApi _api;
 
   /// 当前快照。
   MovaUiState get uiState => _chrome?.uiState ?? _api.uiState;

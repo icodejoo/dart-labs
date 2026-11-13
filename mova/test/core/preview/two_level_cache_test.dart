@@ -10,10 +10,10 @@ import 'package:mova/src/core/preview/two_level_cache.dart';
 /// 造 [n] 个填充字节，让测试可以按长度区分不同负载。
 Uint8List _bytes(int n) => Uint8List.fromList(List<int>.filled(n, n & 0xFF));
 
-/// A recording [MovaThumbCache] standing in for the slow (disk) level.
+/// A recording [IMovaThumbCache] standing in for the slow (disk) level.
 ///
-/// 记录调用的 [MovaThumbCache]，用于替身"慢速（磁盘）"层。
-class _RecordingCache implements MovaThumbCache {
+/// 记录调用的 [IMovaThumbCache]，用于替身"慢速（磁盘）"层。
+class _RecordingCache implements IMovaThumbCache {
   /// Stored entries.
   ///
   /// 已存储的条目。

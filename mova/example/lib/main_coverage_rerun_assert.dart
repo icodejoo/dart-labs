@@ -11,11 +11,11 @@ void main() {
   var zoom = false;
   try {
     final count = int.parse('0');
-    MovaDanmakuConfig(trackCount: count);
+    MovaDanmakuOpts(trackCount: count);
   } on AssertionError catch (_) { tracks = true; }
   try {
     final maximum = double.parse('0.5');
-    MovaGestureConfig(maxZoom: maximum);
+    MovaGestureOpts(maxZoom: maximum);
   } on AssertionError catch (_) { zoom = true; }
   // ignore: avoid_print
   print('RERUN_ASSERT enabled=$enabled trackCount=$tracks maxZoom=$zoom');

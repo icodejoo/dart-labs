@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mova/src/core/api.dart';
-import 'package:mova/src/core/feed/engine_pool.dart';
+import 'package:mova/src/core/feed/feed_pool.dart';
 import 'package:mova/src/core/feed/feed.dart';
 import 'package:mova/src/core/model/feed_item.dart';
 import 'package:mova/src/core/model/source.dart';
@@ -15,12 +15,12 @@ import 'package:mova/src/ui/components/preview.dart';
 import 'package:mova/src/ui/components/speed_button.dart';
 import 'package:mova/src/ui/components/subtitle.dart';
 import 'package:mova/src/ui/components/top_bar.dart';
-import 'package:mova/src/ui/mini/mini_skin.dart';
-import 'package:mova/src/ui/skins/bilibili_skin.dart';
-import 'package:mova/src/ui/skins/default_skin.dart';
-import 'package:mova/src/ui/skins/douyin_skin.dart';
-import 'package:mova/src/ui/skins/minimal_skin.dart';
-import 'package:mova/src/ui/skins/skin.dart';
+import 'package:mova/src/ui/mini/mini_ui_kit.dart';
+import 'package:mova/src/ui/ui_kits/bilibili_ui_kit.dart';
+import 'package:mova/src/ui/ui_kits/default_ui_kit.dart';
+import 'package:mova/src/ui/ui_kits/douyin_ui_kit.dart';
+import 'package:mova/src/ui/ui_kits/minimal_ui_kit.dart';
+import 'package:mova/src/ui/ui_kits/ui_kit.dart';
 import 'package:mova/src/ui/slots/component.dart';
 import 'package:mova/src/ui/slots/patch.dart';
 import 'package:mova/src/ui/slots/slot.dart';
@@ -47,9 +47,9 @@ List<String> _flat(List<MovaComponent> cs, [String prefix = '']) {
 /// 只取 [cs] 的路径，去掉槽位后缀。
 List<String> _paths(List<MovaComponent> cs) => _flat(cs).map((s) => s.split('@').first).toList();
 
-/// The default skin's tree, in order, with each node's slot.
+/// The default UI kit's tree, in order, with each node's slot.
 ///
-/// 默认皮肤的组件树，按顺序并带每个节点的槽位。
+/// 默认 UI 套件的组件树，按顺序并带每个节点的槽位。
 const _defaultTree = <String>[
   'gestureLayer@gesture',
   'hudLayer@hud',
@@ -63,7 +63,7 @@ const _defaultTree = <String>[
   'topBar/qualityButton@top',
   'topBar/subtitleButton@top',
   'topBar/fitButton@top',
-  'topBar/orientationButton@top',
+  'topBar/orientButton@top',
   'topBar/fullscreenButton@top',
   'centerPlay@center',
   'centerPlay/playPause@center',
@@ -92,19 +92,19 @@ class _Marker extends MovaComponent {
   @override
   final MovaSlot slot;
   @override
-  Widget build(BuildContext c, MovaApi api, List<Widget> children) => const SizedBox.shrink();
+  Widget build(BuildContext c, IMovaApi api, List<Widget> children) => const SizedBox.shrink();
 }
 
-/// Builds a feed controller whose pool hands out [api] for every page.
+/// Builds a [MovaFeed] whose pool hands out [api] for every page.
 ///
-/// 构建一个控制器，其池为每一页都发放 [api]。
+/// 构建一个 MovaFeed，其池为每一页都发放 [api]。
 Future<MovaFeed> _feedWith(FakeMovaApi api, MovaFeedItem item) async {
-  final controller = MovaFeed(
-    pool: MovaFeedEnginePool(engineFactory: () => api, size: 1),
+  final feed = MovaFeed(
+    pool: MovaFeedPool(movaFactory: () => api, size: 1),
     loader: (i) async => item,
   );
-  await controller.ensure(0);
-  return controller;
+  await feed.ensure(0);
+  return feed;
 }
 
 void main() {
@@ -141,7 +141,7 @@ void main() {
       (MovaPipButtonComponent(), MovaPipButtonComponent.componentName, 'pipButton'),
       (MovaQualityButtonComponent(), MovaQualityButtonComponent.componentName, 'qualityButton'),
       (MovaFitButtonComponent(), MovaFitButtonComponent.componentName, 'fitButton'),
-      (MovaOrientationButtonComponent(), MovaOrientationButtonComponent.componentName, 'orientationButton'),
+      (MovaOrientButtonComponent(), MovaOrientButtonComponent.componentName, 'orientButton'),
       (MovaFullscreenButtonComponent(), MovaFullscreenButtonComponent.componentName, 'fullscreenButton'),
       (MovaMiniCloseComponent(), MovaMiniCloseComponent.componentName, 'miniClose'),
     ];
@@ -159,13 +159,13 @@ void main() {
     });
   });
 
-  group('S1: each skin ships the documented tree and slot layout', () {
-    test('MovaDefaultSkin', () {
-      expect(_flat(const MovaDefaultSkin().components()), _defaultTree);
+  group('S1: each UI kit ships the documented tree and slot layout', () {
+    test('MovaDefaultUiKit', () {
+      expect(_flat(const MovaDefaultUiKit().components()), _defaultTree);
     });
 
-    test('MovaBilibiliSkin is the default tree plus speedButton (top bar) and danmakuTrack (overlay)', () {
-      final tree = _flat(MovaBilibiliSkin().components());
+    test('MovaBilibiliUiKit is the default tree plus speedButton (top bar) and danmakuTrack (overlay)', () {
+      final tree = _flat(MovaBilibiliUiKit().components());
       expect(tree, containsAll(_defaultTree));
       expect(tree.toSet().difference(_defaultTree.toSet()), {'topBar/speedButton@top', 'danmakuTrack@overlay'});
       // The speed button sits right after the quality button.
@@ -175,18 +175,18 @@ void main() {
       expect(tree.last, 'danmakuTrack@overlay');
     });
 
-    test('MovaMinimalSkin: buffering only by default, flags swap the pieces', () {
-      expect(_flat(const MovaMinimalSkin().components()), ['buffering@center']);
-      expect(_flat(const MovaMinimalSkin(showBuffering: false, showError: true).components()), ['error@center']);
-      expect(_flat(const MovaMinimalSkin(showBuffering: true, showError: true).components()), [
+    test('MovaMinimalUiKit: buffering only by default, flags swap the pieces', () {
+      expect(_flat(const MovaMinimalUiKit().components()), ['buffering@center']);
+      expect(_flat(const MovaMinimalUiKit(showBuffering: false, showError: true).components()), ['error@center']);
+      expect(_flat(const MovaMinimalUiKit(showBuffering: true, showError: true).components()), [
         'buffering@center',
         'error@center',
       ]);
-      expect(const MovaMinimalSkin(showBuffering: false).components(), isEmpty);
+      expect(const MovaMinimalUiKit(showBuffering: false).components(), isEmpty);
     });
 
-    test('MovaMiniSkin: centre play, buffering and a top-corner close', () {
-      expect(_flat(const MovaMiniSkin().components()), [
+    test('MovaMiniUiKit: centre play, buffering and a top-corner close', () {
+      expect(_flat(const MovaMiniUiKit().components()), [
         'centerPlay@center',
         'centerPlay/playPause@center',
         'buffering@center',
@@ -194,17 +194,17 @@ void main() {
       ]);
     });
 
-    test('MovaDouyinSkin: gesture layer, right-edge rail and bottom info', () async {
+    test('MovaDouyinUiKit: gesture layer, right-edge rail and bottom info', () async {
       final api = FakeMovaApi();
       final item = MovaFeedItem(source: const MovaSource('https://h/0.mp4'));
-      final controller = await _feedWith(api, item);
-      final skin = MovaDouyinSkin(
+      final feed = await _feedWith(api, item);
+      final uiKit = MovaDouyinUiKit(
         item: item,
-        controller: controller,
+        feed: feed,
         index: 0,
-        likeNotifier: ValueNotifier(controller.likeStateOf(0)),
+        likeNotifier: ValueNotifier(feed.likeStateOf(0)),
       );
-      final tree = _flat(skin.components());
+      final tree = _flat(uiKit.components());
       expect(tree.first, 'douyinGestureLayer@gesture');
       expect(tree, containsAll(<String>['socialRail@right', 'feedInfo@bottom']));
       expect(
@@ -220,16 +220,16 @@ void main() {
     });
   });
 
-  group('S12: the four patch kinds on the skins that accept patches', () {
-    /// Every skin that takes `patches:` and the factory that builds it.
+  group('S12: the four patch kinds on the UI kits that accept patches', () {
+    /// Every UI kit that takes `patches:` and the factory that builds it.
     ///
-    /// 所有接受 `patches:` 的皮肤及其构造方式。
-    final skins = <String, MovaSkin Function(List<MovaPatch>)>{
-      'default': (p) => MovaDefaultSkin(patches: p),
-      'bilibili': (p) => MovaBilibiliSkin(patches: p),
+    /// 所有接受 `patches:` 的 UI 套件及其构造方式。
+    final uiKits = <String, IMovaUiKit Function(List<MovaPatch>)>{
+      'default': (p) => MovaDefaultUiKit(patches: p),
+      'bilibili': (p) => MovaBilibiliUiKit(patches: p),
     };
 
-    for (final entry in skins.entries) {
+    for (final entry in uiKits.entries) {
       group(entry.key, () {
         test('remove drops the node and its subtree', () {
           final tree = _paths(entry.value([MovaPatch.remove('topBar/fitButton')]).components());
@@ -280,7 +280,7 @@ void main() {
     }
 
     test('bilibili: user patches stack on top of the preset ones', () {
-      final tree = _paths(MovaBilibiliSkin(patches: [MovaPatch.remove('topBar/speedButton')]).components());
+      final tree = _paths(MovaBilibiliUiKit(patches: [MovaPatch.remove('topBar/speedButton')]).components());
       expect(tree, isNot(contains('topBar/speedButton')));
       expect(tree, contains('danmakuTrack'), reason: 'the preset danmaku patch must survive');
     });

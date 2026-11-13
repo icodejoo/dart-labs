@@ -34,7 +34,7 @@ S2 x3, continuing S1: gracefully STOP B (confirmed RELEASED + exit=0), taskkill
 DA/DB directory mtimes; ties allow either maximum. C directly probes DA's lease
 and must acquire/close it, proving OS release in a new process, then resolves.
 C must adopt a maximum-mtime orphan, keep its original token, and leave exactly
-one engine directory. The other orphan must actually be deleted (also checks
+one player directory. The other orphan must actually be deleted (also checks
 Windows close-before-delete). C remains leased until all assertions finish.
 
 S3 x3: start four independent workers, await all ARMED, hold root .scan gate,

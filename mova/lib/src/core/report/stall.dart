@@ -19,11 +19,11 @@ class MovaStall {
 }
 
 /// Turns a stream of "stalled right now" observations into completed stall
-/// records. Mirrors `MovaAbrPolicy`: mova ships a default, hosts can inject.
+/// records. Mirrors `IMovaAbrPolicy`: mova ships a default, hosts can inject.
 ///
 /// 把一连串"此刻是否卡住"的观测，转换成一条条"已结束的卡顿"记录。
-/// 与 `MovaAbrPolicy` 同一范式：mova 给默认实现，宿主可注入替换。
-abstract class MovaStallPolicy {
+/// 与 `IMovaAbrPolicy` 同一范式：mova 给默认实现，宿主可注入替换。
+abstract class IMovaStallPolicy {
   /// Feeds one observation; returns the finished stall when [stalled] just
   /// fell back to false, otherwise `null`.
   ///
@@ -43,7 +43,7 @@ abstract class MovaStallPolicy {
 ///
 /// 默认的边沿策略：从上升沿计到下降沿，吞掉短于 [minStall] 的抖动
 /// （mpv 会合并属性变更通知，亚帧级翻转是噪声而非卡顿）。
-class MovaEdgeStall implements MovaStallPolicy {
+class MovaEdgeStall implements IMovaStallPolicy {
   /// Stalls shorter than this are swallowed as noise.
   ///
   /// 短于此值的卡顿按噪声吞掉。

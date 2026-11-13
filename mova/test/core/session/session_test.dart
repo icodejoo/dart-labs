@@ -54,28 +54,28 @@ void main() {
       await rig.api.dispose();
     });
     await session.load(a);
-    rig.engines.first.pushProgress(
+    rig.movas.first.pushProgress(
       const MovaProg(position: Duration(seconds: 2)),
     );
     await settleOperations();
     expect(session.isAdPending, isTrue);
-    expect(rig.engines, hasLength(2));
-    await rig.ready(rig.engines.last);
+    expect(rig.movas, hasLength(2));
+    await rig.ready(rig.movas.last);
     expect(session.isShowingAd, isTrue);
     expect(rig.api.state.renderEpoch, 1);
   });
 
   test('关闭直通代理不创建影子，中插直接 open', () async {
-    final engines = <FakeMovaApi>[];
-    final api = MovaCutoverEngine(
-      engineFactory: () {
-        final engine = FakeMovaApi(
+    final movas = <FakeMovaApi>[];
+    final api = MovaCutover(
+      movaFactory: () {
+        final mova = FakeMovaApi(
           options: const MovaOpts(
-            ads: MovaAdConfig(enabled: true, breaks: [mid]),
+            ads: MovaAdOpts(enabled: true, breaks: [mid]),
           ),
         );
-        engines.add(engine);
-        return engine;
+        movas.add(mova);
+        return mova;
       },
     );
     final session = MovaSession(api);
@@ -84,10 +84,10 @@ void main() {
       await api.dispose();
     });
     await session.load(a);
-    engines.first.pushProgress(const MovaProg(position: Duration(seconds: 2)));
+    movas.first.pushProgress(const MovaProg(position: Duration(seconds: 2)));
     await settleOperations();
-    expect(engines, hasLength(1));
-    expect(engines.first.openedUris, [a.uri, mid.source.uri]);
+    expect(movas, hasLength(1));
+    expect(movas.first.openedUris, [a.uri, mid.source.uri]);
     expect(session.isShowingAd, isTrue);
   });
 
@@ -101,12 +101,12 @@ void main() {
     });
     expect(ads.session, same(ads.session));
     await ads.load(a);
-    rig.engines.first.pushProgress(
+    rig.movas.first.pushProgress(
       const MovaProg(position: Duration(seconds: 2)),
     );
     await settleOperations();
-    expect(rig.engines, hasLength(1));
-    expect(rig.engines.first.openedUris, [a.uri, mid.source.uri]);
+    expect(rig.movas, hasLength(1));
+    expect(rig.movas.first.openedUris, [a.uri, mid.source.uri]);
   });
 
   test('load 接受返回 accepted', () async {
@@ -166,7 +166,7 @@ void main() {
     final api =
         FakeMovaApi(
             options: const MovaOpts(
-              ads: MovaAdConfig(enabled: true, breaks: [pre]),
+              ads: MovaAdOpts(enabled: true, breaks: [pre]),
             ),
           )
           ..acceptOpens = false
@@ -185,7 +185,7 @@ void main() {
 
   test('接受不等于首帧', () async {
     final api = FakeMovaApi(
-      options: const MovaOpts(ads: MovaAdConfig(enabled: true, breaks: [pre])),
+      options: const MovaOpts(ads: MovaAdOpts(enabled: true, breaks: [pre])),
     );
     final session = sessionFor(api);
     expect(await session.load(a), MovaLoadOutcome.accepted);
@@ -196,7 +196,7 @@ void main() {
   test('按集广告覆盖配置，null 回落配置，空列表覆盖为空', () async {
     const own = MovaAdBreak(kind: MovaAdBreakKind.pre, source: b);
     final api = FakeMovaApi(
-      options: const MovaOpts(ads: MovaAdConfig(enabled: true, breaks: [pre])),
+      options: const MovaOpts(ads: MovaAdOpts(enabled: true, breaks: [pre])),
     );
     final session = sessionFor(
       api,

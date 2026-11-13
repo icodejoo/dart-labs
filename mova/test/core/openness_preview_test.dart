@@ -1,5 +1,5 @@
 // A row-by-row audit of DESIGN-0.2.0 section 6.1: every decision mova
-// makes for the user must ship a default, a config knob, and — when the
+// makes for the user must ship a default, an opts knob, and — when the
 // decision is a strategy — an injection point. This test fails loudly if a
 // later change drops any of the three.
 //
@@ -20,13 +20,13 @@ import 'package:mova/src/core/preview/net_probe.dart';
 import 'package:mova/src/core/preview/platform_kind.dart';
 import 'package:mova/src/core/preview/source.dart';
 import 'package:mova/src/ui/components/preview.dart';
-import 'package:mova/src/ui/skins/default_skin.dart';
+import 'package:mova/src/ui/ui_kits/default_ui_kit.dart';
 import 'package:mova/src/ui/slots/patch.dart';
 
-/// A minimal [MovaThumbSource] used to prove the source chain is replaceable.
+/// A minimal [IMovaThumbSource] used to prove the source chain is replaceable.
 ///
-/// 用于证明来源链可替换的最小 [MovaThumbSource]。
-class _NullSource implements MovaThumbSource {
+/// 用于证明来源链可替换的最小 [IMovaThumbSource]。
+class _NullSource implements IMovaThumbSource {
   @override
   String get name => 'null';
 
@@ -40,10 +40,10 @@ class _NullSource implements MovaThumbSource {
   Future<void> dispose() async {}
 }
 
-/// A minimal [MovaThumbCache] used to prove the cache is replaceable.
+/// A minimal [IMovaThumbCache] used to prove the cache is replaceable.
 ///
-/// 用于证明缓存可替换的最小 [MovaThumbCache]。
-class _NullCache implements MovaThumbCache {
+/// 用于证明缓存可替换的最小 [IMovaThumbCache]。
+class _NullCache implements IMovaThumbCache {
   @override
   Uint8List? peek(String key) => null;
 
@@ -60,10 +60,10 @@ class _NullCache implements MovaThumbCache {
   Future<void> dispose() async {}
 }
 
-/// A minimal [MovaFramePuller] used to prove extraction is replaceable.
+/// A minimal [IMovaFramePuller] used to prove extraction is replaceable.
 ///
-/// 用于证明抽帧可替换的最小 [MovaFramePuller]。
-class _NullExtractor implements MovaFramePuller {
+/// 用于证明抽帧可替换的最小 [IMovaFramePuller]。
+class _NullExtractor implements IMovaFramePuller {
   @override
   Future<Uint8List?> extract(
     String uri,
@@ -83,20 +83,20 @@ class _NullExtractor implements MovaFramePuller {
 void main() {
   group('DESIGN 6.1 row: network policy', () {
     test('default is wifiOnly, knob is network, strategy is probe', () {
-      expect(const MovaPreviewConfig().network, MovaPreviewNet.wifiOnly);
+      expect(const MovaPreviewOpts().network, MovaPreviewNet.wifiOnly);
       expect(
-        const MovaPreviewConfig(network: MovaPreviewNet.never).network,
+        const MovaPreviewOpts(network: MovaPreviewNet.never).network,
         MovaPreviewNet.never,
       );
-      expect(MovaPreviewConfig(probe: MovaAlwaysAllowNetProbe()).probe, isA<MovaNetProbe>());
+      expect(MovaPreviewOpts(probe: MovaAlwaysAllowNetProbe()).probe, isA<IMovaNetProbe>());
     });
   });
 
   group('DESIGN 6.1 row: blocked notification', () {
     test('default is silence, strategy is onBlocked', () {
-      expect(const MovaPreviewConfig().onBlocked, isNull);
+      expect(const MovaPreviewOpts().onBlocked, isNull);
       var seen = false;
-      MovaPreviewConfig(onBlocked: (_) => seen = true).onBlocked!(
+      MovaPreviewOpts(onBlocked: (_) => seen = true).onBlocked!(
         MovaPreviewBlockReason.network,
       );
       expect(seen, isTrue);
@@ -105,45 +105,45 @@ void main() {
 
   group('DESIGN 6.1 row: thumbnail sources', () {
     test('default chain is implicit, knob is vttEnabled/extractFallback, strategy is sources', () {
-      const d = MovaPreviewConfig();
+      const d = MovaPreviewOpts();
       expect(d.sources, isNull, reason: 'null means the built-in [vtt, extract] chain');
       expect(d.vttEnabled, isTrue);
       expect(d.extractFallback, isTrue);
-      expect(const MovaPreviewConfig(vttEnabled: false).vttEnabled, isFalse);
-      expect(const MovaPreviewConfig(extractFallback: false).extractFallback, isFalse);
-      expect(MovaPreviewConfig(sources: [_NullSource()]).sources, hasLength(1));
+      expect(const MovaPreviewOpts(vttEnabled: false).vttEnabled, isFalse);
+      expect(const MovaPreviewOpts(extractFallback: false).extractFallback, isFalse);
+      expect(MovaPreviewOpts(sources: [_NullSource()]).sources, hasLength(1));
     });
   });
 
   group('DESIGN 6.1 row: vtt url', () {
     test('default is the .vtt convention, knob is vttUrl, strategy is vttUrlResolver', () {
-      expect(const MovaPreviewConfig().vttUrl, isNull);
-      expect(const MovaPreviewConfig(vttUrl: 'https://cdn/t.vtt').vttUrl, 'https://cdn/t.vtt');
-      final cfg = MovaPreviewConfig(vttUrlResolver: (_) => Uri.parse('https://cdn/x.vtt'));
-      expect(cfg.vttUrlResolver!(const MovaSource('a')), Uri.parse('https://cdn/x.vtt'));
+      expect(const MovaPreviewOpts().vttUrl, isNull);
+      expect(const MovaPreviewOpts(vttUrl: 'https://cdn/t.vtt').vttUrl, 'https://cdn/t.vtt');
+      final opts = MovaPreviewOpts(vttUrlResolver: (_) => Uri.parse('https://cdn/x.vtt'));
+      expect(opts.vttUrlResolver!(const MovaSource('a')), Uri.parse('https://cdn/x.vtt'));
     });
   });
 
   group('DESIGN 6.1 row: extraction fallback', () {
     test('default on, knobs are extractFallback/extractPlatforms, strategy is extractor', () {
-      const d = MovaPreviewConfig();
+      const d = MovaPreviewOpts();
       expect(d.extractFallback, isTrue);
       expect(d.extractPlatforms, MovaPlatformKind.values.toSet());
       expect(
-        const MovaPreviewConfig(extractPlatforms: {MovaPlatformKind.windows}).extractPlatforms,
+        const MovaPreviewOpts(extractPlatforms: {MovaPlatformKind.windows}).extractPlatforms,
         {MovaPlatformKind.windows},
       );
-      expect(MovaPreviewConfig(extractor: _NullExtractor()).extractor, isA<MovaFramePuller>());
+      expect(MovaPreviewOpts(extractor: _NullExtractor()).extractor, isA<IMovaFramePuller>());
     });
   });
 
   group('DESIGN 6.1 row: frame width / bucket / hwdec', () {
     test('defaults are 160px, 10s and software decoding, each configurable', () {
-      const d = MovaPreviewConfig();
+      const d = MovaPreviewOpts();
       expect(d.frameWidth, 160);
       expect(d.bucket, const Duration(seconds: 10));
       expect(d.hwdec, isFalse);
-      const c = MovaPreviewConfig(
+      const c = MovaPreviewOpts(
         frameWidth: 320,
         bucket: Duration(seconds: 5),
         hwdec: true,
@@ -156,47 +156,47 @@ void main() {
 
   group('DESIGN 6.1 row: memory ceiling', () {
     test('default 40 entries, knob memMaxEntries, strategy cache', () {
-      expect(const MovaPreviewConfig().memMaxEntries, 40);
-      expect(const MovaPreviewConfig(memMaxEntries: 5).memMaxEntries, 5);
-      expect(MovaPreviewConfig(cache: _NullCache()).cache, isA<MovaThumbCache>());
+      expect(const MovaPreviewOpts().memMaxEntries, 40);
+      expect(const MovaPreviewOpts(memMaxEntries: 5).memMaxEntries, 5);
+      expect(MovaPreviewOpts(cache: _NullCache()).cache, isA<IMovaThumbCache>());
     });
   });
 
   group('DESIGN 6.1 row: disk ceiling and directory', () {
     test('defaults 64MB and temp dir, knobs diskMaxBytes/diskDir, strategies cache/dirProvider', () {
-      const d = MovaPreviewConfig();
+      const d = MovaPreviewOpts();
       expect(d.diskMaxBytes, 64 * 1024 * 1024);
       expect(d.diskDir, isNull, reason: 'null means the platform temp directory');
-      expect(const MovaPreviewConfig(diskMaxBytes: 1024).diskMaxBytes, 1024);
-      expect(const MovaPreviewConfig(diskDir: '/tmp/x').diskDir, '/tmp/x');
+      expect(const MovaPreviewOpts(diskMaxBytes: 1024).diskMaxBytes, 1024);
+      expect(const MovaPreviewOpts(diskDir: '/tmp/x').diskDir, '/tmp/x');
       expect(
-        const MovaPreviewConfig(dirProvider: MovaFixedThumbDirProvider('/tmp/y')).dirProvider,
-        isA<MovaThumbDirProvider>(),
+        const MovaPreviewOpts(dirProvider: MovaFixedThumbDirProvider('/tmp/y')).dirProvider,
+        isA<IMovaThumbDirProvider>(),
       );
     });
   });
 
   group('DESIGN 6.1 row: cache key', () {
     test('default is the built-in hash, strategy is cacheKeyBuilder', () {
-      expect(const MovaPreviewConfig().cacheKeyBuilder, isNull);
-      final cfg = MovaPreviewConfig(cacheKeyBuilder: (s, b, w) => 'k');
-      expect(cfg.cacheKeyBuilder!('a', 1, 2), 'k');
+      expect(const MovaPreviewOpts().cacheKeyBuilder, isNull);
+      final opts = MovaPreviewOpts(cacheKeyBuilder: (s, b, w) => 'k');
+      expect(opts.cacheKeyBuilder!('a', 1, 2), 'k');
     });
   });
 
   group('DESIGN 6.1 row: clear on dispose', () {
     test('default on, knob clearOnDispose, strategy cache', () {
-      expect(const MovaPreviewConfig().clearOnDispose, isTrue);
-      expect(const MovaPreviewConfig(clearOnDispose: false).clearOnDispose, isFalse);
-      expect(MovaPreviewConfig(cache: _NullCache()).cache, isA<MovaThumbCache>());
+      expect(const MovaPreviewOpts().clearOnDispose, isTrue);
+      expect(const MovaPreviewOpts(clearOnDispose: false).clearOnDispose, isFalse);
+      expect(MovaPreviewOpts(cache: _NullCache()).cache, isA<IMovaThumbCache>());
     });
   });
 
   group('DESIGN 6.1 row: request debounce', () {
     test('default 120ms and configurable', () {
-      expect(const MovaPreviewConfig().debounce, const Duration(milliseconds: 120));
+      expect(const MovaPreviewOpts().debounce, const Duration(milliseconds: 120));
       expect(
-        const MovaPreviewConfig(debounce: Duration.zero).debounce,
+        const MovaPreviewOpts(debounce: Duration.zero).debounce,
         Duration.zero,
       );
     });
@@ -205,7 +205,7 @@ void main() {
   group('DESIGN 6.1 row: bubble appearance', () {
     test('default component is addressable and replaceable by patch', () {
       expect(MovaPreviewComponent().name, 'preview');
-      final patched = MovaDefaultSkin(
+      final patched = MovaDefaultUiKit(
         patches: [MovaPatch.remove('preview')],
       ).components();
       expect(patched.where((c) => c.name == 'preview'), isEmpty);
@@ -214,7 +214,7 @@ void main() {
 
   test('MovaOpts carries the preview section and copyWith keeps it isolated', () {
     const o = MovaOpts();
-    expect(o.preview, const MovaPreviewConfig());
-    expect(o.copyWith(preview: const MovaPreviewConfig(frameWidth: 99)).gesture, o.gesture);
+    expect(o.preview, const MovaPreviewOpts());
+    expect(o.copyWith(preview: const MovaPreviewOpts(frameWidth: 99)).gesture, o.gesture);
   });
 }

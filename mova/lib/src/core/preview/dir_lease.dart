@@ -4,7 +4,7 @@
 ///
 /// 缩略图租约目录的包内可选生命周期能力；磁盘缓存等工作收敛后释放它，
 /// 普通 provider 仍只需实现原有目录端口。
-abstract interface class MovaThumbDirLease {
+abstract interface class IMovaThumbDirLease {
   /// Releases the lease without clearing thumbnails; repeated calls are safe.
   /// Example: `await lease.dispose()`.
   ///

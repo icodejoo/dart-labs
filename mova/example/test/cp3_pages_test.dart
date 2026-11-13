@@ -53,7 +53,7 @@ void main() {
           surface: const SizedBox(),
           style: MovaPlayerStyle(
             theme: MovaTheme(accentColor: color),
-            controls: const MovaCtrlsConfig(
+            controls: const MovaCtrlsOpts(
               autoHideDelay: Duration(milliseconds: 600),
             ),
           ),

@@ -9,32 +9,32 @@ import 'package:mova/src/core/kernel/mpv_kernel.dart';
 
 import 'verify_auto/auto_kit.dart';
 
-/// Q13 acceptance page (plan doc/plans/2026-10-23-standby-mode.md, Q13): while a cutover shadow engine is
-/// warming, ONLY that shadow is muted (through mpv `mute`), the playing engine keeps its sound, the
+/// Q13 acceptance page (plan doc/plans/2026-10-23-keep-alive-mode.md, Q13): while a cutover shadow player is
+/// warming, ONLY that shadow is muted (through mpv `mute`), the playing one keeps its sound, the
 /// system media volume is never written, and committing the cutover un-mutes just the warm hold. Also
 /// checks the overlap with keepAlive (both hold the mute, either may leave first).
 ///
 /// Self-running: no manual clicking. Content is a local live FLV (440 Hz tone), the ad a local VOD
 /// (880 Hz tone), so by ear "ad = high tone, content = low tone". Every step prints a
 /// `[Q13] MARK <name>` line (an external script can sample `adb shell dumpsys audio` there) followed by
-/// `[Q13] PROPS <name> ...` with the mpv `mute`/`vid` of every engine created so far (k0 = the first
-/// engine, which plays the ad; k1 = the shadow warming the content; after the commit k1 is the live
+/// `[Q13] PROPS <name> ...` with the mpv `mute`/`vid` of every player created so far (k0 = the first
+/// player, which plays the ad; k1 = the shadow warming the content; after the commit k1 is the live
 /// one and k0 is gone). The properties are read straight from the media_kit players, so this part is
 /// platform independent; the system volume and what you hear are what only a device can tell.
 ///
-/// Q13 验收页（计划 Q13）：cutover 影子引擎预热期间，**只有影子**经 mpv `mute` 静音，正在播的引擎声音不变，系统媒体音量
+/// Q13 验收页（计划 Q13）：cutover 影子播放器预热期间，**只有影子**经 mpv `mute` 静音，正在播的那个声音不变，系统媒体音量
 /// 从不被写，提交后只撤销预热静音；并检查与 keepAlive 的叠加（两方都持有静音，谁先退出都不漏声）。
 ///
 /// 自动跑，不用手点。正片是本地直播 FLV（440Hz 音调），广告是本地点播（880Hz），所以耳朵听"高音 = 广告、低音 = 正片"。
 /// 每一步打印 `[Q13] MARK <名>`（外部脚本可在这里采样 `adb shell dumpsys audio`），随后打印 `[Q13] PROPS <名> ...`，
-/// 内容是迄今创建过的每个引擎的 mpv `mute`/`vid`（k0 = 第一个引擎，播广告；k1 = 影子，预热正片；提交后 k1 是在播的，k0 已销毁）。
+/// 内容是迄今创建过的每个播放器的 mpv `mute`/`vid`（k0 = 第一个播放器，播广告；k1 = 影子，预热正片；提交后 k1 是在播的，k0 已销毁）。
 /// 属性直接从 media_kit 播放器读取，所以这部分与平台无关；系统音量和听感只有真机能判断。
 ///
 /// 跑法（本地源见 `example/tool/verify_sources/`）:
 /// `flutter run -t lib/main_q13_mute_verify.dart --dart-define=BASE=http://127.0.0.1:18080 --dart-define=LOG_FILE=<路径>`
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  MovaEngine.ensureInitialized();
+  Mova.ensureInitialized();
   runApp(const MaterialApp(home: _Q13Page()));
 }
 
@@ -65,10 +65,10 @@ class _Q13PageState extends State<_Q13Page> {
   final Map<String, int> _pass = <String, int>{};
   final Map<String, int> _fail = <String, int>{};
 
-  MovaCutoverEngine? _cutover;
+  MovaCutover? _cutover;
   MovaAds? _ads;
 
-  /// Kept for the whole scenario: the existing seamless-cutover test also listens to the engine's streams
+  /// Kept for the whole scenario: the existing seamless-cutover test also listens to the player's streams
   /// throughout, and the ad flow was only seen to start with a listener attached.
   StreamSubscription<MovaProg>? _progSub;
 
@@ -139,19 +139,19 @@ class _Q13PageState extends State<_Q13Page> {
     return uri.replace(queryParameters: {...uri.queryParameters, 't': '${DateTime.now().microsecondsSinceEpoch}'}).toString();
   }
 
-  /// A fresh cutover engine + ad controller; every underlying engine is built on a kernel whose player we keep.
+  /// A fresh `MovaCutover` + ads orchestrator ([MovaAds]); every underlying player is built on a kernel whose native player we keep.
   Future<void> _newRig() async {
     await _disposeRig();
     _players.clear();
     final opts = const MovaOpts(
-      ads: MovaAdConfig(enabled: true),
-      cutover: MovaCutoverConfig(enabled: true, trigger: MovaEagerWarm()),
+      ads: MovaAdOpts(enabled: true),
+      cutover: MovaCutoverOpts(enabled: true, trigger: MovaEagerWarm()),
     );
-    final cutover = MovaCutoverEngine(
-      engineFactory: () {
+    final cutover = MovaCutover(
+      movaFactory: () {
         final player = Player();
         _players.add(player);
-        return createMovaEngine(kernel: MovaMpvKernel(player: player, lazyVideo: true, observeQoeSignals: false), ownsKernel: true, options: opts);
+        return createMova(kernel: MovaMpvKernel(player: player, lazyVideo: true, observeQoeSignals: false), ownsKernel: true, options: opts);
       },
     );
     _cutover = cutover;
@@ -181,10 +181,10 @@ class _Q13PageState extends State<_Q13Page> {
 
   /// DIAG sampler: every 300ms after the ad insert, logs the newest (shadow) player's native buffer readings,
   /// the cutover phase and the `MovaBufferWarm` inputs derivable from them; records when the phase turns
-  /// `ready` and when the shadow disappears (ready timer abandon). Read-only, touches no engine state.
+  /// `ready` and when the shadow disappears (ready timer abandon). Read-only, touches no player state.
   ///
   /// DIAG 采样器：插广告后每 300ms 记录最新（影子）播放器的原生缓冲读数、cutover 阶段，以及据此可推的
-  /// `MovaBufferWarm` 输入；记录阶段何时变 `ready`、影子何时消失（就绪计时器放弃）。只读，不碰引擎状态。
+  /// `MovaBufferWarm` 输入；记录阶段何时变 `ready`、影子何时消失（就绪计时器放弃）。只读，不碰播放器状态。
   Future<void> _diag(String tag, int token, int t0, Duration target) async {
     int? tPos, tReady, tGone;
     var last = '';
@@ -218,7 +218,7 @@ class _Q13PageState extends State<_Q13Page> {
     _log('DIAG-END $tag $_diagSummary last=[$last]');
   }
 
-  /// Waits until the engine really plays (position moving, not buffering).
+  /// Waits until the player really plays (position moving, not buffering).
   Future<bool> _waitPlaying() async {
     final cutover = _cutover!;
     final done = Completer<bool>();
@@ -259,7 +259,7 @@ class _Q13PageState extends State<_Q13Page> {
     return out;
   }
 
-  /// Prints the `MARK` and `PROPS` lines and returns `mute` of every engine ('gone' once disposed).
+  /// Prints the `MARK` and `PROPS` lines and returns `mute` of every player ('gone' once disposed).
   Future<List<String>> _snapshot(String name) async {
     _log('MARK $name');
     final mutes = <String>[];
@@ -291,7 +291,7 @@ class _Q13PageState extends State<_Q13Page> {
     return false;
   }
 
-  /// Content live, ad inserted: returns once the ad engine is the active one and its shadow (the content) is loaded.
+  /// Content live, ad inserted: returns once the ad player is the active one and its shadow (the content) is loaded.
   Future<bool> _enterAd(String tag) async {
     final ads = _ads!;
     await ads.load(_content());
@@ -312,7 +312,7 @@ class _Q13PageState extends State<_Q13Page> {
     await ads.playAdNow(_adBreak());
     _log('$tag playAdNow returned after ${_clock.elapsedMilliseconds - tPlay}ms epoch=${_cutover!.state.renderEpoch} showingAd=${ads.isShowingAd} players=${_players.length}');
     if (!await _waitEpoch(e0)) {
-      _log('$tag the ad never became the active engine');
+      _log('$tag the ad never became the active player');
       return false;
     }
     if (!await _waitPlaying()) {
@@ -334,16 +334,16 @@ class _Q13PageState extends State<_Q13Page> {
     final epoch = _cutover!.state.renderEpoch;
     _log('A skipping the ad now');
     ads.skip();
-    final swapped = await _waitEpoch(epoch);
+    final cutoverDone = await _waitEpoch(epoch);
     await Future<void>.delayed(const Duration(milliseconds: 2500));
     final committed = await _snapshot('A-committed');
     final newest = _players.length - 1;
     final ok = alive.length >= 2 &&
         warming[alive.first] == 'no' &&
         warming[alive.last] == 'yes' &&
-        swapped &&
+        cutoverDone &&
         committed[newest] == 'no';
-    _verdict('Q13A', ok, 'warming: active(k${alive.first}).mute=${warming[alive.first]} shadow(k${alive.last}).mute=${warming[alive.last]} swapped=$swapped committed(live k$newest).mute=${committed[newest]}');
+    _verdict('Q13A', ok, 'warming: active(k${alive.first}).mute=${warming[alive.first]} shadow(k${alive.last}).mute=${warming[alive.last]} cutover=$cutoverDone committed(live k$newest).mute=${committed[newest]}');
   }
 
   /// Like [_scenarioPlain] but keepAlive is requested while warming; [wakeBeforeCommit] picks which side leaves first.
@@ -371,11 +371,11 @@ class _Q13PageState extends State<_Q13Page> {
     final epoch = cutover.state.renderEpoch;
     _log('$tag skipping the ad now');
     ads.skip();
-    final swapped = await _waitEpoch(epoch);
+    final cutoverDone = await _waitEpoch(epoch);
     await Future<void>.delayed(const Duration(milliseconds: 2500));
     final committed = await _snapshot('$tag-committed');
     final newest = _players.length - 1;
-    ok = ok && swapped;
+    ok = ok && cutoverDone;
     if (wakeBeforeCommit) {
       ok = ok && committed[newest] == 'no';
     } else {
@@ -388,7 +388,7 @@ class _Q13PageState extends State<_Q13Page> {
       ok = ok && w[newest] == 'no';
       extra = '$extra afterWake.mute=${w[newest]}';
     }
-    _verdict(id, ok, 'shadow.mute while warming=${warmed[shadow]} swapped=$swapped committed(live k$newest).mute=${committed[newest]}$extra');
+    _verdict(id, ok, 'shadow.mute while warming=${warmed[shadow]} cutover=$cutoverDone committed(live k$newest).mute=${committed[newest]}$extra');
   }
 
   /// VOD regression: content VOD, ad inserted and skipped; the shadow (content) must still wait to reach the
@@ -414,15 +414,15 @@ class _Q13PageState extends State<_Q13Page> {
       _log('V skipping the ad now; content position at takeover=${contentAtTakeover.inMilliseconds}ms');
       final tSkip = _clock.elapsedMilliseconds;
       ads.skip();
-      final swapped = await _waitEpoch(epoch);
+      final cutoverDone = await _waitEpoch(epoch);
       final tCommit = _clock.elapsedMilliseconds;
       await Future<void>.delayed(const Duration(milliseconds: 2500));
       final committed = await _snapshot('V-committed');
       final newest = _players.length - 1;
       final resume = _resumePos;
       final err = resume == null ? null : resume.inMilliseconds - contentAtTakeover.inMilliseconds;
-      final ok = swapped && committed[newest] == 'no' && err != null && err.abs() < 500;
-      _verdict('Q13V', ok, 'swapped=$swapped contentAtTakeover=${contentAtTakeover.inMilliseconds}ms resumeFirstPos=${resume?.inMilliseconds}ms resumeErr=${err}ms skipToCommit=${tCommit - tSkip}ms sinceStart=${tCommit - tStart}ms committed(k$newest).mute=${committed[newest]}');
+      final ok = cutoverDone && committed[newest] == 'no' && err != null && err.abs() < 500;
+      _verdict('Q13V', ok, 'cutover=$cutoverDone contentAtTakeover=${contentAtTakeover.inMilliseconds}ms resumeFirstPos=${resume?.inMilliseconds}ms resumeErr=${err}ms skipToCommit=${tCommit - tSkip}ms sinceStart=${tCommit - tStart}ms committed(k$newest).mute=${committed[newest]}');
     } finally {
       _vod = false;
       _trackEpoch = -1;
@@ -489,7 +489,7 @@ class _Q13PageState extends State<_Q13Page> {
       appBar: AppBar(title: const Text('Q13 mute verify')),
       body: Column(
         children: [
-          if (cutover != null) AspectRatio(aspectRatio: 16 / 9, child: MovaPlayer(api: cutover, skin: const MovaMinimalSkin())),
+          if (cutover != null) AspectRatio(aspectRatio: 16 / 9, child: MovaPlayer(api: cutover, uiKit: const MovaMinimalUiKit())),
           Expanded(child: ListView(children: [for (final l in _lines.take(60)) Text(l, style: const TextStyle(fontSize: 11))])),
         ],
       ),

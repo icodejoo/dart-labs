@@ -3,7 +3,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mova/src/core/options/preview_config.dart';
+import 'package:mova/src/core/options/preview_opts.dart';
 import 'package:mova/src/core/preview/cache.dart';
 import 'package:mova/src/core/preview/disk_cache.dart';
 import 'package:mova/src/core/preview/net_probe.dart';
@@ -72,9 +72,9 @@ void main() {
   }
 
   test('(a) adopts newest orphan and removes other orphans', () async {
-    final old = await orphan('engine_old', const Duration(days: 2));
-    final newest = await orphan('engine_newest', const Duration(hours: 1));
-    final middle = await orphan('engine_middle', const Duration(days: 1));
+    final old = await orphan('mova_old', const Duration(days: 2));
+    final newest = await orphan('mova_newest', const Duration(hours: 1));
+    final middle = await orphan('mova_middle', const Duration(days: 1));
     final owner = provider();
 
     expect(await owner.resolve(), await newest.resolveSymbolicLinks());
@@ -87,15 +87,15 @@ void main() {
   test(
     '(b) registry skips active directories before opening their lease',
     () async {
-      final active = await orphan('engine_active', const Duration(days: 8));
+      final active = await orphan('mova_active', const Duration(days: 8));
       // First adopt it while still within the retention window.
       //
       // 先在保留期限内收养它。
-      modified['engine_active'] = now;
+      modified['mova_active'] = now;
       final owner = provider();
       final activePath = await owner.resolve();
-      modified['engine_active'] = now.subtract(const Duration(days: 8));
-      final idle = await orphan('engine_idle', const Duration(hours: 1));
+      modified['mova_active'] = now.subtract(const Duration(days: 8));
+      final idle = await orphan('mova_idle', const Duration(hours: 1));
       var locks = 0;
       final next = provider(
         lock: (handle) async {
@@ -114,12 +114,12 @@ void main() {
   test(
     '(c) removes all expired orphans and keeps exactly seven days',
     () async {
-      final expired = await orphan('engine_expired', const Duration(days: 8));
+      final expired = await orphan('mova_expired', const Duration(days: 8));
       final justExpired = await orphan(
-        'engine_just_expired',
+        'mova_just_expired',
         const Duration(days: 7, microseconds: 1),
       );
-      final boundary = await orphan('engine_boundary', const Duration(days: 7));
+      final boundary = await orphan('mova_boundary', const Duration(days: 7));
 
       expect(await provider().resolve(), await boundary.resolveSymbolicLinks());
       expect(await expired.exists(), isFalse);
@@ -130,7 +130,7 @@ void main() {
   test(
     '(c) creates a leased directory when every orphan has expired',
     () async {
-      final expired = await orphan('engine_expired', const Duration(days: 8));
+      final expired = await orphan('mova_expired', const Duration(days: 8));
       final path = await provider().resolve();
 
       expect(await expired.exists(), isFalse);
@@ -143,17 +143,17 @@ void main() {
     '(d) adopts newest legacy directory and removes other legacy orphans',
     () async {
       final old = await orphan(
-        'engine_old',
+        'mova_old',
         const Duration(days: 1),
         lease: false,
       );
       final recent = await orphan(
-        'engine_recent',
+        'mova_recent',
         const Duration(hours: 1),
         lease: false,
       );
       final expired = await orphan(
-        'engine_expired',
+        'mova_expired',
         const Duration(days: 8),
         lease: false,
       );
@@ -170,7 +170,7 @@ void main() {
     'legacy expiry reads real directory mtime before creating lease',
     () async {
       final expired = await orphan(
-        'engine_legacy',
+        'mova_legacy',
         Duration.zero,
         lease: false,
       );
@@ -189,7 +189,7 @@ void main() {
   test(
     '(e) concurrent providers resolve to different leased directories',
     () async {
-      final idle = await orphan('engine_idle', Duration.zero);
+      final idle = await orphan('mova_idle', Duration.zero);
       final first = provider();
       final second = provider();
       final paths = await Future.wait([first.resolve(), second.resolve()]);
@@ -206,8 +206,8 @@ void main() {
   test(
     'lock failure treats even an expired orphan as in use and closes handle',
     () async {
-      final busy = await orphan('engine_busy', const Duration(days: 9));
-      final idle = await orphan('engine_idle', const Duration(hours: 1));
+      final busy = await orphan('mova_busy', const Duration(days: 9));
+      final idle = await orphan('mova_idle', const Duration(hours: 1));
       RandomAccessFile? failedHandle;
       final next = provider(
         lock: (handle) async {
@@ -246,7 +246,7 @@ void main() {
   test(
     'orphan deletion closes every acquired handle before recursive delete',
     () async {
-      final expired = await orphan('engine_expired', const Duration(days: 8));
+      final expired = await orphan('mova_expired', const Duration(days: 8));
       final handles = <RandomAccessFile>[];
       final owner = provider(
         lock: (handle) async {
@@ -327,7 +327,7 @@ void main() {
 
   test('scan leaves unrelated files and directories alone', () async {
     final unrelated = await Directory('${root.path}/other_cache').create();
-    final file = await File('${root.path}/engine_file').writeAsString('keep');
+    final file = await File('${root.path}/mova_file').writeAsString('keep');
     await provider().resolve();
     expect(await unrelated.exists(), isTrue);
     expect(await file.readAsString(), 'keep');
@@ -344,7 +344,7 @@ void main() {
           disk: disk,
         );
         final service = MovaPreviewService(
-          config: MovaPreviewConfig(clearOnDispose: clear),
+          opts: MovaPreviewOpts(clearOnDispose: clear),
           cache: cache,
           probe: MovaAlwaysAllowNetProbe(),
           sources: const [],

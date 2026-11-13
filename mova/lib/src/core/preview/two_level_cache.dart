@@ -15,7 +15,7 @@ import 'cache.dart';
 /// [peek] 只查 [memory]，因此拖到已驻留的桶时可在同一帧渲染出来。[read] 会
 /// 下探到 [disk] 并回填 [memory]，让下次拖到同一个桶时瞬时命中。[write] 同时
 /// 写入两层。
-class MovaTwoLevelCache implements MovaThumbCache {
+class MovaTwoLevelCache implements IMovaThumbCache {
   /// Creates a two-level cache over [memory] and [disk].
   ///
   /// 用 [memory] 与 [disk] 组成两级缓存。
@@ -24,15 +24,15 @@ class MovaTwoLevelCache implements MovaThumbCache {
   /// - [disk]: the slow, persistent level / 慢速持久层
   MovaTwoLevelCache({required this.memory, required this.disk});
 
-  /// The fast level; must answer [MovaThumbCache.peek] without I/O.
+  /// The fast level; must answer [IMovaThumbCache.peek] without I/O.
   ///
-  /// 快速层；其 [MovaThumbCache.peek] 必须不做 I/O。
-  final MovaThumbCache memory;
+  /// 快速层；其 [IMovaThumbCache.peek] 必须不做 I/O。
+  final IMovaThumbCache memory;
 
   /// The slow, persistent level.
   ///
   /// 慢速持久层。
-  final MovaThumbCache disk;
+  final IMovaThumbCache disk;
 
   /// Invalidates disk reads started before a clear.
   ///

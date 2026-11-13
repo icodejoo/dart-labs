@@ -9,15 +9,15 @@ import 'package:mova/mova.dart';
 /// 是探针自身的测量错误）：
 /// 1. 一次插播里有**两次** renderEpoch 跳变（正片→广告、广告→正片）。旧探针的
 ///    Completer 在第一次（正片→广告）就已完成，skip 之后 `await` 立刻返回，
-///    读到的其实还是**广告引擎**的 position。本探针按 skip 之后的那一次跳变计。
+///    读到的其实还是**广告播放器**的 position。本探针按 skip 之后的那一次跳变计。
 /// 2. 续播目标不是"调用 playAdNow 那一刻的正片位置"——mid 默认 waitForReady，
-///    广告预热期间正片仍在播（pending 阶段），控制器刻意把续播点跟到"广告真正
+///    广告预热期间正片仍在播（pending 阶段），[MovaAds] 刻意把续播点跟到"广告真正
 ///    接管那一刻"。所以目标应取**第一次 epoch 跳变前最后一个正片 position**。
 ///
 /// 跑法：`flutter run -t lib/main_resume_accuracy_verify.dart -d <id> --release`
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  MovaEngine.ensureInitialized();
+  Mova.ensureInitialized();
   runApp(const MaterialApp(home: _Page()));
 }
 
@@ -59,44 +59,44 @@ class _PageState extends State<_Page> {
 
   Future<void> _run() async {
     final opts = MovaOpts(
-      ads: const MovaAdConfig(enabled: true),
-      cutover: const MovaCutoverConfig(enabled: true, trigger: MovaEagerWarm()),
+      ads: const MovaAdOpts(enabled: true),
+      cutover: const MovaCutoverOpts(enabled: true, trigger: MovaEagerWarm()),
     );
-    final engine = MovaCutoverEngine(engineFactory: () => createMovaEngine(options: opts));
-    final ctrl = MovaAds(engine, cutover: engine);
+    final mova = MovaCutover(movaFactory: () => createMova(options: opts));
+    final ads = MovaAds(mova, cutover: mova);
 
     Duration? latestPos;
-    int epoch = engine.state.renderEpoch;
-    // 每次 epoch 跳变前最后一个 position（即"被换下那台引擎"的最终位置）。
+    int epoch = mova.state.renderEpoch;
+    // 每次 epoch 跳变前最后一个 position（即"被换下那台播放器"的最终位置）。
     final List<Duration?> posBeforeBump = [];
     final List<int> bumpAtMs = [];
     Completer<void>? awaitingBump;
 
-    final progSub = engine.progress.listen((p) => latestPos = p.position);
-    final stateSub = engine.states.listen((s) {
+    final progSub = mova.progress.listen((p) => latestPos = p.position);
+    final stateSub = mova.states.listen((s) {
       if (s.renderEpoch == epoch) return;
       epoch = s.renderEpoch;
       posBeforeBump.add(latestPos);
       bumpAtMs.add(_clock.elapsedMilliseconds);
       _mark('renderEpoch -> $epoch（跳变前最后 position=$latestPos）');
-      // 换指后先把 latestPos 清空，确保之后读到的一定是新引擎报出来的。
+      // 换指后先把 latestPos 清空，确保之后读到的一定是新播放器报出来的。
       latestPos = null;
       final c = awaitingBump;
       if (c != null && !c.isCompleted) c.complete();
     });
-    final phaseSub = engine.cutoverPhases.listen((p) => _mark('cutoverPhase=$p'));
-    final adSub = ctrl.changes.listen(
-        (_) => _mark('adPhase: showingAd=${ctrl.isShowingAd} pending=${ctrl.isAdPending}'));
+    final phaseSub = mova.cutoverPhases.listen((p) => _mark('cutoverPhase=$p'));
+    final adSub = ads.changes.listen(
+        (_) => _mark('adPhase: showingAd=${ads.isShowingAd} pending=${ads.isAdPending}'));
 
-    await ctrl.load(_content());
-    await _waitPlaying(engine);
+    await ads.load(_content());
+    await _waitPlaying(mova);
     _mark('正片播放中，等待 4s');
     await Future<void>.delayed(const Duration(seconds: 4));
     _mark('playAdNow 之前 position=$latestPos（注意：这不是续播目标，见文件头注释）');
 
     // 广告接管（第 1 次 epoch 跳变）。
     awaitingBump = Completer<void>();
-    await ctrl.playAdNow(MovaAdBreak(
+    await ads.playAdNow(MovaAdBreak(
       kind: MovaAdBreakKind.mid,
       source: _adSource(),
       skippableAfter: Duration.zero,
@@ -107,21 +107,21 @@ class _PageState extends State<_Page> {
     final target = posBeforeBump.isNotEmpty ? posBeforeBump.first : null;
     _mark('广告已接管，续播目标（接管前最后一个正片 position）=$target');
 
-    // 让广告真播一会儿，给正片影子引擎预热窗口。
+    // 让广告真播一会儿，给正片影子播放器预热窗口。
     await Future<void>.delayed(const Duration(seconds: 4));
     _mark('广告播放 4s（广告自身 position=$latestPos），现在 skip');
 
     awaitingBump = Completer<void>();
     final skipAt = _clock.elapsedMilliseconds;
-    ctrl.skip();
+    ads.skip();
     await awaitingBump.future.timeout(const Duration(seconds: 15), onTimeout: () {
       _mark('skip 后的 epoch 跳变 15s 内未发生（说明走了非无缝回落路径）');
     });
     final bumped = bumpAtMs.length >= 2;
     final cutoverMs = bumped ? bumpAtMs[1] - skipAt : -1;
 
-    // 等新引擎报出第一个 progress（throttle 200ms，最多再等 2s）。
-    final firstAfter = await _firstProgressAfter(engine, const Duration(seconds: 3));
+    // 等新播放器报出第一个 progress（throttle 200ms，最多再等 2s）。
+    final firstAfter = await _firstProgressAfter(mova, const Duration(seconds: 3));
     final readAt = _clock.elapsedMilliseconds;
     _mark('切换落地后正片第一个 position=$firstAfter（距 skip ${readAt - skipAt}ms）');
 
@@ -141,16 +141,16 @@ class _PageState extends State<_Page> {
     await stateSub.cancel();
     await phaseSub.cancel();
     await adSub.cancel();
-    await ctrl.dispose();
-    await engine.dispose();
+    await ads.dispose();
+    await mova.dispose();
     if (mounted) setState(() => _done = true);
   }
 
-  /// 等待引擎报出下一个 progress（切换后第一个）。
-  Future<Duration?> _firstProgressAfter(MovaCutoverEngine engine, Duration limit) {
+  /// 等待播放器报出下一个 progress（切换后第一个）。
+  Future<Duration?> _firstProgressAfter(MovaCutover mova, Duration limit) {
     final c = Completer<Duration?>();
     late final StreamSubscription<MovaProg> sub;
-    sub = engine.progress.listen((p) {
+    sub = mova.progress.listen((p) {
       if (!c.isCompleted) c.complete(p.position);
       unawaited(sub.cancel());
     });
@@ -160,11 +160,11 @@ class _PageState extends State<_Page> {
     });
   }
 
-  Future<void> _waitPlaying(MovaCutoverEngine engine) {
+  Future<void> _waitPlaying(MovaCutover mova) {
     final completer = Completer<void>();
     late final StreamSubscription<MovaProg> sub;
-    sub = engine.progress.listen((p) {
-      if (p.position > Duration.zero && !engine.state.buffering) {
+    sub = mova.progress.listen((p) {
+      if (p.position > Duration.zero && !mova.state.buffering) {
         unawaited(sub.cancel());
         if (!completer.isCompleted) completer.complete();
       }

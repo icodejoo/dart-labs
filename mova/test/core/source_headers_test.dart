@@ -6,7 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mova/mova.dart';
 import '../support/fake_kernel.dart';
 
-class _Fetch implements MovaHeaderedHttpFetch {
+class _Fetch implements IMovaHeaderedHttpFetch {
   final seen = <Map<String, String>>[];
   @override
   Future<Uint8List?> get(Uri url) => getWithHeaders(url, const {});
@@ -20,14 +20,14 @@ class _Fetch implements MovaHeaderedHttpFetch {
   @override
   Future<void> close() async {}
 }
-class _Legacy implements MovaHttpFetch {
+class _Legacy implements IMovaHttpFetch {
   int count = 0;
   @override
   Future<Uint8List?> get(Uri url) async { count++; return Uint8List(1); }
   @override
   Future<void> close() async {}
 }
-class _Puller implements MovaHeaderedFramePuller {
+class _Puller implements IMovaHeaderedFramePuller {
   Map<String, String>? seen;
   @override
   Future<Uint8List?> extract(String uri, Duration at, {required int width, required bool hwdec}) async => null;
@@ -95,11 +95,11 @@ void main() {
   });
   test('C07 起播位置寄存至时长就绪后下发', () async {
     final kernel = FakeKernel();
-    final engine = MovaEngine(kernel: kernel);
-    addTearDown(engine.dispose);
-    await engine.open(const MovaSource('https://h/live', type: MovaStreamType.live, start: Duration(seconds: 3)));
+    final mova = Mova(kernel: kernel);
+    addTearDown(mova.dispose);
+    await mova.open(const MovaSource('https://h/live', type: MovaStreamType.live, start: Duration(seconds: 3)));
     expect(kernel.lastSeek, isNull);
-    await engine.open(source);
+    await mova.open(source);
     expect(kernel.lastSeek, isNull);
     kernel.emitDuration(const Duration(seconds: 60));
     await Future<void>.delayed(Duration.zero);
@@ -107,10 +107,10 @@ void main() {
   });
   test('C07 清晰度探测和 feed 预取带源请求头', () async {
     final fetch = _Fetch();
-    final engine = MovaEngine(kernel: FakeKernel(), fetcher: fetch);
-    addTearDown(engine.dispose);
-    await engine.open(const MovaSource('https://h/a.m3u8', headers: {'Referer':'auth'}));
-    await engine.loadQualities();
+    final mova = Mova(kernel: FakeKernel(), fetcher: fetch);
+    addTearDown(mova.dispose);
+    await mova.open(const MovaSource('https://h/a.m3u8', headers: {'Referer':'auth'}));
+    await mova.loadQualities();
     expect(fetch.seen, isNotEmpty);
     expect(fetch.seen.every((h) => h['Referer'] == 'auth'), isTrue);
     final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);

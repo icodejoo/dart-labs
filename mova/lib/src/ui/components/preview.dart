@@ -19,13 +19,13 @@ import '../slots/slot.dart';
 ///
 /// Driven purely by [MovaUiState.previewAt] — both drag sources (the seek bar's
 /// `onChanged` and the gesture layer's horizontal drag) already publish it via
-/// `MovaApi.setDragging`, so this component needs no knowledge of either.
+/// `IMovaApi.setDragging`, so this component needs no knowledge of either.
 /// Replace it wholesale with `MovaPatch.replace('preview', MyBubble())`.
 ///
 /// 拖动预览气泡：一张缩略图加目标时间戳，拖动过程中浮在进度条正上方。
 ///
 /// 完全由 [MovaUiState.previewAt] 驱动——两个拖动来源（进度条的 `onChanged`
-/// 与手势层的横滑）都已经通过 `MovaApi.setDragging` 发布该字段，因此本组件
+/// 与手势层的横滑）都已经通过 `IMovaApi.setDragging` 发布该字段，因此本组件
 /// 无需感知它们中的任何一个。可用 `MovaPatch.replace('preview', MyBubble())`
 /// 整块替换。
 class MovaPreviewComponent extends MovaComponent {
@@ -46,15 +46,15 @@ class MovaPreviewComponent extends MovaComponent {
   MovaSlot get slot => MovaSlot.bottomAbove;
 
   @override
-  Widget build(BuildContext context, MovaApi api, List<Widget> children) =>
+  Widget build(BuildContext context, IMovaApi api, List<Widget> children) =>
       _PreviewBubble(api: api);
 }
 
 /// Stateful body of [MovaPreviewComponent]: tracks the scrub position from
-/// [MovaApi.uiStates] and the resolved thumbnail from `MovaApi.preview.thumbs`.
+/// [IMovaApi.uiStates] and the resolved thumbnail from `IMovaApi.preview.thumbs`.
 ///
-/// [MovaPreviewComponent] 的有状态主体：从 [MovaApi.uiStates] 跟踪拖动位置，从
-/// `MovaApi.preview.thumbs` 跟踪已解析的缩略图。
+/// [MovaPreviewComponent] 的有状态主体：从 [IMovaApi.uiStates] 跟踪拖动位置，从
+/// `IMovaApi.preview.thumbs` 跟踪已解析的缩略图。
 class _PreviewBubble extends StatefulWidget {
   /// Creates the bubble widget.
   ///
@@ -68,7 +68,7 @@ class _PreviewBubble extends StatefulWidget {
   /// The capability surface this bubble reads from.
   ///
   /// 该气泡读取的能力面。
-  final MovaApi api;
+  final IMovaApi api;
 
   @override
   State<_PreviewBubble> createState() => _PreviewBubbleState();
@@ -82,18 +82,18 @@ class _PreviewBubbleState extends State<_PreviewBubble> {
   ///
   /// 当前拖动位置；无拖动时为 null。
   Duration? _at;
-  late MovaPreviewApi _preview;
+  late IMovaPreviewApi _preview;
 
   void _openPreview() {
     final preview = widget.api.preview;
-    _preview = preview is MovaPreviewSessions
-        ? (preview as MovaPreviewSessions).openSession()
+    _preview = preview is IMovaPreviewSessions
+        ? (preview as IMovaPreviewSessions).openSession()
         : preview;
   }
 
   void _closePreview() {
     final preview = _preview;
-    if (preview is MovaPreviewSession) unawaited(preview.dispose());
+    if (preview is IMovaPreviewSession) unawaited(preview.dispose());
   }
 
   /// The thumbnail to render, or null while none has resolved yet.

@@ -29,7 +29,7 @@ python example/tool/run_matrix.py --baseline example/tool/coverage_evidence/reru
 
 ## Gap 真机补充批次（2026-10-28；本次仅离线校验）
 
-新增 12 批（含 `gap-skin`），均 `fast=false`、`screen_on=true`，入口为 `lib/main_coverage_gap.dart`。
+新增 12 批（含 `gap-ui-kit`），均 `fast=false`、`screen_on=true`，入口为 `lib/main_coverage_gap.dart`。
 `covers` 保持原 135 编号语义；`covers_ext` 独立接受 `doc/ACCEPTANCE-MATRIX.md` §10
 总索引编号（去掉 `v2:`/`new:` 前缀）及 H1–H78。未知编号仍拒绝。
 新驱动自身输出 L 日志和完成元数据，使用 `native_driver` 绕过历史 AST 路径改写器。
@@ -47,9 +47,9 @@ python -B example/tool/coverage_gap.py lifecycle --run-id gap01 --timeout 1200
 python -B example/tool/coverage_gap.py local --run-id gap01
 python -B example/tool/coverage_gap.py formats --run-id gap01 --timeout 2400
 python -B example/tool/coverage_gap.py random --run-id gap01 --seed 20261028 --actions 80 --timeout 2400
-python -B example/tool/coverage_gap.py skin --run-id gap01 --timeout 2640
-# 只跑部分皮肤（逗号分隔，默认五套）
-python -B example/tool/coverage_gap.py skin --run-id gap02 --skins default,bilibili --timeout 1800
+python -B example/tool/coverage_gap.py ui-kit --run-id gap01 --timeout 2640
+# 只跑部分 UI 套件（逗号分隔，默认五套）
+python -B example/tool/coverage_gap.py ui-kit --run-id gap02 --ui-kits default,bilibili --timeout 1800
 # 与上面独立运行二选一；每次使用新 run-id
 python -B example/tool/run_matrix.py --only gap-assumptions,gap-lifecycle,gap-local,gap-formats,gap-random --run-id gap02
 python -B example/tool/run_matrix.py --list
@@ -77,8 +77,8 @@ python -B example/tool/coverage_gap_media.py --out "$env:TEMP/mova-gap-media" --
 | 软件对照 | `gap:G3.2.hevcSoftware` 用真实源属性 `hwdec=no`，打印 `hwdec-current` |
 | 应不支持且须明确错误 | VP8、AC3/EAC3，以及 AVI/MPEG4、WMV2；裁剪了相关 decoder/demuxer |
 
-引擎均由 `createMovaEngine()` 构建；H28 默认组实际调用无参数构造，对照组才开
-`preciseFirstFrame`。可见视频引擎（包括 cutover 影子）均挂 `MovaPlayer`；
+播放器均由 `createMova()` 构建；H28 默认组实际调用无参数构造，对照组才开
+`preciseFirstFrame`。可见视频播放器（包括 cutover 影子）均挂 `MovaPlayer`；
 H7/H33 使用 `audioOnly:true`，子类只在真实 `MovaMpvKernel.open` 外记录 CALL/RET，
 并连接真实 FFI END_FILE，不替换播放结果。
 事件和 states/progress 全程记录；STEP 前后有 STATE，判定有 EXPECT/ACTUAL/VERDICT。
@@ -143,23 +143,23 @@ PiP/音量/亮度 MethodChannel。独立 gap 驱动默认只操控 coverage 包�
 预计 prepare 3–15min，assumptions 5–20min（重试/超时可更久），lifecycle 1–5min，
 local/formats 2–8min，random 3–15min；系统条件各 2–5min，加人工解锁/判图时间。
 
-### 皮肤专项（`gap-skin`，矩阵 §3.3 S）
+### UI 套件专项（`gap-ui-kit`，矩阵 §3.3 S）
 
-分组 `skin`，入口同为 `lib/main_coverage_gap.dart`（`verify_auto/coverage_gap_skin.dart`，经
-`gapGroups` 注册，复用 gap 的 L 日志/`caseOf`/`verdict`）。case 名 `gap:S<n>.<皮肤>.<子点>`，
-`--skins` 过滤皮肤（`default,bilibili,douyin,minimal,mini`）。每个 case 单独建引擎、挂整屏
-`MovaPlayer(skin:)`、打开 HLS 母带，结束先卸舞台再销毁引擎。
+分组 `ui-kit`，入口同为 `lib/main_coverage_gap.dart`（`verify_auto/coverage_gap_ui_kit.dart`，经
+`gapGroups` 注册，复用 gap 的 L 日志/`caseOf`/`verdict`）。case 名 `gap:S<n>.<UI 套件>.<子点>`，
+`--ui-kits` 过滤 UI 套件（`default,bilibili,douyin,minimal,mini`）。每个 case 单独建播放器、挂整屏
+`MovaPlayer(uiKit:)`、打开 HLS 母带，结束先卸舞台再销毁播放器。
 
 | 子项 | case | 判据 |
 |---|---|---|
-| S1 | `S1.componentNames`、`S1.<皮肤>.tree`、`S1.minimal.variants` | 38 个组件 `componentName`==`name`==期望字面量；`components()` 树（含槽位与子节点）与硬编码期望逐项相等；挂载探针（`MovaGradBar` 数、必须出现的图标、Minimal 无图标） |
-| S2 / S10 | `S2.<皮肤>.layoutShot`、`S10.<皮肤>.fullscreenShot` | 出截图，视觉判定记 BLOCKED（manual）；S10 另核对 `setFullscreen(true)` 落入 state |
+| S1 | `S1.componentNames`、`S1.<UI 套件>.tree`、`S1.minimal.variants` | 38 个组件 `componentName`==`name`==期望字面量；`components()` 树（含槽位与子节点）与硬编码期望逐项相等；挂载探针（`MovaGradBar` 数、必须出现的图标、Minimal 无图标） |
+| S2 / S10 | `S2.<UI 套件>.layoutShot`、`S10.<UI 套件>.fullscreenShot` | 出截图，视觉判定记 BLOCKED（manual）；S10 另核对 `setFullscreen(true)` 落入 state |
 | S4 | `S4.default/bilibili.tap`、`S4.douyin.tap` | 单击切 `controlsVisible`、双击左右各跳 `doubleTapStep`（`MovaSeek.target` ±2s）；Douyin 单击切播放、双击点赞且不切播放 |
 | S7 | `S7.default/bilibili.lock`、`S7.douyin.lockObserve` | 点锁定按钮→`locked`+一次 `MovaLockChange`；锁定后栏/中心按钮不在树上，点原位置、空白、双击无 Play/Pause/Fit/Seek/Rate/FullScreen/Volume 事件、状态不变；解锁后恢复。Douyin 无锁定入口，只记录观察 |
-| S9 | `S9.default/bilibili.buttons`、`S9.<皮肤>.errorRetry`、`S9.douyin.buttons`、`S9.mini.buttons` | 逐个按钮点击对应 state/事件：中心播放暂停、fit、方向（仅移动端）、全屏进出、倍速（Bilibili 有 / Default 无）、清晰度 sheet 列全并切换；字幕按钮无 STT 时不挂载；PiP 只核对挂载，点击记 BLOCKED（避免把应用留在系统小窗，见 `gap:A15.miniPip`）；错误层重试→新的 `MovaSourceChange`；Douyin 头像/关注/评论/分享/点赞→宿主回调恰好一次；Mini 播放暂停与关闭回调 |
+| S9 | `S9.default/bilibili.buttons`、`S9.<UI 套件>.errorRetry`、`S9.douyin.buttons`、`S9.mini.buttons` | 逐个按钮点击对应 state/事件：中心播放暂停、fit、方向（仅移动端）、全屏进出、倍速（Bilibili 有 / Default 无）、清晰度 sheet 列全并切换；字幕按钮无 STT 时不挂载；PiP 只核对挂载，点击记 BLOCKED（避免把应用留在系统小窗，见 `gap:A15.miniPip`）；错误层重试→新的 `MovaSourceChange`；Douyin 头像/关注/评论/分享/点赞→宿主回调恰好一次；Mini 播放暂停与关闭回调 |
 | S12 | `S12.default.noop`、`S12.default.patches`、`S12.bilibili.patches` | 未匹配路径空操作且不改输入；Add/Replace/Remove/InsertAfter 在树与挂载层生效，探针组件点击可改 rate（Bilibili 含锚定到内置补丁新增节点） |
-| S13 | `S13.<皮肤>.inject` | 非默认 `MovaTheme`/`MovaStrs` 落到图标色/字号/标题/fit 标签/倍速后缀/缓冲转圈（Minimal 用 2s 延迟源观察到转圈才判，否则 BLOCKED）；Mini 关闭按钮色写死白色，只记录 |
-| S14 | `S14.<从>.to-<到>` | 同一 api 换 `MovaPlayer.skin`（五皮肤成环）：无重开类事件、`renderEpoch`/`path`/`playing` 不变、位置不回退且继续推进、新皮肤确已挂载 |
+| S13 | `S13.<UI 套件>.inject` | 非默认 `MovaTheme`/`MovaStrs` 落到图标色/字号/标题/fit 标签/倍速后缀/缓冲转圈（Minimal 用 2s 延迟源观察到转圈才判，否则 BLOCKED）；Mini 关闭按钮色写死白色，只记录 |
+| S14 | `S14.<从>.to-<到>` | 同一 api 换 `MovaPlayer.uiKit`（五套 UI 套件成环）：无重开类事件、`renderEpoch`/`path`/`playing` 不变、位置不回退且继续推进、新 UI 套件确已挂载 |
 
 注入走应用内 `GestureBinding.handlePointerEvent`（与真实触摸同一命中/手势竞技场链路），
 日志逐次打印逻辑坐标、命中路径前 8 个 target、等价 `adb shell input tap` 物理坐标；这是对 L 规范
@@ -167,4 +167,4 @@ local/formats 2–8min，random 3–15min；系统条件各 2–5min，加人工
 `matrixNA` case 把矩阵已标 N/A 的 17 格（Minimal S2–S9、Mini S3–S8、Douyin/Minimal/Mini 的 S12）连同依据写入日志，不出结论。
 未做：S3 直播布局、S5/S6 拖动手势（会改系统音量/窗口亮度）、S8 长按、S11 覆盖层、S15 已知失败交叉、S16 Mini 窗口专项；
 `MovaNextUpComponent`/`MovaAdOverlayComponent` 需 `MovaPlaylist`/`MovaAds`，未纳入 `componentName` 一致性对账。
-预计 `skin` 全量 20–45min（42 个 case，按钮/清晰度/换皮肤较慢），含 4 张 S2、5 张 S10 截图待人工判图。
+预计 `ui-kit` 全量 20–45min（42 个 case，按钮/清晰度/换 UI 套件较慢），含 4 张 S2、5 张 S10 截图待人工判图。

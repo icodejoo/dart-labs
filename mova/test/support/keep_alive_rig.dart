@@ -4,10 +4,10 @@ import 'package:mova/mova.dart';
 
 import 'fake_kernel.dart';
 
-/// A PiP port that always succeeds, to put the engine in system PiP.
+/// A PiP port that always succeeds, to put the player in system PiP.
 ///
-/// 永远成功的画中画端口，用来让引擎进入系统画中画。
-class YesPip implements MovaPipPort {
+/// 永远成功的画中画端口，用来让播放器进入系统画中画。
+class YesPip implements IMovaPip {
   @override
   Future<bool> isSupported() async => true;
 
@@ -15,11 +15,11 @@ class YesPip implements MovaPipPort {
   Future<bool> enter({int? width, int? height}) async => true;
 }
 
-/// An engine over a fake kernel for keepAlive tests: the control bar's auto-hide
+/// A player over a fake kernel for keepAlive tests: the control bar's auto-hide
 /// is off (the only timers left are keepAlive's own), the keepAlive clock follows
 /// `fakeAsync`, and every event is recorded.
 ///
-/// 待机测试用的"假内核 + 引擎"夹具：关掉控制条自动隐藏（剩余计时器只可能来自待机本身），
+/// 待机测试用的"假内核 + 播放器"夹具：关掉控制条自动隐藏（剩余计时器只可能来自待机本身），
 /// 待机时钟跟随 `fakeAsync`，并记录所有事件。
 class KeepAliveRig {
   /// Creates the rig inside a `fakeAsync` zone.
@@ -36,21 +36,21 @@ class KeepAliveRig {
     this.async,
     this.kernel, {
     MovaOpts options = const MovaOpts(),
-    MovaKeepAliveConfig? keepAlive,
-    MovaRecoveryConfig? recovery,
-    MovaPipPort? pip,
-  }) : engine = MovaEngine(fetcher: const MovaTestHttpFetch(),
+    MovaKeepAliveOpts? keepAlive,
+    MovaRecoveryOpts? recovery,
+    IMovaPip? pip,
+  }) : mova = Mova(fetcher: const MovaTestHttpFetch(),
          kernel: kernel,
          pip: pip,
          options: options.copyWith(
            keepAlive: keepAlive,
            recovery: recovery,
-           controls: const MovaCtrlsConfig(autoHide: false),
+           controls: const MovaCtrlsOpts(autoHide: false),
          ),
        ) {
     final origin = DateTime(2026, 10, 24);
-    engine.debugClock = () => origin.add(async.elapsed);
-    engine.events.listen(events.add);
+    mova.debugClock = () => origin.add(async.elapsed);
+    mova.events.listen(events.add);
   }
 
   /// The surrounding fake clock.
@@ -63,14 +63,14 @@ class KeepAliveRig {
   /// 假内核。
   final FakeKernel kernel;
 
-  /// The engine under test.
+  /// The player under test.
   ///
-  /// 被测引擎。
-  final MovaEngine engine;
+  /// 被测播放器。
+  final Mova mova;
 
-  /// Every event the engine emitted, in order.
+  /// Every event the player emitted, in order.
   ///
-  /// 引擎发出的全部事件，按顺序。
+  /// 播放器发出的全部事件，按顺序。
   final List<MovaEvent> events = [];
 
   /// The keepAlive phase-change events.
@@ -96,7 +96,7 @@ class KeepAliveRig {
     MovaStreamType type = MovaStreamType.live,
     String uri = 'https://h/a.flv',
   }) {
-    engine.open(MovaSource(uri, type: type), autoPlay: autoPlay);
+    mova.open(MovaSource(uri, type: type), autoPlay: autoPlay);
     async.flushMicrotasks();
     if (autoPlay) kernel.emitPlaying(true);
     async.flushMicrotasks();
@@ -107,7 +107,7 @@ class KeepAliveRig {
   /// 调用 `setKeepAlive` 并让微任务落定；返回落定后的阶段。
   MovaKeepAlivePhase? keepAlive(bool on) {
     MovaKeepAlivePhase? result;
-    engine.setKeepAlive(on).then((p) => result = p);
+    mova.setKeepAlive(on).then((p) => result = p);
     async.flushMicrotasks();
     return result;
   }

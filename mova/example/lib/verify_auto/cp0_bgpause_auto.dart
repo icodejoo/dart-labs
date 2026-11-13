@@ -3,7 +3,7 @@ import 'cp0_harness.dart';
 Future<void> runBgPause(Cp0Harness h) async {
   for(final enabled in [true,false]) {
     for(var run=0;run<h.runs;run++) {
-      final api=createMovaEngine(preciseFirstFrame:true);
+      final api=createMova(preciseFirstFrame:true);
       await h.mount(api,raw:true,pause:enabled);
       await h.call('open',null,()=>api.open(h.source('a')));await h.waitPosition(500);
       final before=await h.native();

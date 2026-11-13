@@ -15,17 +15,17 @@ import 'package:mova/src/core/kernel/mpv_kernel.dart';
 // ignore: implementation_imports
 import 'package:mova/src/platform_impl/mpv_event_backend_ffi.dart';
 
-final gapScreen = ValueNotifier<MovaApi?>(null);
+final gapScreen = ValueNotifier<IMovaApi?>(null);
 final gapMini = MovaMini();
-final gapSurfaces = ValueNotifier<List<MovaApi>>([]);
+final gapSurfaces = ValueNotifier<List<IMovaApi>>([]);
 final gap = GapRunner();
 
-/// Extra case groups registered by other verification files (e.g. `skin`).
-/// 其它验证文件注册的附加分组（如 skin）；runGroup 对未知分组查此表。
+/// Extra case groups registered by other verification files (e.g. `uiKit`).
+/// 其它验证文件注册的附加分组（如 `ui-kit`）；runGroup 对未知分组查此表。
 final gapGroups = <String, Future<void> Function(Map<String, String> args)>{};
 
 /// Only the bad-source probe needs an overridden kernel open. No VideoController
-/// is created for these headless engines. The actual super.open is unchanged.
+/// is created for these headless players. The actual super.open is unchanged.
 class GapOpenKernel extends MovaMpvKernel {
   GapOpenKernel(this.player)
     : super(
@@ -66,7 +66,7 @@ class GapRunner {
   /// 拉回前台失败后置位；此后所有用例记 BLOCKED，宿主也不再截图。
   bool foregroundLost = false;
   int _foregroundSeq = 0;
-  MovaApi? api;
+  IMovaApi? api;
   NativePlayer? headlessNative;
   String? pendingEvidence;
   Object? lastApiError;
@@ -91,7 +91,7 @@ class GapRunner {
 
   Map<String, Object?> state() {
     final a = api;
-    if (a == null) return {'engine': null};
+    if (a == null) return {'mova': null};
     final s = a.state;
     return {
       'position': progress.position.inMilliseconds,
@@ -225,7 +225,7 @@ class GapRunner {
     '$origin/$path${path.contains('?') ? '&' : '?'}t=${DateTime.now().microsecondsSinceEpoch}',
     type: live ? MovaStreamType.live : MovaStreamType.vod,
   );
-  void observe(MovaApi a) {
+  void observe(IMovaApi a) {
     subscriptions.add(
       a.progress.listen((p) {
         progress = p;
@@ -264,7 +264,7 @@ class GapRunner {
     MovaZoomChange() => {'zoom': e.zoom},
     MovaLockChange() => {'value': e.value},
     MovaFullScreenChange() => {'value': e.value},
-    MovaOrientationChange() => {'orientation': e.orientation.name},
+    MovaOrientChange() => {'orient': e.orient.name},
     MovaMiniChange() => {'mini': e.mini},
     MovaPipChange() => {'value': e.value},
     MovaQualityListChange() => {
@@ -298,32 +298,32 @@ class GapRunner {
     },
     _ => <String, Object?>{},
   };
-  Future<MovaApi> engine({
+  Future<IMovaApi> mova({
     bool precise = false,
     bool cutover = false,
     bool recovery = false,
   }) async {
-    MovaEngine factory() {
+    Mova factory() {
       final e = !precise && !cutover && !recovery
-          ? createMovaEngine()
-          : createMovaEngine(
+          ? createMova()
+          : createMova(
               preciseFirstFrame: precise,
               options: MovaOpts(
-                recovery: MovaRecoveryConfig(enabled: recovery),
-                cutover: MovaCutoverConfig(enabled: cutover),
+                recovery: MovaRecoveryOpts(enabled: recovery),
+                cutover: MovaCutoverOpts(enabled: cutover),
               ),
             );
       // Cutover prewarm reads renderHandle before commit. Mount every factory
-      // engine, including the shadow, to avoid an unattached video pipeline.
+      // player, including the shadow, to avoid an unattached video pipeline.
       gapSurfaces.value = [...gapSurfaces.value, e];
       return e;
     }
 
-    final a = await call<MovaApi>('createMovaEngine', {
+    final a = await call<IMovaApi>('createMova', {
       'preciseFirstFrame': precise,
       'cutover': cutover,
       'recovery': recovery,
-    }, () => cutover ? MovaCutoverEngine(engineFactory: factory) : factory());
+    }, () => cutover ? MovaCutover(movaFactory: factory) : factory());
     api = a;
     observe(a);
     gapScreen.value = a;
@@ -351,14 +351,14 @@ class GapRunner {
     }
   }
 
-  Future<void> open(MovaApi a, String path) async {
+  Future<void> open(IMovaApi a, String path) async {
     final s = source(path);
     await call('open', {'uri': s.uri}, () => a.open(s));
     await until(() => a.state.duration.inSeconds >= 40 && !a.state.buffering);
     await until(() async => await pos() > 500);
   }
 
-  Future<void> seek(MovaApi a, int ms) =>
+  Future<void> seek(IMovaApi a, int ms) =>
       call('seek', {'ms': ms}, () => a.seek(Duration(milliseconds: ms)));
   Future<void> dispose() async {
     final a = api;
@@ -422,7 +422,7 @@ class GapRunner {
         log('ERROR', {'kind': 'HARNESS', 'cleanup': '$e', 'stack': '$s'});
       }
       if (pipSeen) {
-        // 任何进过画中画的用例（含皮肤里的 PiP 按钮）结束都要拉回前台再进下一个。
+        // 任何进过画中画的用例（含 UI 套件里的 PiP 按钮）结束都要拉回前台再进下一个。
         try {
           await restoreForeground('caseOf:$id');
         } catch (e, s) {
@@ -435,7 +435,7 @@ class GapRunner {
   }
 
   Future<void> switches(bool precise, String mode) async {
-    final a = await engine(precise: precise, cutover: mode == 'cutover');
+    final a = await mova(precise: precise, cutover: mode == 'cutover');
     await open(a, 'master.m3u8');
     await call('loadQualities', {}, a.loadQualities);
     await until(() => a.state.qualities.where((q) => !q.isAuto).length >= 2);
@@ -498,10 +498,10 @@ class GapRunner {
 
   Future<void> parked(bool shadow) async {
     final target = shadow ? 12000 : 15000;
-    final a = await engine(cutover: shadow);
+    final a = await mova(cutover: shadow);
     if (shadow) {
       await open(a, 'long.mp4');
-      final p = a as MovaCutoverEngine;
+      final p = a as MovaCutover;
       final s = source('delayed/master.m3u8');
       final committed = await call(
         'cutoverTo',
@@ -538,10 +538,10 @@ class GapRunner {
 
   Future<void> stale() async {
     final k = GapOpenKernel(Player());
-    final a = await call('createMovaEngine', {
+    final a = await call('createMova', {
       'audioOnly': true,
       'kernel': 'GapOpenKernel',
-    }, () => createMovaEngine(kernel: k, audioOnly: true));
+    }, () => createMova(kernel: k, audioOnly: true));
     api = a;
     headlessNative = k.player.platform as NativePlayer;
     observe(a);
@@ -598,7 +598,7 @@ class GapRunner {
   }
 
   Future<void> abr() async {
-    final a = await engine();
+    final a = await mova();
     await open(a, 'master.m3u8');
     await call('loadQualities', {}, a.loadQualities);
     await until(() => a.state.qualities.where((q) => !q.isAuto).length >= 2);
@@ -627,7 +627,7 @@ class GapRunner {
   }
 
   Future<void> echo(String path) async {
-    final a = await engine();
+    final a = await mova();
     await open(a, path);
     for (final t in [7990, 16010, 23990]) {
       await seek(a, t);
@@ -662,12 +662,12 @@ class GapRunner {
   Future<void> errors(String path, bool recovery) async {
     final k = GapOpenKernel(Player());
     final a = await call(
-      'createMovaEngine',
+      'createMova',
       {'audioOnly': true, 'recovery': recovery, 'kernel': 'GapOpenKernel'},
-      () => createMovaEngine(
+      () => createMova(
         kernel: k,
         audioOnly: true,
-        options: MovaOpts(recovery: MovaRecoveryConfig(enabled: recovery)),
+        options: MovaOpts(recovery: MovaRecoveryOpts(enabled: recovery)),
       ),
     );
     api = a;
@@ -715,7 +715,7 @@ class GapRunner {
   }
 
   Future<void> pip() async {
-    final a = await engine();
+    final a = await mova();
     await open(a, 'long.mp4');
     await call('MovaMini.show', {}, () => gapMini.show(a));
     await until(() => a.state.mini);
@@ -744,7 +744,7 @@ class GapRunner {
   }
 
   Future<void> keepAlive() async {
-    final a = await engine(precise: true);
+    final a = await mova(precise: true);
     // 待机 hold 只对 live 类型生效（VOD 一律 fallback(vod)，永远没有唤醒事件）：
     // 这里把渐进式 mp4 声明成 live 来走 B 路径；live 不支持 seek，改为等进度走过基准点，
     // 同时留足 audio-params 就绪时间（就绪前请求待机会回落为 mediaUnknown）。
@@ -759,7 +759,7 @@ class GapRunner {
       await until(() => marks.contains('before-shot-$i'));
       final entered = await call('setKeepAlive', {
         'on': true,
-      }, () => (a as MovaKeepAlive).setKeepAlive(true));
+      }, () => (a as IMovaKeepAlive).setKeepAlive(true));
       if ('$entered' != '${MovaKeepAlivePhase.holding}') {
         // 没进入 hold 就没有 B 唤醒可测：按前提不满足记 BLOCKED，并给出真实阶段与回落原因。
         verdict(
@@ -778,7 +778,7 @@ class GapRunner {
       final start = events.length;
       await call('setKeepAlive', {
         'on': false,
-      }, () => (a as MovaKeepAlive).setKeepAlive(false));
+      }, () => (a as IMovaKeepAlive).setKeepAlive(false));
       await until(
         () => events.skip(start).whereType<MovaKeepAliveResume>().isNotEmpty,
       );
@@ -797,14 +797,14 @@ class GapRunner {
     });
     verdict(
       false,
-      'classify standby as black/frozen',
+      'classify keepAlive as black/frozen',
       'PNG pairs collected',
       blocked: 'manual screenshot comparison required',
     );
   }
 
   Future<void> local(String kind) async {
-    final a = await engine();
+    final a = await mova();
     final bytes = await call('rootBundle.load', {
       'asset': 'assets/test_video.mp4',
     }, () => rootBundle.load('assets/test_video.mp4'));
@@ -835,7 +835,7 @@ class GapRunner {
     bool supported, {
     bool software = false,
   }) async {
-    final a = await engine();
+    final a = await mova();
     final base = source(path);
     final s = software
         ? MovaSource(base.uri, mpvOptions: const {'hwdec': 'no'})
@@ -894,7 +894,7 @@ class GapRunner {
 
   /// 记录型：读回 libmpv 实际编入的解码器清单，用来核对瘦身裁剪面（与格式用例的错误互相印证）。
   Future<void> decoders() async {
-    final a = await engine();
+    final a = await mova();
     await open(a, 'long.mp4');
     final raw = await optionalNative('decoder-list');
     const wanted = [
@@ -924,8 +924,8 @@ class GapRunner {
 
   Future<void> random(int seed, int actions) async {
     final rng = Random(seed);
-    var a = await engine();
-    // 事件按引擎隔离：重建引擎后，上一个引擎遗留的 fullscreen/mini/rate 事件不能参与对账。
+    var a = await mova();
+    // 事件按播放器隔离：重建播放器后，上一个播放器遗留的 fullscreen/mini/rate 事件不能参与对账。
     var base = events.length;
     await open(a, 'master.m3u8');
     for (var i = 0; i < actions; i++) {
@@ -959,7 +959,7 @@ class GapRunner {
           }, () => a.setMini(!a.state.mini));
         case 7:
           await dispose();
-          a = await engine();
+          a = await mova();
           base = events.length;
           await open(a, 'master.m3u8');
         case 8:
@@ -992,7 +992,7 @@ class GapRunner {
   }
 
   Future<void> system(String mode) async {
-    final a = await engine(recovery:mode=='network');
+    final a = await mova(recovery:mode=='network');
     if (mode == 'network') {
       const url = String.fromEnvironment('GAP_NETWORK_URL');
       if (url.isEmpty) {
@@ -1142,7 +1142,7 @@ class GapRunner {
         }
       } else if (group == 'lifecycle') {
         await caseOf('H37.dispose', ['H37', 'A23'], () async {
-          final a = await engine();
+          final a = await mova();
           await open(a, 'long.mp4');
           await call('dispose.first', {}, a.dispose);
           await call('dispose.second', {}, a.dispose);

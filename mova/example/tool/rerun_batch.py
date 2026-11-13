@@ -12,10 +12,9 @@ source=source.replace("    print('START_CASE',name,flush=True)","    update('开
 source=source.replace("    print('START_BATCH',name,flush=True)","    update('开始 '+name,[],['- 复用 '+group+' 页面，核验事件与设备状态；多轮计时取平均。'])\n    print('START_BATCH',name,flush=True)")
 if sys.argv[1]=='coverage_widgets_ui.py':
     source=re.sub(r'def record\(name\):.*?(?=\nunlocked\(\))', "def record(name):\n    return name\n\ndef finish_record(name,item):\n    (OUT/(name+'.unavailable.txt')).write_text('Device screenrecord unavailable (previously confirmed); per-action PNG and input journals retained.',encoding='utf-8')\n\n",source,flags=re.S)
-    source=source.replace("    call(tag+'-pause','pause')", "    call(tag+'-prepare-portrait','orientation',value='portrait')\n    call(tag+'-prepare-auto','orientation',value='auto')\n    call(tag+'-pause','pause')")
+    source=source.replace("    call(tag+'-pause','pause')", "    call(tag+'-prepare-portrait','orient',value='portrait')\n    call(tag+'-prepare-auto','orient',value='auto')\n    call(tag+'-pause','pause')")
 if sys.argv[1]=='coverage_event_audit.py':
     source=source.replace("'batch*.json'","'rerun-*.json'").replace("'event-audit.json'","'rerun-event-audit.json'")
-    source=source.replace("changes.append(('E.'+name,", "ledger_name={'MovaCutoverChange':'MovaSwapChange','MovaKeepAliveChange':'MovaStandbyChange','MovaKeepAliveResume':'MovaStandbyResume'}.get(name,name)\n        changes.append(('E.'+ledger_name,")
 if sys.argv[1]=='coverage_ui_final.py':
     source+="\nadb('shell','am','start','-n','com.icodejoo.mova.mova_example.coverage/com.icodejoo.mova.mova_example.MainActivity')\ncall('rerun-pip-restore-before-next-batch')\n"
 if sys.argv[1]=='coverage_visual_final.py':

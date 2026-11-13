@@ -20,7 +20,7 @@ import 'package:mova/src/core/kernel/mpv_kernel.dart';
 /// 仍正常渲染。按项目约定不提交，仅一次性验证。
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  MovaEngine.ensureInitialized();
+  Mova.ensureInitialized();
   runApp(const _ProbeApp());
 }
 
@@ -45,7 +45,7 @@ enum _Mode { ass, vtt, movText }
 
 class _ProbePageState extends State<_ProbePage> {
   Player? _rawPlayer;
-  MovaEngine? _engine;
+  Mova? _mova;
   String _status = 'idle';
   _Mode? _mode;
 
@@ -70,12 +70,12 @@ class _ProbePageState extends State<_ProbePage> {
   }
 
   Future<void> _disposeCurrent() async {
-    final engine = _engine;
+    final mova = _mova;
     final player = _rawPlayer;
-    _engine = null;
+    _mova = null;
     _rawPlayer = null;
-    if (engine != null) await engine.dispose();
-    // engine.dispose() already disposes the underlying player via kernel;
+    if (mova != null) await mova.dispose();
+    // mova.dispose() already disposes the underlying player via kernel;
     // avoid double-dispose.
     player;
   }
@@ -89,10 +89,10 @@ class _ProbePageState extends State<_ProbePage> {
     final videoPath = await _extractAsset('assets/test_video.mp4', 'probe_video.mp4');
     final assPath = await _extractAsset('assets/test_subtitle.ass', 'probe_sub.ass');
     final rawPlayer = Player();
-    final engine = createMovaEngine(kernel: MovaMpvKernel(player: rawPlayer));
+    final mova = createMova(kernel: MovaMpvKernel(player: rawPlayer));
     _rawPlayer = rawPlayer;
-    _engine = engine;
-    await engine.open(MovaSource('file://$videoPath'), autoPlay: false);
+    _mova = mova;
+    await mova.open(MovaSource('file://$videoPath'), autoPlay: false);
     final native = rawPlayer.platform;
     if (native is NativePlayer) {
       try {
@@ -104,7 +104,7 @@ class _ProbePageState extends State<_ProbePage> {
         print('SUBFMT_PROBE[ASS] sub-add FAILED: $e');
       }
     }
-    await engine.play();
+    await mova.play();
     setState(() => _status = 'ASS playing');
     _pollSubText(native, 'ASS', 24);
   }
@@ -118,10 +118,10 @@ class _ProbePageState extends State<_ProbePage> {
     final videoPath = await _extractAsset('assets/test_video.mp4', 'probe_video2.mp4');
     final vttPath = await _extractAsset('assets/test_subtitle.vtt', 'probe_sub.vtt');
     final rawPlayer = Player();
-    final engine = createMovaEngine(kernel: MovaMpvKernel(player: rawPlayer));
+    final mova = createMova(kernel: MovaMpvKernel(player: rawPlayer));
     _rawPlayer = rawPlayer;
-    _engine = engine;
-    await engine.open(MovaSource('file://$videoPath'), autoPlay: false);
+    _mova = mova;
+    await mova.open(MovaSource('file://$videoPath'), autoPlay: false);
     final native = rawPlayer.platform;
     if (native is NativePlayer) {
       try {
@@ -133,7 +133,7 @@ class _ProbePageState extends State<_ProbePage> {
         print('SUBFMT_PROBE[VTT] sub-add FAILED: $e');
       }
     }
-    await engine.play();
+    await mova.play();
     setState(() => _status = 'WebVTT playing');
     _pollSubText(native, 'VTT', 24);
   }
@@ -149,10 +149,10 @@ class _ProbePageState extends State<_ProbePage> {
       'probe_video_movtext.mp4',
     );
     final rawPlayer = Player();
-    final engine = createMovaEngine(kernel: MovaMpvKernel(player: rawPlayer));
+    final mova = createMova(kernel: MovaMpvKernel(player: rawPlayer));
     _rawPlayer = rawPlayer;
-    _engine = engine;
-    await engine.open(MovaSource('file://$videoPath'), autoPlay: false);
+    _mova = mova;
+    await mova.open(MovaSource('file://$videoPath'), autoPlay: false);
     final native = rawPlayer.platform;
     if (native is NativePlayer) {
       // mov_text is embedded in the container; mpv should auto-detect it as
@@ -168,7 +168,7 @@ class _ProbePageState extends State<_ProbePage> {
         print('SUBFMT_PROBE[MOVTEXT] select sid FAILED: $e');
       }
     }
-    await engine.play();
+    await mova.play();
     setState(() => _status = 'mov_text playing');
     _pollSubText(native, 'MOVTEXT', 24);
   }
@@ -223,9 +223,9 @@ class _ProbePageState extends State<_ProbePage> {
             ],
           ),
           Expanded(
-            child: _engine == null
+            child: _mova == null
                 ? const Center(child: Text('pick a mode above'))
-                : MovaPlayer(api: _engine!),
+                : MovaPlayer(api: _mova!),
           ),
         ],
       ),

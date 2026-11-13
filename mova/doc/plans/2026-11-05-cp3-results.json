@@ -214,7 +214,7 @@
       "triage": {
         "category": "产品请求头路径疑似；判据混入原生 open 请求",
         "symptom": "quality 列表非空且带头 probe=200，但同一正向 token 的 Range 媒体请求无 Referer=403；thumb/prefetch 正反对照通过。",
-        "suspect": "lib/src/core/kernel/mpv_kernel.dart:704 (_applySourceOptions), :758 (Media(uri)); lib/src/core/model/source.dart:153; loadQualities 在 engine.dart:2975",
+        "suspect": "lib/src/core/kernel/mpv_kernel.dart:704 (_applySourceOptions), :758 (Media(uri)); lib/src/core/model/source.dart:153; loadQualities 在 mova.dart:2975",
         "libraryEdited": false
       }
     },
@@ -240,7 +240,7 @@
       "missing": [],
       "failures": [
         {
-          "id": "CP3.feedplayer.controller.1",
+          "id": "CP3.feedplayer.ctrl.1",
           "reason": null,
           "recordIndexes": [
             24
@@ -250,7 +250,7 @@
           ]
         },
         {
-          "id": "CP3.feedplayer.controller.2",
+          "id": "CP3.feedplayer.ctrl.2",
           "reason": null,
           "recordIndexes": [
             42
@@ -260,7 +260,7 @@
           ]
         },
         {
-          "id": "CP3.feedplayer.controller.3",
+          "id": "CP3.feedplayer.ctrl.3",
           "reason": null,
           "recordIndexes": [
             58
@@ -273,19 +273,19 @@
       "subcheckFailures": [
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-feedplayer-1105-033616\\matrix-cp3-feedplayer-1105-033616-cp3-feedplayer.json",
-          "id": "CP3.feedplayer.controller.1",
+          "id": "CP3.feedplayer.ctrl.1",
           "kind": "CHECK",
           "count": 1
         },
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-feedplayer-1105-033616\\matrix-cp3-feedplayer-1105-033616-cp3-feedplayer.json",
-          "id": "CP3.feedplayer.controller.2",
+          "id": "CP3.feedplayer.ctrl.2",
           "kind": "CHECK",
           "count": 1
         },
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-feedplayer-1105-033616\\matrix-cp3-feedplayer-1105-033616-cp3-feedplayer.json",
-          "id": "CP3.feedplayer.controller.3",
+          "id": "CP3.feedplayer.ctrl.3",
           "kind": "CHECK",
           "count": 1
         }
@@ -296,7 +296,7 @@
       "rawResult": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-feedplayer-1105-033616\\matrix-cp3-feedplayer-1105-033616-cp3-feedplayer.json",
       "blockedReasons": [],
       "variantCounts": {
-        "controller": {
+        "ctrl": {
           "PASS": 2,
           "FAIL": 3
         },
@@ -309,16 +309,16 @@
       },
       "failureFeatures": {
         "checkIds": {
-          "CP3.feedplayer.controller.1": 1,
-          "CP3.feedplayer.controller.2": 1,
-          "CP3.feedplayer.controller.3": 1
+          "CP3.feedplayer.ctrl.1": 1,
+          "CP3.feedplayer.ctrl.2": 1,
+          "CP3.feedplayer.ctrl.3": 1
         },
         "receiptDifferences": {}
       },
       "triage": {
         "category": "产品/夹具异步时序待归因",
         "symptom": "跳页后 pause 完成并等待150ms，部分轮次仍 playing=true；自动暂停与错误可见独立判断。可能与池激活后续 play 竞争。",
-        "suspect": "lib/src/ui/feed_player.dart:78, :306; lib/src/core/feed/engine_pool.dart:266；夹具 cp3_pages_auto.dart:240",
+        "suspect": "lib/src/ui/feed_player.dart:78, :306; lib/src/core/feed/feed_pool.dart:266；夹具 cp3_pages_auto.dart:240",
         "libraryEdited": false
       }
     },
@@ -394,12 +394,12 @@
     },
     {
       "stage": "cp1gap",
-      "batch": "gap-skin",
+      "batch": "gap-ui-kit",
       "runId": "cp3-cp1gap-1105-033616",
       "kind": "HARNESS",
       "exit": 2,
       "seconds": 64.68,
-      "evidence": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-cp1gap-1105-033616\\matrix-cp3-cp1gap-1105-033616-gap-skin.driver.log",
+      "evidence": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-cp1gap-1105-033616\\matrix-cp3-cp1gap-1105-033616-gap-ui-kit.driver.log",
       "error": "子命令失败/缺完成标记",
       "completed": false,
       "checkCounts": {},
@@ -413,7 +413,7 @@
       "plannedRuns": "源内部次数，1轮",
       "invocations": 1,
       "status": "BLOCKED",
-      "rawResult": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-cp1gap-1105-033616-gap-skin\\gap-result.json",
+      "rawResult": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-cp1gap-1105-033616-gap-ui-kit\\gap-result.json",
       "blockedReasons": [],
       "failureFeatures": {
         "checkIds": {},
@@ -706,7 +706,7 @@
       "triage": {
         "category": "夹具",
         "symptom": "VOD 下直播条件组件不挂载，insertAfter liveBadge/timeshift/backToLive 无锚点；remove 的缺席不能证明挂载。仍需直播DVR夹具。",
-        "suspect": "example/lib/verify_auto/cp3_pages_auto.dart:363；产品候选 lib/src/ui/skins/default_skin.dart（尚无产品缺陷证据）",
+        "suspect": "example/lib/verify_auto/cp3_pages_auto.dart:363；产品候选 lib/src/ui/ui_kits/default_ui_kit.dart（尚无产品缺陷证据）",
         "libraryEdited": false
       }
     },
@@ -936,7 +936,7 @@
       "missing": [],
       "failures": [
         {
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "reason": null,
           "recordIndexes": [
             3,
@@ -1290,7 +1290,7 @@
       "subcheckFailures": [
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-final-tls.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 142
         },
@@ -1308,7 +1308,7 @@
       "blockedReasons": [],
       "failureFeatures": {
         "checkIds": {
-          "A2.engine.receipt": 142,
+          "A2.mova.receipt": 142,
           "C16.matrix": 5
         },
         "receiptDifferences": {
@@ -1320,8 +1320,8 @@
       },
       "triage": {
         "category": "产品契约/旧夹具口径待归因",
-        "symptom": "A2 engine/cutover receipt的事件回执与31字段state不一致（含buffering等）；TLS另有C16.matrix/probe打开受控HTTPS失败。原始FAIL保留。",
-        "suspect": "lib/src/core/engine.dart (_state.emit/_emitEvent), lib/src/core/cutover/cutover_engine.dart；TLS候选core/kernel/mpv_kernel.dart；夹具verify_auto/s00d_receipt.dart:120",
+        "symptom": "A2 mova/cutover receipt的事件回执与31字段state不一致（含buffering等）；TLS另有C16.matrix/probe打开受控HTTPS失败。原始FAIL保留。",
+        "suspect": "lib/src/core/mova.dart (_state.emit/_emitEvent), lib/src/core/cutover/cutover.dart；TLS候选core/kernel/mpv_kernel.dart；夹具verify_auto/s00d_receipt.dart:120",
         "libraryEdited": false
       }
     },
@@ -1344,7 +1344,7 @@
       "missing": [],
       "failures": [
         {
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "reason": null,
           "recordIndexes": [
             680,
@@ -1457,7 +1457,7 @@
       "subcheckFailures": [
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-final-tls-probe.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 32
         },
@@ -1475,7 +1475,7 @@
       "blockedReasons": [],
       "failureFeatures": {
         "checkIds": {
-          "A2.engine.receipt": 32,
+          "A2.mova.receipt": 32,
           "C16.probe": 9
         },
         "receiptDifferences": {
@@ -1487,8 +1487,8 @@
       },
       "triage": {
         "category": "产品契约/旧夹具口径待归因",
-        "symptom": "A2 engine/cutover receipt的事件回执与31字段state不一致（含buffering等）；TLS另有C16.matrix/probe打开受控HTTPS失败。原始FAIL保留。",
-        "suspect": "lib/src/core/engine.dart (_state.emit/_emitEvent), lib/src/core/cutover/cutover_engine.dart；TLS候选core/kernel/mpv_kernel.dart；夹具verify_auto/s00d_receipt.dart:120",
+        "symptom": "A2 mova/cutover receipt的事件回执与31字段state不一致（含buffering等）；TLS另有C16.matrix/probe打开受控HTTPS失败。原始FAIL保留。",
+        "suspect": "lib/src/core/mova.dart (_state.emit/_emitEvent), lib/src/core/cutover/cutover.dart；TLS候选core/kernel/mpv_kernel.dart；夹具verify_auto/s00d_receipt.dart:120",
         "libraryEdited": false
       }
     },
@@ -1626,8 +1626,8 @@
       },
       "triage": {
         "category": "产品契约/旧夹具口径待归因",
-        "symptom": "A2 engine/cutover receipt的事件回执与31字段state不一致（含buffering等）；TLS另有C16.matrix/probe打开受控HTTPS失败。原始FAIL保留。",
-        "suspect": "lib/src/core/engine.dart (_state.emit/_emitEvent), lib/src/core/cutover/cutover_engine.dart；TLS候选core/kernel/mpv_kernel.dart；夹具verify_auto/s00d_receipt.dart:120",
+        "symptom": "A2 mova/cutover receipt的事件回执与31字段state不一致（含buffering等）；TLS另有C16.matrix/probe打开受控HTTPS失败。原始FAIL保留。",
+        "suspect": "lib/src/core/mova.dart (_state.emit/_emitEvent), lib/src/core/cutover/cutover.dart；TLS候选core/kernel/mpv_kernel.dart；夹具verify_auto/s00d_receipt.dart:120",
         "libraryEdited": false
       }
     },
@@ -1650,7 +1650,7 @@
       "missing": [],
       "failures": [
         {
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "reason": null,
           "recordIndexes": [
             1490,
@@ -1696,7 +1696,7 @@
       "subcheckFailures": [
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-final-abr.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 14
         }
@@ -1708,7 +1708,7 @@
       "blockedReasons": [],
       "failureFeatures": {
         "checkIds": {
-          "A2.engine.receipt": 14
+          "A2.mova.receipt": 14
         },
         "receiptDifferences": {
           "buffering": 6,
@@ -1721,8 +1721,8 @@
       },
       "triage": {
         "category": "产品契约/旧夹具口径待归因",
-        "symptom": "A2 engine/cutover receipt的事件回执与31字段state不一致（含buffering等）；TLS另有C16.matrix/probe打开受控HTTPS失败。原始FAIL保留。",
-        "suspect": "lib/src/core/engine.dart (_state.emit/_emitEvent), lib/src/core/cutover/cutover_engine.dart；TLS候选core/kernel/mpv_kernel.dart；夹具verify_auto/s00d_receipt.dart:120",
+        "symptom": "A2 mova/cutover receipt的事件回执与31字段state不一致（含buffering等）；TLS另有C16.matrix/probe打开受控HTTPS失败。原始FAIL保留。",
+        "suspect": "lib/src/core/mova.dart (_state.emit/_emitEvent), lib/src/core/cutover/cutover.dart；TLS候选core/kernel/mpv_kernel.dart；夹具verify_auto/s00d_receipt.dart:120",
         "libraryEdited": false
       }
     },
@@ -1761,7 +1761,7 @@
       "triage": {
         "category": "夹具共享源中断；原始FAIL保留",
         "symptom": "共享源子进程04:21:10退出，18080/18081不可用；04:41:18恢复。HE首帧/V6/恢复全部位于中断窗口；keepalive前半失败，恢复后已有S2/S3 PASS。无有效媒体前提不能认定lib缺陷。",
-        "suspect": "example/tool/verify_sources/start_sources.py；原始sources.commands.driver.log；若有效源下复现再查lib/src/core/engine.dart:1359和core/kernel/mpv_kernel.dart",
+        "suspect": "example/tool/verify_sources/start_sources.py；原始sources.commands.driver.log；若有效源下复现再查lib/src/core/mova.dart:1359和core/kernel/mpv_kernel.dart",
         "libraryEdited": false
       }
     },
@@ -1894,7 +1894,7 @@
       "triage": {
         "category": "夹具共享源中断；原始FAIL保留",
         "symptom": "共享源子进程04:21:10退出，18080/18081不可用；04:41:18恢复。HE首帧/V6/恢复全部位于中断窗口；keepalive前半失败，恢复后已有S2/S3 PASS。无有效媒体前提不能认定lib缺陷。",
-        "suspect": "example/tool/verify_sources/start_sources.py；原始sources.commands.driver.log；若有效源下复现再查lib/src/core/engine.dart:1359和core/kernel/mpv_kernel.dart",
+        "suspect": "example/tool/verify_sources/start_sources.py；原始sources.commands.driver.log；若有效源下复现再查lib/src/core/mova.dart:1359和core/kernel/mpv_kernel.dart",
         "libraryEdited": false
       }
     },
@@ -1933,7 +1933,7 @@
       "triage": {
         "category": "夹具共享源中断；原始FAIL保留",
         "symptom": "共享源子进程04:21:10退出，18080/18081不可用；04:41:18恢复。HE首帧/V6/恢复全部位于中断窗口；keepalive前半失败，恢复后已有S2/S3 PASS。无有效媒体前提不能认定lib缺陷。",
-        "suspect": "example/tool/verify_sources/start_sources.py；原始sources.commands.driver.log；若有效源下复现再查lib/src/core/engine.dart:1359和core/kernel/mpv_kernel.dart",
+        "suspect": "example/tool/verify_sources/start_sources.py；原始sources.commands.driver.log；若有效源下复现再查lib/src/core/mova.dart:1359和core/kernel/mpv_kernel.dart",
         "libraryEdited": false
       }
     },
@@ -1972,7 +1972,7 @@
       "triage": {
         "category": "夹具共享源中断；原始FAIL保留",
         "symptom": "共享源子进程04:21:10退出，18080/18081不可用；04:41:18恢复。HE首帧/V6/恢复全部位于中断窗口；keepalive前半失败，恢复后已有S2/S3 PASS。无有效媒体前提不能认定lib缺陷。",
-        "suspect": "example/tool/verify_sources/start_sources.py；原始sources.commands.driver.log；若有效源下复现再查lib/src/core/engine.dart:1359和core/kernel/mpv_kernel.dart",
+        "suspect": "example/tool/verify_sources/start_sources.py；原始sources.commands.driver.log；若有效源下复现再查lib/src/core/mova.dart:1359和core/kernel/mpv_kernel.dart",
         "libraryEdited": false
       }
     },
@@ -2340,7 +2340,7 @@
       "subcheckFailures": [
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-batch15-abr.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 14
         },
@@ -2352,7 +2352,7 @@
         },
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-batch15-ads.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 5
         },
@@ -2364,7 +2364,7 @@
         },
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-batch15-basic.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 16
         },
@@ -2382,43 +2382,43 @@
         },
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-batch15-hang-2s-0.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 4
         },
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-batch15-hang-2s-1.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 4
         },
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-batch15-hang-2s-2.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 4
         },
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-batch15-hang-default-0.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 5
         },
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-batch15-hang-default-1.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 4
         },
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-batch15-hang-default-2.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 4
         },
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-batch15-hls.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 28
         },
@@ -2430,139 +2430,139 @@
         },
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-batch15-hooks.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 17
         },
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-batch15-lazy.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 3
         },
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-batch15-lifecycle.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 10
         },
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-batch15-live-step0-0.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 80
         },
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-batch15-live-step0-1.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 90
         },
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-batch15-live-step0-2.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 101
         },
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-batch15-live-step2000-0.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 12
         },
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-batch15-live-step2000-1.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 12
         },
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-batch15-live-step2000-2.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 10
         },
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-batch15-options.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 17
         },
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-batch15-preview-blocked.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 1
         },
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-batch15-preview-extract.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 3
         },
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-batch15-preview-fallback.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 3
         },
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-batch15-preview-vtt.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 3
         },
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-batch15-qoe-ended.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 3
         },
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-batch15-qoe-failed.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 2
         },
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-batch15-qoe-stall.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 3
         },
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-batch15-qoe-stopped.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 3
         },
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-batch15-qoe-truncated.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 4
         },
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-batch15-recovery-liveAlternatives.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 14
         },
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-batch15-recovery-liveDefault.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 6
         },
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-batch15-recovery-liveLegacy.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 6
         },
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-batch15-s00c.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 7
         },
@@ -2574,19 +2574,19 @@
         },
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-batch15-s00d-native.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 12
         },
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-batch15-s00d-resources.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 2
         },
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-batch15-stt.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 4
         },
@@ -2598,7 +2598,7 @@
         },
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-batch15-tls.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 140
         },
@@ -2610,7 +2610,7 @@
         },
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-batch15-watchoff.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 4
         }
@@ -2681,7 +2681,7 @@
       "status": "FAIL",
       "failureFeatures": {
         "checkIds": {
-          "A2.engine.receipt": 660,
+          "A2.mova.receipt": 660,
           "A2.cutover.receipt": 59,
           "A29.final": 1,
           "N22.sttRetry": 1,
@@ -2731,7 +2731,7 @@
       "subcheckFailures": [
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-batch17-hls-paused.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 19
         },
@@ -2743,25 +2743,25 @@
         },
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-batch17-hls-playing.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 27
         },
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-batch17-qoe-failed.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 3
         },
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-batch17-qoe-stall-release.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 2
         },
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-batch17-tls-probe.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 31
         },
@@ -2777,7 +2777,7 @@
       "status": "FAIL",
       "failureFeatures": {
         "checkIds": {
-          "A2.engine.receipt": 82,
+          "A2.mova.receipt": 82,
           "A2.cutover.receipt": 35,
           "C16.probe": 9
         },
@@ -2823,13 +2823,13 @@
         },
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-batch21-hls-normal.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 25
         },
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-batch21-hls-paused.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 13
         }
@@ -2840,7 +2840,7 @@
       "failureFeatures": {
         "checkIds": {
           "A2.cutover.receipt": 36,
-          "A2.engine.receipt": 38
+          "A2.mova.receipt": 38
         },
         "receiptDifferences": {
           "playing": 11,
@@ -3088,7 +3088,7 @@
       "triage": {
         "category": "夹具",
         "symptom": "VOD 下直播条件组件不挂载，insertAfter liveBadge/timeshift/backToLive 无锚点；remove 的缺席不能证明挂载。仍需直播DVR夹具。",
-        "suspect": "example/lib/verify_auto/cp3_pages_auto.dart:363；产品候选 lib/src/ui/skins/default_skin.dart（尚无产品缺陷证据）",
+        "suspect": "example/lib/verify_auto/cp3_pages_auto.dart:363；产品候选 lib/src/ui/ui_kits/default_ui_kit.dart（尚无产品缺陷证据）",
         "libraryEdited": false
       }
     },
@@ -3225,7 +3225,7 @@
       "triage": {
         "category": "产品请求头路径疑似；判据混入原生 open 请求",
         "symptom": "quality 列表非空且带头 probe=200，但同一正向 token 的 Range 媒体请求无 Referer=403；thumb/prefetch 正反对照通过。",
-        "suspect": "lib/src/core/kernel/mpv_kernel.dart:704 (_applySourceOptions), :758 (Media(uri)); lib/src/core/model/source.dart:153; loadQualities 在 engine.dart:2975",
+        "suspect": "lib/src/core/kernel/mpv_kernel.dart:704 (_applySourceOptions), :758 (Media(uri)); lib/src/core/model/source.dart:153; loadQualities 在 mova.dart:2975",
         "libraryEdited": false
       }
     },
@@ -3251,7 +3251,7 @@
       "missing": [],
       "failures": [
         {
-          "id": "CP3.feedplayer.controller.1",
+          "id": "CP3.feedplayer.ctrl.1",
           "reason": null,
           "recordIndexes": [
             27
@@ -3261,7 +3261,7 @@
           ]
         },
         {
-          "id": "CP3.feedplayer.controller.3",
+          "id": "CP3.feedplayer.ctrl.3",
           "reason": null,
           "recordIndexes": [
             61
@@ -3274,13 +3274,13 @@
       "subcheckFailures": [
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-cp3-feedplayer.json",
-          "id": "CP3.feedplayer.controller.1",
+          "id": "CP3.feedplayer.ctrl.1",
           "kind": "CHECK",
           "count": 1
         },
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-cp3-feedplayer.json",
-          "id": "CP3.feedplayer.controller.3",
+          "id": "CP3.feedplayer.ctrl.3",
           "kind": "CHECK",
           "count": 1
         }
@@ -3291,7 +3291,7 @@
       "rawResult": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-cp3-feedplayer.json",
       "blockedReasons": [],
       "variantCounts": {
-        "controller": {
+        "ctrl": {
           "PASS": 3,
           "FAIL": 2
         },
@@ -3304,15 +3304,15 @@
       },
       "failureFeatures": {
         "checkIds": {
-          "CP3.feedplayer.controller.1": 1,
-          "CP3.feedplayer.controller.3": 1
+          "CP3.feedplayer.ctrl.1": 1,
+          "CP3.feedplayer.ctrl.3": 1
         },
         "receiptDifferences": {}
       },
       "triage": {
         "category": "产品/夹具异步时序待归因",
         "symptom": "跳页后 pause 完成并等待150ms，部分轮次仍 playing=true；自动暂停与错误可见独立判断。可能与池激活后续 play 竞争。",
-        "suspect": "lib/src/ui/feed_player.dart:78, :306; lib/src/core/feed/engine_pool.dart:266；夹具 cp3_pages_auto.dart:240",
+        "suspect": "lib/src/ui/feed_player.dart:78, :306; lib/src/core/feed/feed_pool.dart:266；夹具 cp3_pages_auto.dart:240",
         "libraryEdited": false
       }
     },
@@ -3879,19 +3879,19 @@
       "subcheckFailures": [
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-manual-mini-hide.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 2
         },
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-manual-mini-real-fling.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 1
         },
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-manual-mini-start.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 1
         }
@@ -3901,7 +3901,7 @@
       "status": "FAIL",
       "failureFeatures": {
         "checkIds": {
-          "A2.engine.receipt": 4
+          "A2.mova.receipt": 4
         },
         "receiptDifferences": {
           "buffering": 4
@@ -3932,7 +3932,7 @@
       "subcheckFailures": [
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-manual-preview-start.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 1
         }
@@ -3942,7 +3942,7 @@
       "status": "FAIL",
       "failureFeatures": {
         "checkIds": {
-          "A2.engine.receipt": 1
+          "A2.mova.receipt": 1
         },
         "receiptDifferences": {
           "buffering": 1
@@ -4045,12 +4045,12 @@
     },
     {
       "stage": "full",
-      "batch": "cp1-wakeswap",
+      "batch": "cp1-wakecutover",
       "runId": "cp3-full-1105-033616",
       "kind": "OK",
       "exit": 0,
       "seconds": 158.97,
-      "evidence": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-cp1-wakeswap.driver.log",
+      "evidence": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-cp1-wakecutover.driver.log",
       "error": "",
       "completed": true,
       "checkCounts": {
@@ -4066,10 +4066,10 @@
       "plannedRuns": 10,
       "invocations": 1,
       "status": "PASS",
-      "rawResult": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-cp1-wakeswap.json",
+      "rawResult": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-cp1-wakecutover.json",
       "blockedReasons": [],
       "variantCounts": {
-        "swap": {
+        "cutover": {
           "PASS": 10
         }
       },
@@ -4136,12 +4136,12 @@
     },
     {
       "stage": "full",
-      "batch": "gap-skin",
+      "batch": "gap-ui-kit",
       "runId": "cp3-full-1105-033616",
       "kind": "OK",
       "exit": 1,
       "seconds": 125.23,
-      "evidence": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-gap-skin.driver.log",
+      "evidence": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-gap-ui-kit.driver.log",
       "error": "",
       "completed": true,
       "checkCounts": {},
@@ -4156,7 +4156,7 @@
       "plannedRuns": "源内部次数，1轮",
       "invocations": 1,
       "status": "BLOCKED",
-      "rawResult": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616-gap-skin\\gap-result.json",
+      "rawResult": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616-gap-ui-kit\\gap-result.json",
       "blockedReasons": [
         {
           "case": "gap:S2.default.layoutShot",
@@ -4276,7 +4276,7 @@
       "subcheckFailures": [
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-batch16-audio-start.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 1
         },
@@ -4287,50 +4287,50 @@
           "count": 2
         },
         {
-          "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-batch16-engine-start.json",
-          "id": "A2.engine.receipt",
+          "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-batch16-mova-start.json",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 2
         },
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-batch16-feed.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 7
         },
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-batch16-keepAlive-on.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 1
         },
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-batch16-live-start.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 2
         },
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-batch16-video-start.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 1
         },
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-batch16-view-restored.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 5
         },
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-batch16-view-source.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 4
         },
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-batch16-view-start.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 4
         }
@@ -4344,7 +4344,7 @@
       "status": "FAIL",
       "failureFeatures": {
         "checkIds": {
-          "A2.engine.receipt": 27,
+          "A2.mova.receipt": 27,
           "A2.cutover.receipt": 2
         },
         "receiptDifferences": {
@@ -4382,7 +4382,7 @@
       "subcheckFailures": [
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-batch3-00-snapshot-state.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 1
         }
@@ -4392,7 +4392,7 @@
       "status": "FAIL",
       "failureFeatures": {
         "checkIds": {
-          "A2.engine.receipt": 1
+          "A2.mova.receipt": 1
         },
         "receiptDifferences": {
           "buffering": 1
@@ -4423,19 +4423,19 @@
       "subcheckFailures": [
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-batch18-normal-start.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 1
         },
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-batch18-pip-visible.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 1
         },
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-batch18-seek5.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 1
         }
@@ -4452,7 +4452,7 @@
       "status": "FAIL",
       "failureFeatures": {
         "checkIds": {
-          "A2.engine.receipt": 3
+          "A2.mova.receipt": 3
         },
         "receiptDifferences": {
           "buffering": 2,
@@ -4484,19 +4484,19 @@
       "subcheckFailures": [
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-batch22-feed.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 11
         },
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-batch22-nextup.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 4
         },
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-batch22-remap-start.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 1
         }
@@ -4506,7 +4506,7 @@
       "status": "FAIL",
       "failureFeatures": {
         "checkIds": {
-          "A2.engine.receipt": 16
+          "A2.mova.receipt": 16
         },
         "receiptDifferences": {
           "intent": 2,
@@ -4541,61 +4541,61 @@
       "subcheckFailures": [
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-extra-ad-failure.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 20
         },
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-extra-edges.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 11
         },
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-extra-failover.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 7
         },
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-extra-live-backoff-0.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 18
         },
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-extra-live-backoff-1.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 18
         },
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-extra-live-backoff-2.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 18
         },
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-extra-playlist.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 13
         },
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-extra-preview-offline.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 4
         },
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-extra-preview-probe.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 4
         },
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-extra-subtitles.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 25
         },
@@ -4639,7 +4639,7 @@
       "status": "FAIL",
       "failureFeatures": {
         "checkIds": {
-          "A2.engine.receipt": 138,
+          "A2.mova.receipt": 138,
           "F11.srt": 1,
           "F11.ass": 1,
           "F11.vtt": 1
@@ -4680,49 +4680,49 @@
       "subcheckFailures": [
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-live-0-dispose.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 1
         },
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-live-0-ready.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 1
         },
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-live-0-start.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 2
         },
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-live-1-controls.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 1
         },
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-live-1-dispose.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 1
         },
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-live-1-start.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 2
         },
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-live-2-dispose.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 1
         },
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-live-2-start.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 2
         }
@@ -4732,7 +4732,7 @@
       "status": "FAIL",
       "failureFeatures": {
         "checkIds": {
-          "A2.engine.receipt": 11
+          "A2.mova.receipt": 11
         },
         "receiptDifferences": {
           "buffering": 6,
@@ -4766,7 +4766,7 @@
       "subcheckFailures": [
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-native-cutover-dispose.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 2
         },
@@ -4783,20 +4783,20 @@
           "count": 3
         },
         {
-          "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-native-engine-dispose.json",
-          "id": "A2.engine.receipt",
+          "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-native-mova-dispose.json",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 2
         },
         {
-          "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-native-engine-open-sync.json",
-          "id": "A2.engine.receipt",
+          "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-native-mova-open-sync.json",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 1
         },
         {
-          "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-native-engine-start.json",
-          "id": "A2.engine.receipt",
+          "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-native-mova-start.json",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 1
         }
@@ -4806,7 +4806,7 @@
       "status": "FAIL",
       "failureFeatures": {
         "checkIds": {
-          "A2.engine.receipt": 6,
+          "A2.mova.receipt": 6,
           "A2.cutover.receipt": 5
         },
         "receiptDifferences": {
@@ -4840,91 +4840,91 @@
       "subcheckFailures": [
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-safe-visual-ad-skip.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 4
         },
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-safe-visual-ad.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 2
         },
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-safe-visual-danmaku-seek.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 1
         },
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-safe-visual-error-open.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 4
         },
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-safe-visual-feed-after.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 1
         },
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-safe-visual-mini-disabled-start.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 1
         },
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-safe-visual-nextup-click.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 6
         },
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-safe-visual-nextup.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 4
         },
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-safe-visual-poster-hang.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 1
         },
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-safe-visual-prepare-dispose.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 1
         },
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-safe-visual-recover.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 1
         },
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-safe-visual-route-back.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 1
         },
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-safe-visual-route-player.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 6
         },
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-safe-visual-spinner-hang.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 1
         },
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-safe-visual-start.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 1
         }
@@ -4934,7 +4934,7 @@
       "status": "FAIL",
       "failureFeatures": {
         "checkIds": {
-          "A2.engine.receipt": 35
+          "A2.mova.receipt": 35
         },
         "receiptDifferences": {
           "seekableWindow": 13,
@@ -4970,25 +4970,25 @@
       "subcheckFailures": [
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-safe-transition-poster-hang.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 2
         },
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-safe-transition-poster-start.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 1
         },
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-safe-transition-slow-start.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 1
         },
         {
           "file": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-safe-transition-source-change.json",
-          "id": "A2.engine.receipt",
+          "id": "A2.mova.receipt",
           "kind": "CHECK",
           "count": 2
         }
@@ -4998,7 +4998,7 @@
       "status": "FAIL",
       "failureFeatures": {
         "checkIds": {
-          "A2.engine.receipt": 6
+          "A2.mova.receipt": 6
         },
         "receiptDifferences": {
           "buffering": 6
@@ -5909,52 +5909,52 @@
       ]
     },
     {
-      "label": "cp1gap-gap-skin-before",
+      "label": "cp1gap-gap-ui-kit-before",
       "results": [
         {
           "command": "E:\\sdk\\Python314\\python.exe -B E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\run_matrix.py --check",
           "exit": 0,
-          "log": "example\\tool\\coverage_evidence\\cp3-campaign-1105-033616\\cp1gap-gap-skin-before-check-0.log"
+          "log": "example\\tool\\coverage_evidence\\cp3-campaign-1105-033616\\cp1gap-gap-ui-kit-before-check-0.log"
         },
         {
           "command": "E:\\sdk\\Python314\\python.exe -B -m unittest discover -s E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool -p test_run_matrix.py",
           "exit": 0,
-          "log": "example\\tool\\coverage_evidence\\cp3-campaign-1105-033616\\cp1gap-gap-skin-before-check-1.log"
+          "log": "example\\tool\\coverage_evidence\\cp3-campaign-1105-033616\\cp1gap-gap-ui-kit-before-check-1.log"
         },
         {
           "command": "E:\\sdk\\Python314\\python.exe -B -m unittest discover -s E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool -p test_win_policy.py",
           "exit": 0,
-          "log": "example\\tool\\coverage_evidence\\cp3-campaign-1105-033616\\cp1gap-gap-skin-before-check-2.log"
+          "log": "example\\tool\\coverage_evidence\\cp3-campaign-1105-033616\\cp1gap-gap-ui-kit-before-check-2.log"
         },
         {
           "command": "E:\\sdk\\Python314\\python.exe -B -m unittest discover -s E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool -p test_win_job.py",
           "exit": 0,
-          "log": "example\\tool\\coverage_evidence\\cp3-campaign-1105-033616\\cp1gap-gap-skin-before-check-3.log"
+          "log": "example\\tool\\coverage_evidence\\cp3-campaign-1105-033616\\cp1gap-gap-ui-kit-before-check-3.log"
         }
       ]
     },
     {
-      "label": "cp1gap-gap-skin-after",
+      "label": "cp1gap-gap-ui-kit-after",
       "results": [
         {
           "command": "E:\\sdk\\Python314\\python.exe -B E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\run_matrix.py --check",
           "exit": 0,
-          "log": "example\\tool\\coverage_evidence\\cp3-campaign-1105-033616\\cp1gap-gap-skin-after-check-0.log"
+          "log": "example\\tool\\coverage_evidence\\cp3-campaign-1105-033616\\cp1gap-gap-ui-kit-after-check-0.log"
         },
         {
           "command": "E:\\sdk\\Python314\\python.exe -B -m unittest discover -s E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool -p test_run_matrix.py",
           "exit": 0,
-          "log": "example\\tool\\coverage_evidence\\cp3-campaign-1105-033616\\cp1gap-gap-skin-after-check-1.log"
+          "log": "example\\tool\\coverage_evidence\\cp3-campaign-1105-033616\\cp1gap-gap-ui-kit-after-check-1.log"
         },
         {
           "command": "E:\\sdk\\Python314\\python.exe -B -m unittest discover -s E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool -p test_win_policy.py",
           "exit": 0,
-          "log": "example\\tool\\coverage_evidence\\cp3-campaign-1105-033616\\cp1gap-gap-skin-after-check-2.log"
+          "log": "example\\tool\\coverage_evidence\\cp3-campaign-1105-033616\\cp1gap-gap-ui-kit-after-check-2.log"
         },
         {
           "command": "E:\\sdk\\Python314\\python.exe -B -m unittest discover -s E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool -p test_win_job.py",
           "exit": 0,
-          "log": "example\\tool\\coverage_evidence\\cp3-campaign-1105-033616\\cp1gap-gap-skin-after-check-3.log"
+          "log": "example\\tool\\coverage_evidence\\cp3-campaign-1105-033616\\cp1gap-gap-ui-kit-after-check-3.log"
         }
       ]
     },
@@ -8809,52 +8809,52 @@
       ]
     },
     {
-      "label": "full-cp1-wakeswap-before",
+      "label": "full-cp1-wakecutover-before",
       "results": [
         {
           "command": "E:\\sdk\\Python314\\python.exe -B E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\run_matrix.py --check",
           "exit": 0,
-          "log": "example\\tool\\coverage_evidence\\cp3-campaign-1105-033616\\full-cp1-wakeswap-before-check-0.log"
+          "log": "example\\tool\\coverage_evidence\\cp3-campaign-1105-033616\\full-cp1-wakecutover-before-check-0.log"
         },
         {
           "command": "E:\\sdk\\Python314\\python.exe -B -m unittest discover -s E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool -p test_run_matrix.py",
           "exit": 0,
-          "log": "example\\tool\\coverage_evidence\\cp3-campaign-1105-033616\\full-cp1-wakeswap-before-check-1.log"
+          "log": "example\\tool\\coverage_evidence\\cp3-campaign-1105-033616\\full-cp1-wakecutover-before-check-1.log"
         },
         {
           "command": "E:\\sdk\\Python314\\python.exe -B -m unittest discover -s E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool -p test_win_policy.py",
           "exit": 0,
-          "log": "example\\tool\\coverage_evidence\\cp3-campaign-1105-033616\\full-cp1-wakeswap-before-check-2.log"
+          "log": "example\\tool\\coverage_evidence\\cp3-campaign-1105-033616\\full-cp1-wakecutover-before-check-2.log"
         },
         {
           "command": "E:\\sdk\\Python314\\python.exe -B -m unittest discover -s E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool -p test_win_job.py",
           "exit": 0,
-          "log": "example\\tool\\coverage_evidence\\cp3-campaign-1105-033616\\full-cp1-wakeswap-before-check-3.log"
+          "log": "example\\tool\\coverage_evidence\\cp3-campaign-1105-033616\\full-cp1-wakecutover-before-check-3.log"
         }
       ]
     },
     {
-      "label": "full-cp1-wakeswap-after",
+      "label": "full-cp1-wakecutover-after",
       "results": [
         {
           "command": "E:\\sdk\\Python314\\python.exe -B E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\run_matrix.py --check",
           "exit": 0,
-          "log": "example\\tool\\coverage_evidence\\cp3-campaign-1105-033616\\full-cp1-wakeswap-after-check-0.log"
+          "log": "example\\tool\\coverage_evidence\\cp3-campaign-1105-033616\\full-cp1-wakecutover-after-check-0.log"
         },
         {
           "command": "E:\\sdk\\Python314\\python.exe -B -m unittest discover -s E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool -p test_run_matrix.py",
           "exit": 0,
-          "log": "example\\tool\\coverage_evidence\\cp3-campaign-1105-033616\\full-cp1-wakeswap-after-check-1.log"
+          "log": "example\\tool\\coverage_evidence\\cp3-campaign-1105-033616\\full-cp1-wakecutover-after-check-1.log"
         },
         {
           "command": "E:\\sdk\\Python314\\python.exe -B -m unittest discover -s E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool -p test_win_policy.py",
           "exit": 0,
-          "log": "example\\tool\\coverage_evidence\\cp3-campaign-1105-033616\\full-cp1-wakeswap-after-check-2.log"
+          "log": "example\\tool\\coverage_evidence\\cp3-campaign-1105-033616\\full-cp1-wakecutover-after-check-2.log"
         },
         {
           "command": "E:\\sdk\\Python314\\python.exe -B -m unittest discover -s E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool -p test_win_job.py",
           "exit": 0,
-          "log": "example\\tool\\coverage_evidence\\cp3-campaign-1105-033616\\full-cp1-wakeswap-after-check-3.log"
+          "log": "example\\tool\\coverage_evidence\\cp3-campaign-1105-033616\\full-cp1-wakecutover-after-check-3.log"
         }
       ]
     },
@@ -8959,52 +8959,52 @@
       ]
     },
     {
-      "label": "full-gap-skin-before",
+      "label": "full-gap-ui-kit-before",
       "results": [
         {
           "command": "E:\\sdk\\Python314\\python.exe -B E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\run_matrix.py --check",
           "exit": 0,
-          "log": "example\\tool\\coverage_evidence\\cp3-campaign-1105-033616\\full-gap-skin-before-check-0.log"
+          "log": "example\\tool\\coverage_evidence\\cp3-campaign-1105-033616\\full-gap-ui-kit-before-check-0.log"
         },
         {
           "command": "E:\\sdk\\Python314\\python.exe -B -m unittest discover -s E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool -p test_run_matrix.py",
           "exit": 0,
-          "log": "example\\tool\\coverage_evidence\\cp3-campaign-1105-033616\\full-gap-skin-before-check-1.log"
+          "log": "example\\tool\\coverage_evidence\\cp3-campaign-1105-033616\\full-gap-ui-kit-before-check-1.log"
         },
         {
           "command": "E:\\sdk\\Python314\\python.exe -B -m unittest discover -s E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool -p test_win_policy.py",
           "exit": 0,
-          "log": "example\\tool\\coverage_evidence\\cp3-campaign-1105-033616\\full-gap-skin-before-check-2.log"
+          "log": "example\\tool\\coverage_evidence\\cp3-campaign-1105-033616\\full-gap-ui-kit-before-check-2.log"
         },
         {
           "command": "E:\\sdk\\Python314\\python.exe -B -m unittest discover -s E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool -p test_win_job.py",
           "exit": 0,
-          "log": "example\\tool\\coverage_evidence\\cp3-campaign-1105-033616\\full-gap-skin-before-check-3.log"
+          "log": "example\\tool\\coverage_evidence\\cp3-campaign-1105-033616\\full-gap-ui-kit-before-check-3.log"
         }
       ]
     },
     {
-      "label": "full-gap-skin-after",
+      "label": "full-gap-ui-kit-after",
       "results": [
         {
           "command": "E:\\sdk\\Python314\\python.exe -B E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\run_matrix.py --check",
           "exit": 0,
-          "log": "example\\tool\\coverage_evidence\\cp3-campaign-1105-033616\\full-gap-skin-after-check-0.log"
+          "log": "example\\tool\\coverage_evidence\\cp3-campaign-1105-033616\\full-gap-ui-kit-after-check-0.log"
         },
         {
           "command": "E:\\sdk\\Python314\\python.exe -B -m unittest discover -s E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool -p test_run_matrix.py",
           "exit": 0,
-          "log": "example\\tool\\coverage_evidence\\cp3-campaign-1105-033616\\full-gap-skin-after-check-1.log"
+          "log": "example\\tool\\coverage_evidence\\cp3-campaign-1105-033616\\full-gap-ui-kit-after-check-1.log"
         },
         {
           "command": "E:\\sdk\\Python314\\python.exe -B -m unittest discover -s E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool -p test_win_policy.py",
           "exit": 0,
-          "log": "example\\tool\\coverage_evidence\\cp3-campaign-1105-033616\\full-gap-skin-after-check-2.log"
+          "log": "example\\tool\\coverage_evidence\\cp3-campaign-1105-033616\\full-gap-ui-kit-after-check-2.log"
         },
         {
           "command": "E:\\sdk\\Python314\\python.exe -B -m unittest discover -s E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool -p test_win_job.py",
           "exit": 0,
-          "log": "example\\tool\\coverage_evidence\\cp3-campaign-1105-033616\\full-gap-skin-after-check-3.log"
+          "log": "example\\tool\\coverage_evidence\\cp3-campaign-1105-033616\\full-gap-ui-kit-after-check-3.log"
         }
       ]
     },
@@ -10164,7 +10164,7 @@
     "Git commit triggered automatic maintenance/repack and waited; subsequent commits disable auto maintenance per command, without global git config changes.",
     "API preview saw get-state timeouts around 05:19-05:23. Original guard slept 30s after a 15s probe, giving about 45s starts; corrected to 30s probe starts and hard 900s ceiling, with three offline timing tests.",
     "全量设备批次完成后，归并器预读约5.7GB TXT触发MemoryError；改为TXT路径索引/按规则读取，64项回归验证后从同一原始证据与规则离线重建ledger，未重跑手机样本。",
-    "gap-skin首轮shared selector缺失为本次驱动偏差，已提交修复并保留原HARNESS。",
+    "gap-ui-kit首轮shared selector缺失为本次驱动偏差，已提交修复并保留原HARNESS。",
     "短批排序暴露S00c/S00e依赖API页前台的隐式前提；后续旧API驱动在首条命令前检查并建立控制页，不重发已发送测试。",
     "底栏VOD夹具要求直播条件锚点导致5个FAIL；未改产品或放宽原判据。",
     "部分设备CHECK带源码静态deviceStatus=未上机标签；判据依据本轮APK哈希、真实命令、原生属性和记录，不依据该静态标签。",
@@ -10218,7 +10218,7 @@
       "safe-transition",
       "touch-mini",
       "touch-preview",
-      "cp1-wakeswap",
+      "cp1-wakecutover",
       "cp1-edgepause",
       "cp1-errclass",
       "cp1-probe",
@@ -10242,7 +10242,7 @@
       "gap-lifecycle",
       "gap-formats",
       "gap-random",
-      "gap-skin",
+      "gap-ui-kit",
       "gap-assumptions",
       "cp3-precise-normal",
       "cp3-precise-paused",
@@ -10270,10 +10270,10 @@
       "touch-preview",
       "cp1-recovery",
       "gap-lifecycle",
-      "cp1-wakeswap",
+      "cp1-wakecutover",
       "gap-random",
       "gap-formats",
-      "gap-skin",
+      "gap-ui-kit",
       "cp1-dispose120",
       "widgets",
       "ui",
@@ -10384,7 +10384,7 @@
       "E.MovaLiveEdgeReach",
       "E.MovaLockChange",
       "E.MovaMiniChange",
-      "E.MovaOrientationChange",
+      "E.MovaOrientChange",
       "E.MovaPause",
       "E.MovaPipChange",
       "E.MovaPlay",
@@ -10397,10 +10397,10 @@
       "E.MovaSeek",
       "E.MovaSeeked",
       "E.MovaSourceChange",
-      "E.MovaStandbyChange",
-      "E.MovaStandbyResume",
+      "E.MovaKeepAliveChange",
+      "E.MovaKeepAliveResume",
       "E.MovaSttBlock",
-      "E.MovaSwapChange",
+      "E.MovaCutoverChange",
       "E.MovaTimeShiftChange",
       "E.MovaVolumeChange",
       "E.MovaZoomChange",
@@ -10736,7 +10736,7 @@
       "status": "BLOCKED"
     },
     {
-      "id": "E.MovaOrientationChange",
+      "id": "E.MovaOrientChange",
       "status": "BLOCKED"
     },
     {
@@ -10764,7 +10764,7 @@
       "status": "BLOCKED"
     },
     {
-      "id": "E.MovaSwapChange",
+      "id": "E.MovaCutoverChange",
       "status": "BLOCKED"
     },
     {
@@ -10784,11 +10784,11 @@
       "status": "BLOCKED"
     },
     {
-      "id": "E.MovaStandbyChange",
+      "id": "E.MovaKeepAliveChange",
       "status": "BLOCKED"
     },
     {
-      "id": "E.MovaStandbyResume",
+      "id": "E.MovaKeepAliveResume",
       "status": "BLOCKED"
     },
     {
@@ -11011,7 +11011,7 @@
       "observations": 1,
       "category": "产品请求头路径疑似；判据混入原生 open 请求",
       "symptom": "quality 列表非空且带头 probe=200，但同一正向 token 的 Range 媒体请求无 Referer=403；thumb/prefetch 正反对照通过。",
-      "suspect": "lib/src/core/kernel/mpv_kernel.dart:704 (_applySourceOptions), :758 (Media(uri)); lib/src/core/model/source.dart:153; loadQualities 在 engine.dart:2975",
+      "suspect": "lib/src/core/kernel/mpv_kernel.dart:704 (_applySourceOptions), :758 (Media(uri)); lib/src/core/model/source.dart:153; loadQualities 在 mova.dart:2975",
       "evidence": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-headers-1105-033616\\matrix-cp3-headers-1105-033616-cp3-headers.json"
     },
     {
@@ -11021,7 +11021,7 @@
       "observations": 1,
       "category": "产品请求头路径疑似；判据混入原生 open 请求",
       "symptom": "quality 列表非空且带头 probe=200，但同一正向 token 的 Range 媒体请求无 Referer=403；thumb/prefetch 正反对照通过。",
-      "suspect": "lib/src/core/kernel/mpv_kernel.dart:704 (_applySourceOptions), :758 (Media(uri)); lib/src/core/model/source.dart:153; loadQualities 在 engine.dart:2975",
+      "suspect": "lib/src/core/kernel/mpv_kernel.dart:704 (_applySourceOptions), :758 (Media(uri)); lib/src/core/model/source.dart:153; loadQualities 在 mova.dart:2975",
       "evidence": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-headers-1105-033616\\matrix-cp3-headers-1105-033616-cp3-headers.json"
     },
     {
@@ -11031,7 +11031,7 @@
       "observations": 1,
       "category": "产品请求头路径疑似；判据混入原生 open 请求",
       "symptom": "quality 列表非空且带头 probe=200，但同一正向 token 的 Range 媒体请求无 Referer=403；thumb/prefetch 正反对照通过。",
-      "suspect": "lib/src/core/kernel/mpv_kernel.dart:704 (_applySourceOptions), :758 (Media(uri)); lib/src/core/model/source.dart:153; loadQualities 在 engine.dart:2975",
+      "suspect": "lib/src/core/kernel/mpv_kernel.dart:704 (_applySourceOptions), :758 (Media(uri)); lib/src/core/model/source.dart:153; loadQualities 在 mova.dart:2975",
       "evidence": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-headers-1105-033616\\matrix-cp3-headers-1105-033616-cp3-headers.json"
     },
     {
@@ -11041,7 +11041,7 @@
       "observations": 1,
       "category": "产品请求头路径疑似；判据混入原生 open 请求",
       "symptom": "quality 列表非空且带头 probe=200，但同一正向 token 的 Range 媒体请求无 Referer=403；thumb/prefetch 正反对照通过。",
-      "suspect": "lib/src/core/kernel/mpv_kernel.dart:704 (_applySourceOptions), :758 (Media(uri)); lib/src/core/model/source.dart:153; loadQualities 在 engine.dart:2975",
+      "suspect": "lib/src/core/kernel/mpv_kernel.dart:704 (_applySourceOptions), :758 (Media(uri)); lib/src/core/model/source.dart:153; loadQualities 在 mova.dart:2975",
       "evidence": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-headers-1105-033616\\matrix-cp3-headers-1105-033616-cp3-headers.json"
     },
     {
@@ -11051,37 +11051,37 @@
       "observations": 1,
       "category": "产品请求头路径疑似；判据混入原生 open 请求",
       "symptom": "quality 列表非空且带头 probe=200，但同一正向 token 的 Range 媒体请求无 Referer=403；thumb/prefetch 正反对照通过。",
-      "suspect": "lib/src/core/kernel/mpv_kernel.dart:704 (_applySourceOptions), :758 (Media(uri)); lib/src/core/model/source.dart:153; loadQualities 在 engine.dart:2975",
+      "suspect": "lib/src/core/kernel/mpv_kernel.dart:704 (_applySourceOptions), :758 (Media(uri)); lib/src/core/model/source.dart:153; loadQualities 在 mova.dart:2975",
       "evidence": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-headers-1105-033616\\matrix-cp3-headers-1105-033616-cp3-headers.json"
     },
     {
       "stage": "feedplayer",
       "batch": "cp3-feedplayer",
-      "check": "CP3.feedplayer.controller.1",
+      "check": "CP3.feedplayer.ctrl.1",
       "observations": 1,
       "category": "产品/夹具异步时序待归因",
       "symptom": "跳页后 pause 完成并等待150ms，部分轮次仍 playing=true；自动暂停与错误可见独立判断。可能与池激活后续 play 竞争。",
-      "suspect": "lib/src/ui/feed_player.dart:78, :306; lib/src/core/feed/engine_pool.dart:266；夹具 cp3_pages_auto.dart:240",
+      "suspect": "lib/src/ui/feed_player.dart:78, :306; lib/src/core/feed/feed_pool.dart:266；夹具 cp3_pages_auto.dart:240",
       "evidence": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-feedplayer-1105-033616\\matrix-cp3-feedplayer-1105-033616-cp3-feedplayer.json"
     },
     {
       "stage": "feedplayer",
       "batch": "cp3-feedplayer",
-      "check": "CP3.feedplayer.controller.2",
+      "check": "CP3.feedplayer.ctrl.2",
       "observations": 1,
       "category": "产品/夹具异步时序待归因",
       "symptom": "跳页后 pause 完成并等待150ms，部分轮次仍 playing=true；自动暂停与错误可见独立判断。可能与池激活后续 play 竞争。",
-      "suspect": "lib/src/ui/feed_player.dart:78, :306; lib/src/core/feed/engine_pool.dart:266；夹具 cp3_pages_auto.dart:240",
+      "suspect": "lib/src/ui/feed_player.dart:78, :306; lib/src/core/feed/feed_pool.dart:266；夹具 cp3_pages_auto.dart:240",
       "evidence": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-feedplayer-1105-033616\\matrix-cp3-feedplayer-1105-033616-cp3-feedplayer.json"
     },
     {
       "stage": "feedplayer",
       "batch": "cp3-feedplayer",
-      "check": "CP3.feedplayer.controller.3",
+      "check": "CP3.feedplayer.ctrl.3",
       "observations": 1,
       "category": "产品/夹具异步时序待归因",
       "symptom": "跳页后 pause 完成并等待150ms，部分轮次仍 playing=true；自动暂停与错误可见独立判断。可能与池激活后续 play 竞争。",
-      "suspect": "lib/src/ui/feed_player.dart:78, :306; lib/src/core/feed/engine_pool.dart:266；夹具 cp3_pages_auto.dart:240",
+      "suspect": "lib/src/ui/feed_player.dart:78, :306; lib/src/core/feed/feed_pool.dart:266；夹具 cp3_pages_auto.dart:240",
       "evidence": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-feedplayer-1105-033616\\matrix-cp3-feedplayer-1105-033616-cp3-feedplayer.json"
     },
     {
@@ -11091,7 +11091,7 @@
       "observations": 1,
       "category": "夹具",
       "symptom": "VOD 下直播条件组件不挂载，insertAfter liveBadge/timeshift/backToLive 无锚点；remove 的缺席不能证明挂载。仍需直播DVR夹具。",
-      "suspect": "example/lib/verify_auto/cp3_pages_auto.dart:363；产品候选 lib/src/ui/skins/default_skin.dart（尚无产品缺陷证据）",
+      "suspect": "example/lib/verify_auto/cp3_pages_auto.dart:363；产品候选 lib/src/ui/ui_kits/default_ui_kit.dart（尚无产品缺陷证据）",
       "evidence": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-cp1gap-1105-033616\\matrix-cp3-cp1gap-1105-033616-cp3-cp1gap.json"
     },
     {
@@ -11101,7 +11101,7 @@
       "observations": 1,
       "category": "夹具",
       "symptom": "VOD 下直播条件组件不挂载，insertAfter liveBadge/timeshift/backToLive 无锚点；remove 的缺席不能证明挂载。仍需直播DVR夹具。",
-      "suspect": "example/lib/verify_auto/cp3_pages_auto.dart:363；产品候选 lib/src/ui/skins/default_skin.dart（尚无产品缺陷证据）",
+      "suspect": "example/lib/verify_auto/cp3_pages_auto.dart:363；产品候选 lib/src/ui/ui_kits/default_ui_kit.dart（尚无产品缺陷证据）",
       "evidence": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-cp1gap-1105-033616\\matrix-cp3-cp1gap-1105-033616-cp3-cp1gap.json"
     },
     {
@@ -11111,7 +11111,7 @@
       "observations": 1,
       "category": "夹具",
       "symptom": "VOD 下直播条件组件不挂载，insertAfter liveBadge/timeshift/backToLive 无锚点；remove 的缺席不能证明挂载。仍需直播DVR夹具。",
-      "suspect": "example/lib/verify_auto/cp3_pages_auto.dart:363；产品候选 lib/src/ui/skins/default_skin.dart（尚无产品缺陷证据）",
+      "suspect": "example/lib/verify_auto/cp3_pages_auto.dart:363；产品候选 lib/src/ui/ui_kits/default_ui_kit.dart（尚无产品缺陷证据）",
       "evidence": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-cp1gap-1105-033616\\matrix-cp3-cp1gap-1105-033616-cp3-cp1gap.json"
     },
     {
@@ -11121,7 +11121,7 @@
       "observations": 1,
       "category": "夹具",
       "symptom": "VOD 下直播条件组件不挂载，insertAfter liveBadge/timeshift/backToLive 无锚点；remove 的缺席不能证明挂载。仍需直播DVR夹具。",
-      "suspect": "example/lib/verify_auto/cp3_pages_auto.dart:363；产品候选 lib/src/ui/skins/default_skin.dart（尚无产品缺陷证据）",
+      "suspect": "example/lib/verify_auto/cp3_pages_auto.dart:363；产品候选 lib/src/ui/ui_kits/default_ui_kit.dart（尚无产品缺陷证据）",
       "evidence": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-cp1gap-1105-033616\\matrix-cp3-cp1gap-1105-033616-cp3-cp1gap.json"
     },
     {
@@ -11131,17 +11131,17 @@
       "observations": 1,
       "category": "夹具",
       "symptom": "VOD 下直播条件组件不挂载，insertAfter liveBadge/timeshift/backToLive 无锚点；remove 的缺席不能证明挂载。仍需直播DVR夹具。",
-      "suspect": "example/lib/verify_auto/cp3_pages_auto.dart:363；产品候选 lib/src/ui/skins/default_skin.dart（尚无产品缺陷证据）",
+      "suspect": "example/lib/verify_auto/cp3_pages_auto.dart:363；产品候选 lib/src/ui/ui_kits/default_ui_kit.dart（尚无产品缺陷证据）",
       "evidence": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-cp1gap-1105-033616\\matrix-cp3-cp1gap-1105-033616-cp3-cp1gap.json"
     },
     {
       "stage": "full",
       "batch": "final-tls",
-      "check": "A2.engine.receipt",
+      "check": "A2.mova.receipt",
       "observations": 142,
       "category": "产品契约/观察器口径待归因",
       "symptom": "事件回执与31字段state快照不同；字段差异分布见failureFeatures.receiptDifferences。",
-      "suspect": "lib/src/core/engine.dart (_state.emit/_emitEvent)、lib/src/core/cutover/cutover_engine.dart；观察器example/lib/verify_auto/s00d_receipt.dart:120",
+      "suspect": "lib/src/core/mova.dart (_state.emit/_emitEvent)、lib/src/core/cutover/cutover.dart；观察器example/lib/verify_auto/s00d_receipt.dart:120",
       "evidence": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-final-tls.json"
     },
     {
@@ -11157,11 +11157,11 @@
     {
       "stage": "full",
       "batch": "final-tls-probe",
-      "check": "A2.engine.receipt",
+      "check": "A2.mova.receipt",
       "observations": 32,
       "category": "产品契约/观察器口径待归因",
       "symptom": "事件回执与31字段state快照不同；字段差异分布见failureFeatures.receiptDifferences。",
-      "suspect": "lib/src/core/engine.dart (_state.emit/_emitEvent)、lib/src/core/cutover/cutover_engine.dart；观察器example/lib/verify_auto/s00d_receipt.dart:120",
+      "suspect": "lib/src/core/mova.dart (_state.emit/_emitEvent)、lib/src/core/cutover/cutover.dart；观察器example/lib/verify_auto/s00d_receipt.dart:120",
       "evidence": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-final-tls-probe.json"
     },
     {
@@ -11181,17 +11181,17 @@
       "observations": 35,
       "category": "产品契约/观察器口径待归因",
       "symptom": "事件回执与31字段state快照不同；字段差异分布见failureFeatures.receiptDifferences。",
-      "suspect": "lib/src/core/engine.dart (_state.emit/_emitEvent)、lib/src/core/cutover/cutover_engine.dart；观察器example/lib/verify_auto/s00d_receipt.dart:120",
+      "suspect": "lib/src/core/mova.dart (_state.emit/_emitEvent)、lib/src/core/cutover/cutover.dart；观察器example/lib/verify_auto/s00d_receipt.dart:120",
       "evidence": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-final-hls.json"
     },
     {
       "stage": "full",
       "batch": "final-abr",
-      "check": "A2.engine.receipt",
+      "check": "A2.mova.receipt",
       "observations": 14,
       "category": "产品契约/观察器口径待归因",
       "symptom": "事件回执与31字段state快照不同；字段差异分布见failureFeatures.receiptDifferences。",
-      "suspect": "lib/src/core/engine.dart (_state.emit/_emitEvent)、lib/src/core/cutover/cutover_engine.dart；观察器example/lib/verify_auto/s00d_receipt.dart:120",
+      "suspect": "lib/src/core/mova.dart (_state.emit/_emitEvent)、lib/src/core/cutover/cutover.dart；观察器example/lib/verify_auto/s00d_receipt.dart:120",
       "evidence": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-final-abr.json"
     },
     {
@@ -11201,7 +11201,7 @@
       "observations": 5,
       "category": "夹具共享源中断；原始FAIL保留",
       "symptom": "共享源子进程04:21:10退出，18080/18081不可用；04:41:18恢复。HE首帧/V6/恢复全部位于中断窗口；keepalive前半失败，恢复后已有S2/S3 PASS。无有效媒体前提不能认定lib缺陷。",
-      "suspect": "example/tool/verify_sources/start_sources.py；原始sources.commands.driver.log；若有效源下复现再查lib/src/core/engine.dart:1359和core/kernel/mpv_kernel.dart",
+      "suspect": "example/tool/verify_sources/start_sources.py；原始sources.commands.driver.log；若有效源下复现再查lib/src/core/mova.dart:1359和core/kernel/mpv_kernel.dart",
       "evidence": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-he-v6-final.log"
     },
     {
@@ -11211,7 +11211,7 @@
       "observations": 13,
       "category": "夹具共享源中断；原始FAIL保留",
       "symptom": "共享源子进程04:21:10退出，18080/18081不可用；04:41:18恢复。HE首帧/V6/恢复全部位于中断窗口；keepalive前半失败，恢复后已有S2/S3 PASS。无有效媒体前提不能认定lib缺陷。",
-      "suspect": "example/tool/verify_sources/start_sources.py；原始sources.commands.driver.log；若有效源下复现再查lib/src/core/engine.dart:1359和core/kernel/mpv_kernel.dart",
+      "suspect": "example/tool/verify_sources/start_sources.py；原始sources.commands.driver.log；若有效源下复现再查lib/src/core/mova.dart:1359和core/kernel/mpv_kernel.dart",
       "evidence": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-he-firstframe.log"
     },
     {
@@ -11221,7 +11221,7 @@
       "observations": 18,
       "category": "夹具共享源中断；原始FAIL保留",
       "symptom": "共享源子进程04:21:10退出，18080/18081不可用；04:41:18恢复。HE首帧/V6/恢复全部位于中断窗口；keepalive前半失败，恢复后已有S2/S3 PASS。无有效媒体前提不能认定lib缺陷。",
-      "suspect": "example/tool/verify_sources/start_sources.py；原始sources.commands.driver.log；若有效源下复现再查lib/src/core/engine.dart:1359和core/kernel/mpv_kernel.dart",
+      "suspect": "example/tool/verify_sources/start_sources.py；原始sources.commands.driver.log；若有效源下复现再查lib/src/core/mova.dart:1359和core/kernel/mpv_kernel.dart",
       "evidence": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-he-recovery.log"
     },
     {
@@ -11231,17 +11231,17 @@
       "observations": 15,
       "category": "夹具共享源中断；原始FAIL保留",
       "symptom": "共享源子进程04:21:10退出，18080/18081不可用；04:41:18恢复。HE首帧/V6/恢复全部位于中断窗口；keepalive前半失败，恢复后已有S2/S3 PASS。无有效媒体前提不能认定lib缺陷。",
-      "suspect": "example/tool/verify_sources/start_sources.py；原始sources.commands.driver.log；若有效源下复现再查lib/src/core/engine.dart:1359和core/kernel/mpv_kernel.dart",
+      "suspect": "example/tool/verify_sources/start_sources.py；原始sources.commands.driver.log；若有效源下复现再查lib/src/core/mova.dart:1359和core/kernel/mpv_kernel.dart",
       "evidence": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-keepalive-core.log"
     },
     {
       "stage": "full",
       "batch": "api",
-      "check": "A2.engine.receipt",
+      "check": "A2.mova.receipt",
       "observations": 660,
       "category": "产品契约/观察器口径待归因",
       "symptom": "事件回执与31字段state快照不同；字段差异分布见failureFeatures.receiptDifferences。",
-      "suspect": "lib/src/core/engine.dart (_state.emit/_emitEvent)、lib/src/core/cutover/cutover_engine.dart；观察器example/lib/verify_auto/s00d_receipt.dart:120",
+      "suspect": "lib/src/core/mova.dart (_state.emit/_emitEvent)、lib/src/core/cutover/cutover.dart；观察器example/lib/verify_auto/s00d_receipt.dart:120",
       "evidence": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-batch15-abr.json"
     },
     {
@@ -11251,7 +11251,7 @@
       "observations": 59,
       "category": "产品契约/观察器口径待归因",
       "symptom": "事件回执与31字段state快照不同；字段差异分布见failureFeatures.receiptDifferences。",
-      "suspect": "lib/src/core/engine.dart (_state.emit/_emitEvent)、lib/src/core/cutover/cutover_engine.dart；观察器example/lib/verify_auto/s00d_receipt.dart:120",
+      "suspect": "lib/src/core/mova.dart (_state.emit/_emitEvent)、lib/src/core/cutover/cutover.dart；观察器example/lib/verify_auto/s00d_receipt.dart:120",
       "evidence": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-batch15-adResume.json"
     },
     {
@@ -11260,8 +11260,8 @@
       "check": "A29.final",
       "observations": 1,
       "category": "旧池计数夹具口径待归因",
-      "symptom": "activeIndex=120正确，但累计创建2个引擎，旧断言要求3；容量上限不等于必需创建数，需核对池复用语义。",
-      "suspect": "lib/src/core/feed/engine_pool.dart；example/lib/verify_auto/coverage_new.dart:388",
+      "symptom": "activeIndex=120正确，但累计创建2个播放器，旧断言要求3；容量上限不等于必需创建数，需核对池复用语义。",
+      "suspect": "lib/src/core/feed/feed_pool.dart；example/lib/verify_auto/coverage_new.dart:388",
       "evidence": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-batch15-feed.json"
     },
     {
@@ -11287,11 +11287,11 @@
     {
       "stage": "full",
       "batch": "followups",
-      "check": "A2.engine.receipt",
+      "check": "A2.mova.receipt",
       "observations": 82,
       "category": "产品契约/观察器口径待归因",
       "symptom": "事件回执与31字段state快照不同；字段差异分布见failureFeatures.receiptDifferences。",
-      "suspect": "lib/src/core/engine.dart (_state.emit/_emitEvent)、lib/src/core/cutover/cutover_engine.dart；观察器example/lib/verify_auto/s00d_receipt.dart:120",
+      "suspect": "lib/src/core/mova.dart (_state.emit/_emitEvent)、lib/src/core/cutover/cutover.dart；观察器example/lib/verify_auto/s00d_receipt.dart:120",
       "evidence": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-batch17-hls-paused.json"
     },
     {
@@ -11301,7 +11301,7 @@
       "observations": 35,
       "category": "产品契约/观察器口径待归因",
       "symptom": "事件回执与31字段state快照不同；字段差异分布见failureFeatures.receiptDifferences。",
-      "suspect": "lib/src/core/engine.dart (_state.emit/_emitEvent)、lib/src/core/cutover/cutover_engine.dart；观察器example/lib/verify_auto/s00d_receipt.dart:120",
+      "suspect": "lib/src/core/mova.dart (_state.emit/_emitEvent)、lib/src/core/cutover/cutover.dart；观察器example/lib/verify_auto/s00d_receipt.dart:120",
       "evidence": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-batch17-hls-playing-cutover.json"
     },
     {
@@ -11321,17 +11321,17 @@
       "observations": 36,
       "category": "产品契约/观察器口径待归因",
       "symptom": "事件回执与31字段state快照不同；字段差异分布见failureFeatures.receiptDifferences。",
-      "suspect": "lib/src/core/engine.dart (_state.emit/_emitEvent)、lib/src/core/cutover/cutover_engine.dart；观察器example/lib/verify_auto/s00d_receipt.dart:120",
+      "suspect": "lib/src/core/mova.dart (_state.emit/_emitEvent)、lib/src/core/cutover/cutover.dart；观察器example/lib/verify_auto/s00d_receipt.dart:120",
       "evidence": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-batch21-hls-cutover.json"
     },
     {
       "stage": "full",
       "batch": "hls-native",
-      "check": "A2.engine.receipt",
+      "check": "A2.mova.receipt",
       "observations": 38,
       "category": "产品契约/观察器口径待归因",
       "symptom": "事件回执与31字段state快照不同；字段差异分布见failureFeatures.receiptDifferences。",
-      "suspect": "lib/src/core/engine.dart (_state.emit/_emitEvent)、lib/src/core/cutover/cutover_engine.dart；观察器example/lib/verify_auto/s00d_receipt.dart:120",
+      "suspect": "lib/src/core/mova.dart (_state.emit/_emitEvent)、lib/src/core/cutover/cutover.dart；观察器example/lib/verify_auto/s00d_receipt.dart:120",
       "evidence": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-batch21-hls-normal.json"
     },
     {
@@ -11351,7 +11351,7 @@
       "observations": 1,
       "category": "夹具",
       "symptom": "VOD 下直播条件组件不挂载，insertAfter liveBadge/timeshift/backToLive 无锚点；remove 的缺席不能证明挂载。仍需直播DVR夹具。",
-      "suspect": "example/lib/verify_auto/cp3_pages_auto.dart:363；产品候选 lib/src/ui/skins/default_skin.dart（尚无产品缺陷证据）",
+      "suspect": "example/lib/verify_auto/cp3_pages_auto.dart:363；产品候选 lib/src/ui/ui_kits/default_ui_kit.dart（尚无产品缺陷证据）",
       "evidence": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-cp3-cp1gap.json"
     },
     {
@@ -11361,7 +11361,7 @@
       "observations": 1,
       "category": "夹具",
       "symptom": "VOD 下直播条件组件不挂载，insertAfter liveBadge/timeshift/backToLive 无锚点；remove 的缺席不能证明挂载。仍需直播DVR夹具。",
-      "suspect": "example/lib/verify_auto/cp3_pages_auto.dart:363；产品候选 lib/src/ui/skins/default_skin.dart（尚无产品缺陷证据）",
+      "suspect": "example/lib/verify_auto/cp3_pages_auto.dart:363；产品候选 lib/src/ui/ui_kits/default_ui_kit.dart（尚无产品缺陷证据）",
       "evidence": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-cp3-cp1gap.json"
     },
     {
@@ -11371,7 +11371,7 @@
       "observations": 1,
       "category": "夹具",
       "symptom": "VOD 下直播条件组件不挂载，insertAfter liveBadge/timeshift/backToLive 无锚点；remove 的缺席不能证明挂载。仍需直播DVR夹具。",
-      "suspect": "example/lib/verify_auto/cp3_pages_auto.dart:363；产品候选 lib/src/ui/skins/default_skin.dart（尚无产品缺陷证据）",
+      "suspect": "example/lib/verify_auto/cp3_pages_auto.dart:363；产品候选 lib/src/ui/ui_kits/default_ui_kit.dart（尚无产品缺陷证据）",
       "evidence": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-cp3-cp1gap.json"
     },
     {
@@ -11381,7 +11381,7 @@
       "observations": 1,
       "category": "夹具",
       "symptom": "VOD 下直播条件组件不挂载，insertAfter liveBadge/timeshift/backToLive 无锚点；remove 的缺席不能证明挂载。仍需直播DVR夹具。",
-      "suspect": "example/lib/verify_auto/cp3_pages_auto.dart:363；产品候选 lib/src/ui/skins/default_skin.dart（尚无产品缺陷证据）",
+      "suspect": "example/lib/verify_auto/cp3_pages_auto.dart:363；产品候选 lib/src/ui/ui_kits/default_ui_kit.dart（尚无产品缺陷证据）",
       "evidence": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-cp3-cp1gap.json"
     },
     {
@@ -11391,7 +11391,7 @@
       "observations": 1,
       "category": "夹具",
       "symptom": "VOD 下直播条件组件不挂载，insertAfter liveBadge/timeshift/backToLive 无锚点；remove 的缺席不能证明挂载。仍需直播DVR夹具。",
-      "suspect": "example/lib/verify_auto/cp3_pages_auto.dart:363；产品候选 lib/src/ui/skins/default_skin.dart（尚无产品缺陷证据）",
+      "suspect": "example/lib/verify_auto/cp3_pages_auto.dart:363；产品候选 lib/src/ui/ui_kits/default_ui_kit.dart（尚无产品缺陷证据）",
       "evidence": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-cp3-cp1gap.json"
     },
     {
@@ -11401,7 +11401,7 @@
       "observations": 1,
       "category": "产品请求头路径疑似；判据混入原生 open 请求",
       "symptom": "quality 列表非空且带头 probe=200，但同一正向 token 的 Range 媒体请求无 Referer=403；thumb/prefetch 正反对照通过。",
-      "suspect": "lib/src/core/kernel/mpv_kernel.dart:704 (_applySourceOptions), :758 (Media(uri)); lib/src/core/model/source.dart:153; loadQualities 在 engine.dart:2975",
+      "suspect": "lib/src/core/kernel/mpv_kernel.dart:704 (_applySourceOptions), :758 (Media(uri)); lib/src/core/model/source.dart:153; loadQualities 在 mova.dart:2975",
       "evidence": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-cp3-headers.json"
     },
     {
@@ -11411,7 +11411,7 @@
       "observations": 1,
       "category": "产品请求头路径疑似；判据混入原生 open 请求",
       "symptom": "quality 列表非空且带头 probe=200，但同一正向 token 的 Range 媒体请求无 Referer=403；thumb/prefetch 正反对照通过。",
-      "suspect": "lib/src/core/kernel/mpv_kernel.dart:704 (_applySourceOptions), :758 (Media(uri)); lib/src/core/model/source.dart:153; loadQualities 在 engine.dart:2975",
+      "suspect": "lib/src/core/kernel/mpv_kernel.dart:704 (_applySourceOptions), :758 (Media(uri)); lib/src/core/model/source.dart:153; loadQualities 在 mova.dart:2975",
       "evidence": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-cp3-headers.json"
     },
     {
@@ -11421,7 +11421,7 @@
       "observations": 1,
       "category": "产品请求头路径疑似；判据混入原生 open 请求",
       "symptom": "quality 列表非空且带头 probe=200，但同一正向 token 的 Range 媒体请求无 Referer=403；thumb/prefetch 正反对照通过。",
-      "suspect": "lib/src/core/kernel/mpv_kernel.dart:704 (_applySourceOptions), :758 (Media(uri)); lib/src/core/model/source.dart:153; loadQualities 在 engine.dart:2975",
+      "suspect": "lib/src/core/kernel/mpv_kernel.dart:704 (_applySourceOptions), :758 (Media(uri)); lib/src/core/model/source.dart:153; loadQualities 在 mova.dart:2975",
       "evidence": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-cp3-headers.json"
     },
     {
@@ -11431,7 +11431,7 @@
       "observations": 1,
       "category": "产品请求头路径疑似；判据混入原生 open 请求",
       "symptom": "quality 列表非空且带头 probe=200，但同一正向 token 的 Range 媒体请求无 Referer=403；thumb/prefetch 正反对照通过。",
-      "suspect": "lib/src/core/kernel/mpv_kernel.dart:704 (_applySourceOptions), :758 (Media(uri)); lib/src/core/model/source.dart:153; loadQualities 在 engine.dart:2975",
+      "suspect": "lib/src/core/kernel/mpv_kernel.dart:704 (_applySourceOptions), :758 (Media(uri)); lib/src/core/model/source.dart:153; loadQualities 在 mova.dart:2975",
       "evidence": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-cp3-headers.json"
     },
     {
@@ -11441,57 +11441,57 @@
       "observations": 1,
       "category": "产品请求头路径疑似；判据混入原生 open 请求",
       "symptom": "quality 列表非空且带头 probe=200，但同一正向 token 的 Range 媒体请求无 Referer=403；thumb/prefetch 正反对照通过。",
-      "suspect": "lib/src/core/kernel/mpv_kernel.dart:704 (_applySourceOptions), :758 (Media(uri)); lib/src/core/model/source.dart:153; loadQualities 在 engine.dart:2975",
+      "suspect": "lib/src/core/kernel/mpv_kernel.dart:704 (_applySourceOptions), :758 (Media(uri)); lib/src/core/model/source.dart:153; loadQualities 在 mova.dart:2975",
       "evidence": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-cp3-headers.json"
     },
     {
       "stage": "full",
       "batch": "cp3-feedplayer",
-      "check": "CP3.feedplayer.controller.1",
+      "check": "CP3.feedplayer.ctrl.1",
       "observations": 1,
       "category": "产品/夹具异步时序待归因",
       "symptom": "跳页后 pause 完成并等待150ms，部分轮次仍 playing=true；自动暂停与错误可见独立判断。可能与池激活后续 play 竞争。",
-      "suspect": "lib/src/ui/feed_player.dart:78, :306; lib/src/core/feed/engine_pool.dart:266；夹具 cp3_pages_auto.dart:240",
+      "suspect": "lib/src/ui/feed_player.dart:78, :306; lib/src/core/feed/feed_pool.dart:266；夹具 cp3_pages_auto.dart:240",
       "evidence": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-cp3-feedplayer.json"
     },
     {
       "stage": "full",
       "batch": "cp3-feedplayer",
-      "check": "CP3.feedplayer.controller.3",
+      "check": "CP3.feedplayer.ctrl.3",
       "observations": 1,
       "category": "产品/夹具异步时序待归因",
       "symptom": "跳页后 pause 完成并等待150ms，部分轮次仍 playing=true；自动暂停与错误可见独立判断。可能与池激活后续 play 竞争。",
-      "suspect": "lib/src/ui/feed_player.dart:78, :306; lib/src/core/feed/engine_pool.dart:266；夹具 cp3_pages_auto.dart:240",
+      "suspect": "lib/src/ui/feed_player.dart:78, :306; lib/src/core/feed/feed_pool.dart:266；夹具 cp3_pages_auto.dart:240",
       "evidence": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-cp3-feedplayer.json"
     },
     {
       "stage": "full",
       "batch": "touch-mini",
-      "check": "A2.engine.receipt",
+      "check": "A2.mova.receipt",
       "observations": 4,
       "category": "产品契约/观察器口径待归因",
       "symptom": "事件回执与31字段state快照不同；字段差异分布见failureFeatures.receiptDifferences。",
-      "suspect": "lib/src/core/engine.dart (_state.emit/_emitEvent)、lib/src/core/cutover/cutover_engine.dart；观察器example/lib/verify_auto/s00d_receipt.dart:120",
+      "suspect": "lib/src/core/mova.dart (_state.emit/_emitEvent)、lib/src/core/cutover/cutover.dart；观察器example/lib/verify_auto/s00d_receipt.dart:120",
       "evidence": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-manual-mini-hide.json"
     },
     {
       "stage": "full",
       "batch": "touch-preview",
-      "check": "A2.engine.receipt",
+      "check": "A2.mova.receipt",
       "observations": 1,
       "category": "产品契约/观察器口径待归因",
       "symptom": "事件回执与31字段state快照不同；字段差异分布见failureFeatures.receiptDifferences。",
-      "suspect": "lib/src/core/engine.dart (_state.emit/_emitEvent)、lib/src/core/cutover/cutover_engine.dart；观察器example/lib/verify_auto/s00d_receipt.dart:120",
+      "suspect": "lib/src/core/mova.dart (_state.emit/_emitEvent)、lib/src/core/cutover/cutover.dart；观察器example/lib/verify_auto/s00d_receipt.dart:120",
       "evidence": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-manual-preview-start.json"
     },
     {
       "stage": "full",
       "batch": "widgets",
-      "check": "A2.engine.receipt",
+      "check": "A2.mova.receipt",
       "observations": 27,
       "category": "产品契约/观察器口径待归因",
       "symptom": "事件回执与31字段state快照不同；字段差异分布见failureFeatures.receiptDifferences。",
-      "suspect": "lib/src/core/engine.dart (_state.emit/_emitEvent)、lib/src/core/cutover/cutover_engine.dart；观察器example/lib/verify_auto/s00d_receipt.dart:120",
+      "suspect": "lib/src/core/mova.dart (_state.emit/_emitEvent)、lib/src/core/cutover/cutover.dart；观察器example/lib/verify_auto/s00d_receipt.dart:120",
       "evidence": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-batch16-audio-start.json"
     },
     {
@@ -11501,47 +11501,47 @@
       "observations": 2,
       "category": "产品契约/观察器口径待归因",
       "symptom": "事件回执与31字段state快照不同；字段差异分布见failureFeatures.receiptDifferences。",
-      "suspect": "lib/src/core/engine.dart (_state.emit/_emitEvent)、lib/src/core/cutover/cutover_engine.dart；观察器example/lib/verify_auto/s00d_receipt.dart:120",
+      "suspect": "lib/src/core/mova.dart (_state.emit/_emitEvent)、lib/src/core/cutover/cutover.dart；观察器example/lib/verify_auto/s00d_receipt.dart:120",
       "evidence": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-batch16-cutover-start.json"
     },
     {
       "stage": "full",
       "batch": "ui",
-      "check": "A2.engine.receipt",
+      "check": "A2.mova.receipt",
       "observations": 1,
       "category": "产品契约/观察器口径待归因",
       "symptom": "事件回执与31字段state快照不同；字段差异分布见failureFeatures.receiptDifferences。",
-      "suspect": "lib/src/core/engine.dart (_state.emit/_emitEvent)、lib/src/core/cutover/cutover_engine.dart；观察器example/lib/verify_auto/s00d_receipt.dart:120",
+      "suspect": "lib/src/core/mova.dart (_state.emit/_emitEvent)、lib/src/core/cutover/cutover.dart；观察器example/lib/verify_auto/s00d_receipt.dart:120",
       "evidence": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-batch3-00-snapshot-state.json"
     },
     {
       "stage": "full",
       "batch": "gesture-pip",
-      "check": "A2.engine.receipt",
+      "check": "A2.mova.receipt",
       "observations": 3,
       "category": "产品契约/观察器口径待归因",
       "symptom": "事件回执与31字段state快照不同；字段差异分布见failureFeatures.receiptDifferences。",
-      "suspect": "lib/src/core/engine.dart (_state.emit/_emitEvent)、lib/src/core/cutover/cutover_engine.dart；观察器example/lib/verify_auto/s00d_receipt.dart:120",
+      "suspect": "lib/src/core/mova.dart (_state.emit/_emitEvent)、lib/src/core/cutover/cutover.dart；观察器example/lib/verify_auto/s00d_receipt.dart:120",
       "evidence": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-batch18-normal-start.json"
     },
     {
       "stage": "full",
       "batch": "interactive",
-      "check": "A2.engine.receipt",
+      "check": "A2.mova.receipt",
       "observations": 16,
       "category": "产品契约/观察器口径待归因",
       "symptom": "事件回执与31字段state快照不同；字段差异分布见failureFeatures.receiptDifferences。",
-      "suspect": "lib/src/core/engine.dart (_state.emit/_emitEvent)、lib/src/core/cutover/cutover_engine.dart；观察器example/lib/verify_auto/s00d_receipt.dart:120",
+      "suspect": "lib/src/core/mova.dart (_state.emit/_emitEvent)、lib/src/core/cutover/cutover.dart；观察器example/lib/verify_auto/s00d_receipt.dart:120",
       "evidence": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-batch22-feed.json"
     },
     {
       "stage": "full",
       "batch": "extras",
-      "check": "A2.engine.receipt",
+      "check": "A2.mova.receipt",
       "observations": 138,
       "category": "产品契约/观察器口径待归因",
       "symptom": "事件回执与31字段state快照不同；字段差异分布见failureFeatures.receiptDifferences。",
-      "suspect": "lib/src/core/engine.dart (_state.emit/_emitEvent)、lib/src/core/cutover/cutover_engine.dart；观察器example/lib/verify_auto/s00d_receipt.dart:120",
+      "suspect": "lib/src/core/mova.dart (_state.emit/_emitEvent)、lib/src/core/cutover/cutover.dart；观察器example/lib/verify_auto/s00d_receipt.dart:120",
       "evidence": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-extra-ad-failure.json"
     },
     {
@@ -11577,21 +11577,21 @@
     {
       "stage": "full",
       "batch": "live-inputs",
-      "check": "A2.engine.receipt",
+      "check": "A2.mova.receipt",
       "observations": 11,
       "category": "产品契约/观察器口径待归因",
       "symptom": "事件回执与31字段state快照不同；字段差异分布见failureFeatures.receiptDifferences。",
-      "suspect": "lib/src/core/engine.dart (_state.emit/_emitEvent)、lib/src/core/cutover/cutover_engine.dart；观察器example/lib/verify_auto/s00d_receipt.dart:120",
+      "suspect": "lib/src/core/mova.dart (_state.emit/_emitEvent)、lib/src/core/cutover/cutover.dart；观察器example/lib/verify_auto/s00d_receipt.dart:120",
       "evidence": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-live-0-dispose.json"
     },
     {
       "stage": "full",
       "batch": "native-inputs",
-      "check": "A2.engine.receipt",
+      "check": "A2.mova.receipt",
       "observations": 6,
       "category": "产品契约/观察器口径待归因",
       "symptom": "事件回执与31字段state快照不同；字段差异分布见failureFeatures.receiptDifferences。",
-      "suspect": "lib/src/core/engine.dart (_state.emit/_emitEvent)、lib/src/core/cutover/cutover_engine.dart；观察器example/lib/verify_auto/s00d_receipt.dart:120",
+      "suspect": "lib/src/core/mova.dart (_state.emit/_emitEvent)、lib/src/core/cutover/cutover.dart；观察器example/lib/verify_auto/s00d_receipt.dart:120",
       "evidence": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-native-cutover-dispose.json"
     },
     {
@@ -11601,27 +11601,27 @@
       "observations": 5,
       "category": "产品契约/观察器口径待归因",
       "symptom": "事件回执与31字段state快照不同；字段差异分布见failureFeatures.receiptDifferences。",
-      "suspect": "lib/src/core/engine.dart (_state.emit/_emitEvent)、lib/src/core/cutover/cutover_engine.dart；观察器example/lib/verify_auto/s00d_receipt.dart:120",
+      "suspect": "lib/src/core/mova.dart (_state.emit/_emitEvent)、lib/src/core/cutover/cutover.dart；观察器example/lib/verify_auto/s00d_receipt.dart:120",
       "evidence": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-native-cutover-open-sync.json"
     },
     {
       "stage": "full",
       "batch": "safe-visual",
-      "check": "A2.engine.receipt",
+      "check": "A2.mova.receipt",
       "observations": 35,
       "category": "产品契约/观察器口径待归因",
       "symptom": "事件回执与31字段state快照不同；字段差异分布见failureFeatures.receiptDifferences。",
-      "suspect": "lib/src/core/engine.dart (_state.emit/_emitEvent)、lib/src/core/cutover/cutover_engine.dart；观察器example/lib/verify_auto/s00d_receipt.dart:120",
+      "suspect": "lib/src/core/mova.dart (_state.emit/_emitEvent)、lib/src/core/cutover/cutover.dart；观察器example/lib/verify_auto/s00d_receipt.dart:120",
       "evidence": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-safe-visual-ad-skip.json"
     },
     {
       "stage": "full",
       "batch": "safe-transition",
-      "check": "A2.engine.receipt",
+      "check": "A2.mova.receipt",
       "observations": 6,
       "category": "产品契约/观察器口径待归因",
       "symptom": "事件回执与31字段state快照不同；字段差异分布见failureFeatures.receiptDifferences。",
-      "suspect": "lib/src/core/engine.dart (_state.emit/_emitEvent)、lib/src/core/cutover/cutover_engine.dart；观察器example/lib/verify_auto/s00d_receipt.dart:120",
+      "suspect": "lib/src/core/mova.dart (_state.emit/_emitEvent)、lib/src/core/cutover/cutover.dart；观察器example/lib/verify_auto/s00d_receipt.dart:120",
       "evidence": "E:\\workspaces\\wt-mova-cp3\\mova\\example\\tool\\coverage_evidence\\matrix-cp3-full-1105-033616\\matrix-cp3-full-1105-033616-rerun-safe-transition-poster-hang.json"
     }
   ],
@@ -11636,7 +11636,7 @@
       "status": "FAIL",
       "category": "产品契约/异步观察器待归因",
       "symptom": "A2回执快照差异；事件另有49条尺寸payload与state不一致（如0x720对0x0），2条质量事件自动对state360p。保留事件发生时原始快照，需区分产品发出顺序与观察器读回时序。",
-      "suspect": "lib/src/core/engine.dart:1009、:3014、:3107；lib/src/core/cutover/cutover_engine.dart；example/lib/verify_auto/s00d_receipt.dart",
+      "suspect": "lib/src/core/mova.dart:1009、:3014、:3107；lib/src/core/cutover/cutover.dart；example/lib/verify_auto/s00d_receipt.dart",
       "evidence": "E:\\workspaces\\wt-mova-cp3\\mova\\doc\\plans\\2026-11-05-matrix-run-cp3-full-1105-033616.json",
       "failedSubitems": [
         {
@@ -11665,7 +11665,7 @@
           "sourcePointerCount": 3
         },
         {
-          "id": "A2/check:A2.engine.receipt",
+          "id": "A2/check:A2.mova.receipt",
           "pointer": "rows[1].subitems[6]",
           "sourcePointerExamples": [
             "matrix-cp3-full-1105-033616-final-abr.json:records[1490]",
@@ -11701,7 +11701,7 @@
       "status": "FAIL",
       "category": "夹具重复事件口径",
       "symptom": "输入-1和0均钳制为0.25，旧归并器要求两个0.25事件，实际同值去重只发一个，两路matched=5/6；setRate明确只在变化时发事件，原FAIL保留。",
-      "suspect": "example/tool/matrix_evidence.py:rate_sequence；lib/src/core/engine.dart:2859、core/cutover/cutover_engine.dart:setRate",
+      "suspect": "example/tool/matrix_evidence.py:rate_sequence；lib/src/core/mova.dart:2859、core/cutover/cutover.dart:setRate",
       "evidence": "E:\\workspaces\\wt-mova-cp3\\mova\\doc\\plans\\2026-11-05-matrix-run-cp3-full-1105-033616.json",
       "failedSubitems": [
         {
@@ -11720,7 +11720,7 @@
       "status": "FAIL",
       "category": "共享源中断及fallback产品/夹具待归因",
       "symptom": "S2前半never rendered，位于共享源中断/恢复窗口；S6.publicFallback三次audio=absent仍phase=holding、vid=1、mute=yes。S6意图/等待与fallback原生属性仍需有效前提独立归因，不能把整个FAIL都归源中断。",
-      "suspect": "lib/src/core/engine.dart:keepAlive/fallback；lib/src/core/kernel/mpv_kernel.dart；example/lib/main_keep_alive_verify.dart",
+      "suspect": "lib/src/core/mova.dart:keepAlive/fallback；lib/src/core/kernel/mpv_kernel.dart；example/lib/main_keep_alive_verify.dart",
       "evidence": "E:\\workspaces\\wt-mova-cp3\\mova\\doc\\plans\\2026-11-05-matrix-run-cp3-full-1105-033616.json",
       "failedSubitems": [
         {
@@ -11747,8 +11747,8 @@
       "id": "A29",
       "status": "FAIL",
       "category": "夹具固定池数量口径",
-      "symptom": "feed场景active=120、创建2引擎；回收engineCount=0且accepts=[false,false]，旧规则固定要求3个false。另一路3引擎已回收；本轮dispose120为120/120 PASS，不由固定数组长度推断泄漏。",
-      "suspect": "example/tool/matrix_rules.json:A29.poolReclaimed；example/lib/verify_auto/coverage_new.dart:388；lib/src/core/feed/engine_pool.dart",
+      "symptom": "feed场景active=120、创建2个播放器；回收movaCount=0且accepts=[false,false]，旧规则固定要求3个false。另一路3个播放器已回收；本轮dispose120为120/120 PASS，不由固定数组长度推断泄漏。",
+      "suspect": "example/tool/matrix_rules.json:A29.poolReclaimed；example/lib/verify_auto/coverage_new.dart:388；lib/src/core/feed/feed_pool.dart",
       "evidence": "E:\\workspaces\\wt-mova-cp3\\mova\\doc\\plans\\2026-11-05-matrix-run-cp3-full-1105-033616.json",
       "failedSubitems": [
         {
@@ -11776,7 +11776,7 @@
       "status": "FAIL",
       "category": "夹具共享源中断",
       "symptom": "HE V1-V7出现无首帧、signal=none、never rendered、恢复偏差1884-1922ms；均发生在04:21-04:41共享源中断窗口。正式FAIL保留，不据此确认产品缺陷。",
-      "suspect": "example/tool/verify_sources/start_sources.py；有效源下再查lib/src/core/render/first_frame.dart、core/engine.dart、core/kernel/mpv_kernel.dart",
+      "suspect": "example/tool/verify_sources/start_sources.py；有效源下再查lib/src/core/render/first_frame.dart、core/mova.dart、core/kernel/mpv_kernel.dart",
       "evidence": "E:\\workspaces\\wt-mova-cp3\\mova\\doc\\plans\\2026-11-05-matrix-run-cp3-full-1105-033616.json",
       "failedSubitems": [
         {
@@ -11810,7 +11810,7 @@
       "status": "FAIL",
       "category": "共享源中断及fallback产品/夹具待归因",
       "symptom": "S2前半never rendered，位于共享源中断/恢复窗口；S6.publicFallback三次audio=absent仍phase=holding、vid=1、mute=yes。S6意图/等待与fallback原生属性仍需有效前提独立归因，不能把整个FAIL都归源中断。",
-      "suspect": "lib/src/core/engine.dart:keepAlive/fallback；lib/src/core/kernel/mpv_kernel.dart；example/lib/main_keep_alive_verify.dart",
+      "suspect": "lib/src/core/mova.dart:keepAlive/fallback；lib/src/core/kernel/mpv_kernel.dart；example/lib/main_keep_alive_verify.dart",
       "evidence": "E:\\workspaces\\wt-mova-cp3\\mova\\doc\\plans\\2026-11-05-matrix-run-cp3-full-1105-033616.json",
       "failedSubitems": [
         {
@@ -11878,7 +11878,7 @@
       "status": "FAIL",
       "category": "产品契约/异步观察器待归因",
       "symptom": "A2回执快照差异；事件另有49条尺寸payload与state不一致（如0x720对0x0），2条质量事件自动对state360p。保留事件发生时原始快照，需区分产品发出顺序与观察器读回时序。",
-      "suspect": "lib/src/core/engine.dart:1009、:3014、:3107；lib/src/core/cutover/cutover_engine.dart；example/lib/verify_auto/s00d_receipt.dart",
+      "suspect": "lib/src/core/mova.dart:1009、:3014、:3107；lib/src/core/cutover/cutover.dart；example/lib/verify_auto/s00d_receipt.dart",
       "evidence": "E:\\workspaces\\wt-mova-cp3\\mova\\doc\\plans\\2026-11-05-matrix-run-cp3-full-1105-033616.json",
       "failedSubitems": [
         {
@@ -11903,7 +11903,7 @@
       "status": "FAIL",
       "category": "产品契约/异步观察器待归因",
       "symptom": "A2回执快照差异；事件另有49条尺寸payload与state不一致（如0x720对0x0），2条质量事件自动对state360p。保留事件发生时原始快照，需区分产品发出顺序与观察器读回时序。",
-      "suspect": "lib/src/core/engine.dart:1009、:3014、:3107；lib/src/core/cutover/cutover_engine.dart；example/lib/verify_auto/s00d_receipt.dart",
+      "suspect": "lib/src/core/mova.dart:1009、:3014、:3107；lib/src/core/cutover/cutover.dart；example/lib/verify_auto/s00d_receipt.dart",
       "evidence": "E:\\workspaces\\wt-mova-cp3\\mova\\doc\\plans\\2026-11-05-matrix-run-cp3-full-1105-033616.json",
       "failedSubitems": [
         {
@@ -11923,7 +11923,7 @@
       "status": "FAIL",
       "category": "共享源中断及fallback产品/夹具待归因",
       "symptom": "S2前半never rendered，位于共享源中断/恢复窗口；S6.publicFallback三次audio=absent仍phase=holding、vid=1、mute=yes。S6意图/等待与fallback原生属性仍需有效前提独立归因，不能把整个FAIL都归源中断。",
-      "suspect": "lib/src/core/engine.dart:keepAlive/fallback；lib/src/core/kernel/mpv_kernel.dart；example/lib/main_keep_alive_verify.dart",
+      "suspect": "lib/src/core/mova.dart:keepAlive/fallback；lib/src/core/kernel/mpv_kernel.dart；example/lib/main_keep_alive_verify.dart",
       "evidence": "E:\\workspaces\\wt-mova-cp3\\mova\\doc\\plans\\2026-11-05-matrix-run-cp3-full-1105-033616.json",
       "failedSubitems": [
         {
@@ -11951,7 +11951,7 @@
       "status": "FAIL",
       "category": "夹具共享源中断",
       "symptom": "HE V1-V7出现无首帧、signal=none、never rendered、恢复偏差1884-1922ms；均发生在04:21-04:41共享源中断窗口。正式FAIL保留，不据此确认产品缺陷。",
-      "suspect": "example/tool/verify_sources/start_sources.py；有效源下再查lib/src/core/render/first_frame.dart、core/engine.dart、core/kernel/mpv_kernel.dart",
+      "suspect": "example/tool/verify_sources/start_sources.py；有效源下再查lib/src/core/render/first_frame.dart、core/mova.dart、core/kernel/mpv_kernel.dart",
       "evidence": "E:\\workspaces\\wt-mova-cp3\\mova\\doc\\plans\\2026-11-05-matrix-run-cp3-full-1105-033616.json",
       "failedSubitems": [
         {
@@ -12018,8 +12018,8 @@
       "id": "F13",
       "status": "FAIL",
       "category": "夹具固定池数量口径",
-      "symptom": "feed场景active=120、创建2引擎；回收engineCount=0且accepts=[false,false]，旧规则固定要求3个false。另一路3引擎已回收；本轮dispose120为120/120 PASS，不由固定数组长度推断泄漏。",
-      "suspect": "example/tool/matrix_rules.json:A29.poolReclaimed；example/lib/verify_auto/coverage_new.dart:388；lib/src/core/feed/engine_pool.dart",
+      "symptom": "feed场景active=120、创建2个播放器；回收movaCount=0且accepts=[false,false]，旧规则固定要求3个false。另一路3个播放器已回收；本轮dispose120为120/120 PASS，不由固定数组长度推断泄漏。",
+      "suspect": "example/tool/matrix_rules.json:A29.poolReclaimed；example/lib/verify_auto/coverage_new.dart:388；lib/src/core/feed/feed_pool.dart",
       "evidence": "E:\\workspaces\\wt-mova-cp3\\mova\\doc\\plans\\2026-11-05-matrix-run-cp3-full-1105-033616.json",
       "failedSubitems": [
         {
@@ -12038,7 +12038,7 @@
       "status": "FAIL",
       "category": "广告产品/夹具采样待归因",
       "symptom": "V13b第一轮广告rate原生样本为0，后两轮PASS；V14三轮FAIL，预热open确实抛出但failed/skipped均0，部分轮次contentReached=false。不能从零样本断定倍速错误；V14失败需独立复核。",
-      "suspect": "example/lib/main_review_fixes_verify2.dart:_v13/_v14；lib/src/core/session/session.dart:playAdNow/_contentRate；lib/src/core/ad/ads.dart；core/cutover/cutover_engine.dart",
+      "suspect": "example/lib/main_review_fixes_verify2.dart:_v13/_v14；lib/src/core/session/session.dart:playAdNow/_contentRate；lib/src/core/ad/ads.dart；core/cutover/cutover.dart",
       "evidence": "E:\\workspaces\\wt-mova-cp3\\mova\\doc\\plans\\2026-11-05-matrix-run-cp3-full-1105-033616.json",
       "failedSubitems": [
         {
@@ -12064,7 +12064,7 @@
       "status": "FAIL",
       "category": "广告产品/夹具采样待归因",
       "symptom": "V13b第一轮广告rate原生样本为0，后两轮PASS；V14三轮FAIL，预热open确实抛出但failed/skipped均0，部分轮次contentReached=false。不能从零样本断定倍速错误；V14失败需独立复核。",
-      "suspect": "example/lib/main_review_fixes_verify2.dart:_v13/_v14；lib/src/core/session/session.dart:playAdNow/_contentRate；lib/src/core/ad/ads.dart；core/cutover/cutover_engine.dart",
+      "suspect": "example/lib/main_review_fixes_verify2.dart:_v13/_v14；lib/src/core/session/session.dart:playAdNow/_contentRate；lib/src/core/ad/ads.dart；core/cutover/cutover.dart",
       "evidence": "E:\\workspaces\\wt-mova-cp3\\mova\\doc\\plans\\2026-11-05-matrix-run-cp3-full-1105-033616.json",
       "failedSubitems": [
         {
@@ -12090,7 +12090,7 @@
       "status": "FAIL",
       "category": "夹具共享源中断",
       "symptom": "HE V1-V7出现无首帧、signal=none、never rendered、恢复偏差1884-1922ms；均发生在04:21-04:41共享源中断窗口。正式FAIL保留，不据此确认产品缺陷。",
-      "suspect": "example/tool/verify_sources/start_sources.py；有效源下再查lib/src/core/render/first_frame.dart、core/engine.dart、core/kernel/mpv_kernel.dart",
+      "suspect": "example/tool/verify_sources/start_sources.py；有效源下再查lib/src/core/render/first_frame.dart、core/mova.dart、core/kernel/mpv_kernel.dart",
       "evidence": "E:\\workspaces\\wt-mova-cp3\\mova\\doc\\plans\\2026-11-05-matrix-run-cp3-full-1105-033616.json",
       "failedSubitems": [
         {
@@ -12132,7 +12132,7 @@
       "status": "FAIL",
       "category": "夹具共享源中断",
       "symptom": "HE V1-V7出现无首帧、signal=none、never rendered、恢复偏差1884-1922ms；均发生在04:21-04:41共享源中断窗口。正式FAIL保留，不据此确认产品缺陷。",
-      "suspect": "example/tool/verify_sources/start_sources.py；有效源下再查lib/src/core/render/first_frame.dart、core/engine.dart、core/kernel/mpv_kernel.dart",
+      "suspect": "example/tool/verify_sources/start_sources.py；有效源下再查lib/src/core/render/first_frame.dart、core/mova.dart、core/kernel/mpv_kernel.dart",
       "evidence": "E:\\workspaces\\wt-mova-cp3\\mova\\doc\\plans\\2026-11-05-matrix-run-cp3-full-1105-033616.json",
       "failedSubitems": [
         {
@@ -12174,7 +12174,7 @@
       "status": "FAIL",
       "category": "夹具共享源中断",
       "symptom": "HE V1-V7出现无首帧、signal=none、never rendered、恢复偏差1884-1922ms；均发生在04:21-04:41共享源中断窗口。正式FAIL保留，不据此确认产品缺陷。",
-      "suspect": "example/tool/verify_sources/start_sources.py；有效源下再查lib/src/core/render/first_frame.dart、core/engine.dart、core/kernel/mpv_kernel.dart",
+      "suspect": "example/tool/verify_sources/start_sources.py；有效源下再查lib/src/core/render/first_frame.dart、core/mova.dart、core/kernel/mpv_kernel.dart",
       "evidence": "E:\\workspaces\\wt-mova-cp3\\mova\\doc\\plans\\2026-11-05-matrix-run-cp3-full-1105-033616.json",
       "failedSubitems": [
         {
@@ -12208,7 +12208,7 @@
       "status": "FAIL",
       "category": "共享源中断及fallback产品/夹具待归因",
       "symptom": "S2前半never rendered，位于共享源中断/恢复窗口；S6.publicFallback三次audio=absent仍phase=holding、vid=1、mute=yes。S6意图/等待与fallback原生属性仍需有效前提独立归因，不能把整个FAIL都归源中断。",
-      "suspect": "lib/src/core/engine.dart:keepAlive/fallback；lib/src/core/kernel/mpv_kernel.dart；example/lib/main_keep_alive_verify.dart",
+      "suspect": "lib/src/core/mova.dart:keepAlive/fallback；lib/src/core/kernel/mpv_kernel.dart；example/lib/main_keep_alive_verify.dart",
       "evidence": "E:\\workspaces\\wt-mova-cp3\\mova\\doc\\plans\\2026-11-05-matrix-run-cp3-full-1105-033616.json",
       "failedSubitems": [
         {
@@ -12245,7 +12245,7 @@
     {
       "criterion": "全部自动 Android 一轮 / CP0 ledger",
       "status": "FAIL",
-      "detail": "67/67 批；正式135 id gate={'passed': False, 'newFail': ['A10', 'A2', 'A25', 'A29', 'C14', 'C15', 'C16', 'E.MovaQualityChange', 'E.MovaSizeChange', 'F11', 'F13', 'F16', 'F6', 'F8', 'N10', 'N12', 'N13', 'N19', 'N20'], 'newBlocked': ['A22', 'A4'], 'missing': [], 'retainedBlocked': ['A1', 'A11', 'A12', 'A13', 'A14', 'A15', 'A16', 'A17', 'A18', 'A19', 'A20', 'A21', 'A23', 'A24', 'A26', 'A27', 'A28', 'A3', 'A30', 'A31', 'A32', 'A33', 'A5', 'A6', 'A7', 'A8', 'A9', 'C1', 'C10', 'C11', 'C12', 'C13', 'C17', 'C2', 'C3', 'C4', 'C5', 'C6', 'C7', 'C8', 'C9', 'E.MovaAbrDownShift', 'E.MovaBrightChange', 'E.MovaBufferChange', 'E.MovaDone', 'E.MovaDurationChange', 'E.MovaErrorEvent', 'E.MovaFailover', 'E.MovaFirstFrame', 'E.MovaFitChange', 'E.MovaFullScreenChange', 'E.MovaLiveEdgeReach', 'E.MovaLockChange', 'E.MovaMiniChange', 'E.MovaOrientationChange', 'E.MovaPause', 'E.MovaPipChange', 'E.MovaPlay', 'E.MovaPlayFailure', 'E.MovaPreviewBlock', 'E.MovaQualityListChange', 'E.MovaRateChange', 'E.MovaReady', 'E.MovaRecovered', 'E.MovaSeek', 'E.MovaSeeked', 'E.MovaSourceChange', 'E.MovaStandbyChange', 'E.MovaStandbyResume', 'E.MovaSttBlock', 'E.MovaSwapChange', 'E.MovaTimeShiftChange', 'E.MovaVolumeChange', 'E.MovaZoomChange', 'E1', 'E2', 'F1', 'F10', 'F12', 'F14', 'F15', 'F2', 'F3', 'F4', 'F5', 'F7', 'F9', 'N1', 'N11', 'N14', 'N15', 'N16', 'N17', 'N18', 'N2', 'N21', 'N22', 'N23', 'N3', 'N4', 'N5', 'N6', 'N7', 'N8', 'N9', 'U1', 'U2', 'U3', 'U4', 'U5', 'U6', 'U7', 'U8', 'U9']}；批次故障和新页FAIL独立保留。"
+      "detail": "67/67 批；正式135 id gate={'passed': False, 'newFail': ['A10', 'A2', 'A25', 'A29', 'C14', 'C15', 'C16', 'E.MovaQualityChange', 'E.MovaSizeChange', 'F11', 'F13', 'F16', 'F6', 'F8', 'N10', 'N12', 'N13', 'N19', 'N20'], 'newBlocked': ['A22', 'A4'], 'missing': [], 'retainedBlocked': ['A1', 'A11', 'A12', 'A13', 'A14', 'A15', 'A16', 'A17', 'A18', 'A19', 'A20', 'A21', 'A23', 'A24', 'A26', 'A27', 'A28', 'A3', 'A30', 'A31', 'A32', 'A33', 'A5', 'A6', 'A7', 'A8', 'A9', 'C1', 'C10', 'C11', 'C12', 'C13', 'C17', 'C2', 'C3', 'C4', 'C5', 'C6', 'C7', 'C8', 'C9', 'E.MovaAbrDownShift', 'E.MovaBrightChange', 'E.MovaBufferChange', 'E.MovaDone', 'E.MovaDurationChange', 'E.MovaErrorEvent', 'E.MovaFailover', 'E.MovaFirstFrame', 'E.MovaFitChange', 'E.MovaFullScreenChange', 'E.MovaLiveEdgeReach', 'E.MovaLockChange', 'E.MovaMiniChange', 'E.MovaOrientChange', 'E.MovaPause', 'E.MovaPipChange', 'E.MovaPlay', 'E.MovaPlayFailure', 'E.MovaPreviewBlock', 'E.MovaQualityListChange', 'E.MovaRateChange', 'E.MovaReady', 'E.MovaRecovered', 'E.MovaSeek', 'E.MovaSeeked', 'E.MovaSourceChange', 'E.MovaKeepAliveChange', 'E.MovaKeepAliveResume', 'E.MovaSttBlock', 'E.MovaCutoverChange', 'E.MovaTimeShiftChange', 'E.MovaVolumeChange', 'E.MovaZoomChange', 'E1', 'E2', 'F1', 'F10', 'F12', 'F14', 'F15', 'F2', 'F3', 'F4', 'F5', 'F7', 'F9', 'N1', 'N11', 'N14', 'N15', 'N16', 'N17', 'N18', 'N2', 'N21', 'N22', 'N23', 'N3', 'N4', 'N5', 'N6', 'N7', 'N8', 'N9', 'U1', 'U2', 'U3', 'U4', 'U5', 'U6', 'U7', 'U8', 'U9']}；批次故障和新页FAIL独立保留。"
     },
     {
       "criterion": "F3/A17 precise 280",
@@ -12265,7 +12265,7 @@
     {
       "criterion": "C06 主题/中英文切换10",
       "status": "PASS",
-      "detail": "位置增量、renderEpoch、引擎identity、session identity与styleObserved联合判据。"
+      "detail": "位置增量、renderEpoch、播放器identity、session identity与styleObserved联合判据。"
     },
     {
       "criterion": "C07 Referer清晰度/缩略图/预取",
@@ -12273,7 +12273,7 @@
       "detail": "各5 CHECK；正负各调用一次，共30次产品API。quality额外媒体请求403，原始FAIL保留；API probe本身成功。"
     },
     {
-      "criterion": "C14 feed controller/autoPause/failure",
+      "criterion": "C14 feed ctrl/autoPause/failure",
       "status": "FAIL",
       "detail": "各5；控制器pause观察失败独立于其余两组。"
     },
@@ -12302,7 +12302,7 @@
     {
       "row": "B块",
       "status": "BLOCKED",
-      "result": "restore5 BLOCKED；danmaku5功能采样不替代性能基线；extract缺原生seek落点；bottomPatch夹具FAIL；skin首轮HARNESS，全量补得98 PASS/11人工BLOCKED。"
+      "result": "restore5 BLOCKED；danmaku5功能采样不替代性能基线；extract缺原生seek落点；bottomPatch夹具FAIL；UI 套件首轮HARNESS，全量补得98 PASS/11人工BLOCKED。"
     },
     {
       "row": "Windows",
@@ -12336,7 +12336,7 @@
       ],
       "source": "doc/plans/2026-11-03-cp1-results.md:32",
       "support": "CP1 dispose120已有120/120真机PASS，支持dispose压力子项转PASS。",
-      "limit": "v1整行的多实现与多引擎资源范围仍需逐项对账；不把旧133个BLOCKED当本轮133个新增问题。"
+      "limit": "v1整行的多实现与多播放器资源范围仍需逐项对账；不把旧133个BLOCKED当本轮133个新增问题。"
     },
     {
       "source": "doc/plans/2026-11-03-cp1-results.md",
@@ -12365,7 +12365,7 @@
       "executed": 0
     },
     {
-      "item": "视觉/快照/皮肤截图复核",
+      "item": "视觉/快照/UI 套件截图复核",
       "status": "BLOCKED",
       "executed": 0
     },
@@ -12494,7 +12494,7 @@
         ],
         "rawFiles": [],
         "classification": "新增夹具缺陷：pool.slotFor.ready仅表示open已接受，不证明原生加载成功；回执快照偏早。第一次另有一次抽帧未取得图片，原因未定。",
-        "suspectedLocations": "example/lib/verify_auto/cp3_pages_auto.dart:nativePath; lib/src/core/feed/engine_pool.dart:_openBinding（accepted语义）; lib/src/platform_impl/mpv_extractor_impl.dart:_extractNow（仅首试偶发）",
+        "suspectedLocations": "example/lib/verify_auto/cp3_pages_auto.dart:nativePath; lib/src/core/feed/feed_pool.dart:_openBinding（accepted语义）; lib/src/platform_impl/mpv_extractor_impl.dart:_extractNow（仅首试偶发）",
         "nativePaths": {
           "CP3.headers.quality.0": {
             "extract": true,
@@ -12572,7 +12572,7 @@
         ],
         "rawFiles": [],
         "classification": "新增夹具缺陷：pool.slotFor.ready仅表示open已接受，不证明原生加载成功；回执快照偏早。第一次另有一次抽帧未取得图片，原因未定。",
-        "suspectedLocations": "example/lib/verify_auto/cp3_pages_auto.dart:nativePath; lib/src/core/feed/engine_pool.dart:_openBinding（accepted语义）; lib/src/platform_impl/mpv_extractor_impl.dart:_extractNow（仅首试偶发）",
+        "suspectedLocations": "example/lib/verify_auto/cp3_pages_auto.dart:nativePath; lib/src/core/feed/feed_pool.dart:_openBinding（accepted语义）; lib/src/platform_impl/mpv_extractor_impl.dart:_extractNow（仅首试偶发）",
         "nativePaths": {
           "CP3.headers.quality.0": {
             "extract": true,
@@ -12624,7 +12624,7 @@
         "counts": {
           "PASS": 15
         },
-        "comparison": "首轮专项12 PASS/3 FAIL、全量13 PASS/2 FAIL → 15 PASS；controller/autoPause/failure各5",
+        "comparison": "首轮专项12 PASS/3 FAIL、全量13 PASS/2 FAIL → 15 PASS；ctrl/autoPause/failure各5",
         "evidence": "example\\tool\\coverage_evidence\\matrix-cp3-feedplayer-r2-20261105-085105",
         "rawReport": "doc\\plans\\2026-11-05-matrix-run-cp3-feedplayer-r2-20261105-085105.json",
         "console": "example\\tool\\coverage_evidence\\cp3-r2-20261105-084853\\cp3-feedplayer-r2-20261105-085105.console.log",
@@ -12632,7 +12632,7 @@
         "failures": [],
         "rawFiles": [],
         "classification": "待定：保留原始载荷与运行异常，区分事件接收时快照/夹具前提和产品",
-        "suspectedLocations": "lib/src/core/engine.dart; lib/src/core/cutover/cutover_engine.dart; example/lib/verify_auto/s00d_receipt.dart"
+        "suspectedLocations": "lib/src/core/mova.dart; lib/src/core/cutover/cutover.dart; example/lib/verify_auto/s00d_receipt.dart"
       },
       {
         "batch": "cp3-cp1gap-bottom",
@@ -12652,7 +12652,7 @@
         "failures": [],
         "rawFiles": [],
         "classification": "待定：保留原始载荷与运行异常，区分事件接收时快照/夹具前提和产品",
-        "suspectedLocations": "lib/src/core/engine.dart; lib/src/core/cutover/cutover_engine.dart; example/lib/verify_auto/s00d_receipt.dart"
+        "suspectedLocations": "lib/src/core/mova.dart; lib/src/core/cutover/cutover.dart; example/lib/verify_auto/s00d_receipt.dart"
       },
       {
         "batch": "cp3-r2-subtitles",
@@ -12746,12 +12746,12 @@
           "matrix-cp3-r2-pool-r2-20261105-085435-cp3-r2-s00d-resources.json"
         ],
         "classification": "A29容量上限/最终页/释放修复均通过；F12/F13资源证据因/proc/self/fd动态枚举异常缺handles/cpuTicks，属于夹具观测缺口，非已证资源泄漏。",
-        "suspectedLocations": "example/lib/verify_auto/s00d_resources.dart:metrics；lib/src/core/feed/engine_pool.dart（目标回收断言通过，未证产品错误）",
+        "suspectedLocations": "example/lib/verify_auto/s00d_resources.dart:metrics；lib/src/core/feed/feed_pool.dart（目标回收断言通过，未证产品错误）",
         "repairedTargets": [
           {
             "id": "A29.final",
             "passed": true,
-            "detail": "active=120 engines=2 capacity=3",
+            "detail": "active=120 movas=2 capacity=3",
             "numbers": null
           },
           {
@@ -12759,7 +12759,7 @@
             "passed": true,
             "detail": null,
             "numbers": {
-              "engineCount": 0,
+              "movaCount": 0,
               "accepts": [
                 false,
                 false
@@ -12775,7 +12775,7 @@
           {
             "id": "A29.final",
             "passed": true,
-            "detail": "active=120 engines=3 capacity=3",
+            "detail": "active=120 movas=3 capacity=3",
             "numbers": null
           },
           {
@@ -12783,7 +12783,7 @@
             "passed": true,
             "detail": null,
             "numbers": {
-              "engineCount": 0,
+              "movaCount": 0,
               "accepts": [
                 false,
                 false,
@@ -12865,12 +12865,12 @@
           "matrix-cp3-r2-pool-r2-20261105-085517-cp3-r2-s00d-resources.json"
         ],
         "classification": "A29容量上限/最终页/释放修复均通过；F12/F13资源证据因/proc/self/fd动态枚举异常缺handles/cpuTicks，属于夹具观测缺口，非已证资源泄漏。",
-        "suspectedLocations": "example/lib/verify_auto/s00d_resources.dart:metrics；lib/src/core/feed/engine_pool.dart（目标回收断言通过，未证产品错误）",
+        "suspectedLocations": "example/lib/verify_auto/s00d_resources.dart:metrics；lib/src/core/feed/feed_pool.dart（目标回收断言通过，未证产品错误）",
         "repairedTargets": [
           {
             "id": "A29.final",
             "passed": true,
-            "detail": "active=120 engines=2 capacity=3",
+            "detail": "active=120 movas=2 capacity=3",
             "numbers": null
           },
           {
@@ -12878,7 +12878,7 @@
             "passed": true,
             "detail": null,
             "numbers": {
-              "engineCount": 0,
+              "movaCount": 0,
               "accepts": [
                 false,
                 false
@@ -12894,7 +12894,7 @@
           {
             "id": "A29.final",
             "passed": true,
-            "detail": "active=120 engines=3 capacity=3",
+            "detail": "active=120 movas=3 capacity=3",
             "numbers": null
           },
           {
@@ -12902,7 +12902,7 @@
             "passed": true,
             "detail": null,
             "numbers": {
-              "engineCount": 0,
+              "movaCount": 0,
               "accepts": [
                 false,
                 false,
@@ -12980,7 +12980,7 @@
         "failures": [],
         "rawFiles": [],
         "classification": "待定：保留原始载荷与运行异常，区分事件接收时快照/夹具前提和产品",
-        "suspectedLocations": "lib/src/core/engine.dart; lib/src/core/cutover/cutover_engine.dart; example/lib/verify_auto/s00d_receipt.dart"
+        "suspectedLocations": "lib/src/core/mova.dart; lib/src/core/cutover/cutover.dart; example/lib/verify_auto/s00d_receipt.dart"
       },
       {
         "batch": "cp3-r2-stt",
@@ -12992,7 +12992,7 @@
         "counts": {
           "PASS": 9
         },
-        "comparison": "N22.sttRetry旧calls=0/running=false FAIL → calls=2/running=true PASS；rollback亦PASS（仅测试引擎回滚）",
+        "comparison": "N22.sttRetry旧calls=0/running=false FAIL → calls=2/running=true PASS；rollback亦PASS（仅测试识别器回滚）",
         "evidence": "example\\tool\\coverage_evidence\\matrix-cp3-r2-stt-r2-20261105-085806",
         "rawReport": "doc\\plans\\2026-11-05-matrix-run-cp3-r2-stt-r2-20261105-085806.json",
         "console": "example\\tool\\coverage_evidence\\cp3-r2-20261105-084853\\cp3-r2-stt-r2-20261105-085806.console.log",
@@ -13002,7 +13002,7 @@
           "matrix-cp3-r2-stt-r2-20261105-085806-cp3-r2-stt.json"
         ],
         "classification": "待定：保留原始载荷与运行异常，区分事件接收时快照/夹具前提和产品",
-        "suspectedLocations": "lib/src/core/engine.dart; lib/src/core/cutover/cutover_engine.dart; example/lib/verify_auto/s00d_receipt.dart"
+        "suspectedLocations": "lib/src/core/mova.dart; lib/src/core/cutover/cutover.dart; example/lib/verify_auto/s00d_receipt.dart"
       },
       {
         "batch": "cp3-r2-receipt",
@@ -13024,7 +13024,7 @@
         ],
         "failures": [
           {
-            "id": "A2.engine.receipt",
+            "id": "A2.mova.receipt",
             "event": "MovaQualityChange",
             "differences": [
               "quality"
@@ -13032,7 +13032,7 @@
             "evidence": "matrix-cp3-r2-receipt-r2-20261105-085837-cp3-r2-abr.json:records[347]"
           },
           {
-            "id": "A2.engine.receipt",
+            "id": "A2.mova.receipt",
             "event": "MovaSizeChange",
             "differences": [
               "height"
@@ -13088,7 +13088,7 @@
             "evidence": "matrix-cp3-r2-receipt-r2-20261105-085837-cp3-r2-basic-cutover.json:records[234]"
           },
           {
-            "id": "A2.engine.receipt",
+            "id": "A2.mova.receipt",
             "event": "MovaSeeked",
             "differences": [
               "position"
@@ -13096,7 +13096,7 @@
             "evidence": "matrix-cp3-r2-receipt-r2-20261105-085837-cp3-r2-basic.json:records[39]"
           },
           {
-            "id": "A2.engine.receipt",
+            "id": "A2.mova.receipt",
             "event": "MovaSeeked",
             "differences": [
               "position"
@@ -13104,7 +13104,7 @@
             "evidence": "matrix-cp3-r2-receipt-r2-20261105-085837-cp3-r2-basic.json:records[44]"
           },
           {
-            "id": "A2.engine.receipt",
+            "id": "A2.mova.receipt",
             "event": "MovaSeeked",
             "differences": [
               "position"
@@ -13112,7 +13112,7 @@
             "evidence": "matrix-cp3-r2-receipt-r2-20261105-085837-cp3-r2-basic.json:records[49]"
           },
           {
-            "id": "A2.engine.receipt",
+            "id": "A2.mova.receipt",
             "event": "MovaSeeked",
             "differences": [
               "position"
@@ -13120,7 +13120,7 @@
             "evidence": "matrix-cp3-r2-receipt-r2-20261105-085837-cp3-r2-basic.json:records[54]"
           },
           {
-            "id": "A2.engine.receipt",
+            "id": "A2.mova.receipt",
             "event": "MovaSeeked",
             "differences": [
               "position"
@@ -13128,7 +13128,7 @@
             "evidence": "matrix-cp3-r2-receipt-r2-20261105-085837-cp3-r2-basic.json:records[59]"
           },
           {
-            "id": "A2.engine.receipt",
+            "id": "A2.mova.receipt",
             "event": "MovaSeeked",
             "differences": [
               "position"
@@ -13136,7 +13136,7 @@
             "evidence": "matrix-cp3-r2-receipt-r2-20261105-085837-cp3-r2-basic.json:records[64]"
           },
           {
-            "id": "A2.engine.receipt",
+            "id": "A2.mova.receipt",
             "event": "MovaSeeked",
             "differences": [
               "position"
@@ -13149,8 +13149,8 @@
           "matrix-cp3-r2-receipt-r2-20261105-085837-cp3-r2-basic-cutover.json",
           "matrix-cp3-r2-receipt-r2-20261105-085837-cp3-r2-basic.json"
         ],
-        "classification": "混合待定：Seeked对独立progress流的硬相等仍有夹具/契约时序问题；Size/Quality为事件相关载荷差异，缺发出时同引擎/世代状态，不直接认定产品回归。",
-        "suspectedLocations": "example/lib/verify_auto/s00d_receipt.dart:receive；lib/src/core/engine.dart:1009/:3014/:3107；lib/src/core/cutover/cutover_engine.dart事件代理",
+        "classification": "混合待定：Seeked对独立progress流的硬相等仍有夹具/契约时序问题；Size/Quality为事件相关载荷差异，缺发出时同播放器/世代状态，不直接认定产品回归。",
+        "suspectedLocations": "example/lib/verify_auto/s00d_receipt.dart:receive；lib/src/core/mova.dart:1009/:3014/:3107；lib/src/core/cutover/cutover.dart事件代理",
         "differenceCounts": {
           "MovaQualityChange:quality": 1,
           "MovaSizeChange:height": 1,
@@ -13175,7 +13175,7 @@
         "errors": [],
         "failures": [
           {
-            "id": "A2.engine.receipt",
+            "id": "A2.mova.receipt",
             "event": "MovaQualityChange",
             "differences": [
               "quality"
@@ -13183,7 +13183,7 @@
             "evidence": "matrix-cp3-r2-receipt-r2-20261105-090006-cp3-r2-abr.json:records[349]"
           },
           {
-            "id": "A2.engine.receipt",
+            "id": "A2.mova.receipt",
             "event": "MovaSizeChange",
             "differences": [
               "height"
@@ -13239,7 +13239,7 @@
             "evidence": "matrix-cp3-r2-receipt-r2-20261105-090006-cp3-r2-basic-cutover.json:records[236]"
           },
           {
-            "id": "A2.engine.receipt",
+            "id": "A2.mova.receipt",
             "event": "MovaSeeked",
             "differences": [
               "position"
@@ -13247,7 +13247,7 @@
             "evidence": "matrix-cp3-r2-receipt-r2-20261105-090006-cp3-r2-basic.json:records[39]"
           },
           {
-            "id": "A2.engine.receipt",
+            "id": "A2.mova.receipt",
             "event": "MovaSeeked",
             "differences": [
               "position"
@@ -13255,7 +13255,7 @@
             "evidence": "matrix-cp3-r2-receipt-r2-20261105-090006-cp3-r2-basic.json:records[44]"
           },
           {
-            "id": "A2.engine.receipt",
+            "id": "A2.mova.receipt",
             "event": "MovaSeeked",
             "differences": [
               "position"
@@ -13263,7 +13263,7 @@
             "evidence": "matrix-cp3-r2-receipt-r2-20261105-090006-cp3-r2-basic.json:records[49]"
           },
           {
-            "id": "A2.engine.receipt",
+            "id": "A2.mova.receipt",
             "event": "MovaSeeked",
             "differences": [
               "position"
@@ -13271,7 +13271,7 @@
             "evidence": "matrix-cp3-r2-receipt-r2-20261105-090006-cp3-r2-basic.json:records[59]"
           },
           {
-            "id": "A2.engine.receipt",
+            "id": "A2.mova.receipt",
             "event": "MovaSeeked",
             "differences": [
               "position"
@@ -13279,7 +13279,7 @@
             "evidence": "matrix-cp3-r2-receipt-r2-20261105-090006-cp3-r2-basic.json:records[64]"
           },
           {
-            "id": "A2.engine.receipt",
+            "id": "A2.mova.receipt",
             "event": "MovaSeeked",
             "differences": [
               "position"
@@ -13292,8 +13292,8 @@
           "matrix-cp3-r2-receipt-r2-20261105-090006-cp3-r2-basic-cutover.json",
           "matrix-cp3-r2-receipt-r2-20261105-090006-cp3-r2-basic.json"
         ],
-        "classification": "混合待定：Seeked对独立progress流的硬相等仍有夹具/契约时序问题；Size/Quality为事件相关载荷差异，缺发出时同引擎/世代状态，不直接认定产品回归。",
-        "suspectedLocations": "example/lib/verify_auto/s00d_receipt.dart:receive；lib/src/core/engine.dart:1009/:3014/:3107；lib/src/core/cutover/cutover_engine.dart事件代理",
+        "classification": "混合待定：Seeked对独立progress流的硬相等仍有夹具/契约时序问题；Size/Quality为事件相关载荷差异，缺发出时同播放器/世代状态，不直接认定产品回归。",
+        "suspectedLocations": "example/lib/verify_auto/s00d_receipt.dart:receive；lib/src/core/mova.dart:1009/:3014/:3107；lib/src/core/cutover/cutover.dart事件代理",
         "differenceCounts": {
           "MovaQualityChange:quality": 1,
           "MovaSizeChange:height": 1,
@@ -13318,7 +13318,7 @@
         "failures": [],
         "rawFiles": [],
         "classification": "若缺原生path/time-pos或恢复前提则BLOCKED；真实CHECK失败保留，不以旧9条PASS补齐本轮。",
-        "suspectedLocations": "example/lib/verify_auto/cp2_qoe_auto.dart:runQoe; example/lib/verify_auto/cp2_harness.dart:native; lib/src/core/engine.dart恢复/quality路径",
+        "suspectedLocations": "example/lib/verify_auto/cp2_qoe_auto.dart:runQoe; example/lib/verify_auto/cp2_harness.dart:native; lib/src/core/mova.dart恢复/quality路径",
         "manual720_4": [
           {
             "id": "CP2.qoe.manual720.4",
@@ -13479,9 +13479,9 @@
     },
     "remainingUnresolved": [
       "TLS/C16：本轮未重跑；仍缺服务证书/CA哈希、有效期/SAN、设备CA读回、原生握手码及时间线。",
-      "V14/F16/N10：本轮未重跑；仍缺广告/正片/影子引擎与世代归属、EOF/duration、OpenSLES及错误事件时间线；V13b缺非零speed样本。",
+      "V14/F16/N10：本轮未重跑；仍缺广告/正片/影子播放器与世代归属、EOF/duration、OpenSLES及错误事件时间线；V13b缺非零speed样本。",
       "PiP/A15与V10/V10x方向：本轮未重跑；仍缺原生系统回调、请求归属及方向初态；fullscreen已通过不代替这些路径。",
-      "剩余事件时序：接收时getter不等于发出时状态；仍需engine/open attempt/renderEpoch及width/height/quality发出顺序，不能把异步差异直接关闭。",
+      "剩余事件时序：接收时getter不等于发出时状态；仍需mova/open attempt/renderEpoch及width/height/quality发出顺序，不能把异步差异直接关闭。",
       "源退出根因：历史a child exited未定位子进程/退出码/stderr；本轮独立服务成功不关闭该问题。",
       "人工：听音/视觉、PiP系统交互、真实锁屏提示、GSM/路由切换、真实STT模型/WHEP/守卫专包仍需人工或专用环境。",
       "原全量67批及其14个BLOCKED、Windows待安静模式维持历史结论；本轮没有运行Windows验证。",
@@ -13579,7 +13579,7 @@
                 "zoom": 1.0,
                 "locked": false,
                 "fullscreen": false,
-                "orientation": "auto",
+                "orient": "auto",
                 "pip": false,
                 "mini": false,
                 "rendered": true,
@@ -13624,7 +13624,7 @@
                 "zoom": 1.0,
                 "locked": false,
                 "fullscreen": false,
-                "orientation": "auto",
+                "orient": "auto",
                 "pip": false,
                 "mini": false,
                 "rendered": true,
@@ -13669,7 +13669,7 @@
                 "zoom": 1.0,
                 "locked": false,
                 "fullscreen": false,
-                "orientation": "auto",
+                "orient": "auto",
                 "pip": false,
                 "mini": false,
                 "rendered": true,
@@ -13714,7 +13714,7 @@
                 "zoom": 1.0,
                 "locked": false,
                 "fullscreen": false,
-                "orientation": "auto",
+                "orient": "auto",
                 "pip": false,
                 "mini": false,
                 "rendered": true,
@@ -13740,7 +13740,7 @@
             }
           ],
           "receiptChecks": {
-            "A2.engine.receipt": 44
+            "A2.mova.receipt": 44
           }
         },
         "automaticStatus": "PASS",
@@ -13840,7 +13840,7 @@
                 "zoom": 1.0,
                 "locked": false,
                 "fullscreen": false,
-                "orientation": "auto",
+                "orient": "auto",
                 "pip": false,
                 "mini": false,
                 "rendered": true,
@@ -13885,7 +13885,7 @@
                 "zoom": 1.0,
                 "locked": false,
                 "fullscreen": false,
-                "orientation": "auto",
+                "orient": "auto",
                 "pip": false,
                 "mini": false,
                 "rendered": true,
@@ -13930,7 +13930,7 @@
                 "zoom": 1.0,
                 "locked": false,
                 "fullscreen": false,
-                "orientation": "auto",
+                "orient": "auto",
                 "pip": false,
                 "mini": false,
                 "rendered": true,
@@ -13975,7 +13975,7 @@
                 "zoom": 1.0,
                 "locked": false,
                 "fullscreen": false,
-                "orientation": "auto",
+                "orient": "auto",
                 "pip": false,
                 "mini": false,
                 "rendered": true,
@@ -14001,7 +14001,7 @@
             }
           ],
           "receiptChecks": {
-            "A2.engine.receipt": 44
+            "A2.mova.receipt": 44
           }
         },
         "automaticStatus": "PASS",
@@ -14083,7 +14083,7 @@
         ],
         "rawFiles": [],
         "classification": "原 15 条 headers 判据含池/抽帧联检，质量/缩略图/预取原判据另见 originalQualityChecks；失败为授权暂停截图 null 或授权抽帧 null，HTTP 200 与状态 restart 不等于已有图像。尚不能区分夹具截图时机与产品预热/截图问题；未证 headers 丢失，不改 ready 语义",
-        "suspectedLocations": "lib/src/core/engine_pool.dart:_openBinding; lib/src/platform_impl/mpv_extractor_impl.dart:_extractNow",
+        "suspectedLocations": "lib/src/core/feed/feed_pool.dart:_openBinding; lib/src/platform_impl/mpv_extractor_impl.dart:_extractNow",
         "nativePaths": {
           "CP3.headers.quality.0": {
             "extract": true,
@@ -14214,7 +14214,7 @@
                         "vid": "1",
                         "mute": "no",
                         "seeking": "no",
-                        "engine": 680450202,
+                        "mova": 680450202,
                         "epochAtRead": 0,
                         "state": {
                           "positionMs": 0,
@@ -14758,7 +14758,7 @@
                         "vid": "1",
                         "mute": "no",
                         "seeking": "no",
-                        "engine": 92844703,
+                        "mova": 92844703,
                         "epochAtRead": 0,
                         "state": {
                           "positionMs": 0,
@@ -14862,7 +14862,7 @@
         ],
         "rawFiles": [],
         "classification": "原 15 条 headers 判据含池/抽帧联检，质量/缩略图/预取原判据另见 originalQualityChecks；失败为授权暂停截图 null 或授权抽帧 null，HTTP 200 与状态 restart 不等于已有图像。尚不能区分夹具截图时机与产品预热/截图问题；未证 headers 丢失，不改 ready 语义",
-        "suspectedLocations": "lib/src/core/engine_pool.dart:_openBinding; lib/src/platform_impl/mpv_extractor_impl.dart:_extractNow",
+        "suspectedLocations": "lib/src/core/feed/feed_pool.dart:_openBinding; lib/src/platform_impl/mpv_extractor_impl.dart:_extractNow",
         "nativePaths": {
           "CP3.headers.quality.0": {
             "extract": true,
@@ -15120,7 +15120,7 @@
                         "vid": "1",
                         "mute": "no",
                         "seeking": "no",
-                        "engine": 64375745,
+                        "mova": 64375745,
                         "epochAtRead": 0,
                         "state": {
                           "positionMs": 0,
@@ -15410,7 +15410,7 @@
                         "vid": "1",
                         "mute": "no",
                         "seeking": "no",
-                        "engine": 435722794,
+                        "mova": 435722794,
                         "epochAtRead": 0,
                         "state": {
                           "positionMs": 0,
@@ -15633,11 +15633,11 @@
           "matrix-cp3-receipt-r3-20261105-095232-cp3-r2-basic.json"
         ],
         "classification": "普通/代理 basic 及 abr 状态事件修复后自动回执通过；Seeked 不再错误比较独立 progress。若本尝试 BLOCKED，原因见 errors/恢复读回，不能归为事件产品失败。首尝试起始音量 0，set 0 后读回 6；是否延迟回写/OEM 音量策略尚未定位，最终按整轮起始值单独恢复",
-        "suspectedLocations": "lib/src/core/engine.dart; example/lib/verify_auto/s00d_receipt.dart",
+        "suspectedLocations": "lib/src/core/mova.dart; example/lib/verify_auto/s00d_receipt.dart",
         "label": "receipt",
         "observations": {
           "receiptChecks": {
-            "A2.engine.receipt": 92,
+            "A2.mova.receipt": 92,
             "A2.cutover.receipt": 53
           }
         },
@@ -15694,11 +15694,11 @@
           "matrix-cp3-receipt-r3-20261105-095358-cp3-r2-basic.json"
         ],
         "classification": "普通/代理 basic 及 abr 状态事件修复后自动回执通过；Seeked 不再错误比较独立 progress。若本尝试 BLOCKED，原因见 errors/恢复读回，不能归为事件产品失败。首尝试起始音量 0，set 0 后读回 6；是否延迟回写/OEM 音量策略尚未定位，最终按整轮起始值单独恢复",
-        "suspectedLocations": "lib/src/core/engine.dart; example/lib/verify_auto/s00d_receipt.dart",
+        "suspectedLocations": "lib/src/core/mova.dart; example/lib/verify_auto/s00d_receipt.dart",
         "label": "receipt",
         "observations": {
           "receiptChecks": {
-            "A2.engine.receipt": 91,
+            "A2.mova.receipt": 91,
             "A2.cutover.receipt": 53
           }
         },
@@ -15754,7 +15754,7 @@
           "matrix-cp3-pool-r3-20261105-095520-cp3-r2-s00d-resources.json"
         ],
         "classification": "资源计数修复后本轮自动 CHECK 结果见表；单进程代际/时间差及 host 原文已归档，缺 CP0 配对/硬线/原生实例归属，整体 BLOCKED，不认定泄漏或耗电改善",
-        "suspectedLocations": "lib/src/core/engine_pool.dart; example/lib/verify_auto/s00d_resources.dart",
+        "suspectedLocations": "lib/src/core/feed/feed_pool.dart; example/lib/verify_auto/s00d_resources.dart",
         "label": "pool",
         "observations": {
           "RESOURCE_SAMPLE": [
@@ -15777,7 +15777,7 @@
                 "voltageNow": null
               },
               "created": null,
-              "engineCount": null
+              "movaCount": null
             },
             {
               "ms": 15005,
@@ -15798,7 +15798,7 @@
                 "voltageNow": null
               },
               "created": null,
-              "engineCount": null
+              "movaCount": null
             },
             {
               "ms": 16047,
@@ -15819,7 +15819,7 @@
                 "voltageNow": null
               },
               "created": null,
-              "engineCount": null
+              "movaCount": null
             },
             {
               "ms": 16066,
@@ -15840,7 +15840,7 @@
                 "voltageNow": null
               },
               "created": null,
-              "engineCount": null
+              "movaCount": null
             },
             {
               "ms": 16582,
@@ -15861,7 +15861,7 @@
                 "voltageNow": null
               },
               "created": 2,
-              "engineCount": 2
+              "movaCount": 2
             },
             {
               "ms": 17003,
@@ -15882,7 +15882,7 @@
                 "voltageNow": null
               },
               "created": 3,
-              "engineCount": 3
+              "movaCount": 3
             },
             {
               "ms": 17480,
@@ -15903,7 +15903,7 @@
                 "voltageNow": null
               },
               "created": 3,
-              "engineCount": 3
+              "movaCount": 3
             },
             {
               "ms": 17975,
@@ -15924,7 +15924,7 @@
                 "voltageNow": null
               },
               "created": 3,
-              "engineCount": 3
+              "movaCount": 3
             },
             {
               "ms": 18636,
@@ -15945,7 +15945,7 @@
                 "voltageNow": null
               },
               "created": 3,
-              "engineCount": 3
+              "movaCount": 3
             },
             {
               "ms": 18674,
@@ -15966,7 +15966,7 @@
                 "voltageNow": null
               },
               "created": 3,
-              "engineCount": 3
+              "movaCount": 3
             },
             {
               "ms": 19713,
@@ -15987,7 +15987,7 @@
                 "voltageNow": null
               },
               "created": 3,
-              "engineCount": 0
+              "movaCount": 0
             },
             {
               "ms": 20731,
@@ -16008,7 +16008,7 @@
                 "voltageNow": null
               },
               "created": 3,
-              "engineCount": 0
+              "movaCount": 0
             },
             {
               "ms": 24756,
@@ -16029,7 +16029,7 @@
                 "voltageNow": null
               },
               "created": 3,
-              "engineCount": 0
+              "movaCount": 0
             }
           ],
           "nativeSnapshots": [
@@ -16048,7 +16048,7 @@
             "example\\tool\\coverage_evidence\\matrix-cp3-pool-r3-20261105-095520\\matrix-cp3-pool-r3-20261105-095520-cp3-r2-s00d-resources.pool.disposed.5000ms.native.json"
           ],
           "receiptChecks": {
-            "A2.engine.receipt": 7
+            "A2.mova.receipt": 7
           }
         },
         "automaticStatus": "PASS",
@@ -16074,7 +16074,7 @@
                 "voltageNow": null
               },
               "created": null,
-              "engineCount": null
+              "movaCount": null
             },
             {
               "evidence": "matrix-cp3-pool-r3-20261105-095520-cp3-r2-s00d-resources.json:records[29]",
@@ -16096,7 +16096,7 @@
                 "voltageNow": null
               },
               "created": null,
-              "engineCount": null
+              "movaCount": null
             },
             {
               "evidence": "matrix-cp3-pool-r3-20261105-095520-cp3-r2-s00d-resources.json:records[33]",
@@ -16118,7 +16118,7 @@
                 "voltageNow": null
               },
               "created": null,
-              "engineCount": null
+              "movaCount": null
             },
             {
               "evidence": "matrix-cp3-pool-r3-20261105-095520-cp3-r2-s00d-resources.json:records[34]",
@@ -16140,7 +16140,7 @@
                 "voltageNow": null
               },
               "created": null,
-              "engineCount": null
+              "movaCount": null
             },
             {
               "evidence": "matrix-cp3-pool-r3-20261105-095520-cp3-r2-s00d-resources.json:records[36]",
@@ -16162,7 +16162,7 @@
                 "voltageNow": null
               },
               "created": 2,
-              "engineCount": 2
+              "movaCount": 2
             },
             {
               "evidence": "matrix-cp3-pool-r3-20261105-095520-cp3-r2-s00d-resources.json:records[39]",
@@ -16184,7 +16184,7 @@
                 "voltageNow": null
               },
               "created": 3,
-              "engineCount": 3
+              "movaCount": 3
             },
             {
               "evidence": "matrix-cp3-pool-r3-20261105-095520-cp3-r2-s00d-resources.json:records[42]",
@@ -16206,7 +16206,7 @@
                 "voltageNow": null
               },
               "created": 3,
-              "engineCount": 3
+              "movaCount": 3
             },
             {
               "evidence": "matrix-cp3-pool-r3-20261105-095520-cp3-r2-s00d-resources.json:records[45]",
@@ -16228,7 +16228,7 @@
                 "voltageNow": null
               },
               "created": 3,
-              "engineCount": 3
+              "movaCount": 3
             },
             {
               "evidence": "matrix-cp3-pool-r3-20261105-095520-cp3-r2-s00d-resources.json:records[48]",
@@ -16250,7 +16250,7 @@
                 "voltageNow": null
               },
               "created": 3,
-              "engineCount": 3
+              "movaCount": 3
             },
             {
               "evidence": "matrix-cp3-pool-r3-20261105-095520-cp3-r2-s00d-resources.json:records[50]",
@@ -16272,7 +16272,7 @@
                 "voltageNow": null
               },
               "created": 3,
-              "engineCount": 3
+              "movaCount": 3
             },
             {
               "evidence": "matrix-cp3-pool-r3-20261105-095520-cp3-r2-s00d-resources.json:records[54]",
@@ -16294,7 +16294,7 @@
                 "voltageNow": null
               },
               "created": 3,
-              "engineCount": 0
+              "movaCount": 0
             },
             {
               "evidence": "matrix-cp3-pool-r3-20261105-095520-cp3-r2-s00d-resources.json:records[56]",
@@ -16316,7 +16316,7 @@
                 "voltageNow": null
               },
               "created": 3,
-              "engineCount": 0
+              "movaCount": 0
             },
             {
               "evidence": "matrix-cp3-pool-r3-20261105-095520-cp3-r2-s00d-resources.json:records[57]",
@@ -16338,7 +16338,7 @@
                 "voltageNow": null
               },
               "created": 3,
-              "engineCount": 0
+              "movaCount": 0
             }
           ],
           "processGenerations": [
@@ -17233,7 +17233,7 @@
         ],
         "rawFiles": [],
         "classification": "原 15 条 headers 判据含池/抽帧联检，质量/缩略图/预取原判据另见 originalQualityChecks；失败为授权暂停截图 null 或授权抽帧 null，HTTP 200 与状态 restart 不等于已有图像。尚不能区分夹具截图时机与产品预热/截图问题；未证 headers 丢失，不改 ready 语义",
-        "suspectedLocations": "lib/src/core/engine_pool.dart:_openBinding; lib/src/platform_impl/mpv_extractor_impl.dart:_extractNow",
+        "suspectedLocations": "lib/src/core/feed/feed_pool.dart:_openBinding; lib/src/platform_impl/mpv_extractor_impl.dart:_extractNow",
         "nativePaths": {
           "CP3.headers.quality.0": {
             "extract": true,
@@ -17364,7 +17364,7 @@
                         "vid": "1",
                         "mute": "no",
                         "seeking": "no",
-                        "engine": 497332828,
+                        "mova": 497332828,
                         "epochAtRead": 0,
                         "state": {
                           "positionMs": 0,
@@ -17527,7 +17527,7 @@
                         "vid": "1",
                         "mute": "no",
                         "seeking": "no",
-                        "engine": 838824900,
+                        "mova": 838824900,
                         "epochAtRead": 0,
                         "state": {
                           "positionMs": 0,
@@ -17944,7 +17944,7 @@
                         "vid": "1",
                         "mute": "no",
                         "seeking": "no",
-                        "engine": 476574480,
+                        "mova": 476574480,
                         "epochAtRead": 0,
                         "state": {
                           "positionMs": 0,
@@ -18045,7 +18045,7 @@
         ],
         "rawFiles": [],
         "classification": "原 15 条 headers 判据含池/抽帧联检，质量/缩略图/预取原判据另见 originalQualityChecks；失败为授权暂停截图 null 或授权抽帧 null，HTTP 200 与状态 restart 不等于已有图像。尚不能区分夹具截图时机与产品预热/截图问题；未证 headers 丢失，不改 ready 语义",
-        "suspectedLocations": "lib/src/core/engine_pool.dart:_openBinding; lib/src/platform_impl/mpv_extractor_impl.dart:_extractNow",
+        "suspectedLocations": "lib/src/core/feed/feed_pool.dart:_openBinding; lib/src/platform_impl/mpv_extractor_impl.dart:_extractNow",
         "nativePaths": {
           "CP3.headers.quality.0": {
             "extract": true,
@@ -18430,7 +18430,7 @@
                         "vid": "1",
                         "mute": "no",
                         "seeking": "no",
-                        "engine": 527989323,
+                        "mova": 527989323,
                         "epochAtRead": 0,
                         "state": {
                           "positionMs": 0,
@@ -18593,7 +18593,7 @@
                         "vid": "1",
                         "mute": "no",
                         "seeking": "no",
-                        "engine": 358131336,
+                        "mova": 358131336,
                         "epochAtRead": 0,
                         "state": {
                           "positionMs": 0,
@@ -18818,7 +18818,7 @@
         ],
         "rawFiles": [],
         "classification": "原 15 条 headers 判据含池/抽帧联检，质量/缩略图/预取原判据另见 originalQualityChecks；失败为授权暂停截图 null 或授权抽帧 null，HTTP 200 与状态 restart 不等于已有图像。尚不能区分夹具截图时机与产品预热/截图问题；未证 headers 丢失，不改 ready 语义",
-        "suspectedLocations": "lib/src/core/engine_pool.dart:_openBinding; lib/src/platform_impl/mpv_extractor_impl.dart:_extractNow",
+        "suspectedLocations": "lib/src/core/feed/feed_pool.dart:_openBinding; lib/src/platform_impl/mpv_extractor_impl.dart:_extractNow",
         "nativePaths": {
           "CP3.headers.quality.0": {
             "extract": true,
@@ -18949,7 +18949,7 @@
                         "vid": "1",
                         "mute": "no",
                         "seeking": "no",
-                        "engine": 218412024,
+                        "mova": 218412024,
                         "epochAtRead": 0,
                         "state": {
                           "positionMs": 0,
@@ -19112,7 +19112,7 @@
                         "vid": "1",
                         "mute": "no",
                         "seeking": "no",
-                        "engine": 297093700,
+                        "mova": 297093700,
                         "epochAtRead": 0,
                         "state": {
                           "positionMs": 0,
@@ -19275,7 +19275,7 @@
                         "vid": "1",
                         "mute": "no",
                         "seeking": "no",
-                        "engine": 894353065,
+                        "mova": 894353065,
                         "epochAtRead": 0,
                         "state": {
                           "positionMs": 0,
@@ -19624,7 +19624,7 @@
         ],
         "rawFiles": [],
         "classification": "原 15 条 headers 判据含池/抽帧联检，质量/缩略图/预取原判据另见 originalQualityChecks；失败为授权暂停截图 null 或授权抽帧 null，HTTP 200 与状态 restart 不等于已有图像。尚不能区分夹具截图时机与产品预热/截图问题；未证 headers 丢失，不改 ready 语义",
-        "suspectedLocations": "lib/src/core/engine_pool.dart:_openBinding; lib/src/platform_impl/mpv_extractor_impl.dart:_extractNow",
+        "suspectedLocations": "lib/src/core/feed/feed_pool.dart:_openBinding; lib/src/platform_impl/mpv_extractor_impl.dart:_extractNow",
         "nativePaths": {
           "CP3.headers.quality.0": {
             "extract": true,
@@ -19755,7 +19755,7 @@
                         "vid": "1",
                         "mute": "no",
                         "seeking": "no",
-                        "engine": 580410765,
+                        "mova": 580410765,
                         "epochAtRead": 0,
                         "state": {
                           "positionMs": 0,
@@ -19918,7 +19918,7 @@
                         "vid": "1",
                         "mute": "no",
                         "seeking": "no",
-                        "engine": 56497759,
+                        "mova": 56497759,
                         "epochAtRead": 0,
                         "state": {
                           "positionMs": 0,
@@ -20208,7 +20208,7 @@
                         "vid": "1",
                         "mute": "no",
                         "seeking": "no",
-                        "engine": 761116176,
+                        "mova": 761116176,
                         "epochAtRead": 0,
                         "state": {
                           "positionMs": 0,
@@ -20371,7 +20371,7 @@
                         "vid": "1",
                         "mute": "no",
                         "seeking": "no",
-                        "engine": 140641297,
+                        "mova": 140641297,
                         "epochAtRead": 0,
                         "state": {
                           "positionMs": 0,
@@ -20765,7 +20765,7 @@
               "vid": "1",
               "mute": "no",
               "seeking": "no",
-              "engine": 64375745,
+              "mova": 64375745,
               "epochAtRead": 0,
               "state": {
                 "positionMs": 0,
@@ -20918,7 +20918,7 @@
               "vid": "1",
               "mute": "no",
               "seeking": "no",
-              "engine": 476574480,
+              "mova": 476574480,
               "epochAtRead": 0,
               "state": {
                 "positionMs": 0,
@@ -21209,7 +21209,7 @@
       ],
       "rawFiles": [],
       "classification": "原始CHECK失败保留；扩样与等待对照单列，不用延迟成功覆盖原始null",
-      "suspectedLocations": "example/lib/verify_auto/cp3_pages_auto.dart:runHeaders; lib/src/core/engine_pool.dart:_openBinding; lib/src/platform_impl/mpv_extractor_impl.dart:_extractNow",
+      "suspectedLocations": "example/lib/verify_auto/cp3_pages_auto.dart:runHeaders; lib/src/core/feed/feed_pool.dart:_openBinding; lib/src/platform_impl/mpv_extractor_impl.dart:_extractNow",
       "nativePaths": {
         "CP3.headers.quality.0": {
           "extract": true,
@@ -21779,7 +21779,7 @@
               "vid": "1",
               "mute": "no",
               "seeking": "no",
-              "engine": 997111995,
+              "mova": 997111995,
               "epochAtRead": 0,
               "state": {
                 "positionMs": 0,
@@ -21894,7 +21894,7 @@
               "vid": "1",
               "mute": "no",
               "seeking": "no",
-              "engine": 122586991,
+              "mova": 122586991,
               "epochAtRead": 0,
               "state": {
                 "positionMs": 0,
@@ -22009,7 +22009,7 @@
               "vid": "1",
               "mute": "no",
               "seeking": "no",
-              "engine": 395231309,
+              "mova": 395231309,
               "epochAtRead": 0,
               "state": {
                 "positionMs": 0,
@@ -22203,7 +22203,7 @@
               "vid": "1",
               "mute": "no",
               "seeking": "no",
-              "engine": 296172776,
+              "mova": 296172776,
               "epochAtRead": 0,
               "state": {
                 "positionMs": 0,
@@ -22397,7 +22397,7 @@
               "vid": "1",
               "mute": "no",
               "seeking": "no",
-              "engine": 536231325,
+              "mova": 536231325,
               "epochAtRead": 0,
               "state": {
                 "positionMs": 0,
@@ -22512,7 +22512,7 @@
               "vid": "1",
               "mute": "no",
               "seeking": "no",
-              "engine": 686897740,
+              "mova": 686897740,
               "epochAtRead": 0,
               "state": {
                 "positionMs": 0,
@@ -22627,7 +22627,7 @@
               "vid": "1",
               "mute": "no",
               "seeking": "no",
-              "engine": 549026452,
+              "mova": 549026452,
               "epochAtRead": 0,
               "state": {
                 "positionMs": 0,
@@ -22742,7 +22742,7 @@
               "vid": "1",
               "mute": "no",
               "seeking": "no",
-              "engine": 817095584,
+              "mova": 817095584,
               "epochAtRead": 0,
               "state": {
                 "positionMs": 0,
@@ -22936,7 +22936,7 @@
               "vid": "1",
               "mute": "no",
               "seeking": "no",
-              "engine": 1014060643,
+              "mova": 1014060643,
               "epochAtRead": 0,
               "state": {
                 "positionMs": 0,
@@ -23051,7 +23051,7 @@
               "vid": "1",
               "mute": "no",
               "seeking": "no",
-              "engine": 1042675795,
+              "mova": 1042675795,
               "epochAtRead": 0,
               "state": {
                 "positionMs": 0,
@@ -23798,7 +23798,7 @@
               "vid": "1",
               "mute": "no",
               "seeking": "no",
-              "engine": 417697306,
+              "mova": 417697306,
               "epochAtRead": 0,
               "state": {
                 "positionMs": 0,
@@ -23913,7 +23913,7 @@
               "vid": "1",
               "mute": "no",
               "seeking": "no",
-              "engine": 232460552,
+              "mova": 232460552,
               "epochAtRead": 0,
               "state": {
                 "positionMs": 0,
@@ -24186,7 +24186,7 @@
               "vid": "1",
               "mute": "no",
               "seeking": "no",
-              "engine": 484832556,
+              "mova": 484832556,
               "epochAtRead": 0,
               "state": {
                 "positionMs": 0,
@@ -24990,7 +24990,7 @@
         ],
         "rawFiles": [],
         "classification": "完整首批：新能力截图仍有null，未满足验收；原始失败保留",
-        "suspectedLocations": "lib/src/core/engine.dart; lib/src/core/cutover/cutover_engine.dart; example/lib/verify_auto/s00d_receipt.dart",
+        "suspectedLocations": "lib/src/core/mova.dart; lib/src/core/cutover/cutover.dart; example/lib/verify_auto/s00d_receipt.dart",
         "nativePaths": {
           "CP3.headers.quality.0": {
             "extract": true,
@@ -25551,7 +25551,7 @@
                   "vid": "1",
                   "mute": "no",
                   "seeking": "no",
-                  "engine": 394092376,
+                  "mova": 394092376,
                   "epochAtRead": 0,
                   "state": {
                     "positionMs": 0,
@@ -25666,7 +25666,7 @@
                   "vid": "1",
                   "mute": "no",
                   "seeking": "no",
-                  "engine": 785963962,
+                  "mova": 785963962,
                   "epochAtRead": 0,
                   "state": {
                     "positionMs": 0,
@@ -25781,7 +25781,7 @@
                   "vid": "1",
                   "mute": "no",
                   "seeking": "no",
-                  "engine": 253117314,
+                  "mova": 253117314,
                   "epochAtRead": 0,
                   "state": {
                     "positionMs": 0,
@@ -25896,7 +25896,7 @@
                   "vid": "1",
                   "mute": "no",
                   "seeking": "no",
-                  "engine": 185193070,
+                  "mova": 185193070,
                   "epochAtRead": 0,
                   "state": {
                     "positionMs": 0,
@@ -26090,7 +26090,7 @@
                   "vid": "1",
                   "mute": "no",
                   "seeking": "no",
-                  "engine": 229530614,
+                  "mova": 229530614,
                   "epochAtRead": 0,
                   "state": {
                     "positionMs": 0,
@@ -26205,7 +26205,7 @@
                   "vid": "1",
                   "mute": "no",
                   "seeking": "no",
-                  "engine": 707731770,
+                  "mova": 707731770,
                   "epochAtRead": 0,
                   "state": {
                     "positionMs": 0,
@@ -26557,7 +26557,7 @@
                   "vid": "1",
                   "mute": "no",
                   "seeking": "no",
-                  "engine": 725038185,
+                  "mova": 725038185,
                   "epochAtRead": 0,
                   "state": {
                     "positionMs": 0,
@@ -26672,7 +26672,7 @@
                   "vid": "1",
                   "mute": "no",
                   "seeking": "no",
-                  "engine": 286336440,
+                  "mova": 286336440,
                   "epochAtRead": 0,
                   "state": {
                     "positionMs": 0,
@@ -26787,7 +26787,7 @@
                   "vid": "1",
                   "mute": "no",
                   "seeking": "no",
-                  "engine": 580006046,
+                  "mova": 580006046,
                   "epochAtRead": 0,
                   "state": {
                     "positionMs": 0,
@@ -26902,7 +26902,7 @@
                   "vid": "1",
                   "mute": "no",
                   "seeking": "no",
-                  "engine": 404251566,
+                  "mova": 404251566,
                   "epochAtRead": 0,
                   "state": {
                     "positionMs": 0,
@@ -27096,7 +27096,7 @@
                   "vid": "1",
                   "mute": "no",
                   "seeking": "no",
-                  "engine": 1024221149,
+                  "mova": 1024221149,
                   "epochAtRead": 0,
                   "state": {
                     "positionMs": 0,
@@ -27211,7 +27211,7 @@
                   "vid": "1",
                   "mute": "no",
                   "seeking": "no",
-                  "engine": 849804535,
+                  "mova": 849804535,
                   "epochAtRead": 0,
                   "state": {
                     "positionMs": 0,
@@ -27326,7 +27326,7 @@
                   "vid": "1",
                   "mute": "no",
                   "seeking": "no",
-                  "engine": 279689031,
+                  "mova": 279689031,
                   "epochAtRead": 0,
                   "state": {
                     "positionMs": 0,
@@ -27441,7 +27441,7 @@
                   "vid": "1",
                   "mute": "no",
                   "seeking": "no",
-                  "engine": 443092651,
+                  "mova": 443092651,
                   "epochAtRead": 0,
                   "state": {
                     "positionMs": 0,
@@ -27714,7 +27714,7 @@
                   "vid": "1",
                   "mute": "no",
                   "seeking": "no",
-                  "engine": 394994137,
+                  "mova": 394994137,
                   "epochAtRead": 0,
                   "state": {
                     "positionMs": 0,
@@ -27829,7 +27829,7 @@
                   "vid": "1",
                   "mute": "no",
                   "seeking": "no",
-                  "engine": 930809083,
+                  "mova": 930809083,
                   "epochAtRead": 0,
                   "state": {
                     "positionMs": 0,
@@ -27944,7 +27944,7 @@
                   "vid": "1",
                   "mute": "no",
                   "seeking": "no",
-                  "engine": 643112906,
+                  "mova": 643112906,
                   "epochAtRead": 0,
                   "state": {
                     "positionMs": 0,
@@ -28059,7 +28059,7 @@
                   "vid": "1",
                   "mute": "no",
                   "seeking": "no",
-                  "engine": 548100058,
+                  "mova": 548100058,
                   "epochAtRead": 0,
                   "state": {
                     "positionMs": 0,
@@ -28174,7 +28174,7 @@
                   "vid": "1",
                   "mute": "no",
                   "seeking": "no",
-                  "engine": 342066748,
+                  "mova": 342066748,
                   "epochAtRead": 0,
                   "state": {
                     "positionMs": 0,
@@ -28289,7 +28289,7 @@
                   "vid": "1",
                   "mute": "no",
                   "seeking": "no",
-                  "engine": 586383912,
+                  "mova": 586383912,
                   "epochAtRead": 0,
                   "state": {
                     "positionMs": 0,
@@ -28483,7 +28483,7 @@
                   "vid": "1",
                   "mute": "no",
                   "seeking": "no",
-                  "engine": 777228630,
+                  "mova": 777228630,
                   "epochAtRead": 0,
                   "state": {
                     "positionMs": 0,
@@ -28598,7 +28598,7 @@
                   "vid": "1",
                   "mute": "no",
                   "seeking": "no",
-                  "engine": 804847331,
+                  "mova": 804847331,
                   "epochAtRead": 0,
                   "state": {
                     "positionMs": 0,
@@ -35935,7 +35935,7 @@
         ],
         "rawFiles": [],
         "classification": "重试不完整：adb unauthorized与stats连接关闭；缺少样本不计为通过",
-        "suspectedLocations": "lib/src/core/engine.dart; lib/src/core/cutover/cutover_engine.dart; example/lib/verify_auto/s00d_receipt.dart",
+        "suspectedLocations": "lib/src/core/mova.dart; lib/src/core/cutover/cutover.dart; example/lib/verify_auto/s00d_receipt.dart",
         "nativePaths": {
           "CP3.headers.quality.0": {
             "extract": true,
@@ -36434,7 +36434,7 @@
                   "vid": "1",
                   "mute": "no",
                   "seeking": "no",
-                  "engine": 436350927,
+                  "mova": 436350927,
                   "epochAtRead": 0,
                   "state": {
                     "positionMs": 0,
@@ -36628,7 +36628,7 @@
                   "vid": "1",
                   "mute": "no",
                   "seeking": "no",
-                  "engine": 310885669,
+                  "mova": 310885669,
                   "epochAtRead": 0,
                   "state": {
                     "positionMs": 0,
@@ -38457,7 +38457,7 @@
         ],
         "rawFiles": [],
         "classification": "待定：保留原始载荷与运行异常，区分事件接收时快照/夹具前提和产品",
-        "suspectedLocations": "lib/src/core/engine.dart; lib/src/core/cutover/cutover_engine.dart; example/lib/verify_auto/s00d_receipt.dart",
+        "suspectedLocations": "lib/src/core/mova.dart; lib/src/core/cutover/cutover.dart; example/lib/verify_auto/s00d_receipt.dart",
         "nativePaths": {
           "CP3.headers.quality.0": {
             "extract": true,
@@ -39096,7 +39096,7 @@
                   "vid": "1",
                   "mute": "no",
                   "seeking": "no",
-                  "engine": 432955919,
+                  "mova": 432955919,
                   "epochAtRead": 0,
                   "state": {
                     "positionMs": 0,
@@ -39211,7 +39211,7 @@
                   "vid": "1",
                   "mute": "no",
                   "seeking": "no",
-                  "engine": 752294281,
+                  "mova": 752294281,
                   "epochAtRead": 0,
                   "state": {
                     "positionMs": 0,
@@ -39326,7 +39326,7 @@
                   "vid": "1",
                   "mute": "no",
                   "seeking": "no",
-                  "engine": 20539941,
+                  "mova": 20539941,
                   "epochAtRead": 0,
                   "state": {
                     "positionMs": 0,
@@ -39599,7 +39599,7 @@
                   "vid": "1",
                   "mute": "no",
                   "seeking": "no",
-                  "engine": 417027679,
+                  "mova": 417027679,
                   "epochAtRead": 0,
                   "state": {
                     "positionMs": 0,
@@ -39714,7 +39714,7 @@
                   "vid": "1",
                   "mute": "no",
                   "seeking": "no",
-                  "engine": 593033958,
+                  "mova": 593033958,
                   "epochAtRead": 0,
                   "state": {
                     "positionMs": 0,
@@ -39987,7 +39987,7 @@
                   "vid": "1",
                   "mute": "no",
                   "seeking": "no",
-                  "engine": 871097824,
+                  "mova": 871097824,
                   "epochAtRead": 0,
                   "state": {
                     "positionMs": 0,
@@ -40102,7 +40102,7 @@
                   "vid": "1",
                   "mute": "no",
                   "seeking": "no",
-                  "engine": 678197908,
+                  "mova": 678197908,
                   "epochAtRead": 0,
                   "state": {
                     "positionMs": 0,
@@ -40296,7 +40296,7 @@
                   "vid": "1",
                   "mute": "no",
                   "seeking": "no",
-                  "engine": 202744099,
+                  "mova": 202744099,
                   "epochAtRead": 0,
                   "state": {
                     "positionMs": 0,
@@ -40411,7 +40411,7 @@
                   "vid": "1",
                   "mute": "no",
                   "seeking": "no",
-                  "engine": 260280991,
+                  "mova": 260280991,
                   "epochAtRead": 0,
                   "state": {
                     "positionMs": 0,
@@ -40526,7 +40526,7 @@
                   "vid": "1",
                   "mute": "no",
                   "seeking": "no",
-                  "engine": 944405823,
+                  "mova": 944405823,
                   "epochAtRead": 0,
                   "state": {
                     "positionMs": 0,
@@ -40720,7 +40720,7 @@
                   "vid": "1",
                   "mute": "no",
                   "seeking": "no",
-                  "engine": 11320807,
+                  "mova": 11320807,
                   "epochAtRead": 0,
                   "state": {
                     "positionMs": 0,
@@ -40835,7 +40835,7 @@
                   "vid": "1",
                   "mute": "no",
                   "seeking": "no",
-                  "engine": 571187863,
+                  "mova": 571187863,
                   "epochAtRead": 0,
                   "state": {
                     "positionMs": 0,
@@ -41266,7 +41266,7 @@
                   "vid": "1",
                   "mute": "no",
                   "seeking": "no",
-                  "engine": 1035695865,
+                  "mova": 1035695865,
                   "epochAtRead": 0,
                   "state": {
                     "positionMs": 0,
@@ -41381,7 +41381,7 @@
                   "vid": "1",
                   "mute": "no",
                   "seeking": "no",
-                  "engine": 98452091,
+                  "mova": 98452091,
                   "epochAtRead": 0,
                   "state": {
                     "positionMs": 0,
@@ -41496,7 +41496,7 @@
                   "vid": "1",
                   "mute": "no",
                   "seeking": "no",
-                  "engine": 511941374,
+                  "mova": 511941374,
                   "epochAtRead": 0,
                   "state": {
                     "positionMs": 0,
@@ -41611,7 +41611,7 @@
                   "vid": "1",
                   "mute": "no",
                   "seeking": "no",
-                  "engine": 1015626410,
+                  "mova": 1015626410,
                   "epochAtRead": 0,
                   "state": {
                     "positionMs": 0,
@@ -41805,7 +41805,7 @@
                   "vid": "1",
                   "mute": "no",
                   "seeking": "no",
-                  "engine": 493933556,
+                  "mova": 493933556,
                   "epochAtRead": 0,
                   "state": {
                     "positionMs": 0,
@@ -41920,7 +41920,7 @@
                   "vid": "1",
                   "mute": "no",
                   "seeking": "no",
-                  "engine": 408672856,
+                  "mova": 408672856,
                   "epochAtRead": 0,
                   "state": {
                     "positionMs": 0,
@@ -49292,7 +49292,7 @@
         ],
         "rawFiles": [],
         "classification": "待定：保留原始载荷与运行异常，区分事件接收时快照/夹具前提和产品",
-        "suspectedLocations": "lib/src/core/engine.dart; lib/src/core/cutover/cutover_engine.dart; example/lib/verify_auto/s00d_receipt.dart",
+        "suspectedLocations": "lib/src/core/mova.dart; lib/src/core/cutover/cutover.dart; example/lib/verify_auto/s00d_receipt.dart",
         "nativePaths": {
           "CP3.headers.quality.0": {
             "extract": true,
@@ -49864,7 +49864,7 @@
                   "vid": "1",
                   "mute": "no",
                   "seeking": "no",
-                  "engine": 901149096,
+                  "mova": 901149096,
                   "epochAtRead": 0,
                   "state": {
                     "positionMs": 0,
@@ -50374,7 +50374,7 @@
                   "vid": "1",
                   "mute": "no",
                   "seeking": "no",
-                  "engine": 714952129,
+                  "mova": 714952129,
                   "epochAtRead": 0,
                   "state": {
                     "positionMs": 0,
@@ -50568,7 +50568,7 @@
                   "vid": "1",
                   "mute": "no",
                   "seeking": "no",
-                  "engine": 104864471,
+                  "mova": 104864471,
                   "epochAtRead": 0,
                   "state": {
                     "positionMs": 0,
@@ -51157,7 +51157,7 @@
                   "vid": "1",
                   "mute": "no",
                   "seeking": "no",
-                  "engine": 1022805906,
+                  "mova": 1022805906,
                   "epochAtRead": 0,
                   "state": {
                     "positionMs": 0,
@@ -51272,7 +51272,7 @@
                   "vid": "1",
                   "mute": "no",
                   "seeking": "no",
-                  "engine": 546370807,
+                  "mova": 546370807,
                   "epochAtRead": 0,
                   "state": {
                     "positionMs": 0,
@@ -51387,7 +51387,7 @@
                   "vid": "1",
                   "mute": "no",
                   "seeking": "no",
-                  "engine": 164138967,
+                  "mova": 164138967,
                   "epochAtRead": 0,
                   "state": {
                     "positionMs": 0,
@@ -51502,7 +51502,7 @@
                   "vid": "1",
                   "mute": "no",
                   "seeking": "no",
-                  "engine": 91954080,
+                  "mova": 91954080,
                   "epochAtRead": 0,
                   "state": {
                     "positionMs": 0,
@@ -51617,7 +51617,7 @@
                   "vid": "1",
                   "mute": "no",
                   "seeking": "no",
-                  "engine": 1036580702,
+                  "mova": 1036580702,
                   "epochAtRead": 0,
                   "state": {
                     "positionMs": 0,
@@ -51890,7 +51890,7 @@
                   "vid": "1",
                   "mute": "no",
                   "seeking": "no",
-                  "engine": 193199862,
+                  "mova": 193199862,
                   "epochAtRead": 0,
                   "state": {
                     "positionMs": 0,
@@ -52005,7 +52005,7 @@
                   "vid": "1",
                   "mute": "no",
                   "seeking": "no",
-                  "engine": 496094871,
+                  "mova": 496094871,
                   "epochAtRead": 0,
                   "state": {
                     "positionMs": 0,
@@ -52120,7 +52120,7 @@
                   "vid": "1",
                   "mute": "no",
                   "seeking": "no",
-                  "engine": 831362536,
+                  "mova": 831362536,
                   "epochAtRead": 0,
                   "state": {
                     "positionMs": 0,
@@ -52235,7 +52235,7 @@
                   "vid": "1",
                   "mute": "no",
                   "seeking": "no",
-                  "engine": 219121413,
+                  "mova": 219121413,
                   "epochAtRead": 0,
                   "state": {
                     "positionMs": 0,
@@ -52350,7 +52350,7 @@
                   "vid": "1",
                   "mute": "no",
                   "seeking": "no",
-                  "engine": 821798312,
+                  "mova": 821798312,
                   "epochAtRead": 0,
                   "state": {
                     "positionMs": 0,
@@ -52465,7 +52465,7 @@
                   "vid": "1",
                   "mute": "no",
                   "seeking": "no",
-                  "engine": 411196855,
+                  "mova": 411196855,
                   "epochAtRead": 0,
                   "state": {
                     "positionMs": 0,
@@ -52659,7 +52659,7 @@
                   "vid": "1",
                   "mute": "no",
                   "seeking": "no",
-                  "engine": 544159058,
+                  "mova": 544159058,
                   "epochAtRead": 0,
                   "state": {
                     "positionMs": 0,
@@ -60637,7 +60637,7 @@
         "failures": [],
         "rawFiles": [],
         "classification": "待定：保留原始载荷与运行异常，区分事件接收时快照/夹具前提和产品",
-        "suspectedLocations": "lib/src/core/engine.dart; lib/src/core/cutover/cutover_engine.dart; example/lib/verify_auto/s00d_receipt.dart",
+        "suspectedLocations": "lib/src/core/mova.dart; lib/src/core/cutover/cutover.dart; example/lib/verify_auto/s00d_receipt.dart",
         "nativePaths": {
           "CP3.headers.quality.0": {
             "extract": true,
@@ -61221,7 +61221,7 @@
                   "vid": "1",
                   "mute": "no",
                   "seeking": "no",
-                  "engine": 880010553,
+                  "mova": 880010553,
                   "epochAtRead": 0,
                   "state": {
                     "positionMs": 0,
@@ -61336,7 +61336,7 @@
                   "vid": "1",
                   "mute": "no",
                   "seeking": "no",
-                  "engine": 481588633,
+                  "mova": 481588633,
                   "epochAtRead": 0,
                   "state": {
                     "positionMs": 0,
@@ -61530,7 +61530,7 @@
                   "vid": "1",
                   "mute": "no",
                   "seeking": "no",
-                  "engine": 1049615472,
+                  "mova": 1049615472,
                   "epochAtRead": 0,
                   "state": {
                     "positionMs": 0,
@@ -61645,7 +61645,7 @@
                   "vid": "1",
                   "mute": "no",
                   "seeking": "no",
-                  "engine": 193277152,
+                  "mova": 193277152,
                   "epochAtRead": 0,
                   "state": {
                     "positionMs": 0,
@@ -61918,7 +61918,7 @@
                   "vid": "1",
                   "mute": "no",
                   "seeking": "no",
-                  "engine": 805485642,
+                  "mova": 805485642,
                   "epochAtRead": 0,
                   "state": {
                     "positionMs": 0,
@@ -62033,7 +62033,7 @@
                   "vid": "1",
                   "mute": "no",
                   "seeking": "no",
-                  "engine": 473956328,
+                  "mova": 473956328,
                   "epochAtRead": 0,
                   "state": {
                     "positionMs": 0,
@@ -62227,7 +62227,7 @@
                   "vid": "1",
                   "mute": "no",
                   "seeking": "no",
-                  "engine": 521542012,
+                  "mova": 521542012,
                   "epochAtRead": 0,
                   "state": {
                     "positionMs": 0,
@@ -62421,7 +62421,7 @@
                   "vid": "1",
                   "mute": "no",
                   "seeking": "no",
-                  "engine": 119442956,
+                  "mova": 119442956,
                   "epochAtRead": 0,
                   "state": {
                     "positionMs": 0,
@@ -62536,7 +62536,7 @@
                   "vid": "1",
                   "mute": "no",
                   "seeking": "no",
-                  "engine": 926248332,
+                  "mova": 926248332,
                   "epochAtRead": 0,
                   "state": {
                     "positionMs": 0,
@@ -62651,7 +62651,7 @@
                   "vid": "1",
                   "mute": "no",
                   "seeking": "no",
-                  "engine": 40390585,
+                  "mova": 40390585,
                   "epochAtRead": 0,
                   "state": {
                     "positionMs": 0,
@@ -62845,7 +62845,7 @@
                   "vid": "1",
                   "mute": "no",
                   "seeking": "no",
-                  "engine": 491819948,
+                  "mova": 491819948,
                   "epochAtRead": 0,
                   "state": {
                     "positionMs": 0,
@@ -63197,7 +63197,7 @@
                   "vid": "1",
                   "mute": "no",
                   "seeking": "no",
-                  "engine": 327244848,
+                  "mova": 327244848,
                   "epochAtRead": 0,
                   "state": {
                     "positionMs": 0,
@@ -63312,7 +63312,7 @@
                   "vid": "1",
                   "mute": "no",
                   "seeking": "no",
-                  "engine": 1072672421,
+                  "mova": 1072672421,
                   "epochAtRead": 0,
                   "state": {
                     "positionMs": 0,
@@ -63427,7 +63427,7 @@
                   "vid": "1",
                   "mute": "no",
                   "seeking": "no",
-                  "engine": 207592505,
+                  "mova": 207592505,
                   "epochAtRead": 0,
                   "state": {
                     "positionMs": 0,
@@ -63542,7 +63542,7 @@
                   "vid": "1",
                   "mute": "no",
                   "seeking": "no",
-                  "engine": 868195973,
+                  "mova": 868195973,
                   "epochAtRead": 0,
                   "state": {
                     "positionMs": 0,
@@ -63657,7 +63657,7 @@
                   "vid": "1",
                   "mute": "no",
                   "seeking": "no",
-                  "engine": 308762279,
+                  "mova": 308762279,
                   "epochAtRead": 0,
                   "state": {
                     "positionMs": 0,
@@ -63772,7 +63772,7 @@
                   "vid": "1",
                   "mute": "no",
                   "seeking": "no",
-                  "engine": 672747970,
+                  "mova": 672747970,
                   "epochAtRead": 0,
                   "state": {
                     "positionMs": 0,
@@ -63966,7 +63966,7 @@
                   "vid": "1",
                   "mute": "no",
                   "seeking": "no",
-                  "engine": 630729462,
+                  "mova": 630729462,
                   "epochAtRead": 0,
                   "state": {
                     "positionMs": 0,
@@ -64160,7 +64160,7 @@
                   "vid": "1",
                   "mute": "no",
                   "seeking": "no",
-                  "engine": 939451954,
+                  "mova": 939451954,
                   "epochAtRead": 0,
                   "state": {
                     "positionMs": 0,
@@ -71982,7 +71982,7 @@
                   "vid": "1",
                   "mute": "no",
                   "seeking": "no",
-                  "engine": 999456801,
+                  "mova": 999456801,
                   "epochAtRead": 0,
                   "state": {
                     "positionMs": 0,
@@ -72103,7 +72103,7 @@
                   "vid": "1",
                   "mute": "no",
                   "seeking": "yes",
-                  "engine": 263751831,
+                  "mova": 263751831,
                   "epochAtRead": 0,
                   "state": {
                     "positionMs": 0,
@@ -72224,7 +72224,7 @@
                   "vid": "1",
                   "mute": "no",
                   "seeking": "no",
-                  "engine": 514340980,
+                  "mova": 514340980,
                   "epochAtRead": 0,
                   "state": {
                     "positionMs": 0,
@@ -72345,7 +72345,7 @@
                   "vid": "1",
                   "mute": "no",
                   "seeking": "no",
-                  "engine": 1895366,
+                  "mova": 1895366,
                   "epochAtRead": 0,
                   "state": {
                     "positionMs": 0,
@@ -72459,7 +72459,7 @@
                   "vid": "1",
                   "mute": "no",
                   "seeking": "yes",
-                  "engine": 593356533,
+                  "mova": 593356533,
                   "epochAtRead": 0,
                   "state": {
                     "positionMs": 0,

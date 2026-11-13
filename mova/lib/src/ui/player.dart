@@ -20,25 +20,25 @@ import 'poster.dart';
 import 'scope/scope.dart';
 import 'scope/selector.dart';
 import 'scope/video_rect_scope.dart';
-import 'skins/default_skin.dart';
+import 'ui_kits/default_ui_kit.dart';
 import 'snapshot_guard.dart';
-import 'skins/skin.dart';
+import 'ui_kits/ui_kit.dart';
 import 'slots/tree.dart';
 import 'slots/component.dart';
 import 'video_rect.dart';
 
-/// The top-level mova player widget: wires a real (or fake) [MovaApi] to
-/// the raw video render surface and a [MovaSkin]'s component tree.
+/// The top-level mova player widget: wires a real (or fake) [IMovaApi] to
+/// the raw video render surface and a [IMovaUiKit]'s component tree.
 ///
 /// Playback state comes from [api]; each supported view owns a [MovaChrome]
 /// for independent controls, HUD and drag previews. The widget publishes
-/// the scopes, renders the surface, caches the skin and optionally probes qualities.
+/// the scopes, renders the surface, caches the UI kit and optionally probes qualities.
 ///
 /// 播放状态来自 [api]；支持桥接的视图各自持有 [MovaChrome]，独立管理控制条、
-/// HUD 和拖动预览。本组件发布作用域、渲染画面、缓存皮肤，并可选地探测清晰度。
-/// 默认在切后台时经引擎暂停视频，不自动恢复；无渲染面的音频不受影响。
+/// HUD 和拖动预览。本组件发布作用域、渲染画面、缓存 UI 套件，并可选地探测清晰度。
+/// 默认在切后台时经播放器暂停视频，不自动恢复；无渲染面的音频不受影响。
 /// 同一 API 的祖先守卫在场时让位；宿主可用
-/// `MovaAutoPause(config: MovaAutoPauseConfig(background: false), ...)` 保持后台播放。
+/// `MovaAutoPause(opts: MovaAutoPauseOpts(background: false), ...)` 保持后台播放。
 class MovaPlayer extends StatefulWidget {
   /// Creates the player widget.
   ///
@@ -46,7 +46,7 @@ class MovaPlayer extends StatefulWidget {
   const MovaPlayer({
     super.key,
     required this.api,
-    this.skin = const MovaDefaultSkin(),
+    this.uiKit = const MovaDefaultUiKit(),
     this.chrome,
     this.style,
     this.fullscreenRoute = false,
@@ -60,78 +60,78 @@ class MovaPlayer extends StatefulWidget {
   /// Playback facade driving this widget.
   ///
   /// 驱动本组件的播放能力面。
-  final MovaApi api;
+  final IMovaApi api;
 
-  /// 本视图的交互态；省略时，支持桥接的引擎会自动创建并随视图销毁。
+  /// 本视图的交互态；省略时，支持桥接的播放器会自动创建并随视图销毁。
   /// 传入的实例由宿主销毁，同一时刻只能用于一个视图。
-  /// 示例：`MovaPlayer(api: engine, chrome: chrome)`。
+  /// 示例：`MovaPlayer(api: mova, chrome: chrome)`。
   final MovaChrome? chrome;
 
   /// 本视图样式；未指定的节回落到主题扩展与旧配置。
-  /// 示例：`MovaPlayer(api: engine, style: MovaPlayerStyle())`。
+  /// 示例：`MovaPlayer(api: mova, style: MovaPlayerStyle())`。
   final MovaPlayerStyle? style;
 
   /// 是否用应用内路由展示全屏；默认关闭，沿用原有转屏行为。
-  /// 开启后返回键先退出全屏，锁定时提示解锁；方向与 PiP 仍由引擎管理。
-  /// 示例：`MovaPlayer(api: engine, fullscreenRoute: true)`。
+  /// 开启后返回键先退出全屏，锁定时提示解锁；方向与 PiP 仍由播放器管理。
+  /// 示例：`MovaPlayer(api: mova, fullscreenRoute: true)`。
   final bool fullscreenRoute;
 
   /// Component tree provider.
   ///
   /// 组件树提供者。
-  final MovaSkin skin;
+  final IMovaUiKit uiKit;
 
   /// Whether to probe HLS quality variants after opening a source.
   ///
   /// 打开源后是否自动探测 HLS 清晰度档位。
   /// 本 UI 入口仅在此值与 `api.options.abr.probeVariants` 都为 true 时探测；
-  /// 引擎就绪后的自动探测由后者控制，显式 `api.loadQualities()` 不受两者影响。
+  /// 播放器就绪后的自动探测由后者控制，显式 `api.loadQualities()` 不受两者影响。
   final bool autoLoadQualities;
 
-  /// The widget painted underneath the skin's chrome as the video surface;
+  /// The widget painted underneath the UI kit's chrome as the video surface;
   /// defaults to the real media_kit surface (a black placeholder in tests).
   ///
-  /// Feed pages pass a placeholder here for a page whose pooled engine isn't
+  /// Feed pages pass a placeholder here for a page whose pooled player isn't
   /// ready yet, so that path still goes through [MovaPlayer] and inherits its
   /// api-identity keying (see the [KeyedSubtree] in [build]) rather than
   /// re-assembling the tree without that safety net.
   ///
-  /// 在皮肤 chrome 之下作为视频画面绘制的组件；默认渲染真实的 media_kit 画面
+  /// 在 UI 套件 chrome 之下作为视频画面绘制的组件；默认渲染真实的 media_kit 画面
   /// （测试环境下为黑色占位）。
   ///
-  /// feed 页会在其池引擎尚未就绪时把占位组件传进来，使这条路径也走 [MovaPlayer]、
+  /// feed 页会在其池播放器尚未就绪时把占位组件传进来，使这条路径也走 [MovaPlayer]、
   /// 继承其按 api 身份做 key 的保证（见 [build] 里的 [KeyedSubtree]），而不是
   /// 抛开那层安全网自行重装组件树。
   final Widget? surface;
 
-  /// Declarative fit for [api]. `null` leaves the engine untouched. Otherwise it
+  /// Declarative fit for [api]. `null` leaves the player untouched. Otherwise it
   /// is applied when this widget mounts and again only when this value changes
   /// (or [api] changes) — a user's fit-button choice survives unrelated rebuilds
   /// until the parent passes a *different* fit.
   ///
-  /// [api] 的声明式填充模式。`null` 表示不碰引擎。否则在本组件挂载时应用一次，之后
+  /// [api] 的声明式填充模式。`null` 表示不碰播放器。否则在本组件挂载时应用一次，之后
   /// 只有该值变化（或换了 [api]）才再应用——用户用 fit 按钮选的值在无关重建中保留，
   /// 直到父组件传入一个**不同的** fit。
   ///
   /// Example / 示例:
   /// ```dart
-  /// MovaPlayer(api: engine, fit: MovaFit.cover)
+  /// MovaPlayer(api: mova, fit: MovaFit.cover)
   /// ```
   final MovaFit? fit;
 
   /// A widget painted over the video surface until the current source shows
   /// its first frame, then faded out; re-covers instantly on every source
-  /// change. Sits *under* the skin's chrome (buffering spinner, error, bars).
-  /// Stays visible for sources/engines without a picture (audio-only).
+  /// change. Sits *under* the UI kit's chrome (buffering spinner, error, bars).
+  /// Stays visible for sources/players without a picture (audio-only).
   /// `null` (the default) adds nothing to the tree.
   ///
-  /// 盖在视频画面上的组件，当前源出首帧后淡出；每次换源立即重新盖上。位于皮肤
-  /// chrome（缓冲转圈、错误层、控制条）**之下**。没有画面的源/引擎（仅音频）时
+  /// 盖在视频画面上的组件，当前源出首帧后淡出；每次换源立即重新盖上。位于 UI 套件
+  /// chrome（缓冲转圈、错误层、控制条）**之下**。没有画面的源/播放器（仅音频）时
   /// 常驻。默认 `null`，不向树中添加任何节点。
   ///
   /// Example / 示例:
   /// ```dart
-  /// MovaPlayer(api: engine, poster: Image.network(coverUrl, fit: BoxFit.cover))
+  /// MovaPlayer(api: mova, poster: Image.network(coverUrl, fit: BoxFit.cover))
   /// ```
   final Widget? poster;
 
@@ -144,18 +144,18 @@ class MovaPlayer extends StatefulWidget {
   State<MovaPlayer> createState() => _MovaPlayerState();
 }
 
-/// State for [MovaPlayer]: caches skin structure and owns view-local keyboard focus.
-/// Playback remains derived from [MovaApi] streams.
+/// State for [MovaPlayer]: caches UI kit structure and owns view-local keyboard focus.
+/// Playback remains derived from [IMovaApi] streams.
 ///
-/// [MovaPlayer] 的状态：缓存皮肤结构并持有当前视图的键盘焦点；播放状态仍来自 API。
+/// [MovaPlayer] 的状态：缓存 UI 套件结构并持有当前视图的键盘焦点；播放状态仍来自 API。
 class _MovaPlayerState extends State<MovaPlayer> {
-  MovaCtrlsConfig _controls = const MovaCtrlsConfig();
+  MovaCtrlsOpts _controls = const MovaCtrlsOpts();
   MovaChrome? _chrome;
   bool _ownsChrome = false;
   MovaUiPort get _ui => MovaUiPort.of(_chrome, widget.api);
 
   void _attachChrome() {
-    _ownsChrome = widget.chrome == null && widget.api is MovaUiBridge;
+    _ownsChrome = widget.chrome == null && widget.api is IMovaUiBridge;
     _chrome = widget.chrome ?? (_ownsChrome ? MovaChrome() : null);
     final chrome = _chrome;
     if (chrome == null) return;
@@ -172,11 +172,11 @@ class _MovaPlayerState extends State<MovaPlayer> {
     _ownsChrome = false;
   }
 
-  /// 当前 api/皮肤对应的静态组件定义。
+  /// 当前 api/UI 套件对应的静态组件定义。
   late List<MovaComponent> _components;
 
   /// 复用构建子树，避免宿主无关重建引发组件重新构建和订阅。
-  Widget? _skinTree;
+  Widget? _uiKitTree;
 
   /// 当前视图的快捷键焦点；不与其他播放器共享。
   final FocusNode _shortcutFocus = FocusNode(debugLabel: 'MovaPlayer');
@@ -191,8 +191,8 @@ class _MovaPlayerState extends State<MovaPlayer> {
   void initState() {
     super.initState();
     _lifecycle = AppLifecycleListener(onStateChange: _onLifecycle);
-    _components = widget.skin.components();
-    // UI 自动入口也遵守引擎的自动探测总开关。
+    _components = widget.uiKit.components();
+    // UI 自动入口也遵守播放器的自动探测总开关。
     if (widget.autoLoadQualities && widget.api.options.abr.probeVariants) {
       widget.api.loadQualities();
     }
@@ -221,7 +221,7 @@ class _MovaPlayerState extends State<MovaPlayer> {
       final chrome = _chrome;
       if (identical(oldWidget.chrome, widget.chrome) &&
           chrome != null &&
-          (widget.chrome != null || widget.api is MovaUiBridge)) {
+          (widget.chrome != null || widget.api is IMovaUiBridge)) {
         movaUnbindChrome(chrome);
         movaSetChromeControls(chrome, _controls);
         movaBindChrome(chrome, widget.api);
@@ -229,17 +229,17 @@ class _MovaPlayerState extends State<MovaPlayer> {
         _detachChrome();
         _attachChrome();
       }
-      _skinTree = null;
+      _uiKitTree = null;
     }
     if (!identical(oldWidget.api, widget.api) ||
-        !identical(oldWidget.skin, widget.skin)) {
-      _components = widget.skin.components();
-      _skinTree = null;
+        !identical(oldWidget.uiKit, widget.uiKit)) {
+      _components = widget.uiKit.components();
+      _uiKitTree = null;
     }
     if (oldWidget.surface != widget.surface ||
         oldWidget.poster != widget.poster ||
         oldWidget.posterFade != widget.posterFade) {
-      _skinTree = null;
+      _uiKitTree = null;
     }
     _observePosterRestarts();
     _applyFit(previous: oldWidget.fit, apiChanged: oldWidget.api != widget.api);
@@ -248,12 +248,12 @@ class _MovaPlayerState extends State<MovaPlayer> {
   /// 挂封面时请求精确首帧，支持在 open 后才挂载的播放器。
   void _observePosterRestarts() {
     final api = widget.api;
-    if (widget.poster != null && api is MovaRestartObserver) {
-      (api as MovaRestartObserver).observeRestarts();
+    if (widget.poster != null && api is IMovaRestartObserver) {
+      (api as IMovaRestartObserver).observeRestarts();
     }
   }
 
-  /// 切后台时经引擎暂停；让位同一 API 的守卫，豁免音频与系统画中画。
+  /// 切后台时经播放器暂停；让位同一 API 的守卫，豁免音频与系统画中画。
   void _onLifecycle(AppLifecycleState state) {
     if (state != AppLifecycleState.paused &&
         state != AppLifecycleState.detached) {
@@ -368,7 +368,7 @@ class _MovaPlayerState extends State<MovaPlayer> {
                 legacy: MovaStyleScope.maybeOf(context)?.legacy,
                 child: MovaPlayer(
                   api: widget.api,
-                  skin: widget.skin,
+                  uiKit: widget.uiKit,
                   style: style,
                   autoLoadQualities: false,
                   surface: widget.surface,
@@ -400,15 +400,15 @@ class _MovaPlayerState extends State<MovaPlayer> {
         // Keyed by `widget.api`'s identity (regression fix): a handful of
         // descendants (`_SeekBar`, the gesture layer, the preview bubble, the
         // danmaku track) subscribe to `api`'s streams once in `initState`, not
-        // per rebuild. A host that swaps to a new `MovaApi`/engine instance while
+        // per rebuild. A host that swaps to a new `IMovaApi`/player instance while
         // `MovaPlayer` stays mounted at the same tree position (e.g. switching
-        // sources by rebuilding with a fresh `createMovaEngine()`, exactly what
+        // sources by rebuilding with a fresh `createMova()`, exactly what
         // this package's own example app does) — without this key — would have
         // Flutter reuse those descendants' existing `State` objects rather than
         // remounting them, since same-type-same-key(null) widgets update in
         // place. Their old subscriptions would then point at the previous,
-        // now-disposed engine's closed streams forever, so e.g. the seek bar
-        // would freeze on the old engine's last position instead of following
+        // now-disposed player's closed streams forever, so e.g. the seek bar
+        // would freeze on the old player's last position instead of following
         // the new one. Keying by `api` forces a full remount — fresh
         // `initState`s bound to the new instance — whenever the api reference
         // actually changes.
@@ -416,11 +416,11 @@ class _MovaPlayerState extends State<MovaPlayer> {
         // 按 `widget.api` 的身份做 key（回归修复）：少数后代（`_SeekBar`、手势层、
         // 预览气泡、弹幕轨道）只在 `initState` 里订阅一次 `api` 的流，而非每次
         // 重建都订阅。宿主若在 `MovaPlayer` 保持挂载于同一树位置的情况下换了一个
-        // 新的 `MovaApi`/引擎实例（例如换源时重新 `createMovaEngine()`——本包自己的
+        // 新的 `IMovaApi`/播放器实例（例如换源时重新 `createMova()`——本包自己的
         // example app 就是这么做的）——没有这个 key 的话，Flutter 会认为同类型、
         // key 同为 null 的 widget 该原地更新，而非重新挂载这些后代，于是它们
-        // 旧的订阅会永远指向前一个、已经 dispose 的引擎的已关闭的流——进度条就
-        // 会卡在旧引擎的最后位置，而不会跟上新引擎。按 `api` 做 key，只要 api
+        // 旧的订阅会永远指向前一个、已经 dispose 的播放器的已关闭的流——进度条就
+        // 会卡在旧播放器的最后位置，而不会跟上新播放器。按 `api` 做 key，只要 api
         // 引用真的变了就强制整棵子树重新挂载——所有 `initState` 都会用新实例
         // 重新跑一遍。
         child: MovaChromeScope(
@@ -452,7 +452,7 @@ class _MovaPlayerState extends State<MovaPlayer> {
                     },
                     child: KeyedSubtree(
                       key: ValueKey((widget.api, _chrome)),
-                      child: _skinTree ??= Builder(
+                      child: _uiKitTree ??= Builder(
                         builder: (context) {
                           final bundle = buildSlots(
                             context,
@@ -462,10 +462,10 @@ class _MovaPlayerState extends State<MovaPlayer> {
                           final surface =
                               widget.surface ?? const _RenderSurface();
                           final poster = widget.poster;
-                          // The poster lives inside the `video` handed to the skin, so every
-                          // skin's chrome (spinner, error, bars) paints above it.
+                          // The poster lives inside the `video` handed to the UI kit, so every
+                          // UI kit's chrome (spinner, error, bars) paints above it.
                           //
-                          // 封面放在交给皮肤的 `video` 里面，因此所有皮肤的 chrome（转圈、错误层、
+                          // 封面放在交给 UI 套件的 `video` 里面，因此所有 UI 套件的 chrome（转圈、错误层、
                           // 控制条）都画在它之上。
                           final video = poster == null
                               ? surface
@@ -479,7 +479,7 @@ class _MovaPlayerState extends State<MovaPlayer> {
                                     ),
                                   ],
                                 );
-                          final assembled = widget.skin.assemble(
+                          final assembled = widget.uiKit.assemble(
                             context,
                             bundle,
                             video,
@@ -489,14 +489,14 @@ class _MovaPlayerState extends State<MovaPlayer> {
                           // (e.g. the STT subtitle) can align to the picture itself rather
                           // than to the whole player box. Wraps the *whole* assembled tree
                           // (playback + operable + persistent layers are Stack siblings —
-                          // see MovaDefaultSkin.assemble) so every layer shares the same
+                          // see MovaDefaultUiKit.assemble) so every layer shares the same
                           // coordinate space as the video surface, which fills the same
                           // constraints.
                           //
                           // 向已装配树的后代发布视频内容的实际（letterbox 后）显示矩形，使
                           // 叠加层组件（如 STT 字幕）能对齐画面本身而非整个播放器容器。包裹
                           // 的是*整棵*已装配树（播放层/操作层/常驻层是同一 Stack 的兄弟节点，
-                          // 见 MovaDefaultSkin.assemble），使每一层都与视频画面共享同一坐标
+                          // 见 MovaDefaultUiKit.assemble），使每一层都与视频画面共享同一坐标
                           // 系——两者填充的是同一份约束。
                           return LayoutBuilder(
                             builder: (context, constraints) {
@@ -622,18 +622,18 @@ const Map<ShortcutActivator, Intent> _playerShortcuts = {
 };
 
 /// The raw video render surface: a real media_kit [Video] when the current
-/// [MovaApi.renderHandle] is a [VideoController], otherwise a black
-/// placeholder — the latter lets widget tests exercise the whole skin/scope
+/// [IMovaApi.renderHandle] is a [VideoController], otherwise a black
+/// placeholder — the latter lets widget tests exercise the whole UI kit/scope
 /// tree without ever touching a real media_kit player.
 ///
-/// 原始视频渲染画面：当前 [MovaApi.renderHandle] 为 [VideoController] 时渲染
+/// 原始视频渲染画面：当前 [IMovaApi.renderHandle] 为 [VideoController] 时渲染
 /// 真实的 media_kit [Video]，否则渲染黑色占位符——后者让组件测试无需接触
-/// 真实 media_kit 播放器即可跑通整棵皮肤/scope 树。
-/// A key wrapping the current [MovaApi.renderHandle], distinct from any key a
-/// skin might place elsewhere in the tree — lets tests confirm the render
+/// 真实 media_kit 播放器即可跑通整棵 UI 套件/scope 树。
+/// A key wrapping the current [IMovaApi.renderHandle], distinct from any key a
+/// UI kit might place elsewhere in the tree — lets tests confirm the render
 /// surface actually re-read the handle after a rebuild.
 ///
-/// 包裹当前 [MovaApi.renderHandle] 的 key，与皮肤在树中别处可能使用的 key
+/// 包裹当前 [IMovaApi.renderHandle] 的 key，与 UI 套件在树中别处可能使用的 key
 /// 区分——供测试确认渲染面在重建后确实重新读取了句柄。
 class _RenderHandleKey extends ValueKey<Object?> {
   /// Creates the key from [handle].
@@ -674,7 +674,7 @@ class _RenderSurface extends StatelessWidget {
                   key: _RenderHandleKey(handle),
                   controller: handle,
                   controls: NoVideoControls,
-                  // 后台暂停由 MovaPlayer 经引擎执行，意图与广告时钟可见。
+                  // 后台暂停由 MovaPlayer 经播放器执行，意图与广告时钟可见。
                   pauseUponEnteringBackgroundMode: false,
                   resumeUponEnteringForegroundMode: false,
                   fit: movaBoxFit(value.fit),

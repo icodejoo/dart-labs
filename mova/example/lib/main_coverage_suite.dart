@@ -8,7 +8,7 @@ import 'main_cp2_audioonly_bg_verify.dart' as cp2_audioonly_bg;
 import 'main_cp2_qoe_verify.dart' as cp2_qoe;
 import 'verify_auto/cp3_harness.dart';
 import 'verify_auto/cp3_pages_auto.dart';
-import 'main_cp1_wakeswap_verify.dart' as cp1_wakeswap;
+import 'main_cp1_wakecutover_verify.dart' as cp1_wakecutover;
 import 'main_cp1_edgepause_verify.dart' as cp1_edgepause;
 import 'main_cp1_errclass_verify.dart' as cp1_errclass;
 import 'main_cp1_probe_verify.dart' as cp1_probe;
@@ -62,7 +62,7 @@ Future<void> main() async {
   kit.coverageOnlyOverride = parts.length > 1 ? parts[1] : '';
   kit.coverageRunsOverride = parts.length > 2 ? int.parse(parts[2]) : 5;
   kit.coverageShotHandshake = parts.length > 3 && parts[3] == 'shots';
-  MovaEngine.ensureInitialized();
+  Mova.ensureInitialized();
   switch (parts.first) {
     case 'cp2-adpaths': cp2_adpaths.main();
     case 'cp2-adpause': cp2_adpause.main();
@@ -72,7 +72,7 @@ Future<void> main() async {
     case 'cp2-bgowner': cp2_bgowner.main();
     case 'cp2-audioonly-bg': cp2_audioonly_bg.main();
     case 'cp2-qoe': cp2_qoe.main();
-    case 'cp1-wakeswap': cp1_wakeswap.main();
+    case 'cp1-wakecutover': cp1_wakecutover.main();
     case 'cp1-edgepause': cp1_edgepause.main();
     case 'cp1-errclass': cp1_errclass.main();
     case 'cp1-probe': cp1_probe.main();

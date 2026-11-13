@@ -4,7 +4,7 @@ import 'dart:convert';
 import 'package:meta/meta.dart';
 
 import '../model/source.dart';
-import '../options/preview_config.dart';
+import '../options/preview_opts.dart';
 import 'api.dart';
 import 'cache.dart';
 import 'extractor.dart';
@@ -15,7 +15,7 @@ import 'request_blocked.dart';
 import 'request_context.dart';
 import 'source.dart';
 
-/// The production [MovaPreviewApi]: debounces scrub ticks, aligns them to
+/// The production [IMovaPreviewApi]: debounces scrub ticks, aligns them to
 /// buckets, enforces the network policy, serves cache hits, and walks the
 /// configured source chain — one request in flight at a time.
 ///
@@ -23,26 +23,26 @@ import 'source.dart';
 /// discarded: the work is already paid for, and the user is very likely to
 /// scrub back over that bucket (DESIGN §7.1).
 ///
-/// 生产环境的 [MovaPreviewApi]：对拖动 tick 做防抖、按桶对齐、执行网络策略、
+/// 生产环境的 [IMovaPreviewApi]：对拖动 tick 做防抖、按桶对齐、执行网络策略、
 /// 优先吃缓存命中，再按配置的来源链依次尝试——同一时刻只有一个请求在飞。
 ///
 /// 被后来者取代的请求，其结果仍会写入缓存而非丢弃：这份开销已经付过了，而且
 /// 用户很可能会拖回那个桶（DESIGN §7.1）。
-class MovaPreviewService implements MovaPreviewSession, MovaPreviewSessions {
+class MovaPreviewService implements IMovaPreviewSession, IMovaPreviewSessions {
   /// Creates a preview service.
   ///
   /// 创建一个预览服务。
   ///
-  /// - [config]: the resolved preview configuration / 已解析的预览配置
+  /// - [opts]: the resolved preview options / 已解析的预览配置
   /// - [cache]: thumbnail storage / 缩略图存储
   /// - [probe]: connectivity probe consulted under `wifiOnly` / `wifiOnly` 下
   ///   要咨询的连通性探针
   /// - [sources]: ordered source chain / 有序的来源链
   /// - [onBlocked]: refusal callback / 被拒回调
-  /// - [audioOnly]: 纯音频引擎不启动 VTT 或抽帧，默认 false。
+  /// - [audioOnly]: 纯音频播放器不启动 VTT 或抽帧，默认 false。
   /// - [gateNetwork]: 默认统一判网络；内置来源在实际资源访问处判定时设为 false。
   MovaPreviewService({
-    required this.config,
+    required this.opts,
     required this.cache,
     required this.probe,
     required this.sources,
@@ -58,9 +58,9 @@ class MovaPreviewService implements MovaPreviewSession, MovaPreviewSessions {
   MovaPreviewService? _parent;
 
   @override
-  MovaPreviewSession openSession() {
+  IMovaPreviewSession openSession() {
     final session = MovaPreviewService(
-      config: config,
+      opts: opts,
       cache: cache,
       probe: probe,
       sources: sources,
@@ -80,15 +80,15 @@ class MovaPreviewService implements MovaPreviewSession, MovaPreviewSessions {
     return session;
   }
 
-  /// 是否为纯音频引擎；为 true 时不探测预览来源，默认 false。
-  /// 示例：`MovaPreviewService(config: config, cache: cache, probe: probe, sources: [], audioOnly: true)`。
+  /// 是否为纯音频播放器；为 true 时不探测预览来源，默认 false。
+  /// 示例：`MovaPreviewService(opts: opts, cache: cache, probe: probe, sources: [], audioOnly: true)`。
   final bool audioOnly;
 
   /// 是否在服务入口统一判网络；默认 true。内置来源在实际 HTTP/抽帧处判定时设为 false，
   /// 避免缓存命中也查询探针。示例：`MovaPreviewService(..., gateNetwork: false)`。
   final bool gateNetwork;
 
-  /// 是否接管 [cache] 的销毁；直接构造服务沿用 true，引擎借用宿主缓存时传 false。
+  /// 是否接管 [cache] 的销毁；直接构造服务沿用 true，播放器借用宿主缓存时传 false。
   /// 示例：`MovaPreviewService(..., ownsCache: false)`；false 时也不自动清空缓存。
   final bool ownsCache;
 
@@ -100,25 +100,25 @@ class MovaPreviewService implements MovaPreviewSession, MovaPreviewSessions {
   /// 示例：`MovaPreviewService(..., ownsSources: false)`。
   final bool ownsSources;
 
-  /// The resolved preview configuration.
+  /// The resolved preview options.
   ///
   /// 已解析的预览配置。
-  final MovaPreviewConfig config;
+  final MovaPreviewOpts opts;
 
   /// Thumbnail storage; usually a two-level memory + disk cache.
   ///
   /// 缩略图存储；通常是内存 + 磁盘的两级缓存。
-  final MovaThumbCache cache;
+  final IMovaThumbCache cache;
 
   /// Connectivity probe consulted under [MovaPreviewNet.wifiOnly].
   ///
   /// [MovaPreviewNet.wifiOnly] 下要咨询的连通性探针。
-  final MovaNetProbe probe;
+  final IMovaNetProbe probe;
 
   /// Ordered source chain; the first non-null answer wins.
   ///
   /// 有序的来源链；第一个非 null 的结果获胜。
-  final List<MovaThumbSource> sources;
+  final List<IMovaThumbSource> sources;
 
   /// Called whenever a request is refused; null means stay silent.
   ///
@@ -235,7 +235,7 @@ class MovaPreviewService implements MovaPreviewSession, MovaPreviewSessions {
   ///
   /// 返回桶对齐后的位置。
   Duration _bucketOf(Duration position) {
-    final step = config.bucket.inMilliseconds;
+    final step = opts.bucket.inMilliseconds;
     if (step <= 0) return position;
     final ms = position.inMilliseconds;
     return Duration(milliseconds: (ms < 0 ? 0 : ms) ~/ step * step);
@@ -255,9 +255,9 @@ class MovaPreviewService implements MovaPreviewSession, MovaPreviewSessions {
   String? _keyFor(Duration bucket, [MovaSource? media]) {
     final src = media ?? _source;
     if (src == null) return null;
-    final builder = config.cacheKeyBuilder;
+    final builder = opts.cacheKeyBuilder;
     if (builder != null) {
-      return builder(src.uri, bucket.inSeconds, config.frameWidth);
+      return builder(src.uri, bucket.inSeconds, opts.frameWidth);
     }
     final headers = src.requestHeaders.entries.toList()
       ..sort((a, b) => a.key.compareTo(b.key));
@@ -268,9 +268,9 @@ class MovaPreviewService implements MovaPreviewSession, MovaPreviewSessions {
     // millisecond key so 0ms/500ms do not collide.
     // 整秒桶沿用旧 key；亚秒桶用毫秒 key，避免 0ms/500ms 撞 key。
     if (bucket.inMilliseconds % 1000 != 0) {
-      return '${defaultCacheKey(identity, 0, config.frameWidth)}_${bucket.inMilliseconds}ms';
+      return '${defaultCacheKey(identity, 0, opts.frameWidth)}_${bucket.inMilliseconds}ms';
     }
-    return defaultCacheKey(identity, bucket.inSeconds, config.frameWidth);
+    return defaultCacheKey(identity, bucket.inSeconds, opts.frameWidth);
   }
 
   /// Exposes [_keyFor] to tests that assert on cache contents.
@@ -315,7 +315,7 @@ class MovaPreviewService implements MovaPreviewSession, MovaPreviewSessions {
 
   @override
   MovaThumb? peekAt(Duration position) {
-    if (_disposed || !config.enabled || audioOnly) return null;
+    if (_disposed || !opts.enabled || audioOnly) return null;
     final bucket = _bucketOf(position);
     final key = _keyFor(bucket);
     if (key == null) return null;
@@ -333,9 +333,9 @@ class MovaPreviewService implements MovaPreviewSession, MovaPreviewSessions {
     _debounce = null;
     final bucket = _bucketOf(position);
     _wanted = bucket;
-    if (!config.enabled || audioOnly) {
+    if (!opts.enabled || audioOnly) {
       _publish(null);
-      _block(!config.enabled
+      _block(!opts.enabled
           ? MovaPreviewBlockReason.disabled
           : MovaPreviewBlockReason.platform);
       return;
@@ -348,10 +348,10 @@ class MovaPreviewService implements MovaPreviewSession, MovaPreviewSessions {
     }
 
     _debounce?.cancel();
-    if (config.debounce <= Duration.zero) {
+    if (opts.debounce <= Duration.zero) {
       _enqueue(bucket);
     } else {
-      _debounce = Timer(config.debounce, () => _enqueue(bucket));
+      _debounce = Timer(opts.debounce, () => _enqueue(bucket));
     }
   }
 
@@ -396,7 +396,7 @@ class MovaPreviewService implements MovaPreviewSession, MovaPreviewSessions {
   /// [epoch] 绑定媒体，[revision] 绑定最新拖动意图；无返回值。
   Future<void> _resolve(Duration bucket, int epoch, int revision) async {
     if (!_isWanted(epoch, revision)) return;
-    if (!config.enabled) {
+    if (!opts.enabled) {
       _block(MovaPreviewBlockReason.disabled);
       return;
     }
@@ -425,10 +425,10 @@ class MovaPreviewService implements MovaPreviewSession, MovaPreviewSessions {
     if (gateNetwork) {
       final uri = Uri.tryParse(src.uri);
       final remote = uri?.scheme == 'http' || uri?.scheme == 'https';
-      final allowed = config.network == MovaPreviewNet.wifiOnly && !remote
+      final allowed = opts.network == MovaPreviewNet.wifiOnly && !remote
           ? true
           : await Future.any<bool>([
-              previewAllowedOn(config.network, probe),
+              previewAllowedOn(opts.network, probe),
               _requestCancelled.future.then((_) => false),
             ]);
       if (!_isWanted(epoch, revision)) return;
@@ -504,12 +504,12 @@ class MovaPreviewService implements MovaPreviewSession, MovaPreviewSessions {
 
   /// Releases the service, its sources and its cache.
   ///
-  /// Wipes the cache first when [MovaPreviewConfig.clearOnDispose] is set, so a
+  /// Wipes the cache first when [MovaPreviewOpts.clearOnDispose] is set, so a
   /// killed process does not leave a temp directory full of thumbnails.
   ///
   /// 释放服务、其来源与其缓存。
   ///
-  /// [MovaPreviewConfig.clearOnDispose] 打开时先清空缓存，避免进程被杀后临时
+  /// [MovaPreviewOpts.clearOnDispose] 打开时先清空缓存，避免进程被杀后临时
   /// 目录里堆满缩略图。
   @override
   Future<void> dispose() async {
@@ -543,7 +543,7 @@ class MovaPreviewService implements MovaPreviewSession, MovaPreviewSessions {
     await _queue;
     await _sourceQueue;
     if (ownsCache) {
-      if (config.clearOnDispose) await step(cache.clear);
+      if (opts.clearOnDispose) await step(cache.clear);
       await step(cache.dispose);
     }
     if (ownsProbe) await step(probe.dispose);

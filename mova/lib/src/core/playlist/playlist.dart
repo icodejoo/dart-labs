@@ -8,31 +8,31 @@ import '../api.dart';
 import '../events/events.dart';
 import '../model/playlist.dart';
 
-/// Drives sequential playlist playback on top of a [MovaApi]: tracks the current
-/// index, navigates between items by calling [MovaApi.open], and (optionally)
+/// Drives sequential playlist playback on top of a [IMovaApi]: tracks the current
+/// index, navigates between items by calling [IMovaApi.open], and (optionally)
 /// auto-advances when an item plays to the end.
 ///
 /// Pure Dart (no Flutter dependency) so it stays unit-testable and lives in the
-/// core layer. Host-constructed and injected — the engine never owns one, and
-/// the "next up" card reads this controller directly rather than through
-/// [MovaApi]. Seed its items/index/auto-advance from [MovaOpts.playlist]; the
-/// host still performs the very first [MovaApi.open] (or calls [jumpTo]).
+/// core layer. Host-constructed and injected — the player never owns one, and
+/// the "next up" card reads this playlist directly rather than through
+/// [IMovaApi]. Seed its items/index/auto-advance from [MovaOpts.playlist]; the
+/// host still performs the very first [IMovaApi.open] (or calls [jumpTo]).
 ///
-/// 在 [MovaApi] 之上驱动顺序播放列表：跟踪当前下标、通过调用 [MovaApi.open] 在项间
+/// 在 [IMovaApi] 之上驱动顺序播放列表：跟踪当前下标、通过调用 [IMovaApi.open] 在项间
 /// 导航，并（可选）在一项播完时自动前进。
 ///
-/// 纯 Dart（无 Flutter 依赖），因此可单测并归属核心层。由宿主构造并注入——engine
-/// 从不持有它，"下一集"卡片直接读该控制器而非经 [MovaApi]。其项/下标/自动续播取自
-/// [MovaOpts.playlist]；首次 [MovaApi.open]（或调用 [jumpTo]）仍由宿主执行。
+/// 纯 Dart（无 Flutter 依赖），因此可单测并归属核心层。由宿主构造并注入——播放器
+/// 从不持有它，"下一集"卡片直接读本播放列表而非经 [IMovaApi]。其项/下标/自动续播取自
+/// [MovaOpts.playlist]；首次 [IMovaApi.open]（或调用 [jumpTo]）仍由宿主执行。
 ///
 /// 与广告组合时传入 `ads:` 共享会话，在正片及后贴片结束后自动连播。
 /// 新代码推荐直接使用 MovaSession；本类作为薄适配器长期保留。
 class MovaPlaylist {
-  /// Creates a controller bound to [api], seeded from [MovaOpts.playlist].
+  /// Creates a playlist bound to [api], seeded from [MovaOpts.playlist].
   ///
-  /// 创建绑定到 [api] 的控制器，初值取自 [MovaOpts.playlist]。
+  /// 创建绑定到 [api] 的播放列表，初值取自 [MovaOpts.playlist]。
   ///
-  /// - [ads]: 可选广告控制器，传入后换集走共享会话并遵守 enabled。
+  /// - [ads]: 可选的广告编排对象（`MovaAds`），传入后换集走共享会话并遵守 enabled。
   /// - [api]: the player capability surface to drive / 要驱动的播放器能力面
   ///
   /// Example / 示例:
@@ -41,7 +41,7 @@ class MovaPlaylist {
   /// await playlist.jumpTo(0); // open the first item
   /// ```
   /// [ads] 非空时共享其会话，换集带广告，全部后贴片结束后自动下一集。
-  /// 返回新控制器；不销毁借用的会话。示例：`MovaPlaylist(api, ads: ads)`。
+  /// 返回新的播放列表；不销毁借用的会话。示例：`MovaPlaylist(api, ads: ads)`。
   MovaPlaylist(this._api, {MovaAds? ads})
     : _items = _api.options.playlist.items,
       _autoPlayNext = _api.options.playlist.autoPlayNext,
@@ -81,7 +81,7 @@ class MovaPlaylist {
   StreamSubscription<int>? _endSub;
   StreamSubscription<MovaSessionEvent>? _itemSub;
 
-  final MovaApi _api;
+  final IMovaApi _api;
   final List<MovaPlaylistItem> _items;
   final bool _autoPlayNext;
   late int _index;
@@ -105,9 +105,9 @@ class MovaPlaylist {
   /// 最近已接受的跳转；被拒绝的请求不能取代正在播放的项。
   int _acceptedJumpGen = 0;
 
-  /// The items this controller navigates.
+  /// The items this playlist navigates.
   ///
-  /// 该控制器导航的项列表。
+  /// 本播放列表导航的项列表。
   List<MovaPlaylistItem> get items => _items;
 
   /// The index currently playing.
@@ -171,9 +171,9 @@ class MovaPlaylist {
       ? jumpTo(_index - 1)
       : Future<void>.value();
 
-  /// Navigates the borrowed session only while this controller is enabled.
+  /// Navigates the borrowed session only while this playlist is enabled.
   ///
-  /// 仅在控制器启用时导航借用的会话。
+  /// 仅在本播放列表启用时导航借用的会话。
   Future<void> _navigateSession({required bool forward}) async {
     if (_disposed || !_enabled) return;
     if (forward) {
@@ -186,12 +186,12 @@ class MovaPlaylist {
   /// Jumps to [index] and opens its source; out-of-range indices are ignored.
   ///
   /// Opens first, then commits the index and notifies [indexChanges], so a
-  /// failed [MovaApi.open] leaves the current index unchanged rather than
+  /// failed [IMovaApi.open] leaves the current index unchanged rather than
   /// advancing to an item that never started.
   ///
   /// 跳转到 [index] 并打开其源；越界下标被忽略。
   ///
-  /// 先打开、再提交下标并通知 [indexChanges]，使 [MovaApi.open] 失败时当前下标
+  /// 先打开、再提交下标并通知 [indexChanges]，使 [IMovaApi.open] 失败时当前下标
   /// 保持不变，而非前进到一个从未起播的项。
   ///
   /// - [index]: the target item index / 目标项下标
@@ -212,7 +212,7 @@ class MovaPlaylist {
     // 仅被接受的后续跳转才能取代本次；被拒绝的请求仍保留先前加载，不能阻止其提交下标。
     if (!accepted || gen < _acceptedJumpGen) return;
     // dispose() may have closed `_indexChanges` while the open() above was in
-    // flight (e.g. an auto-advance racing the host tearing the controller
+    // flight (e.g. an auto-advance racing the host tearing the playlist
     // down) — adding to a closed StreamController throws.
     //
     // dispose() 可能在上面的 open() 在途期间已经关闭了 `_indexChanges`
@@ -231,10 +231,10 @@ class MovaPlaylist {
     if (e is MovaDone && _autoPlayNext && hasNext) {
       unawaited(
         next().catchError((Object _) {
-          // The engine reports open failures through state/events. Automatic
+          // The player reports open failures through state/events. Automatic
           // navigation has no awaiting caller; observe its Future here as well.
           //
-          // 引擎通过状态/事件报告打开失败；自动导航没有等待方，须在此消费 Future 的异常。
+          // 播放器通过状态/事件报告打开失败；自动导航没有等待方，须在此消费 Future 的异常。
         }),
       );
     }
@@ -247,9 +247,9 @@ class MovaPlaylist {
       (i >= 0 && i < _items.length) ? _items[i] : null;
 
   /// Releases the event subscription and closes the index stream; call once
-  /// when the host tears the controller down.
+  /// when the host tears the playlist down.
   ///
-  /// 释放事件订阅并关闭下标流；宿主销毁控制器时调用一次。
+  /// 释放事件订阅并关闭下标流；宿主销毁播放列表时调用一次。
   Future<void> dispose() async {
     _disposed = true;
     if (_session != null) {

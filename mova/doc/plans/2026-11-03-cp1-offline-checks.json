@@ -45,8 +45,8 @@
       "info - Unnecessary use of multiple underscores. Try using '_' - lib\\main_v041_verify.dart:20:25 - unnecessary_underscores",
       "info - Unnecessary use of multiple underscores. Try using '_' - lib\\main_whep_verify.dart:25:25 - unnecessary_underscores",
       "info - Unnecessary use of multiple underscores. Try using '_' - lib\\main_win_verify.dart:28:25 - unnecessary_underscores",
-      "warning - The member 'debugSetQualities' can only be used within 'package:mova/src/core/engine.dart' or a test - lib\\verify_auto\\rerun6_coverage_new.dart:865:9 - invalid_use_of_visible_for_testing_member",
-      "warning - The member 'debugSetQualities' can only be used within 'package:mova/src/core/engine.dart' or a test - lib\\verify_auto\\rerun7_coverage_new.dart:877:9 - invalid_use_of_visible_for_testing_member",
+      "warning - The member 'debugSetQualities' can only be used within 'package:mova/src/core/mova.dart' or a test - lib\\verify_auto\\rerun6_coverage_new.dart:865:9 - invalid_use_of_visible_for_testing_member",
+      "warning - The member 'debugSetQualities' can only be used within 'package:mova/src/core/mova.dart' or a test - lib\\verify_auto\\rerun7_coverage_new.dart:877:9 - invalid_use_of_visible_for_testing_member",
       "warning - The value of the field '_mode' isn't used. Try removing the field, or using it - lib\\main_subtitle_formats_probe.dart:49:10 - unused_field",
       "warning - Unused import: 'package:media_kit/media_kit.dart'. Try removing the import directive - lib\\main_observe_event_verify2.dart:6:8 - unused_import"
     ],

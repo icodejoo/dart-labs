@@ -22,26 +22,26 @@ const _pre = MovaAdBreak(
 
 /// 构造普通广告路径；默认加载仍须主动起播。
 (FakeMovaApi, MovaAds) _plain({List<MovaAdBreak> breaks = const [_pre]}) {
-  final api = FakeMovaApi(options: MovaOpts(ads: MovaAdConfig(enabled: true, breaks: breaks)));
+  final api = FakeMovaApi(options: MovaOpts(ads: MovaAdOpts(enabled: true, breaks: breaks)));
   return (api, MovaAds(api));
 }
 
 /// 让广告背后的真实正片影子就绪。
 Future<FakeMovaApi> _contentShadow(AdOperationRig rig) async {
   await rig.ads.load(_content);
-  rig.engines.first.pushProgress(const MovaProg(position: Duration(seconds: 1)));
+  rig.movas.first.pushProgress(const MovaProg(position: Duration(seconds: 1)));
   await settleOperations();
-  final shadow = rig.engines.last;
-  expect(rig.engines, hasLength(2));
+  final shadow = rig.movas.last;
+  expect(rig.movas, hasLength(2));
   await rig.ready(shadow);
   shadow.calls.clear();
   return shadow;
 }
 
 /// 只接入真实局部静音能力；命令与播放意图沿用共享门控替身。
-class _WarmApi extends FakeMovaApi implements MovaPlayerMute {
+class _WarmApi extends FakeMovaApi implements IMovaPlayerMute {
   /// 启用切换与默认局部静音。
-  _WarmApi() : super(options: const MovaOpts(cutover: MovaCutoverConfig(enabled: true)));
+  _WarmApi() : super(options: const MovaOpts(cutover: MovaCutoverOpts(enabled: true)));
 
   /// 可控解静音结果的内核。
   final kernel = FakeWarmMuteKernel();
@@ -56,8 +56,8 @@ void main() {
     final rig = AdOperationRig(breaks: const [_pre]);
     addTearDown(rig.dispose);
     final shadow = await _contentShadow(rig);
-    rig.engines.first.push(rig.engines.first.state.copyWith(playing: false));
-    rig.engines.first.emitDone();
+    rig.movas.first.push(rig.movas.first.state.copyWith(playing: false));
+    rig.movas.first.emitDone();
     await settleOperations();
     expect(rig.api.active, same(shadow));
     expect(shadow.calls, contains('play'));
@@ -96,12 +96,12 @@ void main() {
     }
   });
 
-  test('commit 按旧引擎意图决定影子开播', () async {
+  test('commit 按旧播放器意图决定影子开播', () async {
     for (final intent in [false, true]) {
       final rig = OperationRig();
       addTearDown(rig.api.dispose);
       // 暂停请求尚未被内核观测时 playing 仍为真，不能覆盖意图。
-      rig.engines.first.push(rig.engines.first.state.copyWith(playbackIntent: intent, playing: true));
+      rig.movas.first.push(rig.movas.first.state.copyWith(playbackIntent: intent, playing: true));
       final shadow = await rig.warm('shadow');
       shadow.calls.clear();
       expect(await rig.api.commit(), isTrue);
@@ -115,7 +115,7 @@ void main() {
     final rig = OperationRig();
     addTearDown(rig.api.dispose);
     final shadow = await rig.warm('shadow');
-    final old = rig.engines.first;
+    final old = rig.movas.first;
     final gate = old.pauseGate = Completer<void>();
     final commit = rig.api.commit();
     await settleOperations();
@@ -128,12 +128,12 @@ void main() {
     expect(shadow.state.playbackIntent, isTrue);
   });
 
-  test('解静音失败的回退按意图：意图假不恢复旧引擎播放', () async {
+  test('解静音失败的回退按意图：意图假不恢复旧播放器播放', () async {
     final made = <_WarmApi>[];
-    final api = MovaCutoverEngine(engineFactory: () {
-      final engine = _WarmApi();
-      made.add(engine);
-      return engine;
+    final api = MovaCutover(movaFactory: () {
+      final mova = _WarmApi();
+      made.add(mova);
+      return mova;
     });
     addTearDown(api.dispose);
     made.first.push(made.first.state.copyWith(playing: true));
@@ -155,10 +155,10 @@ void main() {
 
   test('待机意愿 + 意图假：影子不进待机，只暂停', () async {
     final made = <FakeKeepAliveApi>[];
-    final api = MovaCutoverEngine(engineFactory: () {
-      final engine = FakeKeepAliveApi(options: const MovaOpts(cutover: MovaCutoverConfig(enabled: true)));
-      made.add(engine);
-      return engine;
+    final api = MovaCutover(movaFactory: () {
+      final mova = FakeKeepAliveApi(options: const MovaOpts(cutover: MovaCutoverOpts(enabled: true)));
+      made.add(mova);
+      return mova;
     });
     addTearDown(api.dispose);
     await api.setKeepAlive(true);

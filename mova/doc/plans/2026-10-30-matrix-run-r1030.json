@@ -922,7 +922,7 @@
       ]
     },
     {
-      "id": "E.MovaOrientationChange",
+      "id": "E.MovaOrientChange",
       "status": "BLOCKED",
       "evidence": "缺少完整编号自动判据；现有子项结果需复核，不能复用旧 finalize 硬编码结论。",
       "batches": [
@@ -1006,7 +1006,7 @@
       ]
     },
     {
-      "id": "E.MovaSwapChange",
+      "id": "E.MovaCutoverChange",
       "status": "BLOCKED",
       "evidence": "覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。",
       "batches": [
@@ -1066,7 +1066,7 @@
       ]
     },
     {
-      "id": "E.MovaStandbyChange",
+      "id": "E.MovaKeepAliveChange",
       "status": "BLOCKED",
       "evidence": "缺少完整编号自动判据；现有子项结果需复核，不能复用旧 finalize 硬编码结论。",
       "batches": [
@@ -1078,7 +1078,7 @@
       ]
     },
     {
-      "id": "E.MovaStandbyResume",
+      "id": "E.MovaKeepAliveResume",
       "status": "BLOCKED",
       "evidence": "缺少完整编号自动判据；现有子项结果需复核，不能复用旧 finalize 硬编码结论。",
       "batches": [
@@ -1826,20 +1826,20 @@
       "E.MovaZoomChange",
       "E.MovaLockChange",
       "E.MovaFullScreenChange",
-      "E.MovaOrientationChange",
+      "E.MovaOrientChange",
       "E.MovaPipChange",
       "E.MovaMiniChange",
       "E.MovaTimeShiftChange",
       "E.MovaLiveEdgeReach",
       "E.MovaPreviewBlock",
       "E.MovaSttBlock",
-      "E.MovaSwapChange",
+      "E.MovaCutoverChange",
       "E.MovaErrorEvent",
       "E.MovaPlayFailure",
       "E.MovaRecovered",
       "E.MovaFailover",
-      "E.MovaStandbyChange",
-      "E.MovaStandbyResume",
+      "E.MovaKeepAliveChange",
+      "E.MovaKeepAliveResume",
       "E1",
       "E2",
       "U1",
@@ -2083,84 +2083,84 @@
           "file": "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-r1030\\matrix-r1030-keepalive-core.log",
           "check": {
             "kind": "LOG",
-            "line": "10-30 11:19:44.507 15957 15957 I flutter : [STANDBY] 11:19:44.507   13554ms VERDICT S1 FAIL gop=25 hold=3s signal=grace decodedProp=158ms"
+            "line": "10-30 11:19:44.507 15957 15957 I flutter : [KEEP_ALIVE] 11:19:44.507   13554ms VERDICT S1 FAIL gop=25 hold=3s signal=grace decodedProp=158ms"
           }
         },
         {
           "file": "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-r1030\\matrix-r1030-keepalive-core.log",
           "check": {
             "kind": "LOG",
-            "line": "10-30 11:20:01.161 15957 15957 I flutter : [STANDBY] 11:20:01.161   30208ms VERDICT S1 FAIL gop=50 hold=3s signal=grace decodedProp=155ms"
+            "line": "10-30 11:20:01.161 15957 15957 I flutter : [KEEP_ALIVE] 11:20:01.161   30208ms VERDICT S1 FAIL gop=50 hold=3s signal=grace decodedProp=155ms"
           }
         },
         {
           "file": "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-r1030\\matrix-r1030-keepalive-core.log",
           "check": {
             "kind": "LOG",
-            "line": "10-30 11:20:17.637 15957 15957 I flutter : [STANDBY] 11:20:17.637   46684ms VERDICT S1 FAIL gop=100 hold=3s signal=grace decodedProp=132ms"
+            "line": "10-30 11:20:17.637 15957 15957 I flutter : [KEEP_ALIVE] 11:20:17.637   46684ms VERDICT S1 FAIL gop=100 hold=3s signal=grace decodedProp=132ms"
           }
         },
         {
           "file": "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-r1030\\matrix-r1030-keepalive-core.log",
           "check": {
             "kind": "LOG",
-            "line": "10-30 11:20:34.171 15957 15957 I flutter : [STANDBY] 11:20:34.171   63217ms VERDICT S1 FAIL gop=25 hold=3s signal=grace decodedProp=106ms"
+            "line": "10-30 11:20:34.171 15957 15957 I flutter : [KEEP_ALIVE] 11:20:34.171   63217ms VERDICT S1 FAIL gop=25 hold=3s signal=grace decodedProp=106ms"
           }
         },
         {
           "file": "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-r1030\\matrix-r1030-keepalive-core.log",
           "check": {
             "kind": "LOG",
-            "line": "10-30 11:20:50.696 15957 15957 I flutter : [STANDBY] 11:20:50.695   79742ms VERDICT S1 FAIL gop=50 hold=3s signal=grace decodedProp=131ms"
+            "line": "10-30 11:20:50.696 15957 15957 I flutter : [KEEP_ALIVE] 11:20:50.695   79742ms VERDICT S1 FAIL gop=50 hold=3s signal=grace decodedProp=131ms"
           }
         },
         {
           "file": "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-r1030\\matrix-r1030-keepalive-core.log",
           "check": {
             "kind": "LOG",
-            "line": "10-30 11:21:07.219 15957 15957 I flutter : [STANDBY] 11:21:07.219   96266ms VERDICT S1 FAIL gop=100 hold=3s signal=grace decodedProp=129ms"
+            "line": "10-30 11:21:07.219 15957 15957 I flutter : [KEEP_ALIVE] 11:21:07.219   96266ms VERDICT S1 FAIL gop=100 hold=3s signal=grace decodedProp=129ms"
           }
         },
         {
           "file": "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-r1030\\matrix-r1030-keepalive-core.log",
           "check": {
             "kind": "LOG",
-            "line": "10-30 11:21:23.840 15957 15957 I flutter : [STANDBY] 11:21:23.840  112886ms VERDICT S1 FAIL gop=25 hold=3s signal=grace decodedProp=135ms"
+            "line": "10-30 11:21:23.840 15957 15957 I flutter : [KEEP_ALIVE] 11:21:23.840  112886ms VERDICT S1 FAIL gop=25 hold=3s signal=grace decodedProp=135ms"
           }
         },
         {
           "file": "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-r1030\\matrix-r1030-keepalive-core.log",
           "check": {
             "kind": "LOG",
-            "line": "10-30 11:21:40.207 15957 15957 I flutter : [STANDBY] 11:21:40.207  129254ms VERDICT S1 FAIL gop=50 hold=3s signal=grace decodedProp=149ms"
+            "line": "10-30 11:21:40.207 15957 15957 I flutter : [KEEP_ALIVE] 11:21:40.207  129254ms VERDICT S1 FAIL gop=50 hold=3s signal=grace decodedProp=149ms"
           }
         },
         {
           "file": "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-r1030\\matrix-r1030-keepalive-core.log",
           "check": {
             "kind": "LOG",
-            "line": "10-30 11:21:56.748 15957 15957 I flutter : [STANDBY] 11:21:56.748  145794ms VERDICT S1 FAIL gop=100 hold=3s signal=grace decodedProp=125ms"
+            "line": "10-30 11:21:56.748 15957 15957 I flutter : [KEEP_ALIVE] 11:21:56.748  145794ms VERDICT S1 FAIL gop=100 hold=3s signal=grace decodedProp=125ms"
           }
         },
         {
           "file": "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-r1030\\matrix-r1030-keepalive-core.log",
           "check": {
             "kind": "LOG",
-            "line": "10-30 11:25:15.109 15957 15957 I flutter : [STANDBY] 11:25:15.109  344155ms VERDICT S6 FAIL audio=absent forcedAdvance=-5560ms"
+            "line": "10-30 11:25:15.109 15957 15957 I flutter : [KEEP_ALIVE] 11:25:15.109  344155ms VERDICT S6 FAIL audio=absent forcedAdvance=-5560ms"
           }
         },
         {
           "file": "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-r1030\\matrix-r1030-keepalive-core.log",
           "check": {
             "kind": "LOG",
-            "line": "10-30 11:25:31.831 15957 15957 I flutter : [STANDBY] 11:25:31.831  360878ms VERDICT S6 FAIL audio=absent forcedAdvance=-5640ms"
+            "line": "10-30 11:25:31.831 15957 15957 I flutter : [KEEP_ALIVE] 11:25:31.831  360878ms VERDICT S6 FAIL audio=absent forcedAdvance=-5640ms"
           }
         },
         {
           "file": "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-r1030\\matrix-r1030-keepalive-core.log",
           "check": {
             "kind": "LOG",
-            "line": "10-30 11:25:48.512 15957 15957 I flutter : [STANDBY] 11:25:48.512  377559ms VERDICT S6 FAIL audio=absent forcedAdvance=-5480ms"
+            "line": "10-30 11:25:48.512 15957 15957 I flutter : [KEEP_ALIVE] 11:25:48.512  377559ms VERDICT S6 FAIL audio=absent forcedAdvance=-5480ms"
           }
         }
       ]
@@ -2211,21 +2211,21 @@
           "file": "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-r1030\\matrix-r1030-rerun-batch11-review.log",
           "check": {
             "kind": "LOG",
-            "line": "10-30 11:46:21.225 17333 17333 I flutter : RFV2|1793331981225|RESULT|V11|run1|FAIL|preLandscape=true cutoverTo=true successorOrientation=landscape landscapeAfterCutover=true restoredPortrait=false"
+            "line": "10-30 11:46:21.225 17333 17333 I flutter : RFV2|1793331981225|RESULT|V11|run1|FAIL|preLandscape=true cutoverTo=true successorOrient=landscape landscapeAfterCutover=true restoredPortrait=false"
           }
         },
         {
           "file": "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-r1030\\matrix-r1030-rerun-batch11-review.log",
           "check": {
             "kind": "LOG",
-            "line": "10-30 11:46:34.897 17333 17333 I flutter : RFV2|1793331994897|RESULT|V11|run2|FAIL|preLandscape=true cutoverTo=true successorOrientation=landscape landscapeAfterCutover=true restoredPortrait=false"
+            "line": "10-30 11:46:34.897 17333 17333 I flutter : RFV2|1793331994897|RESULT|V11|run2|FAIL|preLandscape=true cutoverTo=true successorOrient=landscape landscapeAfterCutover=true restoredPortrait=false"
           }
         },
         {
           "file": "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-r1030\\matrix-r1030-rerun-batch11-review.log",
           "check": {
             "kind": "LOG",
-            "line": "10-30 11:46:48.525 17333 17333 I flutter : RFV2|1793332008525|RESULT|V11|run3|FAIL|preLandscape=true cutoverTo=true successorOrientation=landscape landscapeAfterCutover=true restoredPortrait=false"
+            "line": "10-30 11:46:48.525 17333 17333 I flutter : RFV2|1793332008525|RESULT|V11|run3|FAIL|preLandscape=true cutoverTo=true successorOrient=landscape landscapeAfterCutover=true restoredPortrait=false"
           }
         }
       ]
@@ -3764,15 +3764,15 @@
       },
       "subcheck_failures": []
     },
-    "gap-skin": {
+    "gap-ui-kit": {
       "kind": "OK",
       "exit": 1,
       "seconds": 136.77008560000104,
-      "driver": "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-r1030\\matrix-r1030-gap-skin.driver.log",
+      "driver": "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-r1030\\matrix-r1030-gap-ui-kit.driver.log",
       "error": "",
       "gap_result": {
         "run_id": "r1030",
-        "group": "skin",
+        "group": "ui-kit",
         "completed": true,
         "verdicts": [
           {

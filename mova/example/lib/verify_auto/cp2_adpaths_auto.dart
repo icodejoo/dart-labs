@@ -18,7 +18,7 @@ Future<void> runAdpaths(Cp2Harness h) async {
         final content = cp2Source(format == 'mp4' ? 'content' : 'vod', hls: format != 'mp4');
         final breaks = List.generate(path == 'pod' ? 2 : 1, (i) => MovaAdBreak(kind: kind,
           source: cp2Source(i == 0 ? 'ad' : 'ad2'), offset: const Duration(seconds: 4), duration: const Duration(seconds: 6)));
-        final opts = MovaOpts(cutover: cp2CutoverConfig, ads: MovaAdConfig(enabled: true,
+        final opts = MovaOpts(cutover: cp2CutoverOpts, ads: MovaAdOpts(enabled: true,
           breaks: breaks, waitForAdReady: const MovaAdWaitByKind(pre:true,mid:true,post:true), onAdEvent: (e) => cp2AdEvent(h,e)));
         final api = cp2Cutover(h, opts);
         await h.mount(api);
@@ -70,14 +70,14 @@ Future<void> runAdpaths(Cp2Harness h) async {
           final lifecycle=breaks.every((b)=>cp2AdLifecycle(adRows,b.source.uri,
             kind:b.kind.name,pending:path=='mid')) &&
             adRows.every((r)=>breaks.any((b)=>b.source.uri==r['uri']));
-          final expectedSwaps = breaks.length + (path == 'post' ? 0 : 1);
+          final expectedCutovers = breaks.length + (path == 'post' ? 0 : 1);
           final increasing = List.generate(epochs.length-1,(i) => epochs[i+1]>epochs[i]).every((v)=>v);
           h.check('$format.$path.$run', {'epochs':epochs,'frames':frames,'nativeSamples':reads,
             'entryContent':entryContent,'resumed':resumed,'resumeErrorMs':error,'ads':adRows,'contentEnded':ended,
             'adLifecycleValid':lifecycle,'expectedAdEvents':path=='mid' ? ['pending','started','completed'] : ['started','completed'],
             'postCriterion':'natural EOF then idle; no content resume is scheduled'},
             missing: path != 'post' && error == null ? 'missing native resume target/readback' : null,
-            pass: lifecycle && increasing && epochs.length-1 >= expectedSwaps && frames.length == breaks.length &&
+            pass: lifecycle && increasing && epochs.length-1 >= expectedCutovers && frames.length == breaks.length &&
               completed.length == breaks.length && (path == 'post' ? ended == 1 : error != null && error.abs() <= (format == 'hls' ? kHlsResumeToleranceMs : 500)));
         } finally {
           sampling=false; await sampler; await sub.cancel(); await endSub.cancel(); await ads.dispose(); await h.release();

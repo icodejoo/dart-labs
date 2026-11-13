@@ -4,7 +4,7 @@ import 'cp0_harness.dart';
 Future<void> runPageView(Cp0Harness h) async {
   for(final axis in [Axis.horizontal,Axis.vertical]) {
     for(var run=0;run<h.runs;run++) {
-      final api=createMovaEngine(preciseFirstFrame:true);
+      final api=createMova(preciseFirstFrame:true);
       await h.mount(api,axis:axis);await h.call('open',null,()=>api.open(h.source('a')));await h.waitPosition(1000);await h.call('pause',null,api.pause);
       final before=await h.native();final cursor=h.records.length;
       await h.host('gesture.${axis.name}.$run','swipe-${axis.name}');

@@ -6,7 +6,7 @@ import 'package:mova/extend.dart' as extend;
 import 'package:mova/feed.dart' as feed;
 import 'package:mova/mini.dart' as mini;
 import 'package:mova/mova.dart' as mova;
-import 'package:mova/skin.dart' as skin;
+import 'package:mova/ui_kit.dart' as ui_kit;
 import 'package:mova/stt.dart' as stt;
 
 // 固定每条源文件导出及其 show/hide 约束，递归穿过入口和 src 内的转导出。
@@ -48,7 +48,7 @@ void main() {
   test('主入口保留拆分前全部导出及 show/hide 约束', () {
     expect(_surface('mova.dart'), _snapshot('mova'));
     // 既有类型身份不因经过新入口而改变。
-    expect(mova.MovaSkin, skin.MovaSkin);
+    expect(mova.IMovaUiKit, ui_kit.IMovaUiKit);
     expect(mova.MovaAds, ads.MovaAds);
     expect(mova.MovaFeed, feed.MovaFeed);
     expect(mova.MovaMini, mini.MovaMini);
@@ -56,7 +56,7 @@ void main() {
   });
 
   test('五个分入口各自保持模块导出快照并公告内部 helper', () {
-    for (final name in ['skin', 'ads', 'feed', 'mini', 'extend']) {
+    for (final name in ['ui_kit', 'ads', 'feed', 'mini', 'extend']) {
       expect(_surface('$name.dart'), _snapshot(name), reason: name);
     }
     final extension = File('lib/extend.dart').readAsStringSync();
@@ -64,7 +64,7 @@ void main() {
     expect(extension, contains('下个版本'));
     expect(extension, isNot(contains('@Deprecated')));
     final main = File('lib/mova.dart').readAsStringSync();
-    for (final name in ['skin', 'ads', 'feed', 'mini', 'extend']) {
+    for (final name in ['ui_kit', 'ads', 'feed', 'mini', 'extend']) {
       expect(main, contains("export '$name.dart';"));
     }
   });
@@ -73,11 +73,11 @@ void main() {
     final surface = _surface('stt.dart');
     expect(surface, _snapshot('stt'));
     expect(_surface('mova.dart'), containsAll(surface));
-    expect(mova.MovaSttApi, stt.MovaSttApi);
-    expect(mova.MovaSttModelProvider, stt.MovaSttModelProvider);
+    expect(mova.IMovaSttApi, stt.IMovaSttApi);
+    expect(mova.IMovaSttModelProvider, stt.IMovaSttModelProvider);
     // 静态检查既有 getter 的返回类型，签名变化必须导致此处编译失败。
-    stt.MovaSttApi? readStt(mova.MovaApi api) => api.stt;
-    expect(readStt, isA<stt.MovaSttApi? Function(mova.MovaApi)>());
+    stt.IMovaSttApi? readStt(mova.IMovaApi api) => api.stt;
+    expect(readStt, isA<stt.IMovaSttApi? Function(mova.IMovaApi)>());
     final main = File('lib/mova.dart').readAsStringSync();
     expect(main, contains("export 'stt.dart';"));
     expect(main, isNot(contains("export 'src/core/stt/")));

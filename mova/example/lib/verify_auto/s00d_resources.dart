@@ -87,11 +87,11 @@ Future<Map<String, Object?>> metrics() async {
 
 // 带阶段、进程与单调时间的采样点，便于与主机 dumpsys/原生计数对齐。
 Future<Map<String, Object?>> checkpoint(String phase, {
-  int? created, int? engineCount,
+  int? created, int? movaCount,
 }) async {
   final data = await metrics();
   c.mark('RESOURCE_SAMPLE', {
-    'phase': phase, ...data, 'created': created, 'engineCount': engineCount,
+    'phase': phase, ...data, 'created': created, 'movaCount': movaCount,
   });
   return data;
 }
@@ -101,7 +101,7 @@ void sample(
   Map<String, Object?> before,
   Map<String, Object?> after, {
   int? created,
-  int? engineCount,
+  int? movaCount,
 }) {
   final known = [
     'rss',
@@ -116,11 +116,11 @@ void sample(
       'before': before,
       'after': after,
       'created': created,
-      'engineCount': engineCount,
+      'movaCount': movaCount,
     },
     'pass': known
         ? (created == null || created <= 3) &&
-              (engineCount == null || engineCount <= 3) &&
+              (movaCount == null || movaCount <= 3) &&
               (after['rss'] as int) > 0 &&
               (after['threads'] as int) > 0 &&
               (after['handles'] as int) > 0 &&
@@ -129,7 +129,7 @@ void sample(
   });
 }
 
-/// Covers disposal with real engine FrameTiming data, including delivery of
+/// Covers disposal with real player FrameTiming data, including delivery of
 /// the first post-disposal frame. Deadlines only detect unavailable evidence.
 class DisposeFrames {
   final frames = <FrameTiming>[];
@@ -223,10 +223,10 @@ class DisposeFrames {
 Future<void> audioResources() async {
   final reports = <MovaReportEvent>[];
   final positions = <int>[];
-  final a = createMovaEngine(
+  final a = createMova(
     audioOnly: true,
     preciseFirstFrame: true,
-    options: const MovaOpts(report: MovaReportConfig(qoe: true)),
+    options: const MovaOpts(report: MovaReportOpts(qoe: true)),
     reporter: MovaCallbackReporter(reports.add),
   );
   final sub = a.progress.listen(

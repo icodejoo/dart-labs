@@ -22,8 +22,8 @@ const items = [
 }) {
   final api = FakeMovaApi(
     options: MovaOpts(
-      ads: MovaAdConfig(enabled: true, breaks: breaks),
-      playlist: const MovaPlaylistConfig(
+      ads: MovaAdOpts(enabled: true, breaks: breaks),
+      playlist: const MovaPlaylistOpts(
         enabled: true,
         items: items,
         nextUpLeadTime: Duration(seconds: 10),

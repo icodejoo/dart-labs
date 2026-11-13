@@ -4,16 +4,16 @@
 /// 上报事件的类别：用户操作、播放器状态事件、或错误。
 enum MovaReportKind {
   /// A UI-only user action with no corresponding [MovaEvent] — e.g. opening a
-  /// settings panel. Reported via [MovaApi.report].
+  /// settings panel. Reported via [IMovaApi.report].
   ///
   /// 纯 UI 语义的用户操作，没有对应的 [MovaEvent]——例如打开设置面板。经
-  /// [MovaApi.report] 上报。
+  /// [IMovaApi.report] 上报。
   action,
 
-  /// A playback state change mova already emits on [MovaApi.events],
+  /// A playback state change mova already emits on [IMovaApi.events],
   /// auto-translated by the internal whitelist.
   ///
-  /// mova 已在 [MovaApi.events] 上广播的播放状态变化，由内置白名单自动转换。
+  /// mova 已在 [IMovaApi.events] 上广播的播放状态变化，由内置白名单自动转换。
   event,
 
   /// A playback error.
@@ -23,11 +23,11 @@ enum MovaReportKind {
 }
 
 /// Priority hint only — mova never schedules or batches deliveries itself;
-/// the [MovaReporter] implementation decides whether to send immediately or
+/// the [IMovaReporter] implementation decides whether to send immediately or
 /// accumulate a batch.
 ///
 /// 仅作优先级提示——mova 自身从不调度或攒批发送，具体是立即发送还是攒批，
-/// 完全由 [MovaReporter] 的实现决定。
+/// 完全由 [IMovaReporter] 的实现决定。
 enum MovaReportPriority {
   /// Hints the host should flush this event right away (e.g. errors, playback
   /// completion) rather than let it sit in a batch.
@@ -267,10 +267,10 @@ class MovaReportEvent {
   /// The QoE session this event belongs to; `null` when the QoE layer is off
   /// or the event predates session tracking. This is the one field a host
   /// batching events for later delivery cannot reconstruct on its own — see
-  /// `MovaReportConfig`/D6.
+  /// `MovaReportOpts`/D6.
   ///
   /// 该事件所属的 QoE 会话；QoE 层关闭或事件产生于会话追踪之前时为 `null`。
-  /// 这是宿主攒批延后发送时唯一无法自行重建的字段——见 `MovaReportConfig`/D6。
+  /// 这是宿主攒批延后发送时唯一无法自行重建的字段——见 `MovaReportOpts`/D6。
   final String? sessionId;
 
   /// Creates a report event.
@@ -300,13 +300,13 @@ class MovaReportEvent {
 ///
 /// Example / 示例:
 /// ```dart
-/// final engine = createMovaEngine(
+/// final mova = createMova(
 ///   reporter: MovaCallbackReporter((event) {
 ///     myAnalyticsSdk.track(event.name.name, event.params);
 ///   }),
 /// );
 /// ```
-abstract class MovaReporter {
+abstract class IMovaReporter {
   /// Called for every report event mova generates.
   ///
   /// [event] 是产生的一条上报事件。
@@ -315,17 +315,17 @@ abstract class MovaReporter {
   void onReport(MovaReportEvent event);
 }
 
-/// Wraps a plain callback as a [MovaReporter] (same convenience pattern as
-/// `MovaCallbackVolumePort`).
+/// Wraps a plain callback as a [IMovaReporter] (same convenience pattern as
+/// `MovaCallbackVolume`).
 ///
-/// 把一个简单回调包装成 [MovaReporter]（与 `MovaCallbackVolumePort` 同一
+/// 把一个简单回调包装成 [IMovaReporter]（与 `MovaCallbackVolume` 同一
 /// 便利模式）。
 ///
 /// Example / 示例:
 /// ```dart
 /// final reporter = MovaCallbackReporter((event) => print(event.name));
 /// ```
-class MovaCallbackReporter implements MovaReporter {
+class MovaCallbackReporter implements IMovaReporter {
   /// The wrapped callback, invoked once per report event.
   ///
   /// 被包装的回调，每条上报事件调用一次。

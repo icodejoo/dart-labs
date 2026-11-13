@@ -72,7 +72,7 @@ class MovaProgSelect<T> extends StatelessWidget {
   final T Function(MovaProg progress) selector;
 
   /// Renders the widget for the current value of the watched field, or
-  /// `null` before the first tick for APIs without MovaProgressSource.
+  /// `null` before the first tick for APIs without IMovaProgressSource.
   ///
   /// 依据被观察字段的当前值渲染组件；未实现同步进度能力时，首个 tick 到达前为 `null`。
   final Widget Function(BuildContext context, T? value) builder;
@@ -82,8 +82,8 @@ class MovaProgSelect<T> extends StatelessWidget {
     final api = MovaScope.of(context);
     return StreamBuilder<T>(
       stream: api.progress.map(selector).distinct(),
-      initialData: api is MovaProgressSource
-          ? selector((api as MovaProgressSource).progressValue)
+      initialData: api is IMovaProgressSource
+          ? selector((api as IMovaProgressSource).progressValue)
           : null,
       builder: (context, snapshot) => builder(context, snapshot.data),
     );

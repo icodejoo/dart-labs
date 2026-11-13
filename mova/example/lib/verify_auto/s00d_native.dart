@@ -9,7 +9,7 @@ import '../main_coverage_api.dart' as c;
 
 // Real default wiring only. Every VideoController belongs to the MovaPlayer
 // actually on c.screen. No hidden repeatedly-created texture controllers.
-Future<NativePlayer> mount(MovaApi a) async {
+Future<NativePlayer> mount(IMovaApi a) async {
   c.widgetMode.value = false;
   c.screen.value = a;
   c.observe(a);
@@ -47,7 +47,7 @@ Future<List<String>?> clients(NativePlayer n) async {
   return null;
 }
 
-Future<void> release(MovaApi a) async {
+Future<void> release(IMovaApi a) async {
   await a.dispose();
   c.screen.value = null;
   await WidgetsBinding.instance.endOfFrame;
@@ -59,11 +59,11 @@ Future<void> run() async {
     final events = <MovaEvent>[];
     final recovery = variant == 'recovery';
     final reporter = variant == 'reporterOff' || variant == 'qoe';
-    final a = createMovaEngine(
+    final a = createMova(
       preciseFirstFrame: variant == 'precise',
       options: MovaOpts(
-        report: MovaReportConfig(qoe: variant == 'qoe'),
-        recovery: MovaRecoveryConfig(
+        report: MovaReportOpts(qoe: variant == 'qoe'),
+        recovery: MovaRecoveryOpts(
           enabled: recovery,
           policy: const MovaRetryThenFailover(maxRetries: 0),
         ),
@@ -187,7 +187,7 @@ Future<void> run() async {
   }
 }
 
-Future<void> headers(MovaApi a, NativePlayer n) async {
+Future<void> headers(IMovaApi a, NativePlayer n) async {
   final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
   final observed = <String?>[];
   final client = HttpClient();
@@ -261,7 +261,7 @@ List<Element> elements(bool Function(Widget) match) {
   return found;
 }
 
-Future<void> fitProperties(MovaApi a) async {
+Future<void> fitProperties(IMovaApi a) async {
   for (final fit in MovaFit.values) {
     await a.setFit(fit);
     await WidgetsBinding.instance.endOfFrame;
@@ -305,7 +305,7 @@ Future<void> fitProperties(MovaApi a) async {
   }
 }
 
-Future<void> snapshotGuard(MovaApi a, NativePlayer native) async {
+Future<void> snapshotGuard(IMovaApi a, NativePlayer native) async {
   final guards = elements(
     (w) => w.runtimeType.toString() == 'MovaSnapshotGuard',
   );

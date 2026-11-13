@@ -23,9 +23,9 @@ const _pre2 = MovaAdBreak(
 const _preOpen = MovaAdBreak(kind: MovaAdBreakKind.pre, source: MovaSource('https://host/pre3.mp4'));
 const _loadTimeout = Duration(seconds: 8);
 
-/// Lets the controller's async chains settle inside a [fakeAsync] zone.
+/// Lets the [MovaAds] async chains settle inside a [fakeAsync] zone.
 ///
-/// 在 [fakeAsync] 区域内让控制器的异步链结算完毕。
+/// 在 [fakeAsync] 区域内让 MovaAds 的异步链结算完毕。
 void _flush(FakeAsync async) => async.elapse(const Duration(milliseconds: 1));
 
 /// Fake whose `open()` suspends until [gate] completes.
@@ -59,15 +59,15 @@ class _GatedOpenApi extends FakeMovaApi {
 /// Cutover double whose `cutoverTo` suspends until [gate] completes.
 ///
 /// `cutoverTo` 会挂起到 [gate] 完成的切换替身。
-class _GatedCutoverCtl extends FakeCutoverCtl {
+class _GatedCutover extends FakeCutover {
   /// Completer that releases the suspended `cutoverTo`.
   ///
   /// 放行被挂起的 `cutoverTo` 的 completer。
   final Completer<void> gate = Completer<void>();
 
-  /// Runs right after the gate opens, to model the ad engine taking over.
+  /// Runs right after the gate opens, to model the ad player taking over.
   ///
-  /// 闸门放行后立即执行，用来模拟广告引擎接班。
+  /// 闸门放行后立即执行，用来模拟广告播放器接班。
   void Function()? onSettled;
 
   @override
@@ -84,7 +84,7 @@ class _GatedCutoverCtl extends FakeCutoverCtl {
 /// Fail policy that records every failure and skips the break.
 ///
 /// 记录所有失败并跳过广告位的失败策略。
-class _RecordingFail implements MovaAdFailPolicy {
+class _RecordingFail implements IMovaAdFailPolicy {
   /// Every failure passed to [onFailure], in order.
   ///
   /// 依次传给 [onFailure] 的所有失败记录。
@@ -101,7 +101,7 @@ class _RecordingFail implements MovaAdFailPolicy {
 ///
 /// 构造带 [breaks]、首帧起表与固定加载期限的选项。
 MovaOpts _opts(List<MovaAdBreak> breaks, _RecordingFail policy, {bool waitPre = false}) => MovaOpts(
-      ads: MovaAdConfig(
+      ads: MovaAdOpts(
         enabled: true,
         breaks: breaks,
         failPolicy: policy,
@@ -117,7 +117,7 @@ void main() {
       fakeAsync((async) {
         final policy = _RecordingFail();
         final api = FakeMovaApi(options: _opts([_pre1, _preOpen], policy, waitPre: true));
-        final cutover = _GatedCutoverCtl()..commitResult = true;
+        final cutover = _GatedCutover()..commitResult = true;
         final c = MovaAds(api, cutover: cutover);
         c.load(_content);
         _flush(async);
@@ -126,7 +126,7 @@ void main() {
         api.pushEvent(const MovaDone());
         _flush(async);
         expect(cutover.calls.where((call) => call == 'commit'), hasLength(2));
-        // Old engine still on screen: its rendered tick must be discarded.
+        // Old player still on screen: its rendered tick must be discarded.
         api.pushProgress(const MovaProg(position: Duration(seconds: 3)));
         _flush(async);
         cutover.onSettled = () => api.push(api.state.copyWith(rendered: false));
@@ -150,7 +150,7 @@ void main() {
         final c = MovaAds(api);
         c.load(_content);
         _flush(async);
-        // 内容引擎的残留：open 尚未落定，rendered 为 true 的 tick 先到。
+        // 内容播放器的残留：open 尚未落定，rendered 为 true 的 tick 先到。
         api.push(api.state.copyWith(rendered: true));
         api.pushProgress(const MovaProg(position: Duration(seconds: 3)));
         _flush(async);

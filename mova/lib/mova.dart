@@ -7,11 +7,11 @@ library;
 
 export 'src/core/api.dart';
 export 'src/core/render/frame_capture.dart';
-export 'src/core/engine.dart';
+export 'src/core/mova.dart';
 export 'src/core/events/events.dart';
 export 'src/core/model/danmaku.dart';
 export 'src/core/model/fit.dart';
-export 'src/core/model/orientation.dart';
+export 'src/core/model/orient_mode.dart';
 export 'src/core/model/playlist.dart';
 export 'src/core/model/quality.dart';
 export 'src/core/model/rate.dart';
@@ -22,13 +22,12 @@ export 'src/core/preview/api.dart';
 export 'src/core/state/progress.dart';
 export 'src/core/state/state.dart';
 export 'src/core/state/ui_state.dart';
-export 'src/deprecated_names.dart';
 export 'src/platform_impl/wiring.dart';
 export 'src/ui/player.dart';
 export 'src/ui/view.dart';
 export 'src/core/capability.dart';
 
-export 'skin.dart';
+export 'ui_kit.dart';
 export 'ads.dart';
 export 'feed.dart';
 export 'mini.dart';
@@ -37,5 +36,5 @@ export 'mini.dart';
 export 'extend.dart';
 
 /// 兼容公告：STT 仅转导出一个版本，下个版本从主入口撤下。
-/// 请改用 package:mova/stt.dart；MovaApi.stt 保留，不添加成员级弃用注解。
+/// 请改用 package:mova/stt.dart；IMovaApi.stt 保留，不添加成员级弃用注解。
 export 'stt.dart';

@@ -15,38 +15,38 @@
 
 - **下表所有新增设备判据均为“未上机”**。当前 lib 的 analyze 与无设备用例已校验；没有验证另一个 worktree/编排分支的构建。新增 Dart 调用使用当前公开 API 和 testing.dart，无新增 visibleForTesting 调用。
 - CHECK 保留 numbers 或 expected/actual；matrix_rules.json 的 assertions 重新比较这些输入，生产者写 true 不能绕过数学条件。缺字段、缺必需 CHECK、未知 dumpsys 格式均不能 PASS。
-- 新公开故障注入通过真实 MovaEngine 的公开动词/事件验证核心契约；origin=public-testing-kernel，**不能当作原生解码、FFI 或系统窗口的验证**。A29.rangeWarm 为实际 loopback HTTP 请求，origin=loopback-http。两者均未拼入 r1030 历史证据。
+- 新公开故障注入通过真实 Mova 的公开动词/事件验证核心契约；origin=public-testing-kernel，**不能当作原生解码、FFI 或系统窗口的验证**。A29.rangeWarm 为实际 loopback HTTP 请求，origin=loopback-http。两者均未拼入 r1030 历史证据。
 - 宿主 time.monotonic/Stopwatch 只限制等待、调度或记录事件戳；不把墙钟经过时间当成产品通过条件。现有 source() 的 DateTime 只生成防缓存 URL。
 - gap CHECK 来自已有实际组件树/渲染属性/点击事件比较，只有该 case 有 END 且无 HARNESS ERROR 才导出；保留 originGapIndex/Case/Run，可回查原始 gap.json 的 rows 数组。没有把整个 gap 场景的 PASS 映射成整个 v1 编号 PASS。
 - 当前离线测试：Python **38 项通过**；run_matrix.py --check 通过（49 batches / 135 IDs / 6 manual）；example flutter analyze **40 条既有 issue，未新增**，含 rerun6/rerun7 两条 debugSetQualities warning。flutter test --no-pub test/s00c_contract_test.dart 通过，产生 20 条公开 API/loopback CHECK。analyze 因既有 issue 返回非零，不能写成“零 issue”。
 
 ## 已接入的逐编号判据
 
-文件简写：API=`example/lib/main_coverage_api.dart`；PUBLIC=`example/lib/verify_auto/s00c_contract.dart`；NEW=`example/lib/verify_auto/coverage_new.dart`；SKIN=`example/lib/verify_auto/coverage_gap_skin.dart`；GAP=`example/lib/verify_auto/coverage_gap.dart`；KA=`example/lib/verify_auto/keep_alive_auto.dart`；HOST=`example/tool/coverage_s00c.py`。所有条件同时要求对应 CHECK.pass 为布尔 true。
+文件简写：API=`example/lib/main_coverage_api.dart`；PUBLIC=`example/lib/verify_auto/s00c_contract.dart`；NEW=`example/lib/verify_auto/coverage_new.dart`；UI_KIT=`example/lib/verify_auto/coverage_gap_ui_kit.dart`；GAP=`example/lib/verify_auto/coverage_gap.dart`；KA=`example/lib/verify_auto/keep_alive_auto.dart`；HOST=`example/tool/coverage_s00c.py`。所有条件同时要求对应 CHECK.pass 为布尔 true。
 
 | 编号 | CHECK / EVENT | 产出文件 | 判定条件与下次预期证据 | 状态 |
 |---|---|---|---|---|
 | A1 | A1.{events,states,progress,uiStates}.sequence | API basic | 四流各两个订阅者，leftCount=rightCount≥1，内存逐对象比较 equal=true，序列化 left=right；events 存 payload，其他流存字段值；basic/basic-cutover 两份来源必需，另保留 closed/progress | 未上机 |
-| A5 | A5.openThrows | PUBLIC | recovery=false；公开测试内核恰有一次 open；真实引擎抛出与注入对象相同的异常。原生坏 URL 是否同步抛仍是独立 H33 观察项，不据此声称原生会抛 | 未上机；核心故障注入已离线通过 |
+| A5 | A5.openThrows | PUBLIC | recovery=false；公开测试内核恰有一次 open；真实播放器抛出与注入对象相同的异常。原生坏 URL 是否同步抛仍是独立 H33 观察项，不据此声称原生会抛 | 未上机；核心故障注入已离线通过 |
 | A6 | A6.togglePlay/togglePause/repeatPlay/repeatPause；A6.intentIndependent/branchPlay/branchPause | API、PUBLIC | 普通/代理两实现重复 play/pause 后状态与 intent 正确；playOrPause 两方向；注入内核未确认 playing 时 intent=true、playing=false，并按 playing 精确下发 [play]/[pause] | 未上机；公开故障注入已离线通过 |
 | A14 | A14.window.enter/restore | HOST | 原生 DisplayFrames、实际 InsetsSource visible；进入 fullscreen=true 且两栏隐藏，退出 fullscreen=false、rotation/status/navigation 与进入前原生基线相等；原先两实现 fullscreen CHECK 仍必需 | 未上机；原生解析器仅用合成样本校验 |
-| A15 | A15.miniStable/exit；A15.miniHostToPip/pipExpanded | PUBLIC、HOST | 两实现 mini 连续 true 只发一次事件、epoch/handle/pip/orientation/volume 不变，退出累计两次事件；真实 MiniHost showing=true→false、mount=host、PiP pinned=true、epoch 不变；展开后 showing/mini/pip/pinned 均 false | 未上机；前两项公开故障注入已离线通过 |
+| A15 | A15.miniStable/exit；A15.miniHostToPip/pipExpanded | PUBLIC、HOST | 两实现 mini 连续 true 只发一次事件、epoch/handle/pip/orient/volume 不变，退出累计两次事件；真实 MiniHost showing=true→false、mount=host、PiP pinned=true、epoch 不变；展开后 showing/mini/pip/pinned 均 false | 未上机；前两项公开故障注入已离线通过 |
 | A16 | A16.window.{landscape,portrait,auto} | HOST | 原生宽高与强制方向一致；auto 在全屏中按真实解码视频宽高比选择方向，核对实际显示宽高，不用物理转屏前的强制 portrait 猜 auto 的方向 | 未上机 |
 | A18 | A18.pinned.enter/expand/close；N9.transitions | HOST | enterPip 返回 true，真实目标 app task pinned、state.pip=true 且 mini=false；展开和真正点击系统 X 后 pinned/pip=false；事件值精确为 [true,false,true,false]。系统 X 必须按 SystemUI XML 的 Close/关闭控件定位，未定位则 BLOCKED，不猜坐标 | 未上机 |
 | A21 | A21.sticky/autoHide/dragging/hudCleared | PUBLIC | 实际 uiStates：sticky 保持可见、普通自动隐藏；dragging=true/previewAt=7000/hud=seek/text=s00c；随后 hud=none、text=null、dragging=false；不以计时墙钟值判 PASS | 未上机；公开用例已离线通过 |
 | A25 | S6.publicFallback；keepalive_wake | KA、matrix_evidence.py | S6 走公开 setKeepAlive：audio=absent、phase=fallback、reason=silentStream、原生 vid 未关闭/mute=no；至少三轮。S1 至少九条原始 phase/signal/vid/mute/decodedProp；grace/timeout/null 保持 BLOCKED，非 grace 的原生落地信号才可通过该子项 | 未上机；S1 另有 H42 语义存疑 |
-| A29 | A29.rangeWarm/poolReclaimed；修正 A29.dispose | PUBLIC、NEW | 本地真实 HTTP 收到一次 Range=bytes=0-64；原生池滑动/快速激活后沿用 final，dispose 后 engineCount=0、三个已创建引擎 open 均 false。旧 dispose 的常量 true 已移除 | 未上机；Range 请求已离线通过 |
+| A29 | A29.rangeWarm/poolReclaimed；修正 A29.dispose | PUBLIC、NEW | 本地真实 HTTP 收到一次 Range=bytes=0-64；原生池滑动/快速激活后沿用 final，dispose 后 movaCount=0、三个已创建播放器 open 均 false。旧 dispose 的常量 true 已移除 | 未上机；Range 请求已离线通过 |
 | A30 | A30.mode.{vtt,extract,fallback,offline,blocked}；A30.clear.*；A30.cancelResult/staleResult | NEW、PUBLIC | 成功模式 observedMs=[4000,8000,12000,4000]、四份 bytes 非空、内存≤2；extract/fallback/offline 抽帧恰三次、diskHits≥1；VTT 抽帧/缓存写入均零（crop 不缓存）；blocked 无非空 thumb/抽帧；每模式 clear 后 current=null、内存=0；取消和换源后晚到结果发布数=0。旧 diskHit 必需项保留 | 未上机；并发取消/换源已离线通过 |
 | C1 | 同 A30 的全部 mode/clear/cancelResult/staleResult | NEW、PUBLIC | 不以单一 VTT 成功代替所有模式。offline 先把实际视频保存为本地文件，再以 file URI 抽帧、VTT 地址不可达；这证明无缩略图网络源时的本地媒体回退，不证明系统飞行模式 | 未上机 |
-| C3 | rerun-batch16-{engine,cutover}.doubletapSeek（修正） | example/tool/coverage_widgets_ui.py | 右侧双击后必须出现 MovaSeek，target=钳制(position+10000ms)，误差≤200ms；不再要求 playing=true。其余捏合/轴重映射等仍未补齐 | 未上机；部分完成 |
+| C3 | rerun-batch16-{mova,cutover}.doubletapSeek（修正） | example/tool/coverage_widgets_ui.py | 右侧双击后必须出现 MovaSeek，target=钳制(position+10000ms)，误差≤200ms；不再要求 playing=true。其余捏合/轴重映射等仍未补齐 | 未上机；部分完成 |
 | C4 | C4.abrDown | NEW abr | 实际限速后 MovaAbrDownShift 的 toBandwidth<fromBandwidth、目标事件 URI=最终 state URI、policyResets≥1；无码率元数据时 BLOCKED。既有 ABR_REAL、F3 原始记录保留 | 未上机 |
-| C10 | C10.theme.{default,bilibili,douyin,mini}；C10.strings.{default,bilibili}；C10.accent.douyin；C10.buffering | SKIN、GAP、coverage_gap.py | 实际已挂载图标/文本样式 mismatches=[]；替换文案前后均找到；点赞 accent 与注入值一致；spinner 的 color/strokeWidth/size 三字段逐值相等；Mini 中心按钮颜色/尺寸相等 | 未上机 |
+| C10 | C10.theme.{default,bilibili,douyin,mini}；C10.strings.{default,bilibili}；C10.accent.douyin；C10.buffering | UI_KIT、GAP、coverage_gap.py | 实际已挂载图标/文本样式 mismatches=[]；替换文案前后均找到；点赞 accent 与注入值一致；spinner 的 color/strokeWidth/size 三字段逐值相等；Mini 中心按钮颜色/尺寸相等 | 未上机 |
 | C13 | C13.defaultHeartbeat | PUBLIC | 实际 Zone.createPeriodicTimer 观察默认 heartbeat=null，创建 periodic timer 数=0；QoE 完整四分仍缺，未删除 coverage1 | 未上机；部分完成，公开用例已离线通过 |
 | C15 | 同 A25 | KA、matrix_evidence.py | 去掉旁路内核强制 B 的错误 S6 判据，保留 maxDuration 及 S2/S3/S13/S17；S1/H42 仍 BLOCKED | 未上机；兼语义存疑 |
 | C17 | C17.sameAs | PUBLIC | 相同源/请求头 mpv option/alternatives 为 sameAs=true；只改 http-header-fields 或备选地址为 false。请求头原生读回等其余子项仍缺 | 未上机；部分完成，公开用例已离线通过 |
 | E.MovaPreviewBlock | EVENT MovaPreviewBlock + E.MovaPreviewBlock.network | PUBLIC、API observe | network=never 后实际事件 reason=network、count≥1，事件戳与接收时 state 保留 | 未上机；公开用例已离线通过 |
-| E.MovaStandbyResume | EVENT MovaKeepAliveResume | KA | 在真实 api.events 订阅中记录 elapsed/signal/from 与接收 state，写 MATRIX_RECORD；只接收带 AUTORUN DONE 的日志，不从 S1 文本推造事件 | 未上机 |
-| U2 | U2.componentNames；U2.tree.* / mounted.*；U2.patchNoop；U2.patchTree.* / patchMounted.* / patchClick.* | SKIN、GAP、coverage_gap.py | 五套皮肤逐槽 tree=expected.tree、无缺失图标、GradBar 数正确；无匹配路径补丁不改输入；Default/Bilibili 四种补丁后的树/挂载实值，以及每个新增或替换探针点击后的 rate 与 MovaRateChange 事件 | 未上机 |
+| E.MovaKeepAliveResume | EVENT MovaKeepAliveResume | KA | 在真实 api.events 订阅中记录 elapsed/signal/from 与接收 state，写 MATRIX_RECORD；只接收带 AUTORUN DONE 的日志，不从 S1 文本推造事件 | 未上机 |
+| U2 | U2.componentNames；U2.tree.* / mounted.*；U2.patchNoop；U2.patchTree.* / patchMounted.* / patchClick.* | UI_KIT、GAP、coverage_gap.py | 五套 UI 套件逐槽 tree=expected.tree、无缺失图标、GradBar 数正确；无匹配路径补丁不改输入；Default/Bilibili 四种补丁后的树/挂载实值，以及每个新增或替换探针点击后的 rate 与 MovaRateChange 事件 | 未上机 |
 | U6 | 同 C3 的 doubletapSeek 修正 | example/tool/coverage_widgets_ui.py | 删除长按倍速旧断言，只保留观察；完整所有手势判据仍未补齐 | 未上机；部分完成 |
 | F5 | F5.pipWake + A15 两个宿主 CHECK | HOST | 真实直播进入 holding 后 enterPip，目标 task pinned、mini=false、phase 回 off 且有实际 MovaKeepAliveResume；与 MiniHost 互斥条件联合 | 未上机 |
 | F6 | 同 A25 | KA、matrix_evidence.py | S6 公开 fallback + S1 独立原生信号；不把 5s grace 当作视频恢复耗时 | 未上机；兼语义存疑 |
@@ -54,10 +54,10 @@
 | F11 | F11.{ass,vtt,movtext} MATRIX_RECORD；SUBFMT AUTORUN DONE | example/lib/main_subtitle_formats_probe.dart | 原生 sub-text 实际采样数与非空样本数，零样本为 BLOCKED，窗口结束有完成标记；原有 NEW 中 srt/ass/vtt/movtext 必需 CHECK 不删。旧探针漏完成标记已修复 | 未上机；r1030 已有其他完整命令证据可 PASS |
 | N9 | 同 A18，含 N9.transitions | HOST | 原生目标 task 与实际 PipChange 四步序列对账，重复值不能重发 | 未上机 |
 | N12 | N12.openReset/freshRestart | PUBLIC | 第二次 open 后 rendered=false、宽高=0；新 RESTART 后 rendered=true 且累计两个 FirstFrame。**未补原生旧 RESTART 隔离**，coverage1 仍在 | 未上机；部分完成，公开用例已离线通过 |
-| N16 | N16.variants.{true,false}.{true,false} + C10.buffering + U2.mounted.minimal | SKIN、GAP、coverage_gap.py | 四个 showBuffering/showError 组合组件树逐值相等；Minimal 无图标/GradBar；实际 spinner 三字段与主题一致 | 未上机 |
+| N16 | N16.variants.{true,false}.{true,false} + C10.buffering + U2.mounted.minimal | UI_KIT、GAP、coverage_gap.py | 四个 showBuffering/showError 组合组件树逐值相等；Minimal 无图标/GradBar；实际 spinner 三字段与主题一致 | 未上机 |
 | N20 | 同 A25 | KA、matrix_evidence.py | 与 A25/F6 同一组共享证据，不能因别名改变再发明一份结论 | 未上机；兼语义存疑 |
 
-新增公开用例接在 coverage_new 的 s00c case，coverage_api_batches 注册 batch15-s00c。宿主新增 s00c-native 批次，放在 api-launch 之后、会锁屏的 gap-screen **之前**；本轮未执行。gap 的原始具名 CHECK 导出为本 run 目录中的 `matrix-<run>-gap-skin-checks.json`，不是派生 gap-result.json。
+新增公开用例接在 coverage_new 的 s00c case，coverage_api_batches 注册 batch15-s00c。宿主新增 s00c-native 批次，放在 api-launch 之后、会锁屏的 gap-screen **之前**；本轮未执行。gap 的原始具名 CHECK 导出为本 run 目录中的 `matrix-<run>-gap-ui-kit-checks.json`，不是派生 gap-result.json。
 
 ## 验证器旧预期与批次异常修正依据
 
@@ -65,7 +65,7 @@
 2. C3-①、U6-① 明确左右双击 seek、长按现无倍速；改右侧双击 seek 目标断言，长按只保留原始观察。
 3. A29-① 的 MovaNetworkWarmFeedPrefetcher 只预热 DNS/TCP/TLS/CDN 并丢弃响应字节（feed_prefetcher.dart 文档），不承诺落盘或缓存“命中”。改测实际 Range 请求，不虚构缓存命中。
 4. `matrix-r1030-existing-pages.harness-errors.jsonl` 唯一错误是 rerun-batch13-subtitles 的 completed=false。其原始日志有字幕采样但没有 AUTORUN DONE。修复页的完成标记；并将 run_matrix.py 改动限制在 make_rows 的粗粒度 gate：evidence_only 的各编号已按独立完整命令/日志必需项对账，不再由不相关子页异常一票阻塞。HARNESS 仍留在 batches 中，不抹历史错误。
-5. 因第 4 点，r1030 的 **A24、C11、E.MovaSwapChange、F4、F11、F16、N10、N11** 共 8 项 BLOCKED→PASS，使用原先就存在的原始 CHECK/日志，并非新增设备结果。A24 六项在独立 done 命令中齐备，不能因为另一个字幕子页未发完成标记而否认这些证据。
+5. 因第 4 点，r1030 的 **A24、C11、E.MovaCutoverChange、F4、F11、F16、N10、N11** 共 8 项 BLOCKED→PASS，使用原先就存在的原始 CHECK/日志，并非新增设备结果。A24 六项在独立 done 命令中齐备，不能因为另一个字幕子页未发完成标记而否认这些证据。
 
 ## 9 条 FAIL 定性表
 
@@ -78,17 +78,17 @@
 | E.MovaSizeChange | 产品契约缺陷 D01 | final-abr.json records[1208]：payload=0x360，state.size=0x0 | FAIL |
 | E.MovaQualityChange | 产品契约缺陷 D01 | final-abr.json records[1193]：payload.quality=自动，state.quality=360p；不是可以忽略“自动”档的契约 | FAIL |
 | C16 | 产品原生链路缺陷 D02；责任层未定 | final-tls-probe.json records[497–498] 原生 verify=yes、CA 文件 1150 字节而正确 IP SAN MP4 失败；同 CA 的 localhost 控制组 records[527–528] 成功。正确证书已做本地 CA/IP 校验 | FAIL |
-| A25 | S6 验证器错测；S1/H42 存疑 | S6 绕过公开引擎决策直接强制 kernel.enterKeepAlive(muted)，不应当归为公开 API 产品失败；S1 语义在矩阵 §5.3 明确待决 | BLOCKED |
+| A25 | S6 验证器错测；S1/H42 存疑 | S6 绕过公开播放器决策直接强制 kernel.enterKeepAlive(muted)，不应当归为公开 API 产品失败；S1 语义在矩阵 §5.3 明确待决 | BLOCKED |
 | C15 | S6 验证器错测；S1/H42 存疑 | 与 A25 同一组原始 S1/S6；不能因 maxDuration 子项通过就覆盖未知唤醒语义 | BLOCKED |
 | F6 | S6 验证器错测；S1/H42 存疑 | forcedAdvance<0 同时有 EOF、Done、PlayFailure 和重开归零，是强制禁掉全部音视频通路后的现象，不能以位置绝对差<500ms 判公开 silent-stream 契约 | BLOCKED |
-| N20 | S6 验证器错测；S1/H42 存疑 | 旧 standby 名只做别名迁移，仍按同一公开 keepAlive 决策与唤醒证据判定 | BLOCKED |
+| N20 | S6 验证器错测；S1/H42 存疑 | 旧 `Standby*` 事件名只做别名迁移，仍按同一公开 keepAlive 决策与唤醒证据判定 | BLOCKED |
 
 ### 产品缺陷 D01：事件投递与接收快照不同步
 
-- 复现：真实 HLS 换档/ABR/重载中同步记录事件 payload 与该同一 api 的接收时 snapshot。已确认 cutover 代理存在差异。原始证据无法区分普通引擎与代理，普通引擎是否也有差异待上机区分；S00c 原“普通引擎和代理均有差异”证据不足。
-- 证据：`matrix-r1030-final-hls.json:records[961]`（engine=273633813，ms=84557，buffer false→state true）；`matrix-r1030-final-abr.json:records[1208]`（engine=888527077，ms=117577，size 0x360→state 0x0）；同文件 records[1193]（ms=108308，quality 自动→state 360p）。这是接收快照违约，不能推导画面一定错误或近期才回归。
+- 复现：真实 HLS 换档/ABR/重载中同步记录事件 payload 与该同一 api 的接收时 snapshot。已确认 cutover 代理存在差异。原始证据无法区分普通播放器与代理，普通播放器是否也有差异待上机区分；S00c 原“普通播放器和代理均有差异”证据不足。
+- 证据：`matrix-r1030-final-hls.json:records[961]`（mova=273633813，ms=84557，buffer false→state true）；`matrix-r1030-final-abr.json:records[1208]`（mova=888527077，ms=117577，size 0x360→state 0x0）；同文件 records[1193]（ms=108308，quality 自动→state 360p）。这是接收快照违约，不能推导画面一定错误或近期才回归。
 - 已确认原因：cutover 代理的 state 与 events 走两条独立订阅链，事件可领先 state。
-- 建议修法：**A28：代理把 state 与 events 合并为同一投递序列 + 普通引擎一致性单测**。本树不改 lib；A2、E.MovaBufferChange、E.MovaSizeChange、E.MovaQualityChange 保持严格 FAIL，预期 A28 后转 PASS。普通引擎新增独立对账 CHECK，未上机区分。
+- 建议修法：**A28：代理把 state 与 events 合并为同一投递序列 + 普通播放器一致性单测**。本树不改 lib；A2、E.MovaBufferChange、E.MovaSizeChange、E.MovaQualityChange 保持严格 FAIL，预期 A28 后转 PASS。普通播放器新增独立对账 CHECK，未上机区分。
 
 ### 产品缺陷 D02：严格 TLS 拒绝正确 IP SAN
 
@@ -100,7 +100,7 @@
 ### 存疑 D03/H42：保活恢复恒落 grace，elapsed 恒为 resumeTimeout
 
 - 证据：`matrix-r1030-keepalive-core.log` splitlines()[694,1090,1466,1860,2276,2672,3096,3478,3870]，九次 S1 signal=grace、elapsed=5000–5002ms，video-out-params/w 轮询恢复为正的 decodedProp=106–158ms。属性恢复本身不能证明屏幕已展示新帧，不拿它覆盖事件语义。
-- 疑似位置：`lib/src/core/engine.dart:1752` 的恢复闸门、`:1795` 的 resumeTimer→grace、`:1809` 的 _armResumeGate、`:1822` 的 _finishResume，以及 `lib/src/core/render/first_frame.dart:122` 的 resume size 分支。需要核实 vid 恢复后尺寸不变时是否根本不产生新的 size/RESTART。
+- 疑似位置：`lib/src/core/mova.dart:1752` 的恢复闸门、`:1795` 的 resumeTimer→grace、`:1809` 的 _armResumeGate、`:1822` 的 _finishResume，以及 `lib/src/core/render/first_frame.dart:122` 的 resume size 分支。需要核实 vid 恢复后尺寸不变时是否根本不产生新的 size/RESTART。
 - 缺的证据与决策：矩阵 §5.3 第 8 条要求先决定产品面是否保留 resuming 5s/elapsed=timeout；下一轮将 wake、RESTART、size、video-out 参数变化与实际帧计数递增放在同一单调时间轴，并记录原生观察客户端是否可用。当前 keepalive_wake 对 grace 保持 BLOCKED，未将其升级为已确认产品缺陷，也未以固定等待时间判 PASS。
 - 旧 S6 旁路现象位置：同日志 splitlines()[7958–7960,8276–8278,8632–8634]，forcedAdvance=-5560/-5640/-5480ms，伴随 EOF/Done/PlayFailure。`lib/src/core/keep_alive/plan.dart:126` 的现行公开决策对无声流选择 silentStream fallback（或配置为 decodeOnly），旧脚本却直接强制 muted；新 S6 改走公开 API 后需重新采证。
 
@@ -118,7 +118,7 @@ run_matrix 的日期命名输出另存为 S00c JSON 后，S00b 原件已恢复�
 |---|---:|---|
 | PASS | 69 | S00b 61 + 独立完成证据解除粗粒度 gate 的 8 项 |
 | FAIL | 5 | A2、C16、E.MovaBufferChange、E.MovaSizeChange、E.MovaQualityChange |
-| BLOCKED：已接入判据、纯待上机 | 20 | A1、A5、A6、A14、A15、A16、A18、A21、A29、A30、C1、C4、C10、E.MovaPreviewBlock、E.MovaStandbyResume、U2、F5、F10、N9、N16 |
+| BLOCKED：已接入判据、纯待上机 | 20 | A1、A5、A6、A14、A15、A16、A18、A21、A29、A30、C1、C4、C10、E.MovaPreviewBlock、E.MovaKeepAliveResume、U2、F5、F10、N9、N16 |
 | BLOCKED：已接入判据、兼 H42 语义存疑 | 4 | A25、C15、F6、N20 |
 | BLOCKED：验证器仍未补齐 | 31 | 下节所列 32 项中除 A2（它仍 FAIL）之外的编号 |
 | BLOCKED：manual / 真缺环境 | 6 | 下表；未把剩余验证器工作移入 manual |
@@ -127,7 +127,7 @@ run_matrix 的日期命名输出另存为 S00c JSON 后，S00b 原件已恢复�
 
 | 编号 | 缺少什么 |
 |---|---|
-| A31 | 真实 STT 模型、识别引擎和下载服务；公开假引擎回滚不等于真实识别 |
+| A31 | 真实 STT 模型、识别器和下载服务；公开假识别器回滚不等于真实识别 |
 | C7 | 同 A31，缺真实识别及字幕/SRT/分块导出的完整证据 |
 | C2 | 能按 behind 返回历史媒体且可控卡顿的服务；滑动 HLS 不能替代历史回看 |
 | F15 | 可控 publisher/WHEP 信令与 UDP/relay 服务；仅端口可达不能证明播放 |
@@ -163,9 +163,9 @@ run_matrix 的日期命名输出另存为 S00c JSON 后，S00b 原件已恢复�
 | U8 | mini 拖动/吸边/甩动/转屏 CHECK |
 | U9 | 守卫 route/Ticker/inactive/PiP/mini 联合 CHECK |
 | F7 | QoE 四分结算/TTFF/卡顿/truncated/heartbeat 逐字段 CHECK |
-| F9 | audioOnly 无视频解码及真实皮肤/封面/手势 CHECK |
+| F9 | audioOnly 无视频解码及真实 UI 套件/封面/手势 CHECK |
 | F12 | 音频会话/后台资源与耗电完整 CHECK |
-| F13 | 多引擎 RSS/线程/句柄有界及 dispose 超时 CHECK |
+| F13 | 多播放器 RSS/线程/句柄有界及 dispose 超时 CHECK |
 | F14 | 原生泵创建/销毁/稳定性/错误隔离的结构化 CHECK |
 | N5 | recovery 仅订阅 END_FILE、observeRestarts 开关的原生事件对账 |
 | N12 | 换源归零与旧 RESTART 隔离逐事件 CHECK |

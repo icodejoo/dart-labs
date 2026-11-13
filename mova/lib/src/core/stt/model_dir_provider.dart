@@ -1,6 +1,6 @@
 /// Resolves the on-disk directory downloaded STT model files are cached in.
 ///
-/// Kept as a port for the same reason as `MovaThumbDirProvider`: the default
+/// Kept as a port for the same reason as `IMovaThumbDirProvider`: the default
 /// answer needs `path_provider` (`getApplicationSupportDirectory()`), a
 /// Flutter plugin that must not be imported from `lib/src/core/**`. The
 /// concrete implementation lives in
@@ -8,11 +8,11 @@
 ///
 /// 解析已下载 STT 模型文件的磁盘缓存目录。
 ///
-/// 做成端口的原因与 `MovaThumbDirProvider` 相同：默认答案需要 `path_provider`
+/// 做成端口的原因与 `IMovaThumbDirProvider` 相同：默认答案需要 `path_provider`
 /// （`getApplicationSupportDirectory()`）——它是 Flutter 插件，
 /// `lib/src/core/**` 下不允许引入。具体实现放在
 /// `lib/src/platform_impl/stt_model_dir_impl.dart`。
-abstract class MovaSttModelDirProvider {
+abstract class IMovaSttModelDirProvider {
   /// Returns the absolute path of the cache directory; the caller creates it
   /// if it does not exist yet.
   ///
@@ -24,15 +24,15 @@ abstract class MovaSttModelDirProvider {
   Future<String> resolve();
 }
 
-/// A [MovaSttModelDirProvider] that always returns one fixed path.
+/// A [IMovaSttModelDirProvider] that always returns one fixed path.
 ///
 /// Lets hosts pin the model cache location and keeps tests free of plugin
 /// channels.
 ///
-/// 恒定返回同一路径的 [MovaSttModelDirProvider]。
+/// 恒定返回同一路径的 [IMovaSttModelDirProvider]。
 ///
 /// 既支持宿主固定模型缓存位置，也让测试无需依赖插件通道。
-class MovaFixedSttModelDirProvider implements MovaSttModelDirProvider {
+class MovaFixedSttModelDirProvider implements IMovaSttModelDirProvider {
   /// Creates a provider pinned to [path].
   ///
   /// 创建一个固定指向 [path] 的 provider。

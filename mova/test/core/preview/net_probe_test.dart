@@ -6,7 +6,7 @@ import 'package:mova/src/core/preview/net_probe.dart';
 /// A probe returning a fixed verdict, recording how often it was consulted.
 ///
 /// 返回固定判定结果的探针，并记录被咨询了多少次。
-class _FixedProbe implements MovaNetProbe {
+class _FixedProbe implements IMovaNetProbe {
   /// Creates a probe that always answers [verdict].
   ///
   /// 创建一个恒定回答 [verdict] 的探针。
@@ -82,7 +82,7 @@ void main() {
 /// connectivity plugin.
 ///
 /// [allowHeavy] 恒抛异常的探针，用于模拟坏掉的连通性插件。
-class _ThrowingProbe implements MovaNetProbe {
+class _ThrowingProbe implements IMovaNetProbe {
   @override
   Future<bool> allowHeavy() async => throw StateError('plugin missing');
 

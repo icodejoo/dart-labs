@@ -1,16 +1,16 @@
 RFV cycle=1 phase=1 START release=true
-RFV cycle=1 phase=1 PASS V1_PREPARE A=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_HVWHAK token=a6a03d8965de59a9841a2a40f4c6319a count=1 engines=["engine_HVWHAK"] disposed=false
+RFV cycle=1 phase=1 PASS V1_PREPARE A=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/mova_HVWHAK token=a6a03d8965de59a9841a2a40f4c6319a count=1 movas=["mova_HVWHAK"] disposed=false
 RFV cycle=1 phase=1 READY_FORCE_STOP
 RFV cycle=1 phase=2 START release=true
-RFV cycle=1 phase=2 PASS V1_ADOPT A=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_HVWHAK expected=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_HVWHAK token=a6a03d8965de59a9841a2a40f4c6319a expectedToken=a6a03d8965de59a9841a2a40f4c6319a
-RFV cycle=1 phase=2 PASS V1_COUNT before=1 after=1 engines=["engine_HVWHAK"]
-RFV cycle=1 phase=2 PASS V1_SECOND A=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_HVWHAK B=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_OHBBAD AExists=true tokenIntact=true count=2 engines=["engine_HVWHAK","engine_OHBBAD"]
-RFV cycle=1 phase=2 FIXTURE_MTIME_FALLBACK path=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_old error="FileSystemException: Cannot set modification time, path = '/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_old' (OS Error: Is a directory, errno = 21)"
-RFV cycle=1 phase=2 FIXTURE_MTIME path=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_old method=File.setLastModified(stamp)+libc.utime(directory) actual=2026-10-29T17:21:13.000
-RFV cycle=1 phase=2 FIXTURE_MTIME_FALLBACK path=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_fresh error="FileSystemException: Cannot set modification time, path = '/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_fresh' (OS Error: Is a directory, errno = 21)"
-RFV cycle=1 phase=2 FIXTURE_MTIME path=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_fresh method=File.setLastModified(stamp)+libc.utime(directory) actual=2026-11-06T17:21:13.000
-RFV cycle=1 phase=2 PASS V1_LEGACY_SETUP old=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_old ageSeconds=691200 fresh=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_fresh oldLease=false freshLease=false
-RFV cycle=1 phase=2 PASS V1_PRUNE C=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_fresh oldExists=false freshExists=true count=3 engines=["engine_HVWHAK","engine_OHBBAD","engine_fresh"]
+RFV cycle=1 phase=2 PASS V1_ADOPT A=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/mova_HVWHAK expected=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/mova_HVWHAK token=a6a03d8965de59a9841a2a40f4c6319a expectedToken=a6a03d8965de59a9841a2a40f4c6319a
+RFV cycle=1 phase=2 PASS V1_COUNT before=1 after=1 movas=["mova_HVWHAK"]
+RFV cycle=1 phase=2 PASS V1_SECOND A=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/mova_HVWHAK B=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/mova_OHBBAD AExists=true tokenIntact=true count=2 movas=["mova_HVWHAK","mova_OHBBAD"]
+RFV cycle=1 phase=2 FIXTURE_MTIME_FALLBACK path=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/mova_old error="FileSystemException: Cannot set modification time, path = '/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/mova_old' (OS Error: Is a directory, errno = 21)"
+RFV cycle=1 phase=2 FIXTURE_MTIME path=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/mova_old method=File.setLastModified(stamp)+libc.utime(directory) actual=2026-10-29T17:21:13.000
+RFV cycle=1 phase=2 FIXTURE_MTIME_FALLBACK path=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/mova_fresh error="FileSystemException: Cannot set modification time, path = '/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/mova_fresh' (OS Error: Is a directory, errno = 21)"
+RFV cycle=1 phase=2 FIXTURE_MTIME path=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/mova_fresh method=File.setLastModified(stamp)+libc.utime(directory) actual=2026-11-06T17:21:13.000
+RFV cycle=1 phase=2 PASS V1_LEGACY_SETUP old=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/mova_old ageSeconds=691200 fresh=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/mova_fresh oldLease=false freshLease=false
+RFV cycle=1 phase=2 PASS V1_PRUNE C=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/mova_fresh oldExists=false freshExists=true count=3 movas=["mova_HVWHAK","mova_OHBBAD","mova_fresh"]
 RFV cycle=1 phase=2 V1_CLEANUP remaining=[]
 RFV cycle=1 phase=2 V2_BEGIN source=stereo44100 run=1 uri=http://127.0.0.1:18764/stereo44100.wav?cycle=1&run=1&t=1793956873968191 extractor=default
 RFV cycle=1 phase=2 PASS V2_WAV source=stereo44100 run=1 path=/data/user/0/com.icodejoo.mova.mova_example/cache/mova_stt_audio_1793956873968656.wav channels=1 sampleRate=16000 bitsPerSample=16 format=65534 dataBytes=256000 seconds=8.0 fileBytes=256068
@@ -26,32 +26,32 @@ RFV cycle=1 phase=2 V2_BEGIN source=mono48000 run=3 uri=http://127.0.0.1:18764/m
 RFV cycle=1 phase=2 PASS V2_WAV source=mono48000 run=3 path=/data/user/0/com.icodejoo.mova.mova_example/cache/mova_stt_audio_1793956874701620.wav channels=1 sampleRate=16000 bitsPerSample=16 format=65534 dataBytes=256000 seconds=8.0 fileBytes=256068
 RFV cycle=1 phase=2 DONE failures=0
 RFV cycle=2 phase=1 START release=true
-RFV cycle=2 phase=1 PASS V1_PREPARE A=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_CNFAMH token=feeded810a3b7c715375bd73dd95c54b count=1 engines=["engine_CNFAMH"] disposed=false
+RFV cycle=2 phase=1 PASS V1_PREPARE A=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/mova_CNFAMH token=feeded810a3b7c715375bd73dd95c54b count=1 movas=["mova_CNFAMH"] disposed=false
 RFV cycle=2 phase=1 READY_FORCE_STOP
 RFV cycle=2 phase=2 START release=true
-RFV cycle=2 phase=2 PASS V1_ADOPT A=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_CNFAMH expected=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_CNFAMH token=feeded810a3b7c715375bd73dd95c54b expectedToken=feeded810a3b7c715375bd73dd95c54b
-RFV cycle=2 phase=2 PASS V1_COUNT before=1 after=1 engines=["engine_CNFAMH"]
-RFV cycle=2 phase=2 PASS V1_SECOND A=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_CNFAMH B=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_ZLJWKO AExists=true tokenIntact=true count=2 engines=["engine_CNFAMH","engine_ZLJWKO"]
-RFV cycle=2 phase=2 FIXTURE_MTIME_FALLBACK path=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_old error="FileSystemException: Cannot set modification time, path = '/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_old' (OS Error: Is a directory, errno = 21)"
-RFV cycle=2 phase=2 FIXTURE_MTIME path=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_old method=File.setLastModified(stamp)+libc.utime(directory) actual=2026-10-29T17:21:24.000
-RFV cycle=2 phase=2 FIXTURE_MTIME_FALLBACK path=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_fresh error="FileSystemException: Cannot set modification time, path = '/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_fresh' (OS Error: Is a directory, errno = 21)"
-RFV cycle=2 phase=2 FIXTURE_MTIME path=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_fresh method=File.setLastModified(stamp)+libc.utime(directory) actual=2026-11-06T17:21:24.000
-RFV cycle=2 phase=2 PASS V1_LEGACY_SETUP old=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_old ageSeconds=691200 fresh=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_fresh oldLease=false freshLease=false
-RFV cycle=2 phase=2 PASS V1_PRUNE C=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_fresh oldExists=false freshExists=true count=3 engines=["engine_CNFAMH","engine_ZLJWKO","engine_fresh"]
+RFV cycle=2 phase=2 PASS V1_ADOPT A=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/mova_CNFAMH expected=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/mova_CNFAMH token=feeded810a3b7c715375bd73dd95c54b expectedToken=feeded810a3b7c715375bd73dd95c54b
+RFV cycle=2 phase=2 PASS V1_COUNT before=1 after=1 movas=["mova_CNFAMH"]
+RFV cycle=2 phase=2 PASS V1_SECOND A=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/mova_CNFAMH B=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/mova_ZLJWKO AExists=true tokenIntact=true count=2 movas=["mova_CNFAMH","mova_ZLJWKO"]
+RFV cycle=2 phase=2 FIXTURE_MTIME_FALLBACK path=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/mova_old error="FileSystemException: Cannot set modification time, path = '/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/mova_old' (OS Error: Is a directory, errno = 21)"
+RFV cycle=2 phase=2 FIXTURE_MTIME path=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/mova_old method=File.setLastModified(stamp)+libc.utime(directory) actual=2026-10-29T17:21:24.000
+RFV cycle=2 phase=2 FIXTURE_MTIME_FALLBACK path=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/mova_fresh error="FileSystemException: Cannot set modification time, path = '/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/mova_fresh' (OS Error: Is a directory, errno = 21)"
+RFV cycle=2 phase=2 FIXTURE_MTIME path=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/mova_fresh method=File.setLastModified(stamp)+libc.utime(directory) actual=2026-11-06T17:21:24.000
+RFV cycle=2 phase=2 PASS V1_LEGACY_SETUP old=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/mova_old ageSeconds=691200 fresh=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/mova_fresh oldLease=false freshLease=false
+RFV cycle=2 phase=2 PASS V1_PRUNE C=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/mova_fresh oldExists=false freshExists=true count=3 movas=["mova_CNFAMH","mova_ZLJWKO","mova_fresh"]
 RFV cycle=2 phase=2 V1_CLEANUP remaining=[]
 RFV cycle=2 phase=2 DONE failures=0
 RFV cycle=3 phase=1 START release=true
-RFV cycle=3 phase=1 PASS V1_PREPARE A=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_PUTGEC token=a067eb67e09ccabbe76ba999d0ec694b count=1 engines=["engine_PUTGEC"] disposed=false
+RFV cycle=3 phase=1 PASS V1_PREPARE A=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/mova_PUTGEC token=a067eb67e09ccabbe76ba999d0ec694b count=1 movas=["mova_PUTGEC"] disposed=false
 RFV cycle=3 phase=1 READY_FORCE_STOP
 RFV cycle=3 phase=2 START release=true
-RFV cycle=3 phase=2 PASS V1_ADOPT A=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_PUTGEC expected=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_PUTGEC token=a067eb67e09ccabbe76ba999d0ec694b expectedToken=a067eb67e09ccabbe76ba999d0ec694b
-RFV cycle=3 phase=2 PASS V1_COUNT before=1 after=1 engines=["engine_PUTGEC"]
-RFV cycle=3 phase=2 PASS V1_SECOND A=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_PUTGEC B=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_QENYOE AExists=true tokenIntact=true count=2 engines=["engine_PUTGEC","engine_QENYOE"]
-RFV cycle=3 phase=2 FIXTURE_MTIME_FALLBACK path=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_old error="FileSystemException: Cannot set modification time, path = '/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_old' (OS Error: Is a directory, errno = 21)"
-RFV cycle=3 phase=2 FIXTURE_MTIME path=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_old method=File.setLastModified(stamp)+libc.utime(directory) actual=2026-10-29T17:21:33.000
-RFV cycle=3 phase=2 FIXTURE_MTIME_FALLBACK path=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_fresh error="FileSystemException: Cannot set modification time, path = '/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_fresh' (OS Error: Is a directory, errno = 21)"
-RFV cycle=3 phase=2 FIXTURE_MTIME path=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_fresh method=File.setLastModified(stamp)+libc.utime(directory) actual=2026-11-06T17:21:33.000
-RFV cycle=3 phase=2 PASS V1_LEGACY_SETUP old=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_old ageSeconds=691200 fresh=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_fresh oldLease=false freshLease=false
-RFV cycle=3 phase=2 PASS V1_PRUNE C=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_fresh oldExists=false freshExists=true count=3 engines=["engine_PUTGEC","engine_QENYOE","engine_fresh"]
+RFV cycle=3 phase=2 PASS V1_ADOPT A=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/mova_PUTGEC expected=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/mova_PUTGEC token=a067eb67e09ccabbe76ba999d0ec694b expectedToken=a067eb67e09ccabbe76ba999d0ec694b
+RFV cycle=3 phase=2 PASS V1_COUNT before=1 after=1 movas=["mova_PUTGEC"]
+RFV cycle=3 phase=2 PASS V1_SECOND A=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/mova_PUTGEC B=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/mova_QENYOE AExists=true tokenIntact=true count=2 movas=["mova_PUTGEC","mova_QENYOE"]
+RFV cycle=3 phase=2 FIXTURE_MTIME_FALLBACK path=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/mova_old error="FileSystemException: Cannot set modification time, path = '/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/mova_old' (OS Error: Is a directory, errno = 21)"
+RFV cycle=3 phase=2 FIXTURE_MTIME path=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/mova_old method=File.setLastModified(stamp)+libc.utime(directory) actual=2026-10-29T17:21:33.000
+RFV cycle=3 phase=2 FIXTURE_MTIME_FALLBACK path=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/mova_fresh error="FileSystemException: Cannot set modification time, path = '/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/mova_fresh' (OS Error: Is a directory, errno = 21)"
+RFV cycle=3 phase=2 FIXTURE_MTIME path=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/mova_fresh method=File.setLastModified(stamp)+libc.utime(directory) actual=2026-11-06T17:21:33.000
+RFV cycle=3 phase=2 PASS V1_LEGACY_SETUP old=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/mova_old ageSeconds=691200 fresh=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/mova_fresh oldLease=false freshLease=false
+RFV cycle=3 phase=2 PASS V1_PRUNE C=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/mova_fresh oldExists=false freshExists=true count=3 movas=["mova_PUTGEC","mova_QENYOE","mova_fresh"]
 RFV cycle=3 phase=2 V1_CLEANUP remaining=[]
 RFV cycle=3 phase=2 DONE failures=0

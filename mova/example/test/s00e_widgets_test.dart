@@ -7,10 +7,10 @@ import 'package:mova/mova.dart';
 import 'package:mova/testing.dart';
 import 's00d_widgets_test.dart' as d;
 
-Widget tree(BuildContext context, MovaApi a, MovaComponent c) =>
+Widget tree(BuildContext context, IMovaApi a, MovaComponent c) =>
     c.build(context, a, [for (final child in c.children) tree(context, a, child)]);
 
-Future<void> mount(WidgetTester t, MovaApi a, MovaComponent c) async {
+Future<void> mount(WidgetTester t, IMovaApi a, MovaComponent c) async {
   await t.pumpWidget(MaterialApp(home: Scaffold(body: MovaScope(api: a,
     child: Center(child: SizedBox(width: 400, height: 240,
       child: Builder(builder: (context) => tree(context, a, c))))))));
@@ -19,7 +19,7 @@ Future<void> mount(WidgetTester t, MovaApi a, MovaComponent c) async {
 
 List<String?> texts(WidgetTester t) => t.widgetList<Text>(find.byType(Text)).map((v) => v.data).toList();
 
-class Cues extends MovaNoopSttEngine {
+class Cues extends MovaNoopStt {
   final output = StreamController<MovaSttCue>.broadcast();
   @override
   List<String> get languages => ['zh'];
@@ -48,7 +48,7 @@ void main() {
     for (final action in MovaGestureAction.values) {
       for (final live in [false, true]) {
         for (final allowed in [false, true]) {
-          final a = await d.make(t, options: MovaOpts(gesture: MovaGestureConfig(
+          final a = await d.make(t, options: MovaOpts(gesture: MovaGestureOpts(
             horizontal: action, allowWhenLive: allowed, doubleTapSeek: false, pinchZoom: false)));
           final k = MovaTesting.lastKernel!;
           await a.open(MovaSource('s00e://gesture', type: live ? MovaStreamType.live : MovaStreamType.vod));
@@ -94,11 +94,11 @@ void main() {
       commentCount: 42, shareCount: 7, authorName: 'S00E',
       onLikeChanged: (_, _) => likes++, onComment: () => comments++, onShare: () => shares++,
       onAvatarTap: () => avatars++, onFollowTap: () => follows++);
-    final pool = MovaFeedEnginePool(engineFactory: () => a, size: 1);
+    final pool = MovaFeedPool(movaFactory: () => a, size: 1);
     final feed = MovaFeed(pool: pool, loader: (_) async => item);
     await feed.ensure(0); await a.open(item.source); k.emitPlaying(true);
     final notifier = ValueNotifier(feed.likeStateOf(0));
-    await mount(t, a, MovaDouyinGestureLayerComponent(controller: feed, index: 0, likeNotifier: notifier));
+    await mount(t, a, MovaDouyinGestureLayerComponent(feed: feed, index: 0, likeNotifier: notifier));
     final center = t.getCenter(find.byType(MovaScope));
     await t.tapAt(center); await d.drain(t, 350);
     d.measured('U6.douyin.tap', k.calls.where((v) => v == 'pause').length, 1);
@@ -109,7 +109,7 @@ void main() {
     await t.dragFrom(center, const Offset(100, 0)); await t.dragFrom(center, const Offset(0, -80));
     await t.pump();
     d.measured('U6.douyin.drag', k.calls, before);
-    await mount(t, a, MovaLikeButtonComponent(controller: feed, index: 0, likeNotifier: notifier));
+    await mount(t, a, MovaLikeButtonComponent(feed: feed, index: 0, likeNotifier: notifier));
     d.measured('U7.like.render', texts(t), ['6']);
     await t.tap(find.byIcon(Icons.favorite_rounded)); await t.pump();
     d.measured('U7.like.click', [notifier.value.liked, notifier.value.count, likes], [false, 5, 2]);
@@ -127,9 +127,9 @@ void main() {
     await d.unmount(t); notifier.dispose(); feed.dispose(); await t.runAsync(pool.dispose); await d.dispose(t, a); await t.pump(const Duration(seconds: 1));
   });
 
-  testWidgets('subtitle cues render and expire via the engine progress stream', (t) async {
+  testWidgets('subtitle cues render and expire via the player progress stream', (t) async {
     final cues = Cues();
-    final a = await d.make(t, options: MovaOpts(stt: MovaSttConfig(enabled: true, engine: cues)));
+    final a = await d.make(t, options: MovaOpts(stt: MovaSttOpts(enabled: true, recognizer: cues)));
     final k = MovaTesting.lastKernel!;
     await a.open(const MovaSource('s00e://subtitle'));
     await mount(t, a, MovaSubtitleOverlayComponent());
@@ -151,7 +151,7 @@ void main() {
 
   testWidgets('ad countdown uses media position then click skip returns content', (t) async {
     final events = <MovaAdEvent>[];
-    final a = await d.make(t, options: MovaOpts(ads: MovaAdConfig(enabled: true,
+    final a = await d.make(t, options: MovaOpts(ads: MovaAdOpts(enabled: true,
       onAdEvent: events.add, breaks: const [MovaAdBreak(kind: MovaAdBreakKind.pre,
         source: MovaSource('s00e://ad'), skippableAfter: Duration(seconds: 5),
         clickThroughUrl: 'https://s00e.invalid/click')])));
@@ -174,7 +174,7 @@ void main() {
 
   testWidgets('live bottom bar distinguishes nonseekable and DVR edge and behind', (t) async {
     for (final dvr in [false, true]) {
-      final a = await d.make(t, options: MovaOpts(live: MovaLiveConfig(
+      final a = await d.make(t, options: MovaOpts(live: MovaLiveOpts(
         seekMode: dvr ? MovaLiveSeekMode.dvr : MovaLiveSeekMode.off,
         dvrWindow: const Duration(seconds: 300))));
       final k = MovaTesting.lastKernel!;
@@ -213,7 +213,7 @@ void main() {
   testWidgets('position label keeps first and final values across throttle window', (t) async {
     // Construct and subscribe in the widget test zone so Timer dispatch is
     // deterministic. Clock advancement schedules events, it is not evidence.
-    final a = createMovaEngine(); final k = MovaTesting.lastKernel!;
+    final a = createMova(); final k = MovaTesting.lastKernel!;
     await a.open(const MovaSource('s00e://throttle'));
     await mount(t, a, MovaPositionLabelComponent());
     k.emitPosition(const Duration(seconds: 11)); await t.pump(); await t.pump();
@@ -234,7 +234,7 @@ void main() {
     // Existing 1x1 transparent PNG fixture, decoded by Flutter's real codec.
     final bytes = base64Decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAACklEQVR4nGMAAQAABQABDQottAAAAABJRU5ErkJggg==');
     await cache.write('s00e', bytes);
-    final a = await d.make(t, options: MovaOpts(preview: MovaPreviewConfig(cache: cache,
+    final a = await d.make(t, options: MovaOpts(preview: MovaPreviewOpts(cache: cache,
       cacheKeyBuilder: (_, _, _) => 's00e', sources: const [], debounce: Duration.zero)));
     await a.open(const MovaSource('s00e://real-preview'));
     await mount(t, a, MovaPreviewComponent());
@@ -254,9 +254,9 @@ void main() {
 
   testWidgets('DVR gestures obey allowWhenLive across seek axes and double tap', (t) async {
     for (final allowed in [false, true]) {
-      final a = await d.make(t, options: MovaOpts(live: const MovaLiveConfig(
+      final a = await d.make(t, options: MovaOpts(live: const MovaLiveOpts(
         seekMode: MovaLiveSeekMode.dvr, dvrWindow: Duration(seconds: 300)),
-        gesture: MovaGestureConfig(allowWhenLive: allowed)));
+        gesture: MovaGestureOpts(allowWhenLive: allowed)));
       final k = MovaTesting.lastKernel!;
       await a.open(const MovaSource('s00e://dvr', type: MovaStreamType.live));
       k.emitDuration(const Duration(seconds: 300)); k.emitPosition(const Duration(seconds: 100));

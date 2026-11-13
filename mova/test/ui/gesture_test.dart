@@ -86,7 +86,7 @@ void main() {
   testWidgets('the side↔action mapping is configurable (cutover left back to volume)', (tester) async {
     final api = FakeMovaApi(
       options: const MovaOpts(
-        gesture: MovaGestureConfig(
+        gesture: MovaGestureOpts(
           leftVertical: MovaGestureAction.volume,
           rightVertical: MovaGestureAction.brightness,
         ),
@@ -115,7 +115,7 @@ void main() {
 
   testWidgets('a horizontal drag mapped to volume reads the horizontal axis', (tester) async {
     final api = FakeMovaApi(
-      options: const MovaOpts(gesture: MovaGestureConfig(horizontal: MovaGestureAction.volume)),
+      options: const MovaOpts(gesture: MovaGestureOpts(horizontal: MovaGestureAction.volume)),
     );
     api.push(const MovaState(volume: 50, brightness: 0.5));
     await pumpComponent(tester, api, MovaGestureLayerComponent());
@@ -128,7 +128,7 @@ void main() {
 
   testWidgets('a vertical drag mapped to seek reads the vertical axis (up = forward)', (tester) async {
     final api = FakeMovaApi(
-      options: const MovaOpts(gesture: MovaGestureConfig(leftVertical: MovaGestureAction.seek)),
+      options: const MovaOpts(gesture: MovaGestureOpts(leftVertical: MovaGestureAction.seek)),
     );
     await pumpComponent(tester, api, MovaGestureLayerComponent());
     await tester.dragFrom(const Offset(200, 400), const Offset(0, -150));
@@ -166,7 +166,7 @@ void main() {
 
   testWidgets('allowWhenLive=false blocks seeking even when liveSeekable', (t) async {
     final api = FakeMovaApi(
-      options: const MovaOpts(gesture: MovaGestureConfig(allowWhenLive: false)),
+      options: const MovaOpts(gesture: MovaGestureOpts(allowWhenLive: false)),
     );
     api.push(const MovaState(
       type: MovaStreamType.live,
@@ -263,7 +263,7 @@ void main() {
 
     testWidgets('a custom maxZoom is the ceiling', (t) async {
       final api = FakeMovaApi(
-        options: const MovaOpts(gesture: MovaGestureConfig(maxZoom: 2.0)),
+        options: const MovaOpts(gesture: MovaGestureOpts(maxZoom: 2.0)),
       );
       await pumpComponent(t, api, MovaGestureLayerComponent());
       await pinchOut(t);
@@ -293,7 +293,7 @@ void main() {
 
     testWidgets('pinchZoom: false ignores a two-finger spread', (t) async {
       final api = FakeMovaApi(
-        options: const MovaOpts(gesture: MovaGestureConfig(pinchZoom: false)),
+        options: const MovaOpts(gesture: MovaGestureOpts(pinchZoom: false)),
       );
       await pumpComponent(t, api, MovaGestureLayerComponent());
       await pinchOut(t);

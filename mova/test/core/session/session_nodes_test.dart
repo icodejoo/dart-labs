@@ -22,7 +22,7 @@ void main() {
     final hook = <MovaAdEvent>[];
     final api = FakeMovaApi(
       options: MovaOpts(
-        ads: MovaAdConfig(
+        ads: MovaAdOpts(
           enabled: true,
           breaks: const [instant, instant],
           onAdEvent: hook.add,
@@ -59,7 +59,7 @@ void main() {
       );
       final api = FakeMovaApi(
         options: const MovaOpts(
-          ads: MovaAdConfig(
+          ads: MovaAdOpts(
             enabled: true,
             breaks: [ad, ad],
             durationFromFirstFrame: false,
@@ -171,7 +171,7 @@ void main() {
 
   test('换集结束旧节点携带旧纪元，此后只出现新纪元', () async {
     final api = FakeMovaApi(
-      options: const MovaOpts(ads: MovaAdConfig(enabled: true)),
+      options: const MovaOpts(ads: MovaAdOpts(enabled: true)),
     );
     final session = sessionFor(
       api,
@@ -220,7 +220,7 @@ void main() {
       skippableAfter: Duration.zero,
     );
     final api = FakeMovaApi(
-      options: const MovaOpts(ads: MovaAdConfig(enabled: true, breaks: [ad])),
+      options: const MovaOpts(ads: MovaAdOpts(enabled: true, breaks: [ad])),
     );
     final session = sessionFor(api);
     final events = <MovaSessionEvent>[];
@@ -239,7 +239,7 @@ void main() {
     late final MovaSession reentrant;
     final reentrantApi = FakeMovaApi(
       options: MovaOpts(
-        ads: MovaAdConfig(
+        ads: MovaAdOpts(
           enabled: true,
           breaks: const [ad],
           onAdEvent: (event) {
@@ -270,7 +270,7 @@ void main() {
         waitForReady: false,
       );
       final api = FakeMovaApi(
-        options: const MovaOpts(ads: MovaAdConfig(enabled: true, breaks: [ad])),
+        options: const MovaOpts(ads: MovaAdOpts(enabled: true, breaks: [ad])),
       );
       final session = MovaSession(api)
         ..debugClock = () => DateTime.utc(2026).add(clock.elapsed);

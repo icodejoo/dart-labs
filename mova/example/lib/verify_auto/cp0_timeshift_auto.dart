@@ -4,7 +4,7 @@ Future<void> runTimeshift(Cp0Harness h) async {
   for(final mode in [MovaLiveSeekMode.dvr,MovaLiveSeekMode.timeshift]) {
     for(var run=0;run<h.runs;run++) {
       final builds=<Map<String,Object?>>[];
-      final api=createMovaEngine(preciseFirstFrame:true,options:MovaOpts(live:MovaLiveConfig(
+      final api=createMova(preciseFirstFrame:true,options:MovaOpts(live:MovaLiveOpts(
         seekMode:mode,dvrWindow:const Duration(seconds:12),edgeThreshold:const Duration(seconds:1),durationStep:Duration.zero,
         urlBuilder:(uri,behind,wallClock){
           final shifted=Uri.parse(uri).replace(queryParameters:{'behind':'${behind.inMilliseconds}',

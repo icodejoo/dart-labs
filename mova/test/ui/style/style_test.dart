@@ -40,8 +40,8 @@ void main() {
       await probe(t, (c) {
         expect(MovaPlayerStyle.themeOf(c), const MovaTheme());
         expect(MovaPlayerStyle.stringsOf(c), const MovaStrs());
-        expect(MovaPlayerStyle.gestureOf(c), const MovaGestureConfig());
-        expect(MovaPlayerStyle.controlsOf(c), const MovaCtrlsConfig());
+        expect(MovaPlayerStyle.gestureOf(c), const MovaGestureOpts());
+        expect(MovaPlayerStyle.controlsOf(c), const MovaCtrlsOpts());
         expect(MovaPlayerStyle.danmakuOf(c), const MovaDanmakuStyle());
       }, bare: bare);
     }
@@ -50,9 +50,9 @@ void main() {
     const o = MovaOpts(
       theme: MovaTheme(accentColor: 1),
       strings: MovaStrs(live: 'old'),
-      gesture: MovaGestureConfig(pinchZoom: false),
-      controls: MovaCtrlsConfig(shortcuts: true),
-      danmaku: MovaDanmakuConfig(fontSize: 20),
+      gesture: MovaGestureOpts(pinchZoom: false),
+      controls: MovaCtrlsOpts(shortcuts: true),
+      danmaku: MovaDanmakuOpts(fontSize: 20),
     );
     await probe(t, (c) {
       expect(MovaPlayerStyle.themeOf(c), o.theme);
@@ -122,17 +122,17 @@ void main() {
     'danmaku extraction applies five fields and preserves data identity',
     () {
       final items = <MovaDanmakuItem>[];
-      final data = MovaDanmakuConfig(enabled: true, items: items);
-      const config = MovaDanmakuConfig(
+      final data = MovaDanmakuOpts(enabled: true, items: items);
+      const opts = MovaDanmakuOpts(
         trackCount: 2,
         trackHeight: 44,
         fontSize: 30,
         opacity: 0.4,
         crossDuration: Duration(seconds: 3),
       );
-      final style = MovaDanmakuStyle.fromConfig(config);
+      final style = MovaDanmakuStyle.fromOpts(opts);
       final result = style.applyTo(data);
-      expect(MovaDanmakuStyle.fromConfig(result), style);
+      expect(MovaDanmakuStyle.fromOpts(result), style);
       expect(result.trackCount, 2);
       expect(result.trackHeight, 44);
       expect(result.fontSize, 30);
@@ -140,7 +140,7 @@ void main() {
       expect(result.crossDuration, const Duration(seconds: 3));
       expect(result.items, same(items));
       expect(result.enabled, isTrue);
-      expect(style.hashCode, MovaDanmakuStyle.fromConfig(config).hashCode);
+      expect(style.hashCode, MovaDanmakuStyle.fromOpts(opts).hashCode);
     },
   );
   test('danmaku rejects zero tracks', () {

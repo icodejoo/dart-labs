@@ -9,7 +9,7 @@ import '../support/fake_kernel.dart';
 /// really consulted rather than the default silently winning.
 ///
 /// 记录每次调用的恢复策略，供测试证明它真被使用，而非默认实现悄悄生效。
-class _RecordingPolicy implements MovaRecoveryPolicy {
+class _RecordingPolicy implements IMovaRecoveryPolicy {
   int calls = 0;
 
   @override
@@ -21,7 +21,7 @@ class _RecordingPolicy implements MovaRecoveryPolicy {
 
 void main() {
   group('host-ergonomics openness contract — every new behaviour is off by default and replaceable', () {
-    test('everything defaults to off, and a default engine adds no timer and no stream', () {
+    test('everything defaults to off, and a default player adds no timer and no stream', () {
       expect(const MovaOpts().recovery.enabled, isFalse);
       expect(const MovaSource('x').alternatives, isEmpty);
       const theme = MovaTheme();
@@ -33,47 +33,47 @@ void main() {
 
       fakeAsync((async) {
         final k = FakeStatsKernel();
-        final engine = MovaEngine(fetcher: const MovaTestHttpFetch(), kernel: k, options: const MovaOpts(controls: MovaCtrlsConfig(autoHide: false)));
-        engine.open(const MovaSource('https://h/a.m3u8'));
+        final mova = Mova(fetcher: const MovaTestHttpFetch(), kernel: k, options: const MovaOpts(controls: MovaCtrlsOpts(autoHide: false)));
+        mova.open(const MovaSource('https://h/a.m3u8'));
         async.flushMicrotasks();
         async.elapse(const Duration(minutes: 10));
         expect(async.pendingTimers, isEmpty, reason: 'recovery off: no watchdog, no retry timer');
         expect(k.endFilesSubscribed, isTrue, reason: 'END_FILE 判失败不依赖 recovery');
-        expect(engine.state.error, isNull);
-        engine.dispose();
+        expect(mova.state.error, isNull);
+        mova.dispose();
         async.flushMicrotasks();
       });
     });
 
-    test('an injected MovaRecoveryPolicy replaces the default and is really consulted', () {
-      expect(const MovaRecoveryConfig().effectivePolicy, isA<MovaDefaultRecovery>());
+    test('an injected IMovaRecoveryPolicy replaces the default and is really consulted', () {
+      expect(const MovaRecoveryOpts().effectivePolicy, isA<MovaDefaultRecovery>());
       fakeAsync((async) {
         final policy = _RecordingPolicy();
-        final engine = MovaEngine(fetcher: const MovaTestHttpFetch(),
+        final mova = Mova(fetcher: const MovaTestHttpFetch(),
           kernel: FakeKernel(),
           options: MovaOpts(
-            controls: const MovaCtrlsConfig(autoHide: false),
-            recovery: MovaRecoveryConfig(startTimeout: Duration(seconds: 10), stallTimeout: Duration(seconds: 10), enabled: true, policy: policy),
+            controls: const MovaCtrlsOpts(autoHide: false),
+            recovery: MovaRecoveryOpts(startTimeout: Duration(seconds: 10), stallTimeout: Duration(seconds: 10), enabled: true, policy: policy),
           ),
         );
-        engine.open(const MovaSource('https://h/a.m3u8'));
+        mova.open(const MovaSource('https://h/a.m3u8'));
         async.flushMicrotasks();
         async.elapse(const Duration(seconds: 10));
         expect(policy.calls, greaterThan(0));
-        expect(engine.state.error, isA<MovaGiveUpError>(), reason: 'the injected give-up must win over the default retry');
-        engine.dispose();
+        expect(mova.state.error, isA<MovaGiveUpError>(), reason: 'the injected give-up must win over the default retry');
+        mova.dispose();
         async.flushMicrotasks();
       });
     });
 
     test('each knob is replaced on its own through copyWith without disturbing the rest', () {
-      const base = MovaRecoveryConfig(enabled: true, startTimeout: Duration(seconds: 3));
+      const base = MovaRecoveryOpts(enabled: true, startTimeout: Duration(seconds: 3));
       final next = base.copyWith(stallTimeout: const Duration(seconds: 4));
       expect(next.startTimeout, base.startTimeout);
       expect(next.enabled, isTrue);
       expect(next.stallTimeout, const Duration(seconds: 4));
 
-      const opts = MovaOpts(mini: MovaMiniConfig(enabled: true), report: MovaReportConfig(qoe: true));
+      const opts = MovaOpts(mini: MovaMiniOpts(enabled: true), report: MovaReportOpts(qoe: true));
       final replaced = opts.copyWith(recovery: base);
       expect(replaced.recovery, base);
       expect(replaced.mini, opts.mini);

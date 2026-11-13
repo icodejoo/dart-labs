@@ -2,7 +2,7 @@ import 'dart:typed_data';
 import 'dart:async';
 
 import 'package:mova/mova.dart'
-    show MovaPlayer, MovaChrome, MovaSource, MovaPreviewConfig;
+    show MovaPlayer, MovaChrome, MovaSource, MovaPreviewOpts;
 import 'package:mova/src/core/preview/api.dart';
 import 'package:mova/src/core/preview/service.dart';
 import 'package:mova/src/core/preview/cache.dart';
@@ -35,9 +35,9 @@ final Uint8List _png = Uint8List.fromList(<int>[
 ]);
 
 /// A [FakeMovaApi] whose [preview] instance can be replaced, mimicking what
-/// `MovaCutoverEngine` does on a committed cutover.
+/// `MovaCutover` does on a committed cutover.
 ///
-/// 可替换 [preview] 实例的 [FakeMovaApi]，模拟 `MovaCutoverEngine` 提交切换后的行为。
+/// 可替换 [preview] 实例的 [FakeMovaApi]，模拟 `MovaCutover` 提交切换后的行为。
 class _CutoverApi extends FakeMovaApi {
   /// The live preview double; replaced by [cutoverPreview].
   ///
@@ -59,7 +59,7 @@ class _CutoverApi extends FakeMovaApi {
   }
 }
 
-class _GatedThumbs implements MovaThumbSource {
+class _GatedThumbs implements IMovaThumbSource {
   final gates = <Duration, Completer<MovaThumb?>>{};
   @override
   String get name => 'gated';
@@ -72,11 +72,11 @@ class _GatedThumbs implements MovaThumbSource {
   Future<void> dispose() async {}
 }
 
-class _SessionPreview extends FakePreviewApi implements MovaPreviewSessions {
+class _SessionPreview extends FakePreviewApi implements IMovaPreviewSessions {
   _SessionPreview(this.service);
   final MovaPreviewService service;
   @override
-  MovaPreviewSession openSession() => service.openSession();
+  IMovaPreviewSession openSession() => service.openSession();
   @override
   Stream<MovaThumb?> get thumbs => service.thumbs;
   @override
@@ -99,7 +99,7 @@ void main() {
   testWidgets(checkDelivery ? '两个视图按会话收图' : 'B 松手不取消 A 的在途请求', (t) async {
     final source = _GatedThumbs();
     final service = MovaPreviewService(
-      config: const MovaPreviewConfig(
+      opts: const MovaPreviewOpts(
         debounce: Duration.zero,
         bucket: Duration(seconds: 1),
       ),

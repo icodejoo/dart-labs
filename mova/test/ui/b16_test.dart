@@ -7,8 +7,8 @@ import 'package:mova/src/core/options/options.dart';
 import 'package:mova/src/core/state/state.dart';
 import 'package:mova/src/ui/components/common.dart';
 import 'package:mova/src/ui/player.dart';
-import 'package:mova/src/ui/skins/minimal_skin.dart';
-import 'package:mova/src/ui/mini/mini_skin.dart';
+import 'package:mova/src/ui/ui_kits/minimal_ui_kit.dart';
+import 'package:mova/src/ui/mini/mini_ui_kit.dart';
 
 import '../support/fake_api.dart';
 
@@ -17,7 +17,7 @@ class _KeyApi extends FakeMovaApi {
   /// 使用 [enabled] 设置快捷键开关。
   _KeyApi({bool enabled = true})
     : super(
-        options: MovaOpts(controls: MovaCtrlsConfig(shortcuts: enabled)),
+        options: MovaOpts(controls: MovaCtrlsOpts(shortcuts: enabled)),
       );
 
   /// 已接收的相对跳转请求。
@@ -31,13 +31,13 @@ class _KeyApi extends FakeMovaApi {
   }
 }
 
-/// 挂载无按钮皮肤，点击画面为播放器取得键盘焦点。
+/// 挂载无按钮 UI 套件，点击画面为播放器取得键盘焦点。
 Future<void> _mount(WidgetTester t, FakeMovaApi api, {Widget? surface}) async {
   await t.pumpWidget(
     MaterialApp(
       home: MovaPlayer(
         api: api,
-        skin: const MovaMinimalSkin(showBuffering: false),
+        uiKit: const MovaMinimalUiKit(showBuffering: false),
         autoLoadQualities: false,
         surface: surface,
       ),
@@ -111,7 +111,7 @@ void main() {
       MaterialApp(
         home: MovaPlayer(
           api: api,
-          skin: MovaMiniSkin(onClose: () {}),
+          uiKit: MovaMiniUiKit(onClose: () {}),
         ),
       ),
     );
@@ -232,14 +232,14 @@ void main() {
   });
 
   testWidgets('B16 快捷键默认关闭，配置值比较包含 shortcuts', (t) async {
-    expect(const MovaCtrlsConfig().shortcuts, isFalse);
+    expect(const MovaCtrlsOpts().shortcuts, isFalse);
     expect(
-      const MovaCtrlsConfig(shortcuts: true),
-      isNot(const MovaCtrlsConfig()),
+      const MovaCtrlsOpts(shortcuts: true),
+      isNot(const MovaCtrlsOpts()),
     );
     expect(
-      const MovaCtrlsConfig(shortcuts: true).hashCode,
-      isNot(const MovaCtrlsConfig().hashCode),
+      const MovaCtrlsOpts(shortcuts: true).hashCode,
+      isNot(const MovaCtrlsOpts().hashCode),
     );
     final api = _KeyApi(enabled: false);
     addTearDown(api.dispose);
@@ -352,13 +352,13 @@ void main() {
             Expanded(
               child: MovaPlayer(
                 api: a,
-                skin: const MovaMinimalSkin(showBuffering: false),
+                uiKit: const MovaMinimalUiKit(showBuffering: false),
               ),
             ),
             Expanded(
               child: MovaPlayer(
                 api: b,
-                skin: const MovaMinimalSkin(showBuffering: false),
+                uiKit: const MovaMinimalUiKit(showBuffering: false),
               ),
             ),
           ],

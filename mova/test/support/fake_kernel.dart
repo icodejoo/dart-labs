@@ -6,16 +6,16 @@ import 'package:mova/src/core/kernel/keep_alive_kernel.dart';
 import 'package:mova/src/core/keep_alive/keep_alive.dart';
 import 'package:mova/src/core/report/stats_probe.dart';
 
-/// A test double for [MovaKernel] that records every call it receives and lets
+/// A test double for [IMovaKernel] that records every call it receives and lets
 /// tests push arbitrary state into its streams.
 ///
 /// Used across the test suite (this task and later ones) as the single
 /// shared fake kernel implementation.
 ///
-/// [MovaKernel] 的测试替身：记录收到的每次调用，并允许测试向其流中主动推送状态。
+/// [IMovaKernel] 的测试替身：记录收到的每次调用，并允许测试向其流中主动推送状态。
 ///
 /// 在整个测试套件中（本任务及后续任务）作为唯一共享的假内核实现。
-class FakeKernel implements MovaKernel {
+class FakeKernel implements IMovaKernel {
   /// Creates a fake kernel.
   ///
   /// 创建一个假内核。
@@ -40,8 +40,8 @@ class FakeKernel implements MovaKernel {
   ///
   /// Example / 示例:
   /// ```dart
-  /// final engine = MovaEngine(kernel: FakeKernel.audioOnly());
-  /// expect(engine.renderHandle, isNull);
+  /// final mova = Mova(kernel: FakeKernel.audioOnly());
+  /// expect(mova.renderHandle, isNull);
   /// ```
   FakeKernel.audioOnly()
       : _renderHandle = null,
@@ -86,10 +86,10 @@ class FakeKernel implements MovaKernel {
   /// 该假对象的 [dispose] 是否已执行。
   bool isDisposed = false;
 
-  /// Every call this fake received after [dispose], in order; a correct engine
+  /// Every call this fake received after [dispose], in order; a correct player
   /// leaves it empty.
   ///
-  /// 该假对象在 [dispose] 之后收到的每次调用，按顺序；行为正确的引擎应让它保持为空。
+  /// 该假对象在 [dispose] 之后收到的每次调用，按顺序；行为正确的播放器应让它保持为空。
   final List<String> callsAfterDispose = <String>[];
 
   /// When true, a call after [dispose] throws `AssertionError('has been disposed')`
@@ -333,17 +333,17 @@ class FakeKernel implements MovaKernel {
   void emitError(Object value) => _error.add(value);
 }
 
-/// Shared [MovaStatsProbe] test-double state — the four backing
+/// Shared [IMovaStatsProbe] test-double state — the four backing
 /// `StreamController`s, their "ever listened to" flags, and `sample()`'s
 /// settable result — factored out so [FakeStatsProbe] (standalone) and
 /// [FakeStatsKernel] (mixed into [FakeKernel]) don't each carry their own
 /// copy that has to stay in sync by hand.
 ///
-/// [MovaStatsProbe] 测试替身的共享状态——四个底层 `StreamController`、各自的
+/// [IMovaStatsProbe] 测试替身的共享状态——四个底层 `StreamController`、各自的
 /// "是否曾被监听"标记、以及 `sample()` 的可设置返回值——抽出来共用，这样
 /// [FakeStatsProbe]（独立类）与 [FakeStatsKernel]（混入 [FakeKernel]）不用
 /// 各自维护一份、靠手工保持同步。
-mixin StatsProbeStub implements MovaStatsProbe {
+mixin StatsProbeStub implements IMovaStatsProbe {
   /// Constructs the controllers' `onListen` hooks. Mixins can't have their
   /// own constructor body, so this must be called once by each user (both
   /// current users do it as their first constructor-body statement).
@@ -436,12 +436,12 @@ mixin StatsProbeStub implements MovaStatsProbe {
   }
 }
 
-/// A [FakeKernel] that also implements [MovaStatsProbe] — the shape
-/// `MovaMpvKernel` has in production — so QoE-layer engine tests can drive
+/// A [FakeKernel] that also implements [IMovaStatsProbe] — the shape
+/// `MovaMpvKernel` has in production — so QoE-layer player tests can drive
 /// `stalling`/`logs`/`sample()` without a real mpv instance.
 ///
-/// 同时实现 [MovaStatsProbe] 的 [FakeKernel]——与生产环境的 `MovaMpvKernel`
-/// 同构——使 QoE 层的 engine 测试无需真实 mpv 实例即可驱动
+/// 同时实现 [IMovaStatsProbe] 的 [FakeKernel]——与生产环境的 `MovaMpvKernel`
+/// 同构——使 QoE 层的播放器测试无需真实 mpv 实例即可驱动
 /// `stalling`/`logs`/`sample()`。
 class FakeStatsKernel extends FakeKernel with StatsProbeStub {
   FakeStatsKernel() {
@@ -475,11 +475,11 @@ class FakeStatsKernel extends FakeKernel with StatsProbeStub {
   }
 }
 
-/// Scriptable [MovaKeepAliveKernel] behavior shared by the keepAlive fakes;
+/// Scriptable [IMovaKeepAliveKernel] behavior shared by the keepAlive fakes;
 /// records `inspectKeepAlive`/`enterKeepAlive:<mode>`/`exitKeepAlive` into [calls].
 ///
 /// 待机假内核共享的可编程行为；把 `inspectKeepAlive`/`enterKeepAlive:<mode>`/`exitKeepAlive` 记进 [calls]。
-mixin KeepAliveKernelStub on FakeKernel implements MovaKeepAliveKernel {
+mixin KeepAliveKernelStub on FakeKernel implements IMovaKeepAliveKernel {
   /// What [inspectKeepAlive] reports; settable by tests.
   ///
   /// [inspectKeepAlive] 报告的事实；可由测试赋值。

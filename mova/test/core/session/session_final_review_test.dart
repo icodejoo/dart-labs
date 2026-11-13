@@ -27,8 +27,8 @@ void main() {
       }
       await settleOperations();
       final start = events.whereType<MovaNodeStart>().single;
-      final old = rig.engines.first;
-      final staleShadow = rig.engines.last;
+      final old = rig.movas.first;
+      final staleShadow = rig.movas.last;
       final gate = old.pauseGate = Completer<void>();
       addTearDown(() { if (!gate.isCompleted) gate.complete(); });
       await rig.ready(staleShadow);
@@ -36,7 +36,7 @@ void main() {
       const hostSource = MovaSource('https://host/new-host-shadow.mp4');
       final hostTicket = (await rig.api.prepareOwned(hostSource,
         plan: const MovaWarmPlan(trigger: MovaEagerWarm())))!;
-      final hostShadow = rig.engines.last;
+      final hostShadow = rig.movas.last;
       await rig.ready(hostShadow);
       gate.complete();
       if (loading != null) expect(await loading, MovaLoadOutcome.superseded);
@@ -72,8 +72,8 @@ void main() {
       ]);
       final loading = command == 'jumpTo' ? session.jumpTo(0) : session.load(a);
       await settleOperations();
-      final old = rig.engines.first;
-      final staleShadow = rig.engines.last;
+      final old = rig.movas.first;
+      final staleShadow = rig.movas.last;
       final gate = old.pauseGate = Completer<void>();
       addTearDown(() { if (!gate.isCompleted) gate.complete(); });
       await rig.ready(staleShadow);
@@ -90,7 +90,7 @@ void main() {
         hostTicket = await rig.api.prepareOwned(b,
           plan: const MovaWarmPlan(trigger: MovaEagerWarm()));
       }
-      final nextShadow = rig.engines.last;
+      final nextShadow = rig.movas.last;
       expect(rig.api.active, same(old));
       gate.complete();
       expect(await loading, command == 'dispose' ? MovaLoadOutcome.disposed : MovaLoadOutcome.superseded);
@@ -121,7 +121,7 @@ void main() {
       addTearDown(rig.api.dispose);
       final ticket = (await rig.api.prepareOwned(a,
         plan: const MovaWarmPlan(trigger: MovaEagerWarm())))!;
-      final shadow = rig.engines.last;
+      final shadow = rig.movas.last;
       shadow.pushEvent(const MovaSourceChange(a));
       shadow.pushEvent(const MovaReady());
       shadow.pushEvent(frame);
@@ -141,9 +141,9 @@ void main() {
       expect(lifecycle, sequence.take(sequence.indexOf(takeover) + 1));
       expect(rig.api.active, same(shadow));
       expect(shadow.source, b);
-      expect(rig.engines.first.disposeCount, 1);
+      expect(rig.movas.first.disposeCount, 1);
       expect(shadow.disposeCount, 0);
-      expect(rig.engines.where((e) => !e.disposed), [shadow]);
+      expect(rig.movas.where((e) => !e.disposed), [shadow]);
     });
   }
   test('广告补发 SourceChange 回调抢源后会话不登记宿主媒体为广告', () async {
@@ -153,7 +153,7 @@ void main() {
     rig.ads.session.events.listen(events.add);
     final loading = rig.ads.session.load(a);
     await settleOperations();
-    final shadow = rig.engines.last;
+    final shadow = rig.movas.last;
     shadow.pushEvent(MovaSourceChange(waitingPre.source));
     shadow.pushEvent(const MovaReady());
     shadow.pushEvent(frame);
@@ -171,6 +171,6 @@ void main() {
     expect(rig.ads.session.cursor.phase, MovaSessionPhase.idle);
     expect(events.whereType<MovaNodeStart>(), hasLength(startsBeforeTakeover));
     expect(events.whereType<MovaNodeFail>(), isEmpty);
-    expect(rig.engines.first.disposeCount, 1);
+    expect(rig.movas.first.disposeCount, 1);
   });
 }

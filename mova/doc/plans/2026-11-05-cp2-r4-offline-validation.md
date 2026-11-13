@@ -8,7 +8,7 @@
 |矩阵静态检查|example/tool：`python run_matrix.py --check`|PASS；78 batches / 135 IDs / 6 manual；无设备操作|
 |指定 Python 单测|example/tool：`python -m unittest test_run_matrix test_win_policy test_win_job`|77 tests OK：63 + 11 + 3；无跳过/失败|
 |单文件无设备测试|example：`flutter test test/cp2_criteria_test.dart --reporter expanded`|9/9 PASS；包含 5 条原始 slot FAIL 的 Dart reducer 回放及命令延迟、缺首帧/边沿/completed 的诊断|
-|离线重算|mova：`python example/tool/cp2_r4_offline.py`|逐条读取 3 个原始 run JSON，核对 FAIL ID、旧 CHECK 数字、首帧归属、原生 path/engine、playing 边沿及暂停样本；15/15 限定 PASS|
+|离线重算|mova：`python example/tool/cp2_r4_offline.py`|逐条读取 3 个原始 run JSON，核对 FAIL ID、旧 CHECK 数字、首帧归属、原生 path/mova、playing 边沿及暂停样本；15/15 限定 PASS|
 |历史保护|用 `git show 552f21cf:mova/doc/plans/2026-11-04-cp2-results.json` 与新 JSON 比较；旧 Markdown 与新文件前缀比较|除 latestRound/latestStatus 指向新节外，原有 JSON 字段及 fourthRound 全部值保持一致；旧 Markdown 全文逐字保留为前缀|
 |原始证据保护|原始 JSON SHA-256 见结果报告；重算脚本只读 evidence|没有修改 coverage_evidence 中的日志/JSON，也没有伪造 run-id 或设备记录|
 |范围与格式|`git diff --check`；逐项检查提交文件清单|通过；仅 example/doc，无根 lib/test、generated_plugin*、doc/notes、svgx、dioman|

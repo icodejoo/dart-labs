@@ -6,7 +6,7 @@ import '../support/fake_api.dart';
 import '../support/pump.dart';
 
 /// 提供同步快照但不重放流的宿主替身，用于验证 UI 的同步播种。
-class _SnapshotApi extends FakeMovaApi implements MovaProgressSource {
+class _SnapshotApi extends FakeMovaApi implements IMovaProgressSource {
   /// 创建暂停在 30 秒的替身。
   _SnapshotApi({super.options});
   @override
@@ -25,7 +25,7 @@ void main() {
   tearDown(MovaTesting.reset);
 
   test('内核进度在无订阅者时仍可同步读取', () async {
-    final api = createMovaEngine();
+    final api = createMova();
     final k = MovaTesting.lastKernel!;
     k.emitPosition(const Duration(seconds: 30));
     k.emitBuffer(const Duration(seconds: 40));
@@ -35,7 +35,7 @@ void main() {
   });
 
   test('暂停后每个新订阅者都收到当前进度', () async {
-    final api = createMovaEngine();
+    final api = createMova();
     MovaTesting.lastKernel!.emitPosition(const Duration(seconds: 30));
     await Future<void>.delayed(Duration.zero);
     await api.pause();
@@ -69,8 +69,8 @@ void main() {
 
   test('cutover 换指后同步快照及新订阅跟随影子', () async {
     final made = <FakeMovaApi>[];
-    final api = MovaCutoverEngine(engineFactory: () {
-      final f = _SnapshotApi(options: const MovaOpts(cutover: MovaCutoverConfig(enabled: true)));
+    final api = MovaCutover(movaFactory: () {
+      final f = _SnapshotApi(options: const MovaOpts(cutover: MovaCutoverOpts(enabled: true)));
       made.add(f);
       return f;
     });

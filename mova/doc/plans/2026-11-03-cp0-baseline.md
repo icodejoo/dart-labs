@@ -63,7 +63,7 @@ cp0-pod2 按用户指示跳过：旧页默认不等待就绪，不用 epoch 0→
 
 ## 口径与证据边界
 
-P1-3：默认 createMovaEngine、auto、不手选；三档120秒HLS，共享900kbit/s限速。每秒原生读回档位、hls-bitrate、视频轨、缓存；切换时刻报告相邻采样区间，次数为观测下界。事件戳来自单调事件记录；卡顿结合原生 time-pos/paused-for-cache 与 MovaBufferChange，不以墙钟估算。完整逐轮数字在同名 JSON。
+P1-3：默认 createMova、auto、不手选；三档120秒HLS，共享900kbit/s限速。每秒原生读回档位、hls-bitrate、视频轨、缓存；切换时刻报告相邻采样区间，次数为观测下界。事件戳来自单调事件记录；卡顿结合原生 time-pos/paused-for-cache 与 MovaBufferChange，不以墙钟估算。完整逐轮数字在同名 JSON。
 
 precise 沿用 rerun6 合格 RESTART/目标档位门槛，另算 CP0：目标与原生 time-pos 误差≤500ms 且 path 正确；<200ms 占比以已执行次数为分母。保留原续播/暂停判据与 harnessInvalid，不将缺样本算作成功。H28 默认配置不开泵。H20 使用 open 后立即seek(15s)，H50使用 cutoverTo(hls,at:12s)。
 

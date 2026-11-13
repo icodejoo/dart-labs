@@ -87,7 +87,7 @@ void main() {
   });
 
   group('MovaSubtitleButtonComponent', () {
-    testWidgets('renders nothing when no engine is configured', (t) async {
+    testWidgets('renders nothing when no recognizer is configured', (t) async {
       final api = FakeMovaApi();
       await pumpComponent(t, api, MovaSubtitleButtonComponent());
 
@@ -141,7 +141,7 @@ void main() {
   });
 
   group('MovaSubtitleOverlayComponent', () {
-    testWidgets('renders nothing when no engine is configured', (t) async {
+    testWidgets('renders nothing when no recognizer is configured', (t) async {
       final api = FakeMovaApi();
       await pumpComponent(t, api, MovaSubtitleOverlayComponent());
       expect(find.byType(Text), findsNothing);

@@ -16,7 +16,7 @@ class _DisposePulseState extends State<_DisposePulse>
   @override
   void initState() {
     super.initState();
-    // Registered once for this mounted widget, never once per engine/round.
+    // Registered once for this mounted widget, never once per mova/round.
     WidgetsBinding.instance.addPersistentFrameCallback((_) {
       if (mounted) widget.onFrame();
     });
@@ -48,7 +48,7 @@ Future<void> runDispose120(Cp1Harness h) async {
   final rounds = <Map<String, Object?>>[];
   final pss = <Map<String, Object?>>[];
   for (var run = 0; run < h.runs; run++) {
-    final a = createMovaEngine(audioOnly: true, preciseFirstFrame: true);
+    final a = createMova(audioOnly: true, preciseFirstFrame: true);
     h.api = a;
     h.observe(a);
     final begin = h.records.length;
@@ -101,10 +101,10 @@ Future<void> runDispose120(Cp1Harness h) async {
       missing: gaps.isEmpty ? 'dispose 区间缺 UI 帧样本' : null,
     );
     if (!disposed) {
-      // Do not stack leaked native engines after a failed dispose.
+      // Do not stack leaked native players after a failed dispose.
       break;
     }
-    await h.release(disposeEngine: false);
+    await h.release(disposeMova: false);
     h.positions.remove(a);
     h.sourceUris.remove(a);
     if ((run + 1) % 20 == 0) {

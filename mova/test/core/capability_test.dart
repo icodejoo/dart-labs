@@ -2,12 +2,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mova/mova.dart';
 import '../support/fake_api.dart';
 
-/// 测试自定义能力，不要求 MovaApi 增加方法。
+/// 测试自定义能力，不要求 IMovaApi 增加方法。
 abstract interface class _Marker { String get tag; }
 
-/// 具有宿主自定义能力的底层引擎。
+/// 具有宿主自定义能力的底层播放器。
 class _MarkedApi extends FakeMovaApi implements _Marker {
-  _MarkedApi(this.tag) : super(options: const MovaOpts(cutover: MovaCutoverConfig(enabled: true)));
+  _MarkedApi(this.tag) : super(options: const MovaOpts(cutover: MovaCutoverOpts(enabled: true)));
   @override
   final String tag;
 }
@@ -26,21 +26,21 @@ void main() {
   test('C10 unsupported capability is null and ordinary API remains discoverable', () async {
     final api = FakeMovaApi();
     expect(movaCapabilityOf<_Marker>(api), isNull);
-    expect(movaCapabilityOf<MovaApi>(api), same(api));
+    expect(movaCapabilityOf<IMovaApi>(api), same(api));
     await api.dispose();
   });
   test('C10 nested proxies expose active capability and retain their own capability', () async {
     final active = _MarkedApi('nested');
-    final inner = MovaCutoverEngine(engineFactory: () => active);
-    final outer = MovaCutoverEngine(engineFactory: () => inner);
+    final inner = MovaCutover(movaFactory: () => active);
+    final outer = MovaCutover(movaFactory: () => inner);
     expect(movaCapabilityOf<_Marker>(outer), same(active));
-    expect(movaCapabilityOf<MovaCutover>(outer), same(outer));
+    expect(movaCapabilityOf<IMovaCutover>(outer), same(outer));
     expect(active.calls, isEmpty);
     await outer.dispose();
   });
-  test('C10 discovery follows committed active engine and ignores shadow', () async {
+  test('C10 discovery follows committed active player and ignores shadow', () async {
     final made = <_MarkedApi>[];
-    final proxy = MovaCutoverEngine(engineFactory: () {
+    final proxy = MovaCutover(movaFactory: () {
       final api = _MarkedApi('${made.length}');
       made.add(api);
       return api;

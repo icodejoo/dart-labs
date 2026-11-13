@@ -9,12 +9,12 @@ import '../core/keep_alive/keep_alive.dart';
 
 part 'test_step.dart';
 
-/// A scriptable [MovaKernel] (+ [MovaStatsProbe]) for widget tests: records
-/// calls and lets the test push any kernel signal, so a real `MovaEngine` can
+/// A scriptable [IMovaKernel] (+ [IMovaStatsProbe]) for widget tests: records
+/// calls and lets the test push any kernel signal, so a real `Mova` can
 /// run without ever touching media_kit.
 ///
-/// 供 widget 测试使用的可编程 [MovaKernel]（兼 [MovaStatsProbe]）：记录调用，并允许
-/// 测试推送任意内核信号，使真实的 `MovaEngine` 完全不碰 media_kit 也能运行。
+/// 供 widget 测试使用的可编程 [IMovaKernel]（兼 [IMovaStatsProbe]）：记录调用，并允许
+/// 测试推送任意内核信号，使真实的 `Mova` 完全不碰 media_kit 也能运行。
 ///
 /// Example / 示例:
 /// ```dart
@@ -24,16 +24,16 @@ part 'test_step.dart';
 /// ```
 class MovaTestKernel
     implements
-        MovaKernel,
-        MovaStatsProbe,
-        MovaKeepAliveKernel,
-        MovaSourceOptionsKernel {
+        IMovaKernel,
+        IMovaStatsProbe,
+        IMovaKeepAliveKernel,
+        IMovaSourceOptionsKernel {
   /// Creates a test kernel.
   ///
   /// 创建一个测试内核。
   ///
-  /// - [renderHandle]: what the engine reports as its render handle; `null`
-  ///   (default) makes `MovaPlayer` draw its placeholder / 引擎对外报告的渲染句柄；
+  /// - [renderHandle]: what the player reports as its render handle; `null`
+  ///   (default) makes `MovaPlayer` draw its placeholder / 播放器对外报告的渲染句柄；
   ///   默认 `null`，此时 `MovaPlayer` 绘制占位
   /// - [nativeRestartAvailable]: pretend the native restart subscription is
   ///   live. `false` (default) makes buffering/position fallbacks land the
@@ -130,11 +130,11 @@ class MovaTestKernel
   /// 最近一次 `seek()` 的目标。
   Duration? lastSeek;
 
-  /// The mpv options the engine staged for each `open()`, in order (an empty map
+  /// The mpv options the player staged for each `open()`, in order (an empty map
   /// when the source had none). Lets host tests assert `MovaSource.mpvOptions`
   /// / `whepMediaTimeout` reach the kernel.
   ///
-  /// 引擎为每次 `open()` 暂存的 mpv 选项，按顺序（源没有选项时为空 Map）。供宿主测试断言
+  /// 播放器为每次 `open()` 暂存的 mpv 选项，按顺序（源没有选项时为空 Map）。供宿主测试断言
   /// `MovaSource.mpvOptions` / `whepMediaTimeout` 确实到达了内核。
   final List<Map<String, String>> stagedSourceOptions = <Map<String, String>>[];
 
@@ -215,7 +215,7 @@ class MovaTestKernel
   final StreamController<MovaEndFileReason> _endFiles =
       StreamController<MovaEndFileReason>.broadcast();
 
-  // ---- MovaKernel verbs ----
+  // ---- IMovaKernel verbs ----
 
   @override
   Future<void> open(String uri, {bool play = true}) async {
@@ -285,7 +285,7 @@ class MovaTestKernel
     }
   }
 
-  // ---- MovaKernel streams ----
+  // ---- IMovaKernel streams ----
 
   @override
   Stream<bool> get playing => _playing.stream;
@@ -311,7 +311,7 @@ class MovaTestKernel
   @override
   Stream<Object> get error => _error.stream;
 
-  // ---- MovaStatsProbe ----
+  // ---- IMovaStatsProbe ----
 
   @override
   Stream<bool> get stalling => _stalling.stream;

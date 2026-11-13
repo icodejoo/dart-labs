@@ -28,7 +28,7 @@ Future<void> run() async {
   }
 }
 
-class PendingThumbSource implements MovaThumbSource {
+class PendingThumbSource implements IMovaThumbSource {
   final entered = Completer<void>();
   final result = Completer<MovaThumb?>();
   int calls = 0;
@@ -49,7 +49,7 @@ class PendingThumbSource implements MovaThumbSource {
 Future<void> previewRaces() async {
   for (final switchSource in [false, true]) {
     final source = PendingThumbSource();
-    final service = MovaPreviewService(config: const MovaPreviewConfig(enabled: true,
+    final service = MovaPreviewService(opts: const MovaPreviewOpts(enabled: true,
       network: MovaPreviewNet.always, debounce: Duration.zero), cache: MovaMemoryThumbCache(),
       probe: MovaAlwaysAllowNetProbe(), sources: [source]);
     final published = <MovaThumb?>[];
@@ -105,7 +105,7 @@ Future<void> heartbeatOff() async {
   final timers = <int>[];
   final reports = <MovaReportEvent>[];
   await runZoned(() async {
-    final api = MovaEngine(kernel: MovaTestKernel(), reporter: MovaCallbackReporter(reports.add));
+    final api = Mova(kernel: MovaTestKernel(), reporter: MovaCallbackReporter(reports.add));
     try {
       await api.open(const MovaSource('s00c://heartbeat-off'));
       await api.dispose();
@@ -118,7 +118,7 @@ Future<void> heartbeatOff() async {
   }));
   measured('C13.defaultHeartbeat', timers.isEmpty,
     {'periodicTimers': timers.length, 'periodsUs': timers,
-     'heartbeatUs': const MovaReportConfig().heartbeat?.inMicroseconds});
+     'heartbeatUs': const MovaReportOpts().heartbeat?.inMicroseconds});
 }
 
 void measured(String id, bool pass, Map<String, Object?> numbers, {String origin = 'public-testing-kernel'}) =>
@@ -128,7 +128,7 @@ void measured(String id, bool pass, Map<String, Object?> numbers, {String origin
 Future<void> openThrow() async {
   final failure = StateError('s00c kernel open fault');
   final kernel = MovaTestKernel()..openError = failure;
-  final api = MovaEngine(kernel: kernel);
+  final api = Mova(kernel: kernel);
   c.observe(api);
   Object? caught;
   try {
@@ -145,7 +145,7 @@ Future<void> openThrow() async {
 
 Future<void> intent() async {
   final kernel = MovaTestKernel();
-  final api = MovaEngine(kernel: kernel);
+  final api = Mova(kernel: kernel);
   c.observe(api);
   try {
     await api.open(const MovaSource('s00c://intent'), autoPlay: false);
@@ -170,12 +170,12 @@ Future<void> intent() async {
 Future<void> mini() async {
   for (final cutover in [false, true]) {
     final kernels = <MovaTestKernel>[];
-    MovaEngine factory() {
+    Mova factory() {
       final kernel = MovaTestKernel();
       kernels.add(kernel);
-      return MovaEngine(kernel: kernel);
+      return Mova(kernel: kernel);
     }
-    final MovaApi api = cutover ? MovaCutoverEngine(engineFactory: factory) : factory();
+    final IMovaApi api = cutover ? MovaCutover(movaFactory: factory) : factory();
     final seen = <MovaEvent>[];
     final sub = api.events.listen(seen.add);
     c.observe(api);
@@ -190,7 +190,7 @@ Future<void> mini() async {
       final changes = seen.whereType<MovaMiniChange>().length;
       measured('A15.miniStable', entered && changes == 1 &&
           api.state.renderEpoch == before['epoch'] && identical(api.renderHandle, handle) &&
-          api.state.orientation.name == before['orientation'] && api.state.pip == before['pip'] &&
+          api.state.orient.name == before['orient'] && api.state.pip == before['pip'] &&
           api.state.volume == before['volume'],
         {'cutover': cutover, 'entered': entered, 'changes': changes,
          'before': before, 'after': c.snapshot(api), 'sameHandle': identical(api.renderHandle, handle)});
@@ -206,8 +206,8 @@ Future<void> mini() async {
 }
 
 Future<void> ui() async {
-  final api = MovaEngine(kernel: MovaTestKernel(), options: const MovaOpts(
-    controls: MovaCtrlsConfig(autoHideDelay: Duration(milliseconds: 100))));
+  final api = Mova(kernel: MovaTestKernel(), options: const MovaOpts(
+    controls: MovaCtrlsOpts(autoHideDelay: Duration(milliseconds: 100))));
   final states = <MovaUiState>[];
   final sub = api.uiStates.listen(states.add);
   try {
@@ -247,7 +247,7 @@ Future<void> source() async {
 
 Future<void> firstFrame() async {
   final kernel = MovaTestKernel(nativeRestartAvailable: true);
-  final api = MovaEngine(kernel: kernel);
+  final api = Mova(kernel: kernel);
   final events = <MovaEvent>[];
   final sub = api.events.listen(events.add);
   c.observe(api);
@@ -273,8 +273,8 @@ Future<void> firstFrame() async {
 }
 
 Future<void> previewBlock() async {
-  final api = MovaEngine(kernel: MovaTestKernel(), options: const MovaOpts(
-    preview: MovaPreviewConfig(enabled: true, network: MovaPreviewNet.never)));
+  final api = Mova(kernel: MovaTestKernel(), options: const MovaOpts(
+    preview: MovaPreviewOpts(enabled: true, network: MovaPreviewNet.never)));
   final events = <MovaPreviewBlock>[];
   final sub = api.events.where((e) => e is MovaPreviewBlock).cast<MovaPreviewBlock>().listen(events.add);
   c.observe(api);

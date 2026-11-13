@@ -64,7 +64,7 @@ class MovaBottomBarComponent extends MovaComponent {
   /// Groups patched children by their original layout role.
   ///
   /// 按原始布局角色为补丁后的子节点分组。
-  Widget build(BuildContext context, MovaApi api, List<Widget> children) {
+  Widget build(BuildContext context, IMovaApi api, List<Widget> children) {
     final theme = MovaPlayerStyle.themeOf(context);
     // 自定义插入节点跟随前一个已知节点；移除后不再依赖任何列表下标。
     final groups = <String, List<Widget>>{};
@@ -118,9 +118,9 @@ class MovaBottomBarComponent extends MovaComponent {
   }
 }
 
-/// Elapsed-time label; follows [MovaApi.progress]'s `position` field.
+/// Elapsed-time label; follows [IMovaApi.progress]'s `position` field.
 ///
-/// 已播放时间标签；跟随 [MovaApi.progress] 的 `position` 字段。
+/// 已播放时间标签；跟随 [IMovaApi.progress] 的 `position` 字段。
 class MovaPositionLabelComponent extends MovaComponent {
   /// Creates the position-label leaf component.
   ///
@@ -139,7 +139,7 @@ class MovaPositionLabelComponent extends MovaComponent {
   MovaSlot get slot => MovaSlot.bottom;
 
   @override
-  Widget build(BuildContext context, MovaApi api, List<Widget> children) {
+  Widget build(BuildContext context, IMovaApi api, List<Widget> children) {
     final theme = MovaPlayerStyle.themeOf(context);
     return MovaProgSelect<int>(
       selector: (p) => p.position.inSeconds,
@@ -177,7 +177,7 @@ class MovaDurationLabelComponent extends MovaComponent {
   MovaSlot get slot => MovaSlot.bottom;
 
   @override
-  Widget build(BuildContext context, MovaApi api, List<Widget> children) {
+  Widget build(BuildContext context, IMovaApi api, List<Widget> children) {
     final theme = MovaPlayerStyle.themeOf(context);
     return MovaSelect<Duration>(
       selector: (s) => s.duration,
@@ -230,7 +230,7 @@ class MovaSeekBarComponent extends MovaComponent {
   MovaSlot get slot => MovaSlot.bottom;
 
   @override
-  Widget build(BuildContext context, MovaApi api, List<Widget> children) {
+  Widget build(BuildContext context, IMovaApi api, List<Widget> children) {
     return MovaSelect<Duration>(
       selector: (s) => s.type == MovaStreamType.live && s.liveSeekable
           ? s.seekableWindow
@@ -241,10 +241,10 @@ class MovaSeekBarComponent extends MovaComponent {
 }
 
 /// Stateful slider widget backing [MovaSeekBarComponent]; holds the in-progress
-/// drag value and tracks the latest position from [MovaApi.progress].
+/// drag value and tracks the latest position from [IMovaApi.progress].
 ///
 /// 支撑 [MovaSeekBarComponent] 的有状态滑块；持有拖动中的本地值，并跟踪
-/// [MovaApi.progress] 推送的最新位置。
+/// [IMovaApi.progress] 推送的最新位置。
 class _SeekBar extends StatefulWidget {
   /// Creates the internal seek-bar widget.
   ///
@@ -259,7 +259,7 @@ class _SeekBar extends StatefulWidget {
   /// The capability surface this slider drives.
   ///
   /// 该滑块驱动的能力面。
-  final MovaApi api;
+  final IMovaApi api;
 
   /// Current total media duration; zero means unknown/not seekable.
   ///
@@ -276,9 +276,9 @@ class _SeekBar extends StatefulWidget {
 /// [_SeekBar] 的状态；跟踪最新已知位置及本地拖动中的临时值（若有）。
 class _SeekBarState extends State<_SeekBar> {
   /// Latest known playback position in milliseconds, updated from
-  /// [MovaApi.progress].
+  /// [IMovaApi.progress].
   ///
-  /// 最新已知播放位置（毫秒），来自 [MovaApi.progress]。
+  /// 最新已知播放位置（毫秒），来自 [IMovaApi.progress]。
   double _position = 0;
 
   /// Slider value currently being dragged by the user, or `null` when not
@@ -328,8 +328,8 @@ class _SeekBarState extends State<_SeekBar> {
     super.initState();
     _ui = movaUiOf(context);
     final api = widget.api;
-    if (api is MovaProgressSource) {
-      _position = (api as MovaProgressSource)
+    if (api is IMovaProgressSource) {
+      _position = (api as IMovaProgressSource)
           .progressValue
           .position
           .inMilliseconds
@@ -417,9 +417,9 @@ class _SeekBarState extends State<_SeekBar> {
   }
 
   /// Records the in-progress drag value and previews the target seek
-  /// position via [MovaApi.setDragging].
+  /// position via [IMovaApi.setDragging].
   ///
-  /// 记录拖动中的值，并通过 [MovaApi.setDragging] 预览目标跳转位置。
+  /// 记录拖动中的值，并通过 [IMovaApi.setDragging] 预览目标跳转位置。
   ///
   /// - [v]: the new slider value in milliseconds / 新滑块值（毫秒）
   void _onChanged(double v) {
@@ -484,7 +484,7 @@ class MovaLiveBadgeComponent extends MovaComponent {
   MovaSlot get slot => MovaSlot.bottom;
 
   @override
-  Widget build(BuildContext context, MovaApi api, List<Widget> children) {
+  Widget build(BuildContext context, IMovaApi api, List<Widget> children) {
     final theme = MovaPlayerStyle.themeOf(context);
     final strings = MovaPlayerStyle.stringsOf(context);
     return MovaSelect<bool>(
@@ -539,7 +539,7 @@ class MovaTimeshiftLabelComponent extends MovaComponent {
   MovaSlot get slot => MovaSlot.bottom;
 
   @override
-  Widget build(BuildContext context, MovaApi api, List<Widget> children) {
+  Widget build(BuildContext context, IMovaApi api, List<Widget> children) {
     final theme = MovaPlayerStyle.themeOf(context);
     return MovaSelect<Duration?>(
       selector: (s) => s.timeshiftBehind,
@@ -562,15 +562,15 @@ class MovaTimeshiftLabelComponent extends MovaComponent {
 
 /// Button returning playback to the live edge.
 ///
-/// Delegates the *how* entirely to [MovaApi.backToLiveEdge], which follows
-/// `MovaLiveConfig.effectiveBackToLive` (seek to the window end for DVR, reopen
+/// Delegates the *how* entirely to [IMovaApi.backToLiveEdge], which follows
+/// `MovaLiveOpts.effectiveBackToLive` (seek to the window end for DVR, reopen
 /// the original URL for time-shift). Replaces 0.1.0's `backToEdge` button,
 /// which called `reload()` unconditionally.
 ///
 /// 让播放回到直播边缘的按钮。
 ///
-/// **具体怎么回**完全交给 [MovaApi.backToLiveEdge]，由
-/// `MovaLiveConfig.effectiveBackToLive` 决定（DVR 跳到窗口末端，时移则重开原始
+/// **具体怎么回**完全交给 [IMovaApi.backToLiveEdge]，由
+/// `MovaLiveOpts.effectiveBackToLive` 决定（DVR 跳到窗口末端，时移则重开原始
 /// 地址）。它取代了 0.1.0 里无条件调用 `reload()` 的 `backToEdge` 按钮。
 class MovaBackToLiveComponent extends MovaComponent {
   /// Creates the back-to-live leaf component.
@@ -590,7 +590,7 @@ class MovaBackToLiveComponent extends MovaComponent {
   MovaSlot get slot => MovaSlot.bottom;
 
   @override
-  Widget build(BuildContext context, MovaApi api, List<Widget> children) {
+  Widget build(BuildContext context, IMovaApi api, List<Widget> children) {
     final theme = MovaPlayerStyle.themeOf(context);
     final strings = MovaPlayerStyle.stringsOf(context);
     return MovaIconButton(

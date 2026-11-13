@@ -8,10 +8,10 @@ import 'package:mova/src/core/preview/fetcher.dart';
 import 'package:mova/src/core/preview/models.dart';
 import 'package:mova/src/core/preview/vtt_source.dart';
 
-/// A [MovaHttpFetch] serving canned responses and recording every URL asked.
+/// A [IMovaHttpFetch] serving canned responses and recording every URL asked.
 ///
-/// 返回预置响应并记录每次请求 URL 的 [MovaHttpFetch]。
-class _FakeFetcher implements MovaHttpFetch {
+/// 返回预置响应并记录每次请求 URL 的 [IMovaHttpFetch]。
+class _FakeFetcher implements IMovaHttpFetch {
   /// Canned responses, keyed by URL.
   ///
   /// 按 URL 存放的预置响应。

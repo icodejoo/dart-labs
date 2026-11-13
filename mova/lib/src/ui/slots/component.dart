@@ -27,7 +27,7 @@ abstract class MovaComponent {
   /// The overlay region this component renders into.
   ///
   /// This only takes effect for components at the top level of the tree
-  /// (entries returned directly by [MovaSkin.components]) — [buildSlots]
+  /// (entries returned directly by [IMovaUiKit.components]) — [buildSlots]
   /// reads [slot]/[order] only from those top-level entries. For a node
   /// nested under another component's [children], this value is inert:
   /// its parent's [build] positions it directly via the built [children]
@@ -35,7 +35,7 @@ abstract class MovaComponent {
   ///
   /// 该组件渲染到的叠加层区域。
   ///
-  /// 该属性仅对树顶层的组件（即 [MovaSkin.components] 直接返回的条目）生效——
+  /// 该属性仅对树顶层的组件（即 [IMovaUiKit.components] 直接返回的条目）生效——
   /// [buildSlots] 只从这些顶层条目读取 [slot]/[order]。若节点是嵌套在另一
   /// 组件的 [children] 中，该值不会生效：其父组件的 [build] 会直接通过已
   /// 构建的 [children] 列表来布局它，而非按槽位放置。
@@ -63,5 +63,5 @@ abstract class MovaComponent {
   /// [context] 是当前构建上下文，[api] 是该组件可读取的能力面，[children]
   /// 是本节点的 [children] 已按相同顺序构建好的 widget 列表。返回该节点要
   /// 渲染的 [Widget]。
-  Widget build(BuildContext context, MovaApi api, List<Widget> children);
+  Widget build(BuildContext context, IMovaApi api, List<Widget> children);
 }

@@ -71,9 +71,9 @@ const bool kAutoExit = bool.fromEnvironment('AUTOEXIT', defaultValue: true);
 /// 靠日志标记驱动的场景（V9、V11）等待操作者（adb）动手的秒数。
 const int kWaitS = int.fromEnvironment('WAIT_S', defaultValue: 90);
 
-/// One engine configuration of the script.
+/// One player configuration of the script.
 ///
-/// 脚本里的一组引擎配置。
+/// 脚本里的一组播放器配置。
 class _Cfg {
   const _Cfg({
     required this.source,
@@ -89,7 +89,7 @@ class _Cfg {
   final bool precise;
   final bool autoPlay;
   final bool guard;
-  final MovaReporter? reporter;
+  final IMovaReporter? reporter;
 
   _Cfg withSource(MovaSource s) =>
       _Cfg(source: s, options: options, precise: precise, autoPlay: autoPlay, guard: guard, reporter: reporter);
@@ -142,8 +142,8 @@ class _HeAutoPageState extends State<HeAutoPage> with WidgetsBindingObserver {
   _Cfg? _cfg;
   int _epoch = 0;
   bool _tickerOn = true;
-  Completer<void>? _engineReady;
-  MovaApi? _api;
+  Completer<void>? _movaReady;
+  IMovaApi? _api;
   EventRecorder<MovaEvent>? _ev;
   EventRecorder<MovaState>? _st;
   EventRecorder<MovaProg>? _pg;
@@ -203,7 +203,7 @@ class _HeAutoPageState extends State<HeAutoPage> with WidgetsBindingObserver {
   MovaSource get _vod => _src('$kBase/vod.mp4', type: MovaStreamType.vod);
 
   MovaOpts _recovery({int? stallS}) => MovaOpts(
-    recovery: MovaRecoveryConfig(
+    recovery: MovaRecoveryOpts(
       enabled: true,
       // These legacy cases assert a finite retry budget. The new default
       // live reconnect policy is covered separately by coverage_new.dart.
@@ -214,17 +214,17 @@ class _HeAutoPageState extends State<HeAutoPage> with WidgetsBindingObserver {
     ),
   );
 
-  /// Engine just created by `MovaView`: attach recorders before its `open()` starts.
-  void _onEngine(MovaApi api) {
+  /// Player just created by `MovaView`: attach recorders before its `open()` starts.
+  void _onMova(IMovaApi api) {
     _api = api;
     _ev = EventRecorder<MovaEvent>(api.events, clock: _clock);
     _st = EventRecorder<MovaState>(api.states, clock: _clock);
     _pg = EventRecorder<MovaProg>(api.progress, clock: _clock);
     _openAt = _clock.elapsed;
-    _engineReady?.complete();
+    _movaReady?.complete();
   }
 
-  /// Tears the current view/engine down.
+  /// Tears the current view/player down.
   Future<void> _stop() async {
     if (_cfg == null) return;
     await _ev?.dispose();
@@ -240,22 +240,22 @@ class _HeAutoPageState extends State<HeAutoPage> with WidgetsBindingObserver {
     await Future<void>.delayed(const Duration(milliseconds: 700));
   }
 
-  /// Builds a fresh `MovaView` (hence a fresh engine) for [cfg] and waits until it exists.
+  /// Builds a fresh `MovaView` (hence a fresh player) for [cfg] and waits until it exists.
   Future<void> _start(_Cfg cfg) async {
     await _stop();
     _openErrors.clear();
-    _engineReady = Completer<void>();
+    _movaReady = Completer<void>();
     setState(() {
       _cfg = cfg;
       _epoch++;
     });
-    await _engineReady!.future.timeout(const Duration(seconds: 10));
+    await _movaReady!.future.timeout(const Duration(seconds: 10));
   }
 
   Future<Stamped<MovaFirstFrame>?> _firstFrame({int from = 0, Duration timeout = const Duration(seconds: 15)}) =>
       _ev!.wait<MovaFirstFrame>(from: from, timeout: timeout);
 
-  /// Ms of [s] since the engine was created (the `open()` of the first source starts right then).
+  /// Ms of [s] since the player was created (the `open()` of the first source starts right then).
   int _sinceStart(Stamped<Object> s) => msBetween(_openAt, s.at);
 
   // ---- scenarios -----------------------------------------------------------------------------
@@ -267,7 +267,7 @@ class _HeAutoPageState extends State<HeAutoPage> with WidgetsBindingObserver {
       final cfg = _Cfg(
         source: _live,
         precise: precise,
-        options: precise ? const MovaOpts(report: MovaReportConfig(qoe: true)) : const MovaOpts(),
+        options: precise ? const MovaOpts(report: MovaReportOpts(qoe: true)) : const MovaOpts(),
         reporter: precise
             ? MovaCallbackReporter((e) {
                 if (e.name == MovaReportName.firstFrame) qoe.add(e.params['ttffMs'] as int);
@@ -474,7 +474,7 @@ class _HeAutoPageState extends State<HeAutoPage> with WidgetsBindingObserver {
     for (final url in <String>[kRefused, '$kBase/missing404.flv']) {
       await _start(_Cfg(
         source: _src(url),
-        options: const MovaOpts(recovery: MovaRecoveryConfig(enabled: true, startTimeout: Duration(seconds: 15))),
+        options: const MovaOpts(recovery: MovaRecoveryOpts(enabled: true, startTimeout: Duration(seconds: 15))),
       ));
       final pf = await _ev!.wait<MovaPlayFailure>(timeout: const Duration(seconds: 20));
       final tag = url == kRefused ? 'refused' : '404';
@@ -747,11 +747,11 @@ class _HeAutoPageState extends State<HeAutoPage> with WidgetsBindingObserver {
                   autoPlay: cfg.autoPlay,
                   fit: MovaFit.cover,
                   poster: const ColoredBox(color: Color(0xFF223344), child: Center(child: Text('POSTER'))),
-                  skin: const MovaMinimalSkin(),
+                  uiKit: const MovaMinimalUiKit(),
                   options: cfg.options,
-                  autoPause: cfg.guard ? const MovaAutoPauseConfig() : null,
-                  engineFactory: (o) => createMovaEngine(options: o, preciseFirstFrame: cfg.precise, reporter: cfg.reporter),
-                  onEngine: _onEngine,
+                  autoPause: cfg.guard ? const MovaAutoPauseOpts() : null,
+                  movaFactory: (o) => createMova(options: o, preciseFirstFrame: cfg.precise, reporter: cfg.reporter),
+                  onMova: _onMova,
                   onOpenError: (e, s) {
                     _openErrors.add(e);
                     _log('openError $e');

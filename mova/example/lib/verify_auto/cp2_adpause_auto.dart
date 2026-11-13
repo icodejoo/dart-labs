@@ -11,8 +11,8 @@ Future<void> runCp2AdHold(Cp2Harness h, {required bool background}) async {
     for (var run = 0; run < h.runs; run++) {
       final ad = cp2Source('ad');
       final opts = MovaOpts(
-        cutover: cp2CutoverConfig,
-        ads: MovaAdConfig(
+        cutover: cp2CutoverOpts,
+        ads: MovaAdOpts(
           enabled: true,
           breaks: [
             MovaAdBreak(

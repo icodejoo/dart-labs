@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mova/src/core/mini/placement.dart';
-import 'package:mova/src/core/options/mini_config.dart';
+import 'package:mova/src/core/options/mini_opts.dart';
 
 void main() {
   const bounds = MovaMiniRect(left: 0, top: 0, width: 400, height: 800);

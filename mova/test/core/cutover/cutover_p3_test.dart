@@ -12,11 +12,11 @@ const _source = MovaSource('https://host/next.mp4');
 ///
 /// 沿用现有 API 夹具，门控设置迁移。
 class _SettingsApi extends FakeMovaApi {
-  /// Creates an engine with cutover enabled.
+  /// Creates a player with cutover enabled.
   ///
-  /// 创建启用切换的引擎。
+  /// 创建启用切换的播放器。
   _SettingsApi({super.options = const MovaOpts(
-    cutover: MovaCutoverConfig(enabled: true, muteWhileWarm: false),
+    cutover: MovaCutoverOpts(enabled: true, muteWhileWarm: false),
   )});
 
   Completer<void>? fitGate;
@@ -57,7 +57,7 @@ void main() {
     expect(shadow.calls, contains('play'));
     await rig.api.dispose();
     expect(shadow.disposeCount, 1);
-    expect(rig.engines.first.disposeCount, 1);
+    expect(rig.movas.first.disposeCount, 1);
     gate.complete();
     expect(await committing, isFalse);
     expect(shadow.disposeCount, 1);
@@ -67,9 +67,9 @@ void main() {
     test('C9 timeout falls back before open returns, late error=$lateError', () async {
       final made = <FakeMovaApi>[];
       final gate = Completer<void>();
-      final api = MovaCutoverEngine(engineFactory: () {
+      final api = MovaCutover(movaFactory: () {
         final e = _SettingsApi(options: const MovaOpts(
-          cutover: MovaCutoverConfig(enabled: true, muteWhileWarm: false,
+          cutover: MovaCutoverOpts(enabled: true, muteWhileWarm: false,
             readyTimeout: Duration(milliseconds: 50)),
         ));
         if (made.isNotEmpty) {
@@ -101,7 +101,7 @@ void main() {
   for (final latePause in [false, true]) {
     test('C11 rate migration honors late rate and pause=$latePause', () async {
       final made = <_SettingsApi>[];
-      final api = MovaCutoverEngine(engineFactory: () {
+      final api = MovaCutover(movaFactory: () {
         final e = _SettingsApi();
         made.add(e);
         return e;
@@ -138,15 +138,15 @@ void main() {
 
   for (final accepted in [true, false]) {
     test('C13 disabled cutover fallback applies rate only when accepted=$accepted', () async {
-      final engine = _SettingsApi(options: const MovaOpts())
+      final mova = _SettingsApi(options: const MovaOpts())
         ..acceptOpens = accepted;
-      final api = MovaCutoverEngine(engineFactory: () => engine);
+      final api = MovaCutover(movaFactory: () => mova);
       addTearDown(api.dispose);
       await api.setRate(1.25);
-      engine.calls.clear();
+      mova.calls.clear();
       expect(await api.cutoverTo(_source, rate: 1.5), isFalse);
-      expect(engine.state.rate, accepted ? 1.5 : 1.25);
-      expect(engine.calls.where((call) => call == 'setRate'), hasLength(accepted ? 1 : 0));
+      expect(mova.state.rate, accepted ? 1.5 : 1.25);
+      expect(mova.calls.where((call) => call == 'setRate'), hasLength(accepted ? 1 : 0));
     });
   }
 }

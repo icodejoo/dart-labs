@@ -9,10 +9,10 @@ Future<void> runRecovery(Cp1Harness h) async {
     for (var run = 0; run < h.runs; run++) {
       await h.control('reset');
       await h.control('throttle', {'bytesPerSecond': 400000});
-      final a = createMovaEngine(
+      final a = createMova(
         preciseFirstFrame: true,
         options: const MovaOpts(
-          recovery: MovaRecoveryConfig(
+          recovery: MovaRecoveryOpts(
             enabled: true,
             stallTimeout: Duration(seconds: 3),
           ),

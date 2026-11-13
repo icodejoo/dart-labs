@@ -1,9 +1,9 @@
 import 'package:fake_async/fake_async.dart';
 import 'package:mova/src/core/api.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mova/src/core/cutover/cutover_engine.dart';
+import 'package:mova/src/core/cutover/cutover.dart';
 import 'package:mova/src/core/cutover/trigger.dart';
-import 'package:mova/src/core/engine.dart';
+import 'package:mova/src/core/mova.dart';
 import 'package:mova/src/core/events/events.dart';
 import 'package:mova/src/core/model/source.dart';
 import 'package:mova/src/core/options/options.dart';
@@ -16,7 +16,7 @@ import 'package:mova/src/ui/chrome/chrome.dart';
 import '../support/fake_bridge_api.dart';
 import '../support/fake_kernel.dart';
 
-class _Sink implements MovaUiSink {
+class _Sink implements IMovaUiSink {
   final calls = <String>[];
   @override
   void legacyShow({required bool sticky}) => calls.add('show:$sticky');
@@ -29,8 +29,8 @@ class _Sink implements MovaUiSink {
       calls.add('drag:$dragging:${previewAt?.inSeconds}');
 }
 
-MovaEngine _engine() =>
-    MovaEngine(kernel: FakeKernel(), fetcher: const MovaTestHttpFetch());
+Mova _mova() =>
+    Mova(kernel: FakeKernel(), fetcher: const MovaTestHttpFetch());
 Future<void> _flush() async {
   for (var i = 0; i < 5; i++) {
     await Future<void>.delayed(Duration.zero);
@@ -40,11 +40,11 @@ Future<void> _flush() async {
 void main() {
   for (final proxy in [false, true]) {
     test(
-      '末次解绑${proxy ? "代理" : "引擎"}镜像继续 HUD 与控制条剩余期限',
+      '末次解绑${proxy ? "代理" : "播放器"}镜像继续 HUD 与控制条剩余期限',
       () => fakeAsync((a) {
-        final MovaApi e = proxy
-            ? MovaCutoverEngine(engineFactory: _engine)
-            : _engine();
+        final IMovaApi e = proxy
+            ? MovaCutover(movaFactory: _mova)
+            : _mova();
         final c = MovaChrome();
         movaBindChrome(c, e);
         a.flushMicrotasks();
@@ -71,7 +71,7 @@ void main() {
     test(
       '末次解绑清理拖动预览并${sticky ? "保留常显" : "恢复隐藏"}',
       () => fakeAsync((a) {
-        final e = _engine();
+        final e = _mova();
         final c = MovaChrome();
         movaBindChrome(c, e);
         c.show(sticky: sticky);
@@ -95,7 +95,7 @@ void main() {
   test(
     '非末次解绑不接管其他视图的计时',
     () => fakeAsync((a) {
-      final e = _engine();
+      final e = _mova();
       final one = MovaChrome(), two = MovaChrome();
       movaBindChrome(one, e);
       movaBindChrome(two, e);
@@ -117,7 +117,7 @@ void main() {
   test(
     '末次断开后恢复旧自动隐藏且断开幂等',
     () => fakeAsync((a) {
-      final e = _engine();
+      final e = _mova();
       final sink = _Sink();
       final link = e.linkUi(sink);
       link.mirror(const MovaUiState(controlsVisible: false));
@@ -137,7 +137,7 @@ void main() {
   test(
     '四个旧动词仅广播而不修改镜像和计时',
     () => fakeAsync((a) {
-      final e = _engine();
+      final e = _mova();
       final one = _Sink(), two = _Sink();
       e.linkUi(one);
       e.linkUi(two);
@@ -164,7 +164,7 @@ void main() {
   );
 
   test('镜像给旧读者且同值不重复发', () async {
-    final e = _engine();
+    final e = _mova();
     final link = e.linkUi(_Sink());
     final seen = <MovaUiState>[];
     final sub = e.uiStates.listen(seen.add);
@@ -181,9 +181,9 @@ void main() {
   });
 
   test(
-    '连接时就绪事件照发但引擎不操作 UI',
+    '连接时就绪事件照发但播放器不操作 UI',
     () => fakeAsync((a) {
-      final e = _engine();
+      final e = _mova();
       final sink = _Sink();
       e.linkUi(sink);
       final events = <MovaEvent>[];
@@ -204,7 +204,7 @@ void main() {
   test(
     '首个连接同步取消旧 HUD 和自动隐藏计时',
     () => fakeAsync((a) {
-      final e = _engine()
+      final e = _mova()
         ..showControls()
         ..showHud(MovaHud.seek);
       expect(a.nonPeriodicTimerCount, 2);
@@ -221,7 +221,7 @@ void main() {
   );
 
   test('销毁关闭连接且之后不回调视图', () async {
-    final e = _engine();
+    final e = _mova();
     final sink = _Sink();
     final link = e.linkUi(sink);
     e.hideControls();
@@ -241,7 +241,7 @@ void main() {
 
   test('代理连接时屏蔽内部 UI 且旧动词不穿透', () async {
     final inner = FakeBridgeApi();
-    final proxy = MovaCutoverEngine(engineFactory: () => inner);
+    final proxy = MovaCutover(movaFactory: () => inner);
     final sink = _Sink();
     proxy.linkUi(sink);
     inner.pushUi(const MovaUiState(controlsVisible: false));
@@ -261,12 +261,12 @@ void main() {
     await proxy.dispose();
   });
 
-  test('代理换指保留镜像，末次断开对齐新引擎', () async {
+  test('代理换指保留镜像，末次断开对齐新播放器', () async {
     final made = <FakeBridgeApi>[];
-    final proxy = MovaCutoverEngine(
-      engineFactory: () {
+    final proxy = MovaCutover(
+      movaFactory: () {
         final f = FakeBridgeApi(
-          options: const MovaOpts(cutover: MovaCutoverConfig(enabled: true)),
+          options: const MovaOpts(cutover: MovaCutoverOpts(enabled: true)),
         );
         made.add(f);
         return f;

@@ -14,11 +14,11 @@ class _Rig {
   /// Creates a session with optional native probe signals.
   ///
   /// 创建会话，可选注入原生探针信号。
-  _Rig({bool autoPlay = true, this.probe, MovaStallPolicy? stallPolicy}) {
+  _Rig({bool autoPlay = true, this.probe, IMovaStallPolicy? stallPolicy}) {
     collector = MovaQoeCollector(
       events: events.stream,
       reporter: MovaCallbackReporter(reports.add),
-      config: MovaReportConfig(qoe: true, stallPolicy: stallPolicy),
+      opts: MovaReportOpts(qoe: true, stallPolicy: stallPolicy),
       probe: probe,
       now: () => clock,
     );
@@ -306,7 +306,7 @@ void main() {
   );
 
   test(
-    'D8 fatal event without logs preserves engine code and fails session',
+    'D8 fatal event without logs preserves player code and fails session',
     () async {
       final r = _Rig();
       r.events.add(
@@ -334,7 +334,7 @@ void main() {
     },
   );
 
-  test('D8 paired decoder log cannot downgrade engine fatal or code', () async {
+  test('D8 paired decoder log cannot downgrade player fatal or code', () async {
     final probe = FakeStatsProbe();
     final r = _Rig(probe: probe);
     probe.pushLog(
@@ -345,12 +345,12 @@ void main() {
       const MovaErrorEvent.classified(
         'decoder failed',
         fatal: true,
-        code: 'engine.decode',
+        code: 'mova.decode',
       ),
     );
     final error = r.reports.singleWhere((e) => e.name == MovaReportName.error);
     expect(error.params['fatal'], isTrue);
-    expect(error.params['code'], 'engine.decode');
+    expect(error.params['code'], 'mova.decode');
     await r.close();
   });
 
@@ -376,21 +376,21 @@ void main() {
     () async {
       final kernel = FakeKernel()..openError = StateError('open failed');
       final reports = <MovaReportEvent>[];
-      final engine = createMovaEngine(
+      final mova = createMova(
         kernel: kernel,
-        pip: MovaNoopPipPort(),
-        orientation: MovaNoopOrientationPort(),
-        brightness: MovaFallbackBrightnessPort(),
+        pip: MovaNoopPip(),
+        orient: MovaNoopOrient(),
+        brightness: MovaFallbackBrightness(),
         reporter: MovaCallbackReporter(reports.add),
-        options: const MovaOpts(report: MovaReportConfig(qoe: true)),
+        options: const MovaOpts(report: MovaReportOpts(qoe: true)),
       );
       await expectLater(
-        engine.open(const MovaSource('https://host/video')),
+        mova.open(const MovaSource('https://host/video')),
         throwsStateError,
       );
       expect(kernel.calls, contains('open'));
       await Future<void>.delayed(Duration.zero);
-      await engine.dispose();
+      await mova.dispose();
       expect(
         reports
             .singleWhere((e) => e.name == MovaReportName.error)

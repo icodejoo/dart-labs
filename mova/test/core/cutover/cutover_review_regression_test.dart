@@ -15,7 +15,7 @@ void main() {
     test('C1 pause during $point leaves the promoted shadow paused', () async {
       final rig = OperationRig();
       addTearDown(rig.api.dispose);
-      final old = rig.engines.first as DetachGatedApi;
+      final old = rig.movas.first as DetachGatedApi;
       old.pushPlayingOnVerbs = true;
       await rig.api.play();
       final shadow = await rig.warm('successor');
@@ -39,7 +39,7 @@ void main() {
     test('C3 fatal shadow error during $point prevents promotion', () async {
       final rig = OperationRig();
       addTearDown(rig.api.dispose);
-      final old = rig.engines.first as DetachGatedApi;
+      final old = rig.movas.first as DetachGatedApi;
       final shadow = await rig.warm('failed');
       final gate = Completer<void>();
       addTearDown(() {
@@ -68,7 +68,7 @@ void main() {
   test('C1 pause then play during detach promotes a playing shadow', () async {
     final rig = OperationRig();
     addTearDown(rig.api.dispose);
-    final old = rig.engines.first as DetachGatedApi;
+    final old = rig.movas.first as DetachGatedApi;
     old.pushPlayingOnVerbs = true;
     await rig.api.pause();
     final shadow = await rig.warm('successor');
@@ -96,18 +96,18 @@ void main() {
   });
 
   test(
-    'C10 pause then play clears the keepAlive wish for the next engine',
+    'C10 pause then play clears the keepAlive wish for the next player',
     () async {
       final made = <FakeKeepAliveApi>[];
-      final api = MovaCutoverEngine(
-        engineFactory: () {
-          final engine = FakeKeepAliveApi(
+      final api = MovaCutover(
+        movaFactory: () {
+          final mova = FakeKeepAliveApi(
             options: const MovaOpts(
-              cutover: MovaCutoverConfig(enabled: true, muteWhileWarm: false),
+              cutover: MovaCutoverOpts(enabled: true, muteWhileWarm: false),
             ),
           );
-          made.add(engine);
-          return engine;
+          made.add(mova);
+          return mova;
         },
       );
       addTearDown(api.dispose);

@@ -20,7 +20,7 @@ class _Leaf extends MovaComponent {
   final int order;
   _Leaf(this.name, {this.slot = MovaSlot.top, this.order = 0});
   @override
-  Widget build(BuildContext c, MovaApi api, List<Widget> children) => Text(name);
+  Widget build(BuildContext c, IMovaApi api, List<Widget> children) => Text(name);
 }
 
 /// Minimal composite that lays its children out in a row.
@@ -35,7 +35,7 @@ class _Group extends MovaComponent {
   final List<MovaComponent> children;
   _Group(this.name, this.children, {this.slot = MovaSlot.top});
   @override
-  Widget build(BuildContext c, MovaApi api, List<Widget> children) => Row(children: children);
+  Widget build(BuildContext c, IMovaApi api, List<Widget> children) => Row(children: children);
 }
 
 List<String> _names(List<MovaComponent> t) =>

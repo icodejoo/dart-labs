@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mova/src/core/engine.dart';
+import 'package:mova/src/core/mova.dart';
 import 'package:mova/src/core/events/events.dart';
 import 'package:mova/src/core/interceptor/interceptor.dart';
 import 'package:mova/src/core/model/playlist.dart';
@@ -12,9 +12,9 @@ import 'package:mova/src/core/playlist/playlist.dart';
 import '../support/fake_api.dart';
 import '../support/fake_kernel.dart';
 
-/// A three-item playlist used across the controller tests.
+/// A three-item playlist used across the [MovaPlaylist] tests.
 ///
-/// 控制器测试通用的三集播放列表。
+/// MovaPlaylist 测试通用的三集播放列表。
 const _items = [
   MovaPlaylistItem(source: MovaSource('https://host/e1.mp4'), title: 'E1'),
   MovaPlaylistItem(source: MovaSource('https://host/e2.mp4'), title: 'E2'),
@@ -22,10 +22,10 @@ const _items = [
 ];
 
 void main() {
-  /// Builds a controller over a fake API seeded with [items]/[initialIndex]/
+  /// Builds a [MovaPlaylist] over a fake API seeded with [items]/[initialIndex]/
   /// [autoPlayNext].
   ///
-  /// 用 [items]/[initialIndex]/[autoPlayNext] 初始化的假 API 构造控制器。
+  /// 用 [items]/[initialIndex]/[autoPlayNext] 初始化的假 API 构造 MovaPlaylist。
   (FakeMovaApi, MovaPlaylist) build({
     List<MovaPlaylistItem> items = _items,
     int initialIndex = 0,
@@ -33,7 +33,7 @@ void main() {
   }) {
     final api = FakeMovaApi(
       options: MovaOpts(
-        playlist: MovaPlaylistConfig(
+        playlist: MovaPlaylistOpts(
           enabled: true,
           items: items,
           initialIndex: initialIndex,
@@ -55,7 +55,7 @@ void main() {
     expect(playlist.currentIndex, 1);
   });
 
-  test('seeds index from config and clamps out-of-range initialIndex', () {
+  test('seeds index from opts and clamps out-of-range initialIndex', () {
     final (_, c1) = build(initialIndex: 1);
     expect(c1.currentIndex, 1);
     final (_, c2) = build(initialIndex: 99);
@@ -183,7 +183,7 @@ void main() {
 
   test('interleaved jumpTo: the stale earlier jump finishing last never overwrites the index (#21)', () async {
     final api = _GatedApi(
-      options: const MovaOpts(playlist: MovaPlaylistConfig(enabled: true, items: _items)),
+      options: const MovaOpts(playlist: MovaPlaylistOpts(enabled: true, items: _items)),
     );
     final c = MovaPlaylist(api);
     final seen = <int>[];
@@ -204,7 +204,7 @@ void main() {
   for (final rejectFirst in [true, false]) {
     test('later rejected jump preserves earlier accepted index rejectFirst=$rejectFirst', () async {
       final api = _GatedApi(
-        options: const MovaOpts(playlist: MovaPlaylistConfig(enabled: true, items: _items)),
+        options: const MovaOpts(playlist: MovaPlaylistOpts(enabled: true, items: _items)),
       );
       final playlist = MovaPlaylist(api);
       addTearDown(api.dispose);
@@ -236,7 +236,7 @@ void main() {
 
   test('automatic next observes open failure and keeps index', () async {
     final api = _GatedApi(
-      options: const MovaOpts(playlist: MovaPlaylistConfig(enabled: true, items: _items)),
+      options: const MovaOpts(playlist: MovaPlaylistOpts(enabled: true, items: _items)),
     );
     final playlist = MovaPlaylist(api);
     addTearDown(api.dispose);
@@ -262,20 +262,20 @@ void main() {
     expect(playlist.currentIndex, 0);
   });
 
-  test('beforeOpen rejection preserves the index of an in-flight engine load', () async {
+  test('beforeOpen rejection preserves the index of an in-flight player load', () async {
     final kernel = FakeKernel();
-    final engine = MovaEngine(
+    final mova = Mova(
       kernel: kernel,
       ownsKernel: true,
       interceptors: [_RejectLastItem()],
-      options: const MovaOpts(playlist: MovaPlaylistConfig(enabled: true, items: _items)),
+      options: const MovaOpts(playlist: MovaPlaylistOpts(enabled: true, items: _items)),
     );
-    final playlist = MovaPlaylist(engine);
-    addTearDown(engine.dispose);
+    final playlist = MovaPlaylist(mova);
+    addTearDown(mova.dispose);
     addTearDown(playlist.dispose);
     final sources = <MovaSource>[];
-    engine.events.where((e) => e is MovaSourceChange).cast<MovaSourceChange>().listen((e) => sources.add(e.source));
-    await engine.open(_items.first.source);
+    mova.events.where((e) => e is MovaSourceChange).cast<MovaSourceChange>().listen((e) => sources.add(e.source));
+    await mova.open(_items.first.source);
     final gate = Completer<void>();
     kernel.openGate = gate;
     final first = playlist.jumpTo(1);
@@ -292,34 +292,34 @@ void main() {
     expect(playlist.currentIndex, 1);
   });
 
-  test('automatic next retains engine failure diagnostics without uncaught error', () async {
+  test('automatic next retains player failure diagnostics without uncaught error', () async {
     final kernel = FakeKernel();
-    final engine = MovaEngine(
+    final mova = Mova(
       kernel: kernel,
       ownsKernel: true,
-      options: const MovaOpts(playlist: MovaPlaylistConfig(enabled: true, items: _items)),
+      options: const MovaOpts(playlist: MovaPlaylistOpts(enabled: true, items: _items)),
     );
-    final playlist = MovaPlaylist(engine);
-    addTearDown(engine.dispose);
+    final playlist = MovaPlaylist(mova);
+    addTearDown(mova.dispose);
     addTearDown(playlist.dispose);
     final errors = <MovaErrorEvent>[];
-    engine.events.where((e) => e is MovaErrorEvent).cast<MovaErrorEvent>().listen(errors.add);
-    await engine.open(_items.first.source);
+    mova.events.where((e) => e is MovaErrorEvent).cast<MovaErrorEvent>().listen(errors.add);
+    await mova.open(_items.first.source);
     final failure = StateError('next item failed');
     kernel.openError = failure;
     kernel.emitCompleted(true);
     await pumpEventQueue();
     expect(kernel.openedUris, [_items[0].source.uri, _items[1].source.uri]);
     expect(playlist.currentIndex, 0);
-    expect(engine.state.error, same(failure));
+    expect(mova.state.error, same(failure));
     expect(errors.single.error, same(failure));
     expect(errors.single.fatal, isTrue);
   });
 }
 
-/// Rejects only the last item, leaving earlier engine loads undisturbed.
+/// Rejects only the last item, leaving earlier player loads undisturbed.
 ///
-/// 仅拒绝最后一集，不干扰引擎先前的加载。
+/// 仅拒绝最后一集，不干扰播放器先前的加载。
 class _RejectLastItem extends MovaHook {
   /// Accepts every source except the last playlist entry.
   ///

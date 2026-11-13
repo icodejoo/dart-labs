@@ -32,7 +32,7 @@ dependencies:
   media_kit_video: ^2.0.1
   # sherpa_onnx / mova_stt 已屏蔽（2026-10-28）：STT 尚未正式接入，将来也不随包；
   # 它们会让 APK 多出约 77MB 的 onnxruntime/sherpa 原生库。恢复 STT spike 时：
-  # 取消下面两行注释，并把 lib/spike_stt_engine.dart.disabled 改回 .dart、在 main.dart 重新挂入口。
+  # 取消下面两行注释，并把 lib/spike_stt_recognizer.dart.disabled 改回 .dart、在 main.dart 重新挂入口。
   # sherpa_onnx: ^1.12.34
   # mova_stt:
   #   path: ../../mova_stt

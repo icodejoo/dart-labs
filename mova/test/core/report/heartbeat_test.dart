@@ -4,7 +4,7 @@ import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mova/src/core/events/events.dart';
 import 'package:mova/src/core/model/source.dart';
-import 'package:mova/src/core/options/report_config.dart';
+import 'package:mova/src/core/options/report_opts.dart';
 import 'package:mova/src/core/report/collector.dart';
 import 'package:mova/src/core/report/report.dart';
 
@@ -17,7 +17,7 @@ void main() {
         final collector = MovaQoeCollector(
           events: events.stream,
           reporter: MovaCallbackReporter(received.add),
-          config: const MovaReportConfig(qoe: true), // heartbeat left at its null default
+          opts: const MovaReportOpts(qoe: true), // heartbeat left at its null default
         );
         collector.onOpen(const MovaSource('https://host/a.mp4'), autoPlay: true);
         expect(async.pendingTimers, isEmpty);
@@ -35,7 +35,7 @@ void main() {
         final collector = MovaQoeCollector(
           events: events.stream,
           reporter: MovaCallbackReporter(received.add),
-          config: const MovaReportConfig(qoe: true, heartbeat: Duration(seconds: 10)),
+          opts: const MovaReportOpts(qoe: true, heartbeat: Duration(seconds: 10)),
         );
         collector.onOpen(const MovaSource('https://host/a.mp4'), autoPlay: true);
         events.add(const MovaPlay());
@@ -61,7 +61,7 @@ void main() {
         final collector = MovaQoeCollector(
           events: events.stream,
           reporter: MovaCallbackReporter(received.add),
-          config: const MovaReportConfig(qoe: true, heartbeat: Duration(seconds: 10)),
+          opts: const MovaReportOpts(qoe: true, heartbeat: Duration(seconds: 10)),
         );
         collector.onOpen(const MovaSource('https://host/a.mp4'), autoPlay: true);
         // Never emits MovaPlay — stays paused for the whole window.
@@ -80,7 +80,7 @@ void main() {
         final collector = MovaQoeCollector(
           events: events.stream,
           reporter: MovaCallbackReporter(received.add),
-          config: const MovaReportConfig(qoe: true, heartbeat: Duration(seconds: 10)),
+          opts: const MovaReportOpts(qoe: true, heartbeat: Duration(seconds: 10)),
         );
         collector.onOpen(const MovaSource('https://host/a.mp4'), autoPlay: true);
         events.add(const MovaPlay());
@@ -101,7 +101,7 @@ void main() {
         final collector = MovaQoeCollector(
           events: events.stream,
           reporter: MovaCallbackReporter(received.add),
-          config: const MovaReportConfig(heartbeat: Duration(seconds: 10)), // qoe defaults to false
+          opts: const MovaReportOpts(heartbeat: Duration(seconds: 10)), // qoe defaults to false
         );
         collector.onOpen(const MovaSource('https://host/a.mp4'), autoPlay: true);
         expect(async.pendingTimers, isEmpty);

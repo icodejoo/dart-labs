@@ -6,10 +6,10 @@ import 'model_dir_provider.dart';
 import 'model_spec.dart';
 import '../preview/fetcher.dart';
 
-/// One step of progress while [MovaSttModelProvider.ensure] downloads a spec's
+/// One step of progress while [IMovaSttModelProvider.ensure] downloads a spec's
 /// files.
 ///
-/// [MovaSttModelProvider.ensure] 下载某个 spec 的文件时的一步进度。
+/// [IMovaSttModelProvider.ensure] 下载某个 spec 的文件时的一步进度。
 class MovaSttModelProg {
   /// Creates a progress step.
   ///
@@ -42,9 +42,9 @@ class MovaSttModelProg {
   final int totalFiles;
 }
 
-/// Thrown by [MovaSttModelProvider.ensure] when a file could not be obtained.
+/// Thrown by [IMovaSttModelProvider.ensure] when a file could not be obtained.
 ///
-/// [MovaSttModelProvider.ensure] 在某个文件无法获取时抛出。
+/// [IMovaSttModelProvider.ensure] 在某个文件无法获取时抛出。
 class MovaSttModelLoadError implements Exception {
   /// Creates the exception.
   ///
@@ -84,7 +84,7 @@ class MovaSttModelLoadError implements Exception {
 /// 与拖动预览缓存（任何失败都静默降级——缺一张缩略图不算事）不同，缺一个
 /// 模型文件会直接挡住整个 STT 功能，因此 [ensure] 会抛出
 /// [MovaSttModelLoadError]，而不是吞掉失败。
-abstract class MovaSttModelProvider {
+abstract class IMovaSttModelProvider {
   /// Emits one [MovaSttModelProg] step per file as [ensure] works through
   /// a spec.
   ///
@@ -116,13 +116,13 @@ abstract class MovaSttModelProvider {
   Future<void> remove(String modelId);
 }
 
-/// The production [MovaSttModelProvider]: one sub-directory per model id,
+/// The production [IMovaSttModelProvider]: one sub-directory per model id,
 /// skipping files whose cached size already matches
 /// [MovaSttModelFile.sizeBytes].
 ///
-/// 生产环境的 [MovaSttModelProvider]：每个模型 id 一个子目录，若已缓存文件的
+/// 生产环境的 [IMovaSttModelProvider]：每个模型 id 一个子目录，若已缓存文件的
 /// 大小已匹配 [MovaSttModelFile.sizeBytes] 则跳过下载。
-class MovaSttModelLoader implements MovaSttModelProvider {
+class MovaSttModelLoader implements IMovaSttModelProvider {
   /// Creates a downloader.
   ///
   /// 创建一个下载器。
@@ -136,12 +136,12 @@ class MovaSttModelLoader implements MovaSttModelProvider {
   ///
   /// 解析缓存根目录；每个模型在其下拥有一个以 [MovaSttModelSpec.id] 命名的
   /// 子目录。
-  final MovaSttModelDirProvider dir;
+  final IMovaSttModelDirProvider dir;
 
   /// Downloads each file's bytes.
   ///
   /// 下载每个文件的字节。
-  final MovaHttpFetch fetcher;
+  final IMovaHttpFetch fetcher;
 
   final StreamController<MovaSttModelProg> _progress =
       StreamController<MovaSttModelProg>.broadcast();

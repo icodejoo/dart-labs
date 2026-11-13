@@ -12,7 +12,7 @@
 | 已修复 | 无 |
 | 仍失败 | 无 |
 | 仍阻塞 | A31, C2, C7, F15, N18 |
-| 新增阻塞 | A1, A2, A3, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20, A21, A23, A24, A25, A26, A27, A28, A29, A30, A32, A33, C1, C3, C4, C5, C6, C8, C9, C10, C11, C12, C13, C14, C15, C16, C17, E.MovaReady, E.MovaSourceChange, E.MovaPlay, E.MovaPause, E.MovaDone, E.MovaSeek, E.MovaSeeked, E.MovaBufferChange, E.MovaDurationChange, E.MovaFirstFrame, E.MovaSizeChange, E.MovaVolumeChange, E.MovaBrightChange, E.MovaRateChange, E.MovaQualityListChange, E.MovaQualityChange, E.MovaAbrDownShift, E.MovaFitChange, E.MovaZoomChange, E.MovaLockChange, E.MovaFullScreenChange, E.MovaOrientationChange, E.MovaPipChange, E.MovaMiniChange, E.MovaTimeShiftChange, E.MovaLiveEdgeReach, E.MovaPreviewBlock, E.MovaSttBlock, E.MovaSwapChange, E.MovaErrorEvent, E.MovaPlayFailure, E.MovaRecovered, E.MovaFailover, E.MovaStandbyChange, E.MovaStandbyResume, E1, E2, U1, U2, U3, U4, U5, U6, U7, U8, U9, F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12, F13, F14, F16, N1, N2, N3, N4, N5, N6, N7, N8, N9, N10, N11, N12, N13, N14, N15, N16, N17, N19, N20, N21, N22, N23 |
+| 新增阻塞 | A1, A2, A3, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20, A21, A23, A24, A25, A26, A27, A28, A29, A30, A32, A33, C1, C3, C4, C5, C6, C8, C9, C10, C11, C12, C13, C14, C15, C16, C17, E.MovaReady, E.MovaSourceChange, E.MovaPlay, E.MovaPause, E.MovaDone, E.MovaSeek, E.MovaSeeked, E.MovaBufferChange, E.MovaDurationChange, E.MovaFirstFrame, E.MovaSizeChange, E.MovaVolumeChange, E.MovaBrightChange, E.MovaRateChange, E.MovaQualityListChange, E.MovaQualityChange, E.MovaAbrDownShift, E.MovaFitChange, E.MovaZoomChange, E.MovaLockChange, E.MovaFullScreenChange, E.MovaOrientChange, E.MovaPipChange, E.MovaMiniChange, E.MovaTimeShiftChange, E.MovaLiveEdgeReach, E.MovaPreviewBlock, E.MovaSttBlock, E.MovaCutoverChange, E.MovaErrorEvent, E.MovaPlayFailure, E.MovaRecovered, E.MovaFailover, E.MovaKeepAliveChange, E.MovaKeepAliveResume, E1, E2, U1, U2, U3, U4, U5, U6, U7, U8, U9, F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12, F13, F14, F16, N1, N2, N3, N4, N5, N6, N7, N8, N9, N10, N11, N12, N13, N14, N15, N16, N17, N19, N20, N21, N22, N23 |
 | 已解除阻塞 | 无 |
 
 验证器问题（HARNESS；与产品缺陷分开）：
@@ -51,7 +51,7 @@
 | A28 | BLOCKED | 覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。 E:\workspaces\dart-labs\mova\example\tool\coverage_evidence\matrix-full-02\matrix-full-02-api.driver.log | `python example/tool/run_matrix.py --only api,extras` |
 | A29 | BLOCKED | 覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。 E:\workspaces\dart-labs\mova\example\tool\coverage_evidence\matrix-full-02\matrix-full-02-api.driver.log | `python example/tool/run_matrix.py --only api,interactive` |
 | A30 | BLOCKED | 覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。 E:\workspaces\dart-labs\mova\example\tool\coverage_evidence\matrix-full-02\matrix-full-02-api.driver.log | `python example/tool/run_matrix.py --only api,extras,safe-transition` |
-| A31 | BLOCKED | 缺真实 STT 模型/识别引擎和下载服务；失败回滚仅为子项。  | `manual` |
+| A31 | BLOCKED | 缺真实 STT 模型/识别播放器和下载服务；失败回滚仅为子项。  | `manual` |
 | A32 | BLOCKED | 缺少完整编号自动判据；现有子项结果需复核，不能复用旧 finalize 硬编码结论。 E:\workspaces\dart-labs\mova\example\tool\coverage_evidence\matrix-full-02\matrix-full-02-api.driver.log | `python example/tool/run_matrix.py --only api` |
 | A33 | BLOCKED | 缺少完整编号自动判据；现有子项结果需复核，不能复用旧 finalize 硬编码结论。 E:\workspaces\dart-labs\mova\example\tool\coverage_evidence\matrix-full-02\matrix-full-02-api.driver.log | `python example/tool/run_matrix.py --only api` |
 | C1 | BLOCKED | 覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。 E:\workspaces\dart-labs\mova\example\tool\coverage_evidence\matrix-full-02\matrix-full-02-api.driver.log | `python example/tool/run_matrix.py --only api,extras,safe-transition` |
@@ -92,20 +92,20 @@
 | E.MovaZoomChange | BLOCKED | 覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。  | `python example/tool/run_matrix.py --only ui` |
 | E.MovaLockChange | BLOCKED | 覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。  | `python example/tool/run_matrix.py --only widgets` |
 | E.MovaFullScreenChange | BLOCKED | 覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。  | `python example/tool/run_matrix.py --only widgets` |
-| E.MovaOrientationChange | BLOCKED | 覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。  | `python example/tool/run_matrix.py --only widgets` |
+| E.MovaOrientChange | BLOCKED | 覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。  | `python example/tool/run_matrix.py --only widgets` |
 | E.MovaPipChange | BLOCKED | 覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。  | `python example/tool/run_matrix.py --only gesture-pip` |
 | E.MovaMiniChange | BLOCKED | 覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。  | `python example/tool/run_matrix.py --only widgets` |
 | E.MovaTimeShiftChange | BLOCKED | 覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。  | `python example/tool/run_matrix.py --only live-inputs` |
 | E.MovaLiveEdgeReach | BLOCKED | 覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。  | `python example/tool/run_matrix.py --only live-inputs` |
 | E.MovaPreviewBlock | BLOCKED | 缺少完整编号自动判据；现有子项结果需复核，不能复用旧 finalize 硬编码结论。 E:\workspaces\dart-labs\mova\example\tool\coverage_evidence\matrix-full-02\matrix-full-02-api.driver.log | `python example/tool/run_matrix.py --only api` |
 | E.MovaSttBlock | BLOCKED | 缺少完整编号自动判据；现有子项结果需复核，不能复用旧 finalize 硬编码结论。 E:\workspaces\dart-labs\mova\example\tool\coverage_evidence\matrix-full-02\matrix-full-02-api.driver.log | `python example/tool/run_matrix.py --only api` |
-| E.MovaSwapChange | BLOCKED | 覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。 E:\workspaces\dart-labs\mova\example\tool\coverage_evidence\matrix-full-02\matrix-full-02-existing-pages.driver.log | `python example/tool/run_matrix.py --only existing-pages` |
+| E.MovaCutoverChange | BLOCKED | 覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。 E:\workspaces\dart-labs\mova\example\tool\coverage_evidence\matrix-full-02\matrix-full-02-existing-pages.driver.log | `python example/tool/run_matrix.py --only existing-pages` |
 | E.MovaErrorEvent | BLOCKED | 缺少完整编号自动判据；现有子项结果需复核，不能复用旧 finalize 硬编码结论。 E:\workspaces\dart-labs\mova\example\tool\coverage_evidence\matrix-full-02\matrix-full-02-api.driver.log | `python example/tool/run_matrix.py --only api` |
 | E.MovaPlayFailure | BLOCKED | 覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。  | `python example/tool/run_matrix.py --only he-recovery` |
 | E.MovaRecovered | BLOCKED | 覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。  | `python example/tool/run_matrix.py --only he-recovery` |
 | E.MovaFailover | BLOCKED | 覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。  | `python example/tool/run_matrix.py --only extras` |
-| E.MovaStandbyChange | BLOCKED | 覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。  | `python example/tool/run_matrix.py --only keepalive-core` |
-| E.MovaStandbyResume | BLOCKED | 覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。  | `python example/tool/run_matrix.py --only keepalive-core` |
+| E.MovaKeepAliveChange | BLOCKED | 覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。  | `python example/tool/run_matrix.py --only keepalive-core` |
+| E.MovaKeepAliveResume | BLOCKED | 覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。  | `python example/tool/run_matrix.py --only keepalive-core` |
 | E1 | BLOCKED | 缺少完整编号自动判据；现有子项结果需复核，不能复用旧 finalize 硬编码结论。 E:\workspaces\dart-labs\mova\example\tool\coverage_evidence\matrix-full-02\matrix-full-02-api.driver.log | `python example/tool/run_matrix.py --only api` |
 | E2 | BLOCKED | 缺少完整编号自动判据；现有子项结果需复核，不能复用旧 finalize 硬编码结论。 E:\workspaces\dart-labs\mova\example\tool\coverage_evidence\matrix-full-02\matrix-full-02-api.driver.log | `python example/tool/run_matrix.py --only api` |
 | U1 | BLOCKED | 覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。  | `python example/tool/run_matrix.py --only widgets,safe-visual` |

@@ -1,10 +1,10 @@
-import 'package:mova/mova.dart' show MovaRecoveryConfig, MovaPlayFailure, MovaPlayFail, MovaPlayFailKind, MovaRecoveryAction, MovaErrorEvent;
+import 'package:mova/mova.dart' show MovaRecoveryOpts, MovaPlayFailure, MovaPlayFail, MovaPlayFailKind, MovaRecoveryAction, MovaErrorEvent;
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mova/src/core/ad/ads.dart';
 import 'package:mova/src/core/ad/fail.dart';
-import 'package:mova/src/core/cutover/cutover_engine.dart';
+import 'package:mova/src/core/cutover/cutover.dart';
 import 'package:mova/src/core/model/ad.dart';
 import 'package:mova/src/core/model/source.dart';
 import 'package:mova/src/core/options/options.dart';
@@ -46,14 +46,14 @@ class PodFailureRig {
           duration: i == 1 ? firstDuration : null,
         ),
     ];
-    api = MovaCutoverEngine(
-      engineFactory: () {
-        final engine = PodFaultApi(
+    api = MovaCutover(
+      movaFactory: () {
+        final mova = PodFaultApi(
           this,
           options: MovaOpts(
-            cutover: const MovaCutoverConfig(enabled: true, readyTimeout: Duration(hours: 1)),
-            recovery: MovaRecoveryConfig(enabled: fault == 'giveUpReturn'),
-            ads: MovaAdConfig(
+            cutover: const MovaCutoverOpts(enabled: true, readyTimeout: Duration(hours: 1)),
+            recovery: MovaRecoveryOpts(enabled: fault == 'giveUpReturn'),
+            ads: MovaAdOpts(
               enabled: true,
               breaks: breaks,
               failPolicy: policy,
@@ -63,8 +63,8 @@ class PodFailureRig {
           ),
           commandLog: factory.log,
         );
-        factory.engines.add(engine);
-        return engine;
+        factory.movas.add(mova);
+        return mova;
       },
     );
     ads = MovaAds(api, cutover: api);
@@ -86,8 +86,8 @@ class PodFailureRig {
   /// 广告生命周期记录。
   final List<MovaAdEvent> events = [];
 
-  /// 共享日志与底层引擎集合。
-  final GatedEngineFactory factory = GatedEngineFactory();
+  /// 共享日志与底层播放器集合。
+  final GatedMovaFactory factory = GatedMovaFactory();
 
   /// 每次真实进入 open 的源，包含被拒和抛错的调用。
   final List<String> opens = [];
@@ -96,9 +96,9 @@ class PodFailureRig {
   late final List<MovaAdBreak> breaks;
 
   /// 被测的真实切换代理。
-  late final MovaCutoverEngine api;
+  late final MovaCutover api;
 
-  /// 被测的广告控制器。
+  /// 被测的广告编排对象（MovaAds）。
   late final MovaAds ads;
 
   /// 正片结束计数订阅。
@@ -120,16 +120,16 @@ class PodFailureRig {
   bool get secondStarted =>
       events.any((e) => e.type == MovaAdEventType.started && identical(e.adBreak, breaks[1]));
 
-  /// 当前生效的底层门控引擎。
+  /// 当前生效的底层门控播放器。
   PodFaultApi get active => api.active as PodFaultApi;
 
   /// 只给影子发送就绪信号，不把广告进度伪装成正片进度。
   Future<void> drain() async {
     for (var i = 0; i < 8; i++) {
       await settleOperations();
-      for (final engine in factory.engines.toList()) {
-        if (!engine.disposed && !identical(engine, api.active)) {
-          engine.pushProgress(
+      for (final mova in factory.movas.toList()) {
+        if (!mova.disposed && !identical(mova, api.active)) {
+          mova.pushProgress(
             const MovaProg(position: Duration(seconds: 1), buffer: Duration(seconds: 10)),
           );
         }
@@ -151,12 +151,12 @@ class PodFailureRig {
     expect(ads.currentBreak, same(breaks.first));
   }
 
-  /// 清理门闩、控制器、代理和所有流。
+  /// 清理门闩、MovaAds、代理和所有流。
   Future<void> dispose() async {
     if (!firstErrorGate.isCompleted) firstErrorGate.complete();
     if (!retryGate.isCompleted) retryGate.complete();
-    for (final engine in factory.engines) {
-      final gate = engine.openGate;
+    for (final mova in factory.movas) {
+      final gate = mova.openGate;
       if (gate != null && !gate.isCompleted) gate.complete();
     }
     await drain();
@@ -181,7 +181,7 @@ class PodFaultApi extends FakeMovaApi {
   Future<bool> open(MovaSource source, {bool autoPlay = true}) async {
     rig.opens.add(source.uri);
     final second = source.uri == rig.breaks[1].source.uri;
-    final shadow = !identical(this, rig.factory.engines.first);
+    final shadow = !identical(this, rig.factory.movas.first);
     if (second) {
       rig.secondOpens++;
       if (rig.fault == 'giveUpReturn') {
@@ -309,7 +309,7 @@ void main() {
           isEmpty,
         );
         expect(rig.secondOpens, fault == 'warmReject' ? 1 : 2);
-        expect(rig.factory.engines.skip(1).every((e) => e.disposed), isTrue);
+        expect(rig.factory.movas.skip(1).every((e) => e.disposed), isTrue);
         if (kind != MovaAdBreakKind.post) expect(rig.active.source, same(_content));
         expect(rig.ended, kind == MovaAdBreakKind.post ? 1 : 0);
       });
@@ -395,14 +395,14 @@ void main() {
     );
     final policy = RecordingAdPolicy(MovaAdFailAction.retry);
     final events = <MovaAdEvent>[];
-    final engines = <HostRefusalApi>[];
+    final movas = <HostRefusalApi>[];
     final gate = Completer<void>();
-    final api = MovaCutoverEngine(
-      engineFactory: () {
-        final engine = HostRefusalApi(
+    final api = MovaCutover(
+      movaFactory: () {
+        final mova = HostRefusalApi(
           options: MovaOpts(
-            cutover: const MovaCutoverConfig(enabled: true, readyTimeout: Duration(hours: 1)),
-            ads: MovaAdConfig(
+            cutover: const MovaCutoverOpts(enabled: true, readyTimeout: Duration(hours: 1)),
+            ads: MovaAdOpts(
               enabled: true,
               breaks: const [ad],
               failPolicy: policy,
@@ -410,18 +410,18 @@ void main() {
             ),
           ),
         );
-        if (engines.isNotEmpty) engine.openGate = gate;
-        engines.add(engine);
-        return engine;
+        if (movas.isNotEmpty) mova.openGate = gate;
+        movas.add(mova);
+        return mova;
       },
     );
     await api.open(_content);
-    engines.first.push(engines.first.state.copyWith(rendered: true, playing: true));
+    movas.first.push(movas.first.state.copyWith(rendered: true, playing: true));
     await tester.pump();
     final ads = MovaAds(api, cutover: api);
     final loading = ads.load(_content);
     await tester.pump();
-    engines.first.pushProgress(const MovaProg(position: Duration(seconds: 5)));
+    movas.first.pushProgress(const MovaProg(position: Duration(seconds: 5)));
     await tester.pump();
     await tester.pump(const Duration(seconds: 2));
     expect(
@@ -429,7 +429,7 @@ void main() {
       isEmpty,
       reason: '旧正片的 rendered 不能让未接受的广告起表',
     );
-    expect(engines.first.source, same(_content));
+    expect(movas.first.source, same(_content));
     var settled = false;
     unawaited(loading.then((_) { settled = true; }));
     gate.complete();
@@ -444,10 +444,10 @@ void main() {
     expect(ads.isShowingAd, isFalse);
     expect(policy.failures, isEmpty);
     expect(events.where((e) => e.type == MovaAdEventType.failed), hasLength(1));
-    expect(engines.last.disposeCount, 1);
-    expect(engines.last.openCalls, 1);
-    expect(api.active, same(engines.first));
-    expect(engines.first.source, same(_content));
+    expect(movas.last.disposeCount, 1);
+    expect(movas.last.openCalls, 1);
+    expect(api.active, same(movas.first));
+    expect(movas.first.source, same(_content));
     await tester.runAsync(() async {
       await ads.dispose();
       await api.dispose();

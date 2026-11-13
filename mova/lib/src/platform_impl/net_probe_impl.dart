@@ -2,19 +2,19 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 
 import '../core/preview/net_probe.dart';
 
-/// The default [MovaNetProbe]: treats wifi/ethernet/vpn as unmetered and a
+/// The default [IMovaNetProbe]: treats wifi/ethernet/vpn as unmetered and a
 /// mobile-only connection as metered.
 ///
 /// Anything else — `none`, `other`, an empty result list, or a platform the
 /// plugin cannot classify — is allowed, so desktops are never false-blocked
 /// (DESIGN §11: "未知一律放行；桌面视为允许").
 ///
-/// 默认的 [MovaNetProbe]：把 wifi/以太网/VPN 视为不计流量，把仅蜂窝的连接视为
+/// 默认的 [IMovaNetProbe]：把 wifi/以太网/VPN 视为不计流量，把仅蜂窝的连接视为
 /// 计流量。
 ///
 /// 其余情况——`none`、`other`、空结果列表，或插件无法分类的平台——一律放行，
 /// 避免误伤桌面端（DESIGN §11：「未知一律放行；桌面视为允许」）。
-class MovaConnectivityNetProbe implements MovaNetProbe {
+class MovaConnectivityNetProbe implements IMovaNetProbe {
   /// Creates a probe over [connectivity], defaulting to a new `Connectivity()`.
   ///
   /// 基于 [connectivity] 创建探针；省略时新建一个 `Connectivity()`。

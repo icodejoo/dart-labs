@@ -1,12 +1,12 @@
 import '../kernel/keep_alive_kernel.dart';
 import '../model/source.dart';
-import '../options/keep_alive_config.dart';
+import '../options/keep_alive_opts.dart';
 import 'keep_alive.dart';
 
-/// Demuxers treated as segmented (HLS/DASH) for `MovaKeepAliveConfig.allowHls`.
+/// Demuxers treated as segmented (HLS/DASH) for `MovaKeepAliveOpts.allowHls`.
 /// mpv's `file-format` values — to be confirmed on device.
 ///
-/// 在 `MovaKeepAliveConfig.allowHls` 里视为分片流（HLS/DASH）的 demuxer。取自 mpv 的
+/// 在 `MovaKeepAliveOpts.allowHls` 里视为分片流（HLS/DASH）的 demuxer。取自 mpv 的
 /// `file-format`——实际取值待真机确认。
 const Set<String> movaSegmentedFormats = {'hls', 'dash'};
 
@@ -76,13 +76,13 @@ class MovaKeepAliveEntry {
 /// 判定如何进入待机。纯函数；检查顺序即契约。
 ///
 /// - [phase]: the current phase / 当前阶段
-/// - [intent]: the engine's play intent, not the kernel's playing flag / 引擎的播放意图，不是内核回报的播放标志
+/// - [intent]: the player's play intent, not the kernel's playing flag / 播放器的播放意图，不是内核回报的播放标志
 /// - [exempt]: shown in PiP or the mini window / 画面在画中画或小窗里
 /// - [type]: the stream type / 流类型
 /// - [recovering]: a recovery retry is pending / recovery 有待执行的重试
 /// - [kernelCapable]: the kernel implements the keepAlive capability / 内核具备待机能力
 /// - [media]: facts about the media, null when unreadable / 媒体事实，读不到为 null
-/// - [config]: the tuning / 调参
+/// - [opts]: the tuning / 调参
 ///
 /// Returns the decision / 返回决策。
 MovaKeepAliveEntry decideKeepAliveEntry({
@@ -93,7 +93,7 @@ MovaKeepAliveEntry decideKeepAliveEntry({
   required bool recovering,
   required bool kernelCapable,
   required MovaKeepAliveMedia? media,
-  required MovaKeepAliveConfig config,
+  required MovaKeepAliveOpts opts,
 }) {
   if (phase == MovaKeepAlivePhase.holding || phase == MovaKeepAlivePhase.fallback) {
     return const MovaKeepAliveEntry.skip(MovaKeepAliveReason.already);
@@ -111,7 +111,7 @@ MovaKeepAliveEntry decideKeepAliveEntry({
   if (m == null || m.audio == MovaAudioPresence.unknown) {
     return const MovaKeepAliveEntry.fallback(MovaKeepAliveReason.mediaUnknown);
   }
-  if (!config.allowHls) {
+  if (!opts.allowHls) {
     final f = m.format;
     if (f == null) {
       return const MovaKeepAliveEntry.fallback(MovaKeepAliveReason.mediaUnknown);
@@ -123,7 +123,7 @@ MovaKeepAliveEntry decideKeepAliveEntry({
   if (m.audio == MovaAudioPresence.present) {
     return const MovaKeepAliveEntry.hold(MovaKeepAliveMode.muted);
   }
-  return config.silentStreams == MovaSilentKeepAlive.keepDecoding
+  return opts.silentStreams == MovaSilentKeepAlive.keepDecoding
       ? const MovaKeepAliveEntry.hold(MovaKeepAliveMode.decodeOnly)
       : const MovaKeepAliveEntry.fallback(MovaKeepAliveReason.silentStream);
 }
@@ -172,7 +172,7 @@ enum MovaKeepAliveWake {
 /// - [type]: the stream type / 流类型
 /// - [cause]: why the fallback happened, null outside a fallback / 退回暂停的原因，非 fallback 时为 null
 /// - [pausedFor]: how long the fallback has lasted / fallback 已持续多久
-/// - [config]: the tuning / 调参
+/// - [opts]: the tuning / 调参
 ///
 /// Returns the wake action / 返回唤醒动作。
 MovaKeepAliveWake decideKeepAliveWake({
@@ -181,7 +181,7 @@ MovaKeepAliveWake decideKeepAliveWake({
   required MovaStreamType type,
   required MovaKeepAliveReason? cause,
   required Duration pausedFor,
-  required MovaKeepAliveConfig config,
+  required MovaKeepAliveOpts opts,
 }) {
   switch (phase) {
     case MovaKeepAlivePhase.off:
@@ -195,7 +195,7 @@ MovaKeepAliveWake decideKeepAliveWake({
       if (cause == MovaKeepAliveReason.failed || cause == MovaKeepAliveReason.ended) {
         return MovaKeepAliveWake.reopen;
       }
-      if (cause == MovaKeepAliveReason.maxDuration || pausedFor >= config.liveResumeGrace) {
+      if (cause == MovaKeepAliveReason.maxDuration || pausedFor >= opts.liveResumeGrace) {
         return MovaKeepAliveWake.reloadEdge;
       }
       return MovaKeepAliveWake.resumePlay;

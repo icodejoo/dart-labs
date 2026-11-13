@@ -6,8 +6,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mova/src/core/api.dart';
 import 'package:mova/src/core/events/events.dart';
 import 'package:mova/src/core/model/fit.dart';
-import 'package:mova/src/core/model/orientation.dart';
-import 'package:mova/src/core/platform/ports.dart';
+import 'package:mova/src/core/model/orient_mode.dart';
+import 'package:mova/src/core/platform/platform.dart';
 import 'package:mova/src/core/state/progress.dart';
 import 'package:mova/src/core/state/ui_state.dart';
 import 'package:mova/src/platform_impl/wiring.dart';
@@ -15,7 +15,7 @@ import 'package:mova/src/ui/components/bottom_bar.dart';
 import 'package:mova/src/ui/player.dart';
 import 'package:mova/src/ui/scope/scope.dart';
 import 'package:mova/src/ui/scope/selector.dart';
-import 'package:mova/src/ui/skins/skin.dart';
+import 'package:mova/src/ui/ui_kits/ui_kit.dart';
 import 'package:mova/src/ui/slots/component.dart';
 import 'package:mova/src/ui/slots/slot.dart';
 import 'package:mova/src/ui/slots/tree.dart';
@@ -23,8 +23,8 @@ import 'package:mova/src/ui/slots/tree.dart';
 import '../support/fake_api.dart';
 import '../support/fake_kernel.dart';
 
-/// 统计组件定义与叶子构建次数的皮肤。
-class _Skin implements MovaSkin {
+/// 统计组件定义与叶子构建次数的 UI 套件。
+class _UiKit implements IMovaUiKit {
   /// 组件定义调用次数。
   int definitions = 0;
 
@@ -47,10 +47,10 @@ class _Skin implements MovaSkin {
 /// 读取主题以检查缓存仍响应 inherited 依赖。
 class _Leaf extends MovaComponent {
   /// 创建关联计数器的叶子。
-  _Leaf(this.skin);
+  _Leaf(this.uiKit);
 
-  /// 所属计数皮肤。
-  final _Skin skin;
+  /// 所属计数 UI 套件。
+  final _UiKit uiKit;
 
   /// 返回测试路径名。
   @override
@@ -62,8 +62,8 @@ class _Leaf extends MovaComponent {
 
   /// 计数并读取当前主题，返回主题颜色文本。
   @override
-  Widget build(BuildContext context, MovaApi api, List<Widget> children) {
-    skin.builds++;
+  Widget build(BuildContext context, IMovaApi api, List<Widget> children) {
+    uiKit.builds++;
     return Text('${Theme.of(context).brightness}');
   }
 }
@@ -97,67 +97,67 @@ void main() {
     expect(builds, baseline + 2);
   });
 
-  testWidgets('B15 无关宿主重建复用皮肤树，surface 改变只重建装配', (t) async {
+  testWidgets('B15 无关宿主重建复用 UI 套件树，surface 改变只重建装配', (t) async {
     final api = FakeMovaApi();
     addTearDown(api.dispose);
-    final skin = _Skin();
-    await t.pumpWidget(MaterialApp(home: MovaPlayer(api: api, skin: skin)));
-    final baseline = skin.builds;
-    await t.pumpWidget(MaterialApp(home: MovaPlayer(api: api, skin: skin)));
-    expect(skin.definitions, 1);
-    expect(skin.builds, baseline);
-    await t.pumpWidget(MaterialApp(home: MovaPlayer(api: api, skin: skin, surface: const Text('新画面'))));
-    expect(skin.definitions, 1);
+    final uiKit = _UiKit();
+    await t.pumpWidget(MaterialApp(home: MovaPlayer(api: api, uiKit: uiKit)));
+    final baseline = uiKit.builds;
+    await t.pumpWidget(MaterialApp(home: MovaPlayer(api: api, uiKit: uiKit)));
+    expect(uiKit.definitions, 1);
+    expect(uiKit.builds, baseline);
+    await t.pumpWidget(MaterialApp(home: MovaPlayer(api: api, uiKit: uiKit, surface: const Text('新画面'))));
+    expect(uiKit.definitions, 1);
     expect(find.text('新画面'), findsOneWidget);
   });
 
-  testWidgets('B15 换 api 或 skin 刷新定义，主题依赖仍更新', (t) async {
+  testWidgets('B15 换 api 或 uiKit 刷新定义，主题依赖仍更新', (t) async {
     final a = FakeMovaApi();
     final b = FakeMovaApi();
     addTearDown(a.dispose);
     addTearDown(b.dispose);
-    final skin = _Skin();
-    await t.pumpWidget(MaterialApp(home: MovaPlayer(api: a, skin: skin)));
-    await t.pumpWidget(MaterialApp(home: MovaPlayer(api: b, skin: skin)));
-    expect(skin.definitions, 2);
-    final next = _Skin();
-    await t.pumpWidget(MaterialApp(home: MovaPlayer(api: b, skin: next)));
+    final uiKit = _UiKit();
+    await t.pumpWidget(MaterialApp(home: MovaPlayer(api: a, uiKit: uiKit)));
+    await t.pumpWidget(MaterialApp(home: MovaPlayer(api: b, uiKit: uiKit)));
+    expect(uiKit.definitions, 2);
+    final next = _UiKit();
+    await t.pumpWidget(MaterialApp(home: MovaPlayer(api: b, uiKit: next)));
     expect(next.definitions, 1);
-    await t.pumpWidget(MaterialApp(theme: ThemeData.dark(), home: MovaPlayer(api: b, skin: next)));
+    await t.pumpWidget(MaterialApp(theme: ThemeData.dark(), home: MovaPlayer(api: b, uiKit: next)));
     await t.pumpAndSettle();
     expect(find.text('Brightness.dark'), findsOneWidget);
     expect(next.definitions, 1);
   });
 
   test('B15 重复 setter 保留写入但不重复发送标量镜像事件', () async {
-    final engine = createMovaEngine(kernel: FakeKernel(), brightness: MovaFallbackBrightnessPort(),
-        pip: MovaNoopPipPort(), orientation: MovaNoopOrientationPort());
-    addTearDown(engine.dispose);
+    final mova = createMova(kernel: FakeKernel(), brightness: MovaFallbackBrightness(),
+        pip: MovaNoopPip(), orient: MovaNoopOrient());
+    addTearDown(mova.dispose);
     final events = <MovaEvent>[];
-    engine.events.listen(events.add);
+    mova.events.listen(events.add);
     for (var i = 0; i < 2; i++) {
-      await engine.setFit(MovaFit.cover);
-      await engine.setZoom(2);
-      await engine.setLocked(true);
-      await engine.setRate(2);
-      await engine.setVolume(25);
-      await engine.setBrightness(0.25);
-      await engine.setFullscreen(true);
-      await engine.setOrientation(MovaOrientation.landscape);
+      await mova.setFit(MovaFit.cover);
+      await mova.setZoom(2);
+      await mova.setLocked(true);
+      await mova.setRate(2);
+      await mova.setVolume(25);
+      await mova.setBrightness(0.25);
+      await mova.setFullscreen(true);
+      await mova.setOrient(MovaOrientMode.landscape);
     }
     await Future<void>.delayed(Duration.zero);
     for (final type in [MovaFitChange, MovaZoomChange, MovaLockChange, MovaRateChange,
-      MovaVolumeChange, MovaBrightChange, MovaFullScreenChange, MovaOrientationChange]) {
+      MovaVolumeChange, MovaBrightChange, MovaFullScreenChange, MovaOrientChange]) {
       expect(events.where((e) => e.runtimeType == type), hasLength(1), reason: '$type');
     }
   });
 
   test('B15 内核重复镜像值只发一次，真实边沿仍发事件', () async {
     final kernel = FakeKernel();
-    final engine = createMovaEngine(kernel: kernel, pip: MovaNoopPipPort());
-    addTearDown(engine.dispose);
+    final mova = createMova(kernel: kernel, pip: MovaNoopPip());
+    addTearDown(mova.dispose);
     final events = <MovaEvent>[];
-    engine.events.listen(events.add);
+    mova.events.listen(events.add);
     for (var i = 0; i < 2; i++) {
       kernel.emitPlaying(true);
       kernel.emitBuffering(true);
@@ -182,12 +182,12 @@ void main() {
 
   test('B15 dispose 返回 Future 前即取消 HUD 与控制条计时器', () {
     fakeAsync((clock) {
-      final engine = createMovaEngine(kernel: FakeKernel(), pip: MovaNoopPipPort());
+      final mova = createMova(kernel: FakeKernel(), pip: MovaNoopPip());
       clock.flushMicrotasks();
-      engine.showControls();
-      engine.showHud(MovaHud.volume);
+      mova.showControls();
+      mova.showHud(MovaHud.volume);
       expect(clock.nonPeriodicTimerCount, 2);
-      unawaited(engine.dispose());
+      unawaited(mova.dispose());
       expect(clock.nonPeriodicTimerCount, 0);
       clock.elapse(const Duration(seconds: 4));
       clock.flushMicrotasks();

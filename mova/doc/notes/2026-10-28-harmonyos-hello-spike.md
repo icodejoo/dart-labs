@@ -79,7 +79,7 @@ $env:FLUTTER_OHOS_STORAGE_BASE_URL='http://127.0.0.1:8099'   # 本地 OBS 回源
 ## 5. 需要用户人工做的事
 
 1. **签名（必需）**。HAP 目前是 unsigned，零售华为机只认华为签发的调试证书，且 Profile 要绑定设备 UDID。二选一：
-   - **DevEco Studio 自动签名**：装 DevEco Studio，登录华为账号（需实名），打开 `E:\w\hello_ohos\ohos`，`File → Project Structure → Signing Configs`，勾 "Automatically generate signature"，真机连接后会自动申请调试证书和 Profile。
+   - **DevEco Studio 自动签名**：装 DevEco Studio，登录华为账号（需实名），打开 `E:\w\hello_ohos\ohos`，`File → Project Structure → Signing Opts`，勾 "Automatically generate signature"，真机连接后会自动申请调试证书和 Profile。
    - **AGC 手动签名**：登录 AppGallery Connect → 创建应用（Bundle name 填 `com.example.mova.hello_ohos`，或者改工程的 bundleName 与已有应用一致）→ 注册设备 UDID（`hdc shell bm get -u`）→ 申请调试证书（需 CSR：`hap-sign-tool generate-keypair` + `generate-csr` 生成）和调试 Profile（`.p7b`）→ 用 `hap-sign-tool sign-app` 对 HAP 签名：
      ```
      java -jar E:\sdk\ohos-sdk7\sdk\26\toolchains\lib\hap-sign-tool.jar sign-app -keyAlias <别名> -signAlg SHA256withECDSA -mode localSign ^

@@ -27,7 +27,7 @@ void main() {
     Future<void>? disposing;
     session = MovaSession(
       api,
-      ads: MovaAdConfig(
+      ads: MovaAdOpts(
         enabled: true,
         breaks: [_pre],
         onAdEvent: (event) {
@@ -44,10 +44,10 @@ void main() {
     test('C2 host takeover during $kind yields without reopening content', () {
       fakeAsync((clock) {
         final kernel = MovaTestKernel.scripted();
-        final api = MovaEngine(kernel: kernel);
+        final api = Mova(kernel: kernel);
         final session = MovaSession(
           api,
-          ads: MovaAdConfig(enabled: true, breaks: kind == 'pre' ? [_pre] : []),
+          ads: MovaAdOpts(enabled: true, breaks: kind == 'pre' ? [_pre] : []),
         );
         final events = <MovaSessionEvent>[];
         final ended = <void>[];
@@ -98,10 +98,10 @@ void main() {
     'C2 takeover while deferred content resolves invalidates the resolver',
     () async {
       final kernel = MovaTestKernel.scripted();
-      final api = MovaEngine(kernel: kernel);
+      final api = Mova(kernel: kernel);
       final session = MovaSession(
         api,
-        ads: const MovaAdConfig(enabled: true, breaks: [_pre]),
+        ads: const MovaAdOpts(enabled: true, breaks: [_pre]),
       );
       addTearDown(() async {
         await session.dispose();
@@ -127,7 +127,7 @@ void main() {
         final api = FakeMovaApi();
         final session = MovaSession(
           api,
-          ads: const MovaAdConfig(enabled: true, breaks: [_pre]),
+          ads: const MovaAdOpts(enabled: true, breaks: [_pre]),
         );
         addTearDown(() async {
           await session.dispose();
@@ -172,7 +172,7 @@ void main() {
       final session = hostZone.run(
         () => MovaSession(
           api,
-          ads: MovaAdConfig(
+          ads: MovaAdOpts(
             enabled: true,
             breaks: const [
               _pre,

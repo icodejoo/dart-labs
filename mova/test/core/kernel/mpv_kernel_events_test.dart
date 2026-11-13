@@ -142,8 +142,8 @@ void main() {
           player: player, audioOnly: true, observeNativeEvents: true,
           observeRestarts: false, backendFactory: (_, _) => backend,
         );
-        final e = MovaEngine(kernel: kernel, options: const MovaOpts(
-          controls: MovaCtrlsConfig(autoHide: false),
+        final e = Mova(kernel: kernel, options: const MovaOpts(
+          controls: MovaCtrlsOpts(autoHide: false),
         ));
         final errors = <MovaErrorEvent>[];
         e.events.where((v) => v is MovaErrorEvent).cast<MovaErrorEvent>().listen(errors.add);
@@ -182,22 +182,22 @@ void main() {
         player: _FakePlayer(calls), audioOnly: true, observeNativeEvents: true,
         backendFactory: (_, _) => backend,
       );
-      final engine = MovaEngine(kernel: kernel, options: const MovaOpts(
-        controls: MovaCtrlsConfig(autoHide: false),
+      final mova = Mova(kernel: kernel, options: const MovaOpts(
+        controls: MovaCtrlsOpts(autoHide: false),
       ));
-      await engine.open(const MovaSource('https://h/A.mp4'));
+      await mova.open(const MovaSource('https://h/A.mp4'));
       backend.events.add(const MovaRawEvent(7, endFileReason: 4));
-      await engine.open(const MovaSource('https://h/B.mp4'));
+      await mova.open(const MovaSource('https://h/B.mp4'));
       backend.wake();
       await pumpEventQueue();
-      expect(engine.state.error, isNull);
+      expect(mova.state.error, isNull);
       expect(calls, isNot(contains('player.pause')));
       backend.events.add(const MovaRawEvent(7, endFileReason: 4));
       backend.wake();
       await pumpEventQueue();
-      expect(engine.state.error, MovaEndFileReason.error);
+      expect(mova.state.error, MovaEndFileReason.error);
       expect(calls.where((v) => v == 'player.pause'), hasLength(1));
-      await engine.dispose();
+      await mova.dispose();
     });
 
     test('A14 pump stays absent until first open and repeated opens share one client', () async {

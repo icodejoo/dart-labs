@@ -12,10 +12,10 @@
 | C16 | followups/final-tls/final-tls-probe：C16.matrix 5/40 FAIL（合法 IP SAN + verify=true 拒绝）；C16.probe 9 条 FAIL，含 `localhost:18447 vod.mp4` | FAIL（IP SAN 部分，与上轮同） | IP SAN 被拒是上轮已记录的原生 TLS 缺陷（ACCEPTANCE-MATRIX C16/H66，已证伪“mbedtls 不接受 IP SAN”的推断，责任层未定）。**但 `localhost vod.mp4` 的 3 条本轮失败是夹具缺失造成**（隔离的 `coverage_media` 里没有 vod.mp4，已修），上轮 DNS 证书 6/6 通过，需重跑确认 |
 | F11 | extras：F11.srt/ass/vtt 的 `native sub-text=` 为空（3/3 FAIL） | 需人工（倾向验证器缺陷） | 隔离媒体目录没有 test_subtitle.*，`18084/test_subtitle.*` 返回 404，已修；重跑前不能判产品 |
 | A1 | api：`A1.broadcast` FAIL（cutover=true/false 各一次） | 旧预期未更新 | A1-① 明确“不看 isBroadcast”，且 `states`/`uiStates` 本就是 `_MultiStream`；这个检查沿用的是旧口径，上轮同样 FAIL |
-| F6/N20（本表 E.MovaStandby*） | keepalive-core：S1 FAIL ×9（signal=grace，decodedProp 59–100ms）、S6 FAIL ×3（audio=absent，forcedAdvance≈-5.6s） | 需人工 | 上轮结论：S1 的 grace≈5s 是允许的超时兜底，不算功能 FAIL；S6 对无声流强制 B 属已知（Windows 同样）。本轮重现，与上轮一致 |
+| F6/N20（本表 E.MovaKeepAlive*） | keepalive-core：S1 FAIL ×9（signal=grace，decodedProp 59–100ms）、S6 FAIL ×3（audio=absent，forcedAdvance≈-5.6s） | 需人工 | 上轮结论：S1 的 grace≈5s 是允许的超时兜底，不算功能 FAIL；S6 对无声流强制 B 属已知（Windows 同样）。本轮重现，与上轮一致 |
 | U9/F8 | he-recovery：V9 FAIL（`needs no manual play tap`，advance=0ms） | 需人工（疑似已知系统行为） | CLAUDE.md 记录“Android 切后台后 libmpv 因 surface 丢失自动暂停”，需主会话确认 V9 的预期是否仍成立 |
 | N14/N15 一类（review V10/V10x/V11） | existing-pages：RFV2 V10/V10x/V11 共 8 次 `restoredPortrait=false`，其余字段全 true | 旧预期未更新 | 上轮已记：原生为 FULL_USER，自动旋转开时“恢复竖屏”是验证器假设（rerun.md 245 行），不是产品缺陷 |
-| Q13（不在 54 项内，仅提示） | existing-pages：Q13B 4/5 PASS，1/5 `swapped=false committed.mute=gone`；Q13C 同样 1 次 | 需调查 | 上轮 5/5。出现一次 shadow 被丢弃，疑似间歇性时序问题，见汇报 |
+| Q13（不在 54 项内，仅提示） | existing-pages：Q13B 4/5 PASS，1/5 `cutover=false committed.mute=gone`；Q13C 同样 1 次 | 需调查 | 上轮 5/5。出现一次 shadow 被丢弃，疑似间歇性时序问题，见汇报 |
 
 ## 二、其余 54 项逐条
 
@@ -49,7 +49,7 @@
 | E.MovaZoomChange | ui OK | 71 个文件出现 | 需人工（倾向 PASS） |
 | E.MovaLockChange | widgets OK | 80 个文件出现 | 需人工（倾向 PASS） |
 | E.MovaFullScreenChange | widgets OK | 105 个文件出现 | 需人工（倾向 PASS） |
-| E.MovaOrientationChange | widgets OK | 168 个文件出现 | 需人工（倾向 PASS） |
+| E.MovaOrientChange | widgets OK | 168 个文件出现 | 需人工（倾向 PASS） |
 | E.MovaPipChange | gesture-pip OK | 33 个文件出现 | 需人工（倾向 PASS） |
 | E.MovaMiniChange | widgets OK | 135 个文件出现 | 需人工（倾向 PASS） |
 | E.MovaTimeShiftChange | live-inputs OK | 122 个文件出现 | 需人工（倾向 PASS） |
@@ -57,8 +57,8 @@
 | E.MovaPlayFailure | he-recovery OK | 99 个文件出现；同批次 V9 FAIL 见上 | 需人工 |
 | E.MovaRecovered | he-recovery OK | 54 个文件出现 | 需人工（倾向 PASS） |
 | E.MovaFailover | extras OK | 95 个文件出现；extras 仅 F11 假失败 | 需人工（倾向 PASS） |
-| E.MovaStandbyChange | keepalive-core OK | 代码已改名 MovaKeepAliveChange，79 个文件出现；S1/S6 子项 FAIL 见上 | 需人工（须先把编号改名） |
-| E.MovaStandbyResume | keepalive-core OK | 同上，MovaKeepAliveResume 76 个文件；elapsed 恒为 grace≈5s | 需人工（同 F6，grace 是允许兜底） |
+| E.MovaKeepAliveChange | keepalive-core OK | 代码已改名 MovaKeepAliveChange，79 个文件出现；S1/S6 子项 FAIL 见上 | 需人工（须先把编号改名） |
+| E.MovaKeepAliveResume | keepalive-core OK | 同上，MovaKeepAliveResume 76 个文件；elapsed 恒为 grace≈5s | 需人工（同 F6，grace 是允许兜底） |
 | U1 | widgets/safe-visual OK | 截图 | 需人工 |
 | U2 | widgets/safe-visual OK | 截图 | 需人工 |
 | U3 | safe-visual OK | 截图 | 需人工 |

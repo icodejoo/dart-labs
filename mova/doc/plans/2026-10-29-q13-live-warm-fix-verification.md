@@ -2,14 +2,14 @@
 
 > 设备 STG-AL00（adb 7NQBB23606003715，Android 12，release 包），全部为本轮真机实测。
 > 被测改动：`lib/src/core/cutover/warm.dart`（`MovaWarmSignal.live`，`MovaBufferWarm` 对直播不再要求到达目标位置）、
-> `cutover_engine.dart`（构造信号时传 `live: _warmLive`）。未提高 `readyTimeout`（仍 8s）。
+> `cutover.dart`（构造信号时传 `live: _warmLive`）。未提高 `readyTimeout`（仍 8s）。
 > 本轮没动 lib/ 产品代码与 so/dll；只改了验证页 `example/lib/main_q13_mute_verify.dart`（见第 5 节）。
 
 ## 环境快照
 
 | 项 | 值 |
 |---|---|
-| `git diff --stat -- lib` | `cutover_engine.dart | 1 +`、`warm.dart | 25 +++---`，2 files changed, 23 insertions(+), 3 deletions(-) |
+| `git diff --stat -- lib` | `cutover.dart | 1 +`、`warm.dart | 25 +++---`，2 files changed, 23 insertions(+), 3 deletions(-) |
 | 基线提交 | `ea44d51`（工作区另有他人未提交改动，未碰） |
 | APK（拉回设备比对一致） | sha256 `f21b1dfa515c8a8f31c731e6f55923abd99da1e98137b9c1f2a457a834481cb9`，包 `com.icodejoo.mova.mova_example.coverage`（`lib/main_coverage_suite.dart`，release，debug.keystore 签名） |
 | APK 内 arm64 `libmpv.so` sha256 | `798cde9e27e3761dd5f8f065693e4669b5499d5807618f81a74e0d3a88dc230b`（旧版，未换） |
@@ -21,9 +21,9 @@
 ## 1. 直播变体结果（B/C 为被测用例，A 为对照）
 
 「就绪耗时」= 自 `playAdNow` 起到 cutover 阶段第一次变 `ready` 的时间（DIAG 每 300ms 采样，约 ±300ms；含影子创建与起播延迟）。
-mute 读回：所有 PASS 轮的判据都含「预热期间影子 mute=yes、在播引擎 mute=no、提交后在播引擎 mute=no（C）/ 保活持有期 yes、唤醒后 no（B）」，全部满足；logcat 里没有 `setStreamVolume`/`adjustStreamVolume` 类系统音量写入（grep 0 条）。
+mute 读回：所有 PASS 轮的判据都含「预热期间影子 mute=yes、在播播放器 mute=no、提交后在播播放器 mute=no（C）/ 保活持有期 yes、唤醒后 no（B）」，全部满足；logcat 里没有 `setStreamVolume`/`adjustStreamVolume` 类系统音量写入（grep 0 条）。
 
-| 正片先播 | 用例 | 通过/总数（swapped=true） | 进程数 | 就绪耗时 min / 中位 / max (ms) | 影子被放弃 |
+| 正片先播 | 用例 | 通过/总数（cutover=true） | 进程数 | 就绪耗时 min / 中位 / max (ms) | 影子被放弃 |
 |---|---|---|---|---|---|
 | 500ms | B | 10/10 | 2 | 2909 / 3566 / 5908 | 0 |
 | 500ms | C | 10/10 | 2 | 3011 / 3695 / 6089 | 0 |
@@ -51,23 +51,23 @@ B+C 合计 70/70 通过，没有一次靠 `readyTimeout` 放弃；最慢一次 7
 
 ## 2. 修复是否成立
 
-- **已证实**：7s/15s/30s 变体影子在 3.0–5.7s（唯一异常轮 7.75s）内就绪并 `swapped=true`，`readyTimeout` 未改（仍 8s）；就绪耗时与正片先播时长无关。上轮 7s 变体 10/10 必败，本轮 B/C 各 10 次全过。
+- **已证实**：7s/15s/30s 变体影子在 3.0–5.7s（唯一异常轮 7.75s）内就绪并 `cutover=true`，`readyTimeout` 未改（仍 8s）；就绪耗时与正片先播时长无关。上轮 7s 变体 10/10 必败，本轮 B/C 各 10 次全过。
 - **已证实**：默认 3s 与 500ms 变体不退化（B/C 20/20 + 20/20）。
 - **推断**：上轮默认时序偶发的 3 次自然失败（起播抖动把就绪推过 8s 线）应一并消除——就绪耗时与正片位置无关、裕量约 4s；但本轮同样没抓到自然失败，不能直接证实。
 - 取舍：直播就绪只看卡顿 + 提前缓冲，提交时不再有「影子与旧流同点」的保证（直播本就无可比性，cutover 也不 seek 直播）。
 
 ## 3. 点播（非直播）cutover 回归
 
-仓库里没有离线可用的点播 cutover 真机用例：`coverage_new:cutover`（A24）用的是 audio-only 引擎、不测续播落点；`main_resume_accuracy_verify.dart` 依赖外网 URL。所以在验证页加了 **Q13V**：正片本地 `vod.mp4`，先播 3s，`playAdNow` 中插广告，广告起播 1s 后 `skip()`，记录「广告接管时正片最后位置」与「提交后首个位置」之差；10 次（2 进程 × 5）。
+仓库里没有离线可用的点播 cutover 真机用例：`coverage_new:cutover`（A24）用的是 audio-only 播放器、不测续播落点；`main_resume_accuracy_verify.dart` 依赖外网 URL。所以在验证页加了 **Q13V**：正片本地 `vod.mp4`，先播 3s，`playAdNow` 中插广告，广告起播 1s 后 `skip()`，记录「广告接管时正片最后位置」与「提交后首个位置」之差；10 次（2 进程 × 5）。
 
 | 结果 | 数据 |
 |---|---|
-| 通过 | 10/10（`swapped=true`、提交后 `mute=no`、误差 <500ms） |
+| 通过 | 10/10（`cutover=true`、提交后 `mute=no`、误差 <500ms） |
 | 续播落点误差（ms） | 40, 40, 40, 160, 240, 280, 320, 360, 360, 360（中位约 300） |
 | 与 skip→commit 的关系 | 误差 40ms 的 3 轮 skip→commit 仅约 51ms（影子已就绪）；其余 7 轮 skip→commit 935–1142ms（skip 时影子未就绪，等其就绪才提交），误差 160–360ms |
 
 判断：
-- 代码层面：改动只在 `live` 为真时放宽，点播 `live=false` 走与旧版相同的 `arrived` 判据，`cutover_engine_test` 有「点播仍须到达目标位置」的对照单测。**「点播路径无行为变化」是代码上的结论，不是真机对照**——没有用旧版 lib 重建对照，所以不能证明 160–360ms 与改动无关；只能说它出现在「skip 时影子尚未就绪」的轮次，机制上与直播判据无关。
+- 代码层面：改动只在 `live` 为真时放宽，点播 `live=false` 走与旧版相同的 `arrived` 判据，`cutover_mova_test` 有「点播仍须到达目标位置」的对照单测。**「点播路径无行为变化」是代码上的结论，不是真机对照**——没有用旧版 lib 重建对照，所以不能证明 160–360ms 与改动无关；只能说它出现在「skip 时影子尚未就绪」的轮次，机制上与直播判据无关。
 - 与 CLAUDE.md 记载的 +42ms 比：影子先就绪的 3 轮（40ms）一致；影子后就绪的偏大。+42ms 当时的素材是外网 mp4、skip 时机也不同，**不是同条件对比**，不据此说回归或没回归。要定论需用旧 lib 构建同一页复测（约 10 分钟）。
 - 误差口径：进度流约 250ms 一次，接管位置取 epoch 切换前最后一次进度，本身有 ±250ms 量级采样误差。
 

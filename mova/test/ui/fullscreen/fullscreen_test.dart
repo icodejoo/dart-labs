@@ -7,7 +7,7 @@ import 'package:mova/src/ui/snapshot_guard.dart';
 
 import '../../support/fake_bridge_api.dart';
 
-// 保留旧替身契约；仅本文件模拟真实引擎的全屏状态回写。
+// 保留旧替身契约；仅本文件模拟真实播放器的全屏状态回写。
 class _Api extends FakeBridgeApi {
   @override
   Future<void> setFullscreen(bool value) async {
@@ -168,8 +168,8 @@ void main() {
     expect(
       t.widget<MovaPlayer>(_routePlayer).style,
       style.copyWith(
-        gesture: const MovaGestureConfig(),
-        controls: const MovaCtrlsConfig(),
+        gesture: const MovaGestureOpts(),
+        controls: const MovaCtrlsOpts(),
         danmaku: const MovaDanmakuStyle(),
         icons: const MovaIcons(),
       ),
@@ -271,7 +271,7 @@ void main() {
             builder: (_) => Scaffold(
               body: MovaAutoPause(
                 api: api,
-                config: const MovaAutoPauseConfig(background: false),
+                opts: const MovaAutoPauseOpts(background: false),
                 routeObservers: [innerObserver, observer],
                 child: SizedBox(
                   height: 260,
@@ -348,7 +348,7 @@ void main() {
     await b.dispose();
   });
 
-  testWidgets('同 API 多视图只推一次，PiP 与 mini 回流不抢路由或污染其他引擎', (t) async {
+  testWidgets('同 API 多视图只推一次，PiP 与 mini 回流不抢路由或污染其他播放器', (t) async {
     final api = _Api(), other = _Api();
     await t.pumpWidget(
       MaterialApp(

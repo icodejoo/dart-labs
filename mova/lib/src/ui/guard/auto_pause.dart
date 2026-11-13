@@ -24,7 +24,7 @@ import '../../core/state/state.dart';
 ///   one per navigator, to catch it. (An opaque outer route is already caught
 ///   through `TickerMode`, once its transition has finished.)
 /// - A lazy list may dispose the card before this guard can pause; the
-///   engine then belongs to whoever owns it.
+///   player then belongs to whoever owns it.
 /// - Not for `MovaFeedPlayer` pages: the feed pool already decides which page
 ///   plays.
 ///
@@ -38,7 +38,7 @@ import '../../core/state/state.dart';
 /// - 推到外层 navigator 的**半透明**路由（对话框、透明页）对 `ModalRoute.isCurrentOf`
 ///   不可见；传入 [routeObservers]（每个 navigator 一个）才能察觉。（不透明的外层路由在
 ///   转场结束后已能经 `TickerMode` 察觉。）
-/// - 懒加载列表可能在守卫来得及暂停之前就销毁卡片；此后引擎归持有者管。
+/// - 懒加载列表可能在守卫来得及暂停之前就销毁卡片；此后播放器归持有者管。
 /// - 不要用于 `MovaFeedPlayer` 的页面：feed 池已经在决定哪一页播放。
 ///
 /// Example / 示例:
@@ -47,36 +47,36 @@ import '../../core/state/state.dart';
 /// final rootObs = RouteObserver<ModalRoute<dynamic>>();
 /// final branchObs = RouteObserver<ModalRoute<dynamic>>();
 /// // GoRouter(observers: [rootObs], ...) and StatefulShellBranch(observers: [branchObs], ...)
-/// MovaAutoPause(api: engine, routeObservers: [rootObs, branchObs], child: MovaPlayer(api: engine))
+/// MovaAutoPause(api: mova, routeObservers: [rootObs, branchObs], child: MovaPlayer(api: mova))
 /// ```
 class MovaAutoPause extends StatefulWidget {
   /// Creates the guard.
   ///
   /// 创建守卫。
   ///
-  /// - [api]: the engine to pause/resume / 要暂停/恢复的引擎
-  /// - [config]: which kinds of hiding count, and how to resume / 哪些隐藏算数、如何恢复
+  /// - [api]: the player to pause/resume / 要暂停/恢复的播放器
+  /// - [opts]: which kinds of hiding count, and how to resume / 哪些隐藏算数、如何恢复
   /// - [routeObservers]: see [MovaAutoPause.routeObservers] / 见 [MovaAutoPause.routeObservers]
   /// - [onChanged]: called whenever the hide-reason set changes / 隐藏原因集合变化时回调
   /// - [child]: the player (or anything) whose visibility is watched / 被监视可见性的播放器（或任意组件）
   const MovaAutoPause({
     super.key,
     required this.api,
-    this.config = const MovaAutoPauseConfig(),
+    this.opts = const MovaAutoPauseOpts(),
     this.routeObservers = const [],
     this.onChanged,
     required this.child,
   });
 
-  /// The engine to pause/resume.
+  /// The player to pause/resume.
   ///
-  /// 要暂停/恢复的引擎。
-  final MovaApi? api; // 未绑定时保持子树位置，暂停守卫动作。
+  /// 要暂停/恢复的播放器。
+  final IMovaApi? api; // 未绑定时保持子树位置，暂停守卫动作。
 
   /// Which kinds of hiding count, and how to resume.
   ///
   /// 哪些隐藏算数、如何恢复。
-  final MovaAutoPauseConfig config;
+  final MovaAutoPauseOpts opts;
 
   /// Observers already attached to the navigators between this widget and the
   /// root, one per navigator — a `NavigatorObserver` can only serve one
@@ -157,7 +157,7 @@ class MovaAutoPauseState extends State<MovaAutoPause> {
     _gate.cancelResume();
   }
 
-  late final MovaAutoPauseGate _gate = MovaAutoPauseGate(widget.config);
+  late final MovaAutoPauseGate _gate = MovaAutoPauseGate(widget.opts);
   AppLifecycleListener? _lifecycle;
   ValueListenable<TickerModeData>? _ticker;
   final List<ScrollPosition> _positions = <ScrollPosition>[];
@@ -188,29 +188,29 @@ class MovaAutoPauseState extends State<MovaAutoPause> {
     _scheduleViewport();
   }
 
-  /// Reconciles engine, configuration, and observer identity changes.
+  /// Reconciles player, options, and observer identity changes.
   ///
-  /// 协调引擎、配置与观察者身份的变化。
+  /// 协调播放器、配置与观察者身份的变化。
   @override
   void didUpdateWidget(MovaAutoPause oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Resume intent belongs to one engine, including during reconfiguration.
+    // Resume intent belongs to one player, including during reconfiguration.
     //
-    // 恢复意图只属于原引擎，重新配置时也不能传给新引擎。
+    // 恢复意图只属于原播放器，重新配置时也不能传给新播放器。
     if (!identical(oldWidget.api, widget.api)) {
       _resumeGen++;
       _gate.cancelResume();
     }
-    if (oldWidget.config != widget.config) {
+    if (oldWidget.opts != widget.opts) {
       final s = widget.api?.state ?? const MovaState();
       _act(
         _gate.reconfigure(
-          widget.config,
+          widget.opts,
           playing: s.playbackIntent || s.playing,
           live: s.type == MovaStreamType.live,
           exempt: s.pip || s.mini || s.fullscreen,
           now: DateTime.now(),
-          keepAliveCapable: widget.api is MovaKeepAlive,
+          keepAliveCapable: widget.api is IMovaKeepAlive,
         ),
       );
       _bindTicker();
@@ -227,7 +227,7 @@ class MovaAutoPauseState extends State<MovaAutoPause> {
           playing: s.playbackIntent || s.playing,
           exempt: s.pip || s.mini || s.fullscreen,
           live: s.type == MovaStreamType.live,
-          keepAliveCapable: widget.api is MovaKeepAlive,
+          keepAliveCapable: widget.api is IMovaKeepAlive,
         ),
       );
     }
@@ -257,7 +257,7 @@ class MovaAutoPauseState extends State<MovaAutoPause> {
   void _set(MovaHideReason reason, bool active) {
     if (_disposed) return;
     final api = widget.api;
-    // 没有引擎时仍记录可见性，后续绑定即可应用隐藏状态。
+    // 没有播放器时仍记录可见性，后续绑定即可应用隐藏状态。
     final s = api?.state ?? const MovaState();
     final before = _gate.reasons;
     final action = _gate.update(
@@ -267,7 +267,7 @@ class MovaAutoPauseState extends State<MovaAutoPause> {
       live: s.type == MovaStreamType.live,
       exempt: s.pip || s.mini || s.fullscreen,
       now: DateTime.now(),
-      keepAliveCapable: api is MovaKeepAlive,
+      keepAliveCapable: api is IMovaKeepAlive,
     );
     final after = _gate.reasons;
     if (before.length != after.length || !before.containsAll(after)) {
@@ -277,9 +277,9 @@ class MovaAutoPauseState extends State<MovaAutoPause> {
     _act(action);
   }
 
-  /// Rebinds playback observations when the engine changes.
+  /// Rebinds playback observations when the player changes.
   ///
-  /// 引擎变化时重新绑定播放观测。
+  /// 播放器变化时重新绑定播放观测。
   void _bindState() {
     unawaited(_stateSub?.cancel());
     final api = widget.api;
@@ -305,16 +305,16 @@ class MovaAutoPauseState extends State<MovaAutoPause> {
             playing: s.playbackIntent || s.playing,
             exempt: s.pip || s.mini || s.fullscreen,
             live: s.type == MovaStreamType.live,
-            keepAliveCapable: api is MovaKeepAlive,
+            keepAliveCapable: api is IMovaKeepAlive,
           ),
         );
       }
     });
   }
 
-  /// Executes a gate decision against the current engine.
+  /// Executes a gate decision against the current player.
   ///
-  /// 对当前引擎执行守卫决策。
+  /// 对当前播放器执行守卫决策。
   void _act(MovaGuardAction action) {
     final api = widget.api;
     if (api == null) return;
@@ -334,22 +334,22 @@ class MovaAutoPauseState extends State<MovaAutoPause> {
     }
   }
 
-  /// Puts [api] into keepAlive ([on]) or wakes it. An engine without the
+  /// Puts [api] into keepAlive ([on]) or wakes it. A player without the
   /// capability degrades to `pause()`/`play()`.
   ///
-  /// 让 [api] 进入待机（[on]）或唤醒。不具备该能力的引擎退化为 `pause()`/`play()`。
-  Future<void> _keepAlive(MovaApi api, bool on) async {
+  /// 让 [api] 进入待机（[on]）或唤醒。不具备该能力的播放器退化为 `pause()`/`play()`。
+  Future<void> _keepAlive(IMovaApi api, bool on) async {
     try {
-      if (api is MovaKeepAlive) {
-        await (api as MovaKeepAlive).setKeepAlive(on);
+      if (api is IMovaKeepAlive) {
+        await (api as IMovaKeepAlive).setKeepAlive(on);
         // It became visible again while the hold was being set up: the wake the
-        // gate issued queues behind this call inside the engine, and this makes
-        // sure nothing is left held if the engine answered late.
+        // gate issued queues behind this call inside the player, and this makes
+        // sure nothing is left held if the player answered late.
         //
-        // 设置待机途中又变可见了：守卫发出的唤醒在引擎里排在本次调用之后；这里再补一次，
-        // 保证引擎答复得晚时也不会残留待机。
+        // 设置待机途中又变可见了：守卫发出的唤醒在播放器里排在本次调用之后；这里再补一次，
+        // 保证播放器答复得晚时也不会残留待机。
         if (on && !_disposed && !_gate.hidden && identical(api, widget.api)) {
-          await (api as MovaKeepAlive).setKeepAlive(false);
+          await (api as IMovaKeepAlive).setKeepAlive(false);
         }
       } else if (on) {
         await api.pause();
@@ -357,9 +357,9 @@ class MovaAutoPauseState extends State<MovaAutoPause> {
         await api.play();
       }
     } on Object {
-      // A failing engine call must not surface from a visibility callback.
+      // A failing player call must not surface from a visibility callback.
       //
-      // 引擎调用失败不能从可见性回调里冒出来。
+      // 播放器调用失败不能从可见性回调里冒出来。
     }
   }
 
@@ -367,7 +367,7 @@ class MovaAutoPauseState extends State<MovaAutoPause> {
   /// (the `seekEnd` strategy only seeks).
   ///
   /// 回直播边缘，若这一步没让播放起来（`seekEnd` 策略只 seek）再补一次 play。
-  Future<void> _reloadEdge(MovaApi api) async {
+  Future<void> _reloadEdge(IMovaApi api) async {
     final gen = ++_resumeGen;
     bool current() =>
         !_disposed &&
@@ -385,9 +385,9 @@ class MovaAutoPauseState extends State<MovaAutoPause> {
         if (!current() && !_disposed) await api.pause();
       }
     } on Object {
-      // A failing engine call must not surface from a visibility callback.
+      // A failing player call must not surface from a visibility callback.
       //
-      // 引擎调用失败不能从可见性回调里冒出来。
+      // 播放器调用失败不能从可见性回调里冒出来。
     }
   }
 
@@ -562,7 +562,7 @@ class MovaAutoPauseState extends State<MovaAutoPause> {
     if (fraction == null) return;
     _set(
       MovaHideReason.offscreen,
-      fraction <= widget.config.minVisibleFraction,
+      fraction <= widget.opts.minVisibleFraction,
     );
   }
 

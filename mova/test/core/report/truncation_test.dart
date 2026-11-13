@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mova/src/core/events/events.dart';
 import 'package:mova/src/core/model/source.dart';
-import 'package:mova/src/core/options/report_config.dart';
+import 'package:mova/src/core/options/report_opts.dart';
 import 'package:mova/src/core/report/collector.dart';
 import 'package:mova/src/core/report/report.dart';
 import 'package:mova/src/core/report/stats_probe.dart';
@@ -28,7 +28,7 @@ bool _judge({
 
 /// Runs open -> first frame -> positions -> done -> teardown and returns reports.
 Future<List<MovaReportEvent>> _run({
-  required MovaReportConfig config,
+  required MovaReportOpts opts,
   MovaStreamType type = MovaStreamType.vod,
   Duration? duration,
   List<int> positionsMs = const [],
@@ -40,7 +40,7 @@ Future<List<MovaReportEvent>> _run({
   final collector = MovaQoeCollector(
     events: events.stream,
     reporter: MovaCallbackReporter(received.add),
-    config: config,
+    opts: opts,
     probe: probe,
   );
   collector.onOpen(MovaSource('https://host/a', type: type), autoPlay: true);
@@ -85,7 +85,7 @@ void main() {
   group('collector truncated session end', () {
     test('early EOF -> failed + error code truncated', () async {
       final r = await _run(
-        config: const MovaReportConfig(qoe: true),
+        opts: const MovaReportOpts(qoe: true),
         duration: const Duration(seconds: 100),
         positionsMs: [10000, 37000],
       );
@@ -97,7 +97,7 @@ void main() {
 
     test('full playback -> ended, no error', () async {
       final r = await _run(
-        config: const MovaReportConfig(qoe: true),
+        opts: const MovaReportOpts(qoe: true),
         duration: const Duration(seconds: 100),
         positionsMs: [50000, 99000],
       );
@@ -107,7 +107,7 @@ void main() {
 
     test('seek near end then play to EOF -> ended', () async {
       final r = await _run(
-        config: const MovaReportConfig(qoe: true),
+        opts: const MovaReportOpts(qoe: true),
         duration: const Duration(seconds: 100),
         positionsMs: [95000, 99500],
       );
@@ -116,7 +116,7 @@ void main() {
 
     test('threshold disabled -> ended even if cut short', () async {
       final r = await _run(
-        config: const MovaReportConfig(qoe: true, truncatedBelow: 0),
+        opts: const MovaReportOpts(qoe: true, truncatedBelow: 0),
         duration: const Duration(seconds: 100),
         positionsMs: [37000],
       );
@@ -124,13 +124,13 @@ void main() {
     });
 
     test('unknown duration -> ended', () async {
-      final r = await _run(config: const MovaReportConfig(qoe: true), positionsMs: [1000]);
+      final r = await _run(opts: const MovaReportOpts(qoe: true), positionsMs: [1000]);
       expect(_endReason(r), 'ended');
     });
 
     test('qoe off -> no sessionEnd, no truncated error', () async {
       final r = await _run(
-        config: const MovaReportConfig(),
+        opts: const MovaReportOpts(),
         duration: const Duration(seconds: 100),
         positionsMs: [37000],
       );
@@ -140,7 +140,7 @@ void main() {
 
     test('live with ffmpeg error log before EOF -> failed truncated', () async {
       final r = await _run(
-        config: const MovaReportConfig(qoe: true),
+        opts: const MovaReportOpts(qoe: true),
         type: MovaStreamType.live,
         probe: FakeStatsProbe(),
         beforeDone: (p) async {
@@ -154,7 +154,7 @@ void main() {
 
     test('live without error log -> ended', () async {
       final r = await _run(
-        config: const MovaReportConfig(qoe: true),
+        opts: const MovaReportOpts(qoe: true),
         type: MovaStreamType.live,
         probe: FakeStatsProbe(),
       );
