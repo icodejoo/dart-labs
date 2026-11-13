@@ -298,7 +298,12 @@ jobs:
       # --restage rewrites one manifest covering everything now on disk.
       - name: Regenerate MANIFEST.json across all slices
         working-directory: xvg
-        run: dart run tool/build_prebuilt.dart --restage
+        # download-artifact 的 merge-multiple 会让四个切片同时写同一个 prebuilt/MANIFEST.json，
+        # 交错写入会产生损坏的 JSON。restage 会按磁盘文件重算全部摘要，旧清单只用于沿用溯源信息，
+        # 所以先换回仓库里那份完整清单再 restage。
+        run: |
+          git checkout -- prebuilt/MANIFEST.json
+          dart run tool/build_prebuilt.dart --restage
 
       # Strict (no --allow-incomplete): a full artifact run must produce every
       # slice. If this fails, a matrix leg silently dropped something.
