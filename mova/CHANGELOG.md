@@ -1,4 +1,4 @@
-## Unreleased
+## 0.5.0
 
 - **Breaking: public API renamed across the board. Old names are removed with no `@Deprecated` aliases** (`lib/src/deprecated_names.dart` is deleted, including the earlier `*Controller`/`Swap*`/`Standby*` class aliases; the member-level `@Deprecated` aliases are deleted too, see the list below). Migration table:
 
@@ -115,7 +115,7 @@ The following are behavior and migration notes after 0.4.0 (released with 0.4.1)
 - `state.error` holds terminal errors only; for full diagnostics listen to `MovaErrorEvent.fatal/code`, and look at `MovaPlayFailure` for recovery decisions.
 - `MovaAds.load/loadDeferred` return `Future<bool>`; callers that only `await` are unchanged, overriders must update the signature; completion microtask timing is unchanged, and `Future<bool>` can be used where `Future<void>` was.
   `IMovaApi.open` already became `Future<bool>` in 0.3.1, so custom APIs must be updated too; `false` means rejected/stale/disposed and must not be treated as a playback failure.
-- (Superseded by the Unreleased section: these aliases and the old-name typedefs have since been deleted.) Old-name typedefs plus `MovaMiniHost.ctl` and `MovaAdOverlayComponent.controller` are kept as `@Deprecated` aliases; verbs and named parameters without an alias must be migrated with the rename table below.
+- (Superseded by the 0.5.0 section: these aliases and the old-name typedefs have since been deleted.) Old-name typedefs plus `MovaMiniHost.ctl` and `MovaAdOverlayComponent.controller` are kept as `@Deprecated` aliases; verbs and named parameters without an alias must be migrated with the rename table below.
 - Deprecations announced for the next release (no member-level annotations in this one): the old UI verbs/mirrors move to MovaChrome, the old style fields move to MovaPlayerStyle, `MovaAbrOpts.policy` moves to `policyFactory`. The STT re-export from the main entry is kept for one version only, so change imports to `stt.dart`; export-level internal helpers will be hidden next release, and `IMovaApi.stt` stays.
 
 ### Sessions, ads and cutover
@@ -187,7 +187,7 @@ The following are behavior and migration notes after 0.4.0 (released with 0.4.1)
 
 - Deprecated (announcement, annotations next version): `IMovaApi.showControls/hideControls/showHud/setDragging/uiState/uiStates` are planned to be deprecated next version in favor of `MovaChrome`; the old verbs broadcast to all mounted views and the old mirror takes the last changed view. Lock, zoom, fit and other `MovaState` remain shared by the player.
 
-- Rename wrap-up: `MovaMiniHost.mini` replaces the old `ctl` parameter/field and `MovaAdOverlayComponent.ads` replaces the old `controller` field; the old entries are kept as `@Deprecated` aliases and construction and rendering behavior are unchanged. (The aliases were deleted in the Unreleased section.) In-package calls and examples migrated to the new names. Verified that factories already share `MovaFactory` and existing type aliases are all marked deprecated; fixed the outdated doc statement that "enum values cannot be accessed through a typedef".
+- Rename wrap-up: `MovaMiniHost.mini` replaces the old `ctl` parameter/field and `MovaAdOverlayComponent.ads` replaces the old `controller` field; the old entries are kept as `@Deprecated` aliases and construction and rendering behavior are unchanged. (The aliases were deleted in the 0.5.0 section.) In-package calls and examples migrated to the new names. Verified that factories already share `MovaFactory` and existing type aliases are all marked deprecated; fixed the outdated doc statement that "enum values cannot be accessed through a typedef".
 
 - Fixed nested `MovaAutoPause` of different APIs shadowing the outer guard; `MovaPlayer` looks up the full ancestor chain by API and honors the outer config's background continue-playing.
 
@@ -208,8 +208,8 @@ The following are behavior and migration notes after 0.4.0 (released with 0.4.1)
   * `Swap*` -> `Cutover*` (`MovaSwapEngine`/`Config`/`Change`/`Phase` etc.), `Standby*` -> `KeepAlive*` (`MovaStandbyConfig`/`Phase`/`Mode`/`Reason`/`Change`/`Resume`, `MovaSilentStandby` etc.).
   * Members: `MovaState.standby` -> `keepAlivePhase` (type `MovaKeepAlivePhase`), `MovaOpts.standby` -> `keepAlive`, `MovaOpts.swap` -> `cutover`, `MovaHiddenMode.standby` -> `keepAlive`, `setStandby` -> `setKeepAlive`, `swapTo` -> `cutoverTo`, `MovaAdController(swap:)` -> `MovaAds(cutover:)`.
   * Files/directories: `core/standby/` -> `core/keep_alive/`, `core/swap/` -> `core/cutover/`, `ad_controller.dart` -> `ads.dart` etc. (only affects code importing `package:mova/src/...` directly; imports through `package:mova/mova.dart` are unaffected).
-  * Compatibility layer: old class names are kept as `@Deprecated` typedefs for one version (`lib/src/deprecated_names.dart`), and `MovaState.standby`, `MovaOpts.standby`/`swap`, `MovaHiddenMode.standby` also keep `@Deprecated` aliases. (All of these aliases were removed in the Unreleased section.) Without aliases: renamed methods/named parameters (`setStandby`, `swapTo`, `MovaOpts(swap:/standby:)`, `copyWith(swap:/standby:)`, `MovaAdController(swap:)`) - these must be migrated using the mapping above.
-  * The key `swapEnabled` in the report payload (QoE session field) is kept as is and not renamed. (Changed in the Unreleased section: the key is now `cutoverEnabled`.)
+  * Compatibility layer: old class names are kept as `@Deprecated` typedefs for one version (`lib/src/deprecated_names.dart`), and `MovaState.standby`, `MovaOpts.standby`/`swap`, `MovaHiddenMode.standby` also keep `@Deprecated` aliases. (All of these aliases were removed in the 0.5.0 section.) Without aliases: renamed methods/named parameters (`setStandby`, `swapTo`, `MovaOpts(swap:/standby:)`, `copyWith(swap:/standby:)`, `MovaAdController(swap:)`) - these must be migrated using the mapping above.
+  * The key `swapEnabled` in the report payload (QoE session field) is kept as is and not renamed. (Changed in the 0.5.0 section: the key is now `cutoverEnabled`.)
 
 - Fix: the in-app mini window was not collapsed after entering system PiP (device coverage re-run A15/F5). `enterPip()` sets `MovaState.mini` back to false, but `MovaMini` did not know and the mini window stayed on screen. Now `MovaMini` listens to the borrowed api's state and removes the mini window when the api leaves the mini state by itself.
 

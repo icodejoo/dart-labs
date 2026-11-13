@@ -1,4 +1,4 @@
-## Unreleased
+## 0.5.0
 
 - **破坏性变更：公开 API 全量改名，旧名直接删除，不保留 `@Deprecated` 别名**（删除 `lib/src/deprecated_names.dart`，此前的 `*Controller`/`Swap*`/`Standby*` 类别名一并移除；成员级 `@Deprecated` 别名也一并删除，见下方清单）。迁移对照：
 
@@ -102,7 +102,7 @@
 - `state.error` 只含终结错误；完整诊断改监听 `MovaErrorEvent.fatal/code`，恢复决策看 `MovaPlayFailure`。
 - `MovaAds.load/loadDeferred` 返回 `Future<bool>`；只 await 的调用不变，覆写者同步签名；完成微任务时序不变，Future<bool> 可用于原 Future<void> 调用点。
   `IMovaApi.open` 已在 0.3.1 改为 `Future<bool>`，自定义 API 也需同步；false 是拒绝/过期/销毁，不能当播放失败。
-- （已被 Unreleased 一节取代：这些别名与旧命名 typedef 已删除。）旧命名 typedef 及 `MovaMiniHost.ctl`、`MovaAdOverlayComponent.controller` 保留带 @Deprecated 别名；
+- （已被 0.5.0 一节取代：这些别名与旧命名 typedef 已删除。）旧命名 typedef 及 `MovaMiniHost.ctl`、`MovaAdOverlayComponent.controller` 保留带 @Deprecated 别名；
   没有别名的动词/具名参数须按下方改名表迁移。
 - 下版弃用公告（本版不加成员级注解）：旧 UI 动词/镜像改 MovaChrome，旧样式字段改 MovaPlayerStyle，
   MovaAbrOpts.policy 改 policyFactory。STT 主入口仅保留一个版本的转导出，改 import stt.dart；
@@ -200,8 +200,8 @@
   * `Swap*`→`Cutover*`（`MovaSwapEngine`/`Config`/`Change`/`Phase` 等），`Standby*`→`KeepAlive*`（`MovaStandbyConfig`/`Phase`/`Mode`/`Reason`/`Change`/`Resume`、`MovaSilentStandby` 等）。
   * 成员：`MovaState.standby`→`keepAlivePhase`（类型 `MovaKeepAlivePhase`）、`MovaOpts.standby`→`keepAlive`、`MovaOpts.swap`→`cutover`、`MovaHiddenMode.standby`→`keepAlive`、`setStandby`→`setKeepAlive`、`swapTo`→`cutoverTo`、`MovaAdController(swap:)`→`MovaAds(cutover:)`。
   * 文件/目录：`core/standby/`→`core/keep_alive/`、`core/swap/`→`core/cutover/`、`ad_controller.dart`→`ads.dart` 等（只影响直接 import `package:mova/src/...` 的代码；经 `package:mova/mova.dart` 导入不受影响）。
-  * 兼容层：旧类名以 `@Deprecated` typedef 保留一个版本（`lib/src/deprecated_names.dart`），`MovaState.standby`、`MovaOpts.standby`/`swap`、`MovaHiddenMode.standby` 也保留 `@Deprecated` 别名（这些别名均已在 Unreleased 一节移除）。没有别名的：改名的方法/具名参数（`setStandby`、`swapTo`、`MovaOpts(swap:/standby:)`、`copyWith(swap:/standby:)`、`MovaAdController(swap:)`）——这些需要按上面的对照改。
-  * 上报 payload 的键 `swapEnabled`（QoE 会话字段）保持原样，未改名（Unreleased 一节已改：键现为 `cutoverEnabled`）。
+  * 兼容层：旧类名以 `@Deprecated` typedef 保留一个版本（`lib/src/deprecated_names.dart`），`MovaState.standby`、`MovaOpts.standby`/`swap`、`MovaHiddenMode.standby` 也保留 `@Deprecated` 别名（这些别名均已在 0.5.0 一节移除）。没有别名的：改名的方法/具名参数（`setStandby`、`swapTo`、`MovaOpts(swap:/standby:)`、`copyWith(swap:/standby:)`、`MovaAdController(swap:)`）——这些需要按上面的对照改。
+  * 上报 payload 的键 `swapEnabled`（QoE 会话字段）保持原样，未改名（0.5.0 一节已改：键现为 `cutoverEnabled`）。
 
 - Fix：进系统 PiP 后 App 内小窗不收起（真机覆盖复跑 A15/F5）。`enterPip()` 会把 `MovaState.mini` 置回 false，但 `MovaMini` 不知情，小窗仍挂在界面上。现在 `MovaMini` 监听被借用 api 的状态，api 自行退出小窗态时同步撤掉小窗。
 

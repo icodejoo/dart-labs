@@ -73,7 +73,7 @@ CP1 precise 三组 280/280、H28 默认三组 90/90，最大误差分别见原�
 - **验证页**放 `example/lib/verify_auto/` 与 `example/lib/main_coverage_*.dart`；**验证阶段不改 `lib/**`**，发现 bug 只记录复现步骤与证据。
 - **本地源**：`example/tool/verify_sources/` 有本地 HTTP 源，经 `adb reverse` 映射；联网多码率 HLS 可用 `https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8`。
 - **起点干净**：先 `flutter test`（基线 **1738** 项全绿）与 `flutter analyze lib test`（0 issues），再上真机。
-- **新名**：`MovaCutover*`、`MovaKeepAlive*`、`MovaAds`/`MovaFeed`/`MovaPlaylist`/`MovaMini`。旧名别名已于 2026-11-12 全部删除，旧名到新名的对照见 CHANGELOG `Unreleased`。
+- **新名**：`MovaCutover*`、`MovaKeepAlive*`、`MovaAds`/`MovaFeed`/`MovaPlaylist`/`MovaMini`。旧名别名已于 2026-11-12 全部删除，旧名到新名的对照见 CHANGELOG `0.5.0`。
 - **一键入口**：`python example/tool/run_matrix.py --list|--check|--dry-run`（38 批〔含本轮 12 个 `gap-*` 批次〕、135 个 v1 编号、6 个 manual；`--check` 离线校验编号/覆盖/依赖/脚本语法）。入口说明见 `example/tool/README-matrix.md`。入口只覆盖 v1 的 135 个编号，S/P/G 与设备端完整 L 日志不在其中。
 - **真机 gap 用例的触摸注入（2026-10-28，有意偏离 L 规范第 6 条）**：`gap-ui-kit` 等批次的触摸经应用内 `GestureBinding.handlePointerEvent` 注入（与真实触摸同一命中路径与手势竞技场），**没有**用 `adb shell input`——转屏/全屏后宿主侧坐标要重新定位，盲点不可靠。每次注入仍打印逻辑坐标、命中路径前 8 个 target 与等价的 `adb shell input tap` 物理坐标，便于对照。用例位置：`example/lib/main_coverage_gap.dart` + `example/lib/verify_auto/coverage_gap.dart`、`coverage_gap_ui_kit.dart`，宿主驱动 `example/tool/coverage_gap.py`，批次见 §5.2.5。
 
@@ -973,7 +973,7 @@ v1 的 135 个编号全部有用例（其中 6 个在 manifest 里是 manual）�
 
 **③ 公开成员（811 个成员名在矩阵与台账零出现，分布在 253 个类上，已并入 P21-①）**。成员数最多的类：`MovaTestKernel` 24、`MovaPreviewOpts` 19、`MovaReportName` 17、`MovaTheme` 14、`MovaKeepAliveReason` 13、`MovaSessionTally` 13、`MovaFeedItem` 12、`MovaAdOpts` 12、`MovaStrs` 12、`MovaAds` 10、`Mova` 10、`MovaAutoPauseOpts` 10、`MovaPreviewService` 10、`MovaFeed` 9、`MovaCutoverOpts` 9、`MovaMiniOpts` 9、`MovaFirstFrameGate` 9、`MovaState` 9、`MovaMiniRect` 8、`MovaReportOpts` 8、`MovaSttService` 8、`MovaSlot` 8、`MovaFeedPool` 7、`MovaAutoPauseGate` 7、`MovaGestureOpts` 7。完整列表见 device-trace §3（暂存区草稿，不入库）；落地时由 P21 的负责人用脚本重新生成。
 
-**④ 改名后的成员级迁移对照**（旧名别名已于 2026-11-12 删除）：成员级旧名到新名的对照见 CHANGELOG `Unreleased`；矩阵与台账本身没建立成员级迁移对照（P17-① 已写明限制）。
+**④ 改名后的成员级迁移对照**（旧名别名已于 2026-11-12 删除）：成员级旧名到新名的对照见 CHANGELOG `0.5.0`；矩阵与台账本身没建立成员级迁移对照（P17-① 已写明限制）。
 
 #### 5.2.4 保活「出声 / 到期断流」计划：**未落地**
 
@@ -1504,7 +1504,7 @@ v1 的 135 个编号全部有用例（其中 6 个在 manifest 里是 manual）�
 
 ### 8.2 `@Deprecated` typedef（已删除）
 
-2026-11-12 全量改名（`I` 前缀接口、`*Opts` 配置类、`UiKit`、`Orient`、`Mova`/`MovaFactory` 等）时删除了 `lib/src/deprecated_names.dart` 与 `deprecated_names_test.dart`，原 17 个旧名别名全部移除，不再提供兼容层；家族 P17 随之作废。旧名到新名的对照见 CHANGELOG `Unreleased`。
+2026-11-12 全量改名（`I` 前缀接口、`*Opts` 配置类、`UiKit`、`Orient`、`Mova`/`MovaFactory` 等）时删除了 `lib/src/deprecated_names.dart` 与 `deprecated_names_test.dart`，原 17 个旧名别名全部移除，不再提供兼容层；家族 P17 随之作废。旧名到新名的对照见 CHANGELOG `0.5.0`。
 
 ### 8.3 台账漏列的导出类型（33 行）
 

@@ -1,6 +1,6 @@
 name: mova
 description: "media_kit (libmpv/ffmpeg) based video player plugin with gestures, VOD/live control bar, quality switching with ABR and picture-in-picture."
-version: 0.4.3
+version: 0.5.0
 homepage: https://github.com/icodejoo/dart-labs/tree/mova/mova
 repository: https://github.com/icodejoo/dart-labs/tree/mova/mova
 topics:

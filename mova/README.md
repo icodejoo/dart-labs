@@ -61,7 +61,7 @@ playback.
 
 ```yaml
 dependencies:
-  mova: ^0.4.2
+  mova: ^0.5.0
 ```
 
 To use picture-in-picture on Android, declare it on the Activity in `AndroidManifest.xml`:
