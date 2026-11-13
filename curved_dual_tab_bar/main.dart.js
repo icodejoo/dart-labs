@@ -39417,7 +39417,7 @@ r=A.b5(a,"Scaffold integration","\u63a5\u5165 Scaffold")
 return new A.uC(p,o,A.c([n,s,A.Eu(new A.pL(A.b5(a,"With a shared controller, omit selectedIndex and onChanged. Use safeArea: false for inline bars.","\u5171\u4eab\u63a7\u5236\u5668\u65f6\u7701\u7565 selectedIndex \u548c onChanged\uff1b\u5185\u5d4c\u6807\u7b7e\u680f\u7528 safeArea: false\u3002"),q),"DefaultTabController(\n  length: 2,\n  child: Scaffold(\n    appBar: const CurvedDualTabBar(\n      titles: ['Deposit', 'Withdraw'],\n      // PreferredSizeWidget; safeArea defaults to true.\n    ),\n    body: const TabBarView(children: [\n      Center(child: Text('Deposit')),\n      Center(child: Text('Withdraw')),\n    ]),\n  ),\n)",r)],t.p),q)}}
 A.Ed.prototype={
 K(a){var s="curved_dual_tab_bar",r=null
-return new A.uA(s,B.dr,new A.uE(s,"0.2.5",A.c([new A.ml("styles","Colors & curves","\u914d\u8272\u4e0e\u66f2\u7ebf",B.C8,new A.Tp()),new A.ml("controllers","Controllers & swipes","\u63a7\u5236\u5668\u4e0e\u6ed1\u52a8",B.C9,new A.Tq())],t.YR),"https://pub.dev/packages/curved_dual_tab_bar","https://github.com/icodejoo/dart-labs/tree/main/curved_dual_tab_bar","https://github.com/icodejoo/dart-labs/blob/main/curved_dual_tab_bar/README.md",r,r),r,r)}}
+return new A.uA(s,B.dr,new A.uE(s,"0.2.6",A.c([new A.ml("styles","Colors & curves","\u914d\u8272\u4e0e\u66f2\u7ebf",B.C8,new A.Tp()),new A.ml("controllers","Controllers & swipes","\u63a7\u5236\u5668\u4e0e\u6ed1\u52a8",B.C9,new A.Tq())],t.YR),"https://pub.dev/packages/curved_dual_tab_bar","https://github.com/icodejoo/dart-labs/tree/main/curved_dual_tab_bar","https://github.com/icodejoo/dart-labs/blob/main/curved_dual_tab_bar/README.md",r,r),r,r)}}
 A.Tp.prototype={
 $1(a){return B.Lo},
 $S:342}
