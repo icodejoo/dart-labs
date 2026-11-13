@@ -2,7 +2,7 @@ name: curved_dual_tab_bar
 description: "Curved dual-segment tab bar with an animated S-curve divider, built on a real Material TabBar — drop-in DEPOSIT/WITHDRAW style headers with full color/gradient/border theming."
 version: 0.2.5
 homepage: https://github.com/icodejoo/dart-labs/tree/main/curved_dual_tab_bar
-repository: https://github.com/icodejoo/dart-labs
+repository: https://github.com/icodejoo/dart-labs/tree/main/curved_dual_tab_bar
 issue_tracker: https://github.com/icodejoo/dart-labs/issues
 
 topics:
