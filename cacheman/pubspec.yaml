@@ -1,8 +1,8 @@
 name: cacheman
 description: "Type-safe cache semantics over app-owned storage: TTL and absolute expiry, sliding renewal, namespaces, pluggable serialization and a key-bound helper."
 version: 0.8.0
-homepage: https://github.com/icodejoo/dart-labs/tree/cacheman/cacheman
-repository: https://github.com/icodejoo/dart-labs
+homepage: https://github.com/icodejoo/dart-labs/tree/main/cacheman
+repository: https://github.com/icodejoo/dart-labs/tree/main/cacheman
 issue_tracker: https://github.com/icodejoo/dart-labs/issues
 
 topics:
