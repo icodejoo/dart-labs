@@ -8,7 +8,7 @@ class AsyncPage extends StatelessWidget {
   /// 创建分层存储页面。
   const AsyncPage({super.key});
 
-  /// 创建默认持久化的小值缓存。
+  /// 创建应用自接持久化的小值缓存。
   static Future<DemoSession> _sync() async {
     final cache = await demoCache('summary');
     return DemoSession([
@@ -65,15 +65,15 @@ class AsyncPage extends StatelessWidget {
       DemoSection(
         title: tr(context, 'Choose a storage boundary', '选择存储边界'),
         code:
-            "final summary = Cacheman();\nawait summary.ensureInitialized();\nsummary.write('rows', 1000);\n// App-defined subclass; no built-in asynchronous backend.\nfinal report = MemoryAsync();\nawait report.ensureInitialized();\nawait report.write('rows', [1, 2, 3]);\nfinal rows = await report.read<List<dynamic>>('rows');",
+            "final summary = GetStorageCache();\nawait summary.ensureInitialized();\nsummary.write('rows', 1000);\n// App-defined subclass; no built-in asynchronous backend.\nfinal report = MemoryAsync();\nawait report.ensureInitialized();\nawait report.write('rows', [1, 2, 3]);\nfinal rows = await report.read<List<dynamic>>('rows');",
         child: DemoGrid(
           children: [
             actionCard(
               context,
               en: 'Persistent summary',
               zh: '持久化摘要',
-              descriptionEn: 'Default get_storage backend for small values.',
-              descriptionZh: '默认 get_storage 后端保存小值。',
+              descriptionEn: 'App-owned get_storage backend for small values.',
+              descriptionZh: '应用自接 get_storage 后端保存小值。',
               create: _sync,
             ),
             actionCard(

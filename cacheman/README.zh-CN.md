@@ -4,7 +4,9 @@
 
 [![pub](https://img.shields.io/pub/v/cacheman.svg)](https://pub.dev/packages/cacheman)
 
-对 [`get_storage`](https://pub.dev/packages/get_storage) 的一层类型安全的小封装，在它上面加了 TTL 和绝对过期时间、滑动续期、命名空间、自定义序列化、可选的 codec 钩子，以及绑定单个 key 的快捷访问器。它是 TypeScript 项目 `@codejoo/storage` 的 Dart/Flutter 版。
+给自选存储加上类型检查、TTL 和绝对过期时间、滑动续期、命名空间、自定义序列化与快捷访问器。
+`Cacheman()` 默认只用纯 Dart 内存；需要持久化时，在应用里继承 `Cacheman`（用 `super.custom(...)`）或 `AsyncCacheman`
+接入后端。本包不依赖具体存储库，是 TypeScript 项目 `@codejoo/storage` 的 Dart/Flutter 版。
 
 只要 `await cache.ensureInitialized()` 一次，之后 `Cacheman` 的读写全是同步的（原因见 `Cacheman` 的类文档）。
 存大值或用其他存储引擎时，可以再配一个自己写的 `AsyncCacheman` 子类一起用（见[分层存储](#分层存储--自定义底层)）。
@@ -13,10 +15,11 @@
 
 ```yaml
 dependencies:
-  cacheman: ^0.7.1
+  cacheman: ^0.8.0
 ```
 
-也可以用本地路径：`cacheman: {path: ../cacheman}`。0.7.0 有不兼容改动，从 0.6 升级请先看
+也可以用本地路径：`cacheman: {path: ../cacheman}`。**0.8.0 默认改用内存。**
+升级前先看[从 0.7 迁移到 0.8.0](#从-07-迁移到-080)；从 0.6 升级还需阅读
 [从 0.6 迁移到 0.7.0](#从-06-迁移到-070)。
 
 ## 快速上手
@@ -27,7 +30,7 @@ import 'package:cacheman/cacheman.dart';
 final cache = Cacheman();
 await cache.ensureInitialized();
 
-cache.write('token', 'abc');       // 持久化，重启后还在（get_storage）
+cache.write('token', 'abc');       // 仅内存，重启后丢失
 cache.read<String>('token');       // 'abc'（同步返回）
 cache.write('session', 1, ttl: 60000); // 60 秒后过期
 cache.remove('token');
@@ -37,9 +40,9 @@ cache.setNamespace('alice');        // 同一个实例切到 alice 的 key
 
 ## API
 
-### `Cacheman({container, path, options})`
+### `Cacheman({container, options})`
 
-创建一个基于 `get_storage` 的持久化 `Cacheman`。所有读写方法都直接在实例上（没有 `.ls`）。第一次读写前，要先调用并 `await` 一次 `ensureInitialized()`。
+创建内存缓存。同名 container（默认 `cacheman`）在当前 isolate 内共享数据和通知；重启后数据丢失。默认构造不再接收 `path`。所有读写方法都直接在实例上（没有 `.ls`）。第一次读写前，要先调用并 `await` 一次 `ensureInitialized()`。
 
 ### `Cacheman.custom({options})` / `AsyncCacheman({options})`
 
@@ -47,13 +50,13 @@ cache.setNamespace('alice');        // 同一个实例切到 alice 的 key
 
 ### `cache.ensureInitialized()`
 
-`Cacheman` 读写接口里唯一返回 `Future` 的方法，等 `get_storage` 把本实例的 container 从磁盘加载完。
+`Cacheman` 读写接口的初始化边界；内存后端也要先 await 一次。自定义适配器通过 `initRaw` 准备后端。
 
 写子类：`Cacheman` 的构造函数和 `ensureInitialized()` 都是普通成员，不是工厂方法，子类用 `super(...)` 把构造参数传上去就行，不用写工厂代码：
 
 ```dart
 class MyCacheman extends Cacheman {
-  MyCacheman({super.container, super.path, super.options});
+  MyCacheman({super.container, super.options});
   int extra = 0;
 }
 
@@ -74,8 +77,8 @@ await cache.ensureInitialized();
 | `purge()` | 主动删除已过期条目（平时是懒过期）。 |
 | `erase()` | 清空本实例的 key（限于 namespace/enckey 范围内），没有这两项时清空整个后端。 |
 | `namespace` / `setNamespace([ns])` | 当前前缀 / 原地切换。 |
-| `container` | 底层的 `GetStorage` 实例。需要直接操作原始 container 时用，比如用 `listenKey` 监听外部改动。 |
-| `storageKey(key)` | `key` 实际存储用的 key（加了命名空间前缀，开了 `enckey` 还会编码）。传给 `container.listenKey(...)` 的要用它，不是 `key`。 |
+| `container` | 默认 `MemoryStorage` 句柄。自定义适配器另行暴露句柄，例如 `GetStorageCache.box`。 |
+| `storageKey(key)` | `key` 实际存储用的 key（加了命名空间前缀，开了 `enckey` 还会编码）。直接操作后端时用它，不要用逻辑 `key`。 |
 | `watch<T>(key, onChange, {includeOwnWrites = false})` | 监听解码后的值，返回取消函数；切换命名空间后仍然有效。 |
 | `flush()` | 马上排一次保存，返回 void；出错走 `onError`。 |
 
@@ -116,18 +119,19 @@ stop();
 `watch` 按本实例的解码和过期规则读值，值不存在、被删或被清空时得到 null。整个 container 被 erase 时也会通知，切换 `setNamespace` 后监听仍然有效。
 设 `includeOwnWrites: true` 还能收到本实例自己的写入、续期和懒删除。类型、读取和回调里的异常走 `onError`，不影响其他监听；`onError` 自己抛异常则照常向外抛。对象销毁时记得取消订阅。
 
-`flushDelay: null` 沿用 get_storage 的默认做法：每个有写入的事件循环轮次保存一次。设成 200ms 后，
-写入和续期用 `writeInMemory` 先写内存，由一个共享计时器合并保存，以最早的截止时间为准，所以连续写入不会把保存越推越晚。
-程序崩溃时，这个窗口内的写入可能丢失。删除仍调用 get_storage 的 `remove` 并立即排一次保存（它没有公开的“只删内存”方法）；
-erase 行为不变。`flush()` 会取消计时器并马上排一次保存；有待保存的写入时，应用进入 inactive/paused/
-hidden/detached 状态也会触发保存。这些都是尽力保存，不保证磁盘已经写完；get_storage 2.1.1 仍会丢掉
-真正落盘的 Future。能观察到的底层异常，交给最近一次延迟写入的实例的 `onError`；手动 `flush` 的异常交给调用它的实例。
+内存后端没有数据要落盘：`flush()` 是空操作，写入立即可读。适配器可以用 `flushDelay` 让共享计时器
+调用 `setDeferredRaw` / `flushRaw`，以最早截止时间为准。有待保存写入时，Flutter 进入
+inactive/paused/hidden/detached 状态也会触发保存。异常交给最近一次延迟写入或手动 flush 的实例。
+
+示例的 `GetStorageCache` 用 `writeInMemory` 延迟保存；删除仍调 `remove`，立即排整库保存。
+崩溃可能丢失窗口内写入。get_storage 2.1.1 会丢掉实际落盘的 Future，所以 `flush()` 只请求保存，
+不确认磁盘已写完。
 
 `purgeOnInit: true` 会在初始化后用 `Timer.run` 做一次清理，不阻塞；`await` 初始化不会等清理完成，raw 模式跳过。`AsyncCacheman` 忽略这两个选项。
 
 自己提供底层存储方法的子类必须调用 `super.custom(...)`（见 `PreferencesCache`）。这类子类默认有独立的
-Hub 身份 `this`、不订阅通知，所以不会悄悄打开 GetStorage；每次列 key 都重新扫描，调用 `watch` 会抛
-`UnsupportedError`。只转发构造参数的普通子类（如上面的 `MyCacheman`）沿用默认构造，get_storage 的行为都保留：
+Hub 身份 `this`、不订阅通知，所以不会连接默认内存容器；每次列 key 都重新扫描，调用 `watch` 会抛
+`UnsupportedError`。只转发构造参数的普通子类（如上面的 `MyCacheman`）沿用默认构造，默认内存后端的行为都保留：
 共享 Hub、`watch`、`flushDelay` 和增量 key 索引。需要共享通知时，覆写 `hubIdentity`，返回一个
 稳定的底层句柄，再实现 `listenRaw(ctx, onChange)`（返回取消函数，key 为 null 表示清空）和
 `syncNotificationsRaw`；共用同一身份的实例，通知和持久化的约定必须一致。通知是异步的话，仍然每次重新扫描，
@@ -136,7 +140,7 @@ Hub 身份 `this`、不订阅通知，所以不会悄悄打开 GetStorage；每�
 
 ### GetX 响应式接入（`watch`）
 
-`get_storage` 依赖 `get`，所以 `get` 会作为间接依赖带进来。本包没有自带 GetX 绑定，可以在应用里
+使用 GetX 时，在应用里直接添加 `get`；cacheman 不再间接引入它。本包没有自带 GetX 绑定，可以在应用里
 用 `watch` 自己写一个，类似 VueUse 的 `useStorage`：
 
 ```dart
@@ -171,8 +175,8 @@ token.value = 'abc123';
 请保留返回的 binding，对象销毁时同时取消 `watch` 和 Worker。
 
 - 默认通知是同步的；`watch` 忽略本实例自己的写入（包括续期和懒删除），所以每次解码都会生成新对象的 Map/List 也不会形成写回死循环。
-- 原始的 `container.listenKey` 仍然收不到整个 container 的 erase（变更的 key 是 `""`）；`watch` 会把它转给所有被监听的 key。
-  限定了范围的 erase 还是逐个删 key 并发通知。
+- `MemoryStorage.listen` 在整库清空时通知 null；`watch` 会通知全部被监听的 key。
+  使用 get_storage 时，示例适配器的 `watch` 也包含整库清空事件。
 - 每个 isolate 各有自己的内存 map 和监听器；跨 isolate 同步要自己处理。
 
 直接操作 container 且开了 enckey 时，用 `storageKey(key)`，不要自己拼 `namespace + key`。
@@ -260,6 +264,35 @@ final profile = cache.readWith<Profile>('profile', adapter: profiles);
 // AsyncCacheman：同样的适配器，write / readWith 须 await。
 ```
 
+## 从 0.7 迁移到 0.8.0
+
+**不兼容变化：** `Cacheman()` 改用内存，默认构造不再接收 `path`。同名 container 仍在当前 isolate 内共享数据。
+`container` 现在返回 `MemoryStorage`，原来直接调用 get_storage 的代码改用适配器的 `box`。
+已有 `Cacheman.custom`、`AsyncCacheman` 子类的原语契约不变。
+
+保留 get_storage 持久化的步骤：
+
+1. 在**应用**的 dependencies 添加 `get_storage: ^2.1.1`。
+2. 把 [`example/lib/get_storage_cache.dart`](example/lib/get_storage_cache.dart) 复制到应用里。
+3. 需要持久化的 `Cacheman(...)` 改成 `GetStorageCache(...)`，保留原 container、path 和 options。
+   已有键和信封格式不变，原数据仍可读；cacheman 不会自动迁移或删除它们。默认内存缓存不会加载旧的持久化数据。
+4. 原来间接使用 `get` 的应用，直接添加该依赖。
+
+```dart
+import 'package:cacheman/cacheman.dart';
+import 'get_storage_cache.dart'; // copied from example/lib/
+
+final cache = GetStorageCache(
+  container: 'cacheman', // keep the previous name; pass the previous path if set
+  options: const CachemanOptions(namespace: 'account'),
+);
+await cache.ensureInitialized();
+cache.write('token', 'abc'); // app-owned persistence
+```
+
+适配器实现六个同步原语、共享通知与延迟保存，`box` 是底层的 `GetStorage`。
+选择 get_storage 的应用仍受它的平台限制；cacheman 主库及运行时依赖已不再包含 get_storage。
+
 ## 从 0.6 迁移到 0.7.0
 
 - 原 `error is FormatException` 改为
@@ -277,11 +310,18 @@ final profile = cache.readWith<Profile>('profile', adapter: profiles);
 
 ## 分层存储 / 自定义底层
 
-建议同时用多个实例：小而常用的数据放同步的 `Cacheman`（默认用 `get_storage`，整个 container 会全部加载进内存），
+建议同时用多个实例：小而常用的数据放同步的 `Cacheman`（默认内存，也可自行接入持久化后端），
 大的值放自己写的 `AsyncCacheman` 子类，按需从磁盘读。用哪个实例由调用处决定，不会自动分流或迁移数据。
 两类都不缓存读到的值。cacheman 负责 namespace、TTL 和绝对过期、滑动续期、信封、序列化和 codec、
 raw/readonly、force，以及哪些 key 归当前实例管；子类只需实现底层读写方法。`lib/` 里没有 Hive、文件、SharedPreferences
 这些后端，也没有额外依赖。
+
+### 同步原语：get_storage
+
+使用[迁移章节](#从-07-迁移到-080)里的应用自有适配器
+[`GetStorageCache`](example/lib/get_storage_cache.dart)，线上 demo 也通过它持久化。
+目标包含 Wasm 时，请接入兼容 Wasm 的后端；这个适配器仍使用 get_storage 自己的平台实现。
+`package:cacheman/cacheman.dart` 不导出 get_storage 适配器。
 
 ### 同步原语：SharedPreferencesWithCache
 
@@ -327,10 +367,8 @@ class PreferencesCache extends Cacheman {
 [SharedPreferencesWithCache](https://pub.dev/packages/shared_preferences) 提供带缓存的同步读取；其当前
 [实现](https://github.com/flutter/packages/blob/main/packages/shared_preferences/shared_preferences/lib/src/shared_preferences_async.dart)
 在返回持久化 Future 前更新缓存。请核对你用的后端和版本是否也这样。
-`Cacheman.container` 仍然是拿到默认 GetStorage 的入口；即使是完全自定义的子类，访问它也会创建默认的 container。
-覆写全部钩子就能彻底绕开默认后端。默认的 `GetStorage(container, path)` 现在是延迟创建的，初始化或第一次
-访问 container 时，仍然会用构造参数里的 path。同名 container 仍遵循 GetStorage“第一次构造时的 path 生效”的规则，
-只是“第一次”现在指第一次访问后端，不再是创建 `Cacheman` 实例的先后。
+`Cacheman.container` 现在返回 `MemoryStorage`，不会打开持久化后端。自定义适配器应另行暴露自己的
+类型化句柄（get_storage 示例用 `box`）。
 同步场景下，实例自己的 key 集合靠 Hub 版本号自动恢复；没有同步通知的子类每次查询都重新扫描（比如本例的 preferences）。
 
 ### 异步原语：Hive CE LazyBox
@@ -516,7 +554,7 @@ flutter run -d chrome   # 或其他 Flutter 设备
 
 - **同步的 Cacheman**，另有抽象的 **AsyncCacheman**，后端由你自己实现；没有内置的磁盘层、内存 `ss` 层，也没有自动分流，多个实例可以同时使用。
 - **没有自带 codec。** TS 版带了混淆用的 codec；这个包只提供 `Codec` 接口。
-- **Cacheman 的 `force` 只重试同步的写入失败**（`setRaw` 同步抛异常）。`get_storage` 真正的磁盘保存失败是异步的，从不重试；2.1.1 的 write Future 也带不出这类错误，所以 `onError` 只保证在同步失败时触发（见 `lib/src/cacheman.dart` 里 `Cacheman` 的 `_gs` 文档注释）。
+- **Cacheman 的 `force` 只重试同步的写入失败**（`setRaw` 同步抛异常）。`get_storage` 真正的磁盘保存失败是异步的，从不重试；2.1.1 的 write Future 也带不出这类错误，其他适配器可以通过持久化 Future 报告 `FlushError`。
 - 没有对应 `crossTab` 的功能（它是浏览器标签页的概念，Flutter 里没有对应场景）。
 
 ## License

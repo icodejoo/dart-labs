@@ -1124,7 +1124,7 @@ wheelFromLuckyCanvasConfig(json, options: LuckyCanvasCompatOptions.strictUpstrea
 
 - 静态依赖门禁覆盖145个 lib 文件；真实 Web 与 APK 各10探针已构建并检查，无无关玩法或受检查符号泄漏。Web为跨批累计证据，APK首批加APK2补测闭环，不冒充同一轮构建。
 - APK支持自动构建及已有 `--size-json` 报告两种入口，十项预算均已按实测×1.1向上取整回填；CI `treeshake-apk` 已重新启用，目前选择 baseline/wheel/grid/slot/all_games 五项，远程成功仍需证据。完整十项本地结果见 [摇树报告](../tool/treeshake/README.md)。
-- Web的Dart GZipCodec与GNU gzip预算分别保存；F2后lotto_only重定Dart4859/GNU4278 B。§17.2假包实验和解析器夹具都不替代真实产物证据。
+- Web的Dart GZipCodec与GNU gzip预算分别保存；F2后lotto_only曾重定Dart4859/GNU4278 B；2026-11-13 按 CI 实测再校准为 Dart11402 B，GNU4278 B 保留（PHYSICS_DESIGN PH-16）。§17.2假包实验和解析器夹具都不替代真实产物证据。
 
 ---
 

@@ -7,7 +7,7 @@ import 'package:flutter/widgets.dart'
         WidgetsBinding,
         WidgetsBindingObserver,
         AppLifecycleState;
-import 'package:get_storage/get_storage.dart';
+import 'memory_storage.dart';
 
 import 'entity.dart';
 import 'errors.dart';
@@ -20,7 +20,7 @@ part 'async_cacheman.dart';
 part 'hub.dart';
 
 /// Synchronous cache semantics over overridable storage primitives.
-/// 默认封装 get_storage、可覆写存储原语的同步缓存语义层。
+/// 默认使用内存、可覆写存储原语的同步缓存语义层。
 ///
 /// Await [ensureInitialized] once before use. CRUD stays synchronous: mutation
 /// primitives must update backend memory before returning; their Futures only
@@ -35,23 +35,20 @@ part 'hub.dart';
 /// final token = cache.read<String>('token');
 /// ```
 class Cacheman {
-  /// Constructs synchronously; the default container is created lazily with
-  /// the supplied path. Subclasses may forward `super.options` etc.
-  /// 同步构造；默认 container 首次访问时才按所给 path 创建，子类可转发 super.options 等。
+  /// Creates a memory cache; equal container names share data within this isolate.
+  /// 创建内存缓存；当前 isolate 内同名容器共享数据，重启后数据丢失。
   Cacheman({
     String container = _defaultContainer,
-    String? path,
     CachemanOptions options = const CachemanOptions(),
   })  : _containerName = container,
-        _path = path,
         _custom = false,
         _core = _CacheCore(options);
 
-  /// For subclasses that supply their own storage primitives (no get_storage).
+  /// For subclasses that supply their own storage primitives.
   /// Hub identity defaults to `this`; notifications are off until [listenRaw]
   /// is overridden; delayed writes fall back to [setRaw]; [flushRaw] is a no-op.
   /// Plain forwarding subclasses should use the default constructor instead.
-  /// 供自带存储原语（不用 get_storage）的子类使用：Hub 身份默认 `this`，覆写
+  /// 供自带存储原语的子类使用：Hub 身份默认 `this`，覆写
   /// [listenRaw] 前不支持通知，延迟写退化为 [setRaw]，[flushRaw] 不操作。
   /// 只转发参数的子类应使用默认构造。
   ///
@@ -63,11 +60,10 @@ class Cacheman {
   /// ```
   Cacheman.custom({CachemanOptions options = const CachemanOptions()})
       : _containerName = _defaultContainer,
-        _path = null,
         _custom = true,
         _core = _CacheCore(options);
 
-  /// Default get_storage container name. / 默认 get_storage 容器名。
+  /// Default memory container name. / 默认内存容器名。
   static const _defaultContainer = 'cacheman';
 
   /// Whether a subclass supplies its own primitives via [Cacheman.custom].
@@ -80,12 +76,8 @@ class Cacheman {
   /// Default container identity. / 默认容器名称。
   final String _containerName;
 
-  /// Default backend directory, retained until first use. / 首次使用前保留的默认后端目录。
-  final String? _path;
-
-  /// First access preserves GetStorage's first-container-path-wins behavior.
-  /// 首次访问仍遵循 GetStorage 同名容器首次 path 生效的行为。
-  late final GetStorage _gs = GetStorage(_containerName, _path);
+  /// Lazy pure Dart memory backend. / 惰性创建的纯 Dart 内存后端。
+  late final MemoryStorage _memory = MemoryStorage.named(_containerName);
 
   /// Whether explicit initialization finished. / 是否已完成显式初始化。
   bool _initialized = false;
@@ -124,9 +116,9 @@ class Cacheman {
   /// 观察后台失败，保留 onError 异常的原始身份与分类边界。
   void _observeFlush(String key, Future<void> pending) {
     pending.catchError((Object error, StackTrace trace) {
-      // Default get_storage write is async: synchronous notification handler
-      // exceptions enter its Future and must propagate unchanged to the Zone.
-      // 默认 get_storage write 为 async；同步通知的处理器异常进入其 Future，
+      // An async mutation may capture synchronous notification handler
+      // exceptions in its Future and must propagate unchanged to the Zone.
+      // 异步变更原语中，同步通知的处理器异常进入其 Future，
       // 须保留原异常并按 Zone 规则传播。
       if (identical(error, _CacheCore._propagatingHandlerError)) {
         Error.throwWithStackTrace(error, trace);
@@ -135,10 +127,9 @@ class Cacheman {
     });
   }
 
-  /// Raw get_storage container for interop; accessing it creates it even for
-  /// custom subclasses. Use `container.listenKey(storageKey('token'), ...)`.
-  /// 互操作用的原始容器；自定义子类访问它也会创建容器。监听时配合 storageKey。
-  GetStorage get container => _gs;
+  /// Raw default memory container; custom backends expose their own handle.
+  /// 默认内存容器的原始句柄；自定义后端应另行暴露自己的句柄。
+  MemoryStorage get container => _memory;
 
   /// Escaped namespace prefix (empty if unset). / 转义后的命名空间前缀（未设置时为空）。
   String get namespace => _core.namespace;
@@ -151,14 +142,10 @@ class Cacheman {
     if (_core._opts.purgeOnInit && !_core._opts.raw) Timer.run(_purgeExpired);
   }
 
-  /// Initializes the default binding and path-aware container without GetStorage.init.
-  /// 默认初始化 binding 并等待带 path 的容器，不调用 GetStorage.init。
-  /// Override to initialize your own sync backend. / 可覆写以初始化自定义同步后端。
+  /// Initializes the backend; the default memory backend needs no setup.
+  /// 初始化后端；默认内存后端无需额外准备。
   @protected
-  Future<void> initRaw(CacheContext ctx) async {
-    WidgetsFlutterBinding.ensureInitialized();
-    await container.initStorage;
-  }
+  Future<void> initRaw(CacheContext ctx) async {}
 
   /// Reads synchronously; null denotes absence. / 同步读取，null 表示缺失。
   /// Override e.g. `return prefs.get(storageKey);`. / 例如覆写为 prefs.get(storageKey)。
@@ -169,13 +156,12 @@ class Cacheman {
   /// Enumerates actual storage keys synchronously (before namespace filtering).
   /// 同步枚举真实存储键（尚未过滤 namespace），例如返回 map.keys。
   @protected
-  Iterable<String> keysRaw(CacheContext ctx) =>
-      container.getKeys<Iterable<dynamic>>().map((k) => k.toString());
+  Iterable<String> keysRaw(CacheContext ctx) => container.keys;
 
   /// Updates memory synchronously before returning; Future is only for background
-  /// flush errors, never force-retried. Do not implement with an async body.
+  /// flush errors, never force-retried. Do not await before updating memory.
   /// 返回前同步更新内存态；Future 只承载后台落盘错误，不参与 force 重试。
-  /// 不可用 async 函数体实现；例如先 map[storageKey] = value，再返回 Future.value()。
+  /// 不得在更新内存前 await；例如先 map[storageKey] = value，再返回 Future.value()。
   @protected
   Future<void> setRaw(CacheContext ctx, String storageKey, String value) =>
       container.write(storageKey, value);
@@ -192,9 +178,9 @@ class Cacheman {
   @protected
   Future<void> clearRaw(CacheContext ctx) => container.erase();
 
-  /// Shared identity: the GetStorage singleton for the default constructor
+  /// Shared identity: the named memory container for the default constructor
   /// (including forwarding subclasses), `this` for [Cacheman.custom].
-  /// 共享身份：默认构造（含只转发参数的子类）为 GetStorage 单例，[Cacheman.custom] 为 `this`。
+  /// 共享身份：默认构造（含只转发参数的子类）为同名内存容器，[Cacheman.custom] 为 `this`。
   /// Override with your stable backend handle. / 可覆写为稳定的底层句柄。
   @protected
   Object get hubIdentity => _custom ? this : container;
@@ -206,42 +192,24 @@ class Cacheman {
   /// 整表替换及 erase 上报 null，空串键写入仍按键上报；子类可覆写以支持通知。
   /// Context uses init with no key. / 上下文使用无键 init。
   @protected
-  VoidCallback? listenRaw(CacheContext ctx, void Function(String?) onChange) {
-    if (_custom) return null;
-    Map<String, dynamic>? last;
-    return container.listen(() {
-      final changes = container.changes;
-      final fresh = !identical(changes, last);
-      last = changes;
-      final key = fresh && changes.length == 1 ? changes.keys.first : null;
-      onChange(key != null && key.isEmpty && container.getKeys<Iterable>().isEmpty
-          ? null
-          : key);
-    });
-  }
+  VoidCallback? listenRaw(CacheContext ctx, void Function(String?) onChange) =>
+      _custom ? null : container.listen(onChange);
 
-  /// Whether notifications precede mutation return; verified for get_storage 2.1.1.
-  /// 通知是否在变更原语返回前发出；已实测 get_storage 2.1.1 为同步。
+  /// Whether notifications precede mutation return. / 通知是否在变更原语返回前发出。
   @protected
   bool get syncNotificationsRaw => true;
 
   /// Memory-only write for delayed flush; custom backends fall back to setRaw.
   /// 延迟落盘用的仅内存写；自定义底层默认退化为 setRaw。
   @protected
-  void setDeferredRaw(CacheContext ctx, String storageKey, String value) {
-    if (_custom) {
+  void setDeferredRaw(CacheContext ctx, String storageKey, String value) =>
       _observeFlush(storageKey, setRaw(ctx, storageKey, value));
-    } else {
-      container.writeInMemory(storageKey, value);
-    }
-  }
 
   /// Queue persistence; custom backends whose setRaw already persists need no work.
   /// 排一次落盘；setRaw 已持久化的自定义后端默认无需额外操作。
   /// Context uses write with no key. / 上下文使用无键 write。
   @protected
-  Future<void> flushRaw(CacheContext ctx) =>
-      _custom ? Future<void>.value() : container.save();
+  Future<void> flushRaw(CacheContext ctx) => Future<void>.value();
 
   /// Queue a shared flush immediately; errors go to onError. Returns synchronously.
   /// 立即排共享落盘；错误走 onError，同步返回。例如 `cache.flush()`。
@@ -297,12 +265,8 @@ class Cacheman {
   /// 实际加前缀/编码后的存储键，例如供 container.listenKey 使用。
   String storageKey(String key) => _core._fullKey(key);
 
-  /// Reads a fresh backend string; foreign non-strings count as absent.
-  /// 每次读取后端字符串，外部非字符串数据视为缺失。
-  String? _get(String key) {
-    final value = getRaw(_core.context(CacheOp.read, key), key);
-    return value is String ? value : null;
-  }
+  /// 每次读取原始后端值，由内核统一判断外部非字符串数据。
+  Object? _get(String key) => getRaw(_core.context(CacheOp.read, key), key);
 
   /// Removes and updates the owned-key snapshot. / 删除并维护自有键快照。
   void _del(String key) {
@@ -357,39 +321,29 @@ class Cacheman {
   /// Snapshot safe for removal during iteration. / 允许遍历中删除的快照。
   List<String> _ownKeys() => _ownSet().toList(growable: false);
 
-  /// Purge silently probes marked envelopes only. / 清理只静默探测带标记的信封。
+  /// 依照内核决策静默删除过期项，raw 跳过后端枚举。
   void _purgeExpired() {
-    if (_core._opts.raw) return;
+    if (!_core.canPurge) return;
     final now = DateTime.now().millisecondsSinceEpoch;
     for (final key in _ownKeys()) {
-      final raw = _get(key);
-      if (raw != null && _core._isExpired(_core._load(raw), now)) _del(key);
+      if (_core.shouldPurge(_get(key), now)) _del(key);
     }
   }
 
-  /// Builds once, then retries only backend writes; background failures stay separate.
-  /// 仅构造一次，然后只重试底层写入；后台失败独立处理。
-  bool _persist(String key, String Function() build) {
+  /// 编码一次并执行 IO；重试和错误分类完全由内核决定。
+  void _persist(String key, _WritePlan plan) {
     assert(_initialized, _initializationMessage);
-    final encoded = _core.build(key, build);
-    if (encoded == null) return false;
-    try {
-      _writeNow(key, encoded);
-      return true;
-    } catch (error, trace) {
-      if (identical(error, _CacheCore._propagatingHandlerError)) rethrow;
-      if (!_core._opts.force) {
-        _core._reportError(WriteError(key, error, trace));
-        return false;
-      }
+    final encoded = _core.build(key, plan.encode);
+    if (encoded == null) return;
+    var retried = false;
+    while (true) {
       try {
-        _purgeExpired();
+        if (retried) _purgeExpired();
         _writeNow(key, encoded);
-        return true;
-      } catch (retryError, retryTrace) {
-        if (identical(retryError, _CacheCore._propagatingHandlerError)) rethrow;
-        _core._reportError(WriteError(key, retryError, retryTrace));
-        return false;
+        return;
+      } catch (error, trace) {
+        if (!_core.retryWrite(key, error, trace, retried: retried)) return;
+        retried = true;
       }
     }
   }
@@ -430,36 +384,28 @@ class Cacheman {
   T? readWith<T>(String key, {T? defaultValue, ValueAdapter<T>? adapter}) =>
       _read(key, defaultValue, adapter);
 
-  /// Shared read orchestration with optional adaptation. / 带可选适配的共用读取编排。
+  /// 执行内核读取决策要求的删除或续期，再完成返回值转换。
   T? _read<T>(String key, T? defaultValue, ValueAdapter<T>? adapter) {
     final sk = storageKey(key);
     final raw = _get(sk);
-    if (raw == null) return defaultValue;
-    if (_core._opts.raw) {
-      _core.warnRawAdapter(adapter);
-      return _core.typed(sk, raw, defaultValue, null);
+    final decision = _core.decideRead(
+        sk, raw, DateTime.now().millisecondsSinceEpoch, defaultValue, adapter);
+    switch (decision) {
+      case _DropAndDefault<T>():
+        _del(sk);
+      case _Hit<T>(:final renewal):
+        if (renewal != null) _persist(sk, renewal);
+      case _Miss<T>():
+        break;
     }
-    final entity = _core._load(raw, onFailure: (error, trace) {
-      _del(sk);
-      _core.reportDecodeError(sk, error, trace);
-    });
-    if (entity == null) return defaultValue;
-    final now = DateTime.now().millisecondsSinceEpoch;
-    if (_core._isExpired(entity, now)) {
-      _del(sk);
-      return defaultValue;
-    }
-    final renewed = _core.renewal(entity, now);
-    if (renewed != null) _persist(sk, () => _core._dump(renewed));
-    return _core.typed(sk, entity.value, defaultValue, adapter);
+    return _core.finishRead(decision);
   }
 
   /// Positional batch read; missing defaults are null. / 按位置批量读取，缺省默认值为 null。
   /// Example / 示例：`cache.readAll(['a', 'b'], [1])`.
   List<dynamic> readAll(List<String> keys, [List<dynamic>? defaults]) => [
         for (var i = 0; i < keys.length; i++)
-          read<dynamic>(keys[i],
-              defaults != null && i < defaults.length ? defaults[i] : null),
+          read<dynamic>(keys[i], _core.batchDefault(defaults, i)),
       ];
 
   /// Writes with millisecond TTL or DateTime/integer absolute expiry.
@@ -475,27 +421,11 @@ class Cacheman {
   void write<T>(String key, T value,
       {int? ttl, Object? expireAt, ValueAdapter<T>? adapter}) {
     final sk = storageKey(key);
-    if (_core._opts.readonly && _alive(sk)) return;
-    if (_core._opts.raw) {
-      _core.warnRawAdapter(adapter);
-      if (_core.acceptsRaw(key, value)) _persist(sk, () => value as String);
-      return;
-    }
-    final entity = _core._mkEntity(value, ttl, expireAt, key);
-    if (entity != null) {
-      _persist(sk, () => _core.encode(entity, value, adapter));
-    }
-  }
-
-  /// Presence probe without deletion, reporting or renewal; null values count.
-  /// 存在性探测不删除、不上报、不续期；存储的 null 值也算存在。
-  bool _alive(String key) {
-    final raw = _get(key);
-    if (raw == null) return false;
-    if (_core._opts.raw) return true;
-    final entity = _core._load(raw);
-    return entity != null &&
-        !_core._isExpired(entity, DateTime.now().millisecondsSinceEpoch);
+    final raw = _core.needsWriteProbe ? _get(sk) : null;
+    final plan = _core.decideWrite(
+        key, value, raw, DateTime.now().millisecondsSinceEpoch,
+        ttl: ttl, expireAt: expireAt, adapter: adapter);
+    if (plan != null) _persist(sk, plan);
   }
 
   /// Positional batch write, warning/skipping missing values; expiry applies to all.
@@ -522,7 +452,7 @@ class Cacheman {
   /// Deletes owned keys with namespace/enckey, otherwise clears the whole backend.
   /// 有 namespace/enckey 时删除自有键，否则清空整个后端，例如 cache.erase()。
   void erase() {
-    if (namespace.isEmpty && !_core._enckey) {
+    if (_core.clearsBackend) {
       _selfDepth++;
       try {
         _observeFlush(_allKeys, clearRaw(_core.context(CacheOp.clear)));
@@ -540,7 +470,7 @@ class Cacheman {
   /// 循环为 O(n²)，请改用一次 keys() 快照。Example / 示例：`for (final k in cache.keys()) ...`.
   @Deprecated('O(index); loops cost O(n²). Use keys() instead. / 请使用 keys()。')
   String? key(int index) {
-    if (namespace.isNotEmpty || _core._enckey) {
+    if (!_core.clearsBackend) {
       final ks = _ownSet();
       return index < 0 || index >= ks.length
           ? null
@@ -563,7 +493,7 @@ class Cacheman {
 
   /// Counts owned keys; global count without namespace/enckey.
   /// 统计自有键；无 namespace/enckey 时为后端全局数量。
-  int get length => namespace.isNotEmpty || _core._enckey
+  int get length => !_core.clearsBackend
       ? _ownSet().length
       : keysRaw(_core.context(CacheOp.keys)).length;
 }

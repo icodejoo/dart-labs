@@ -4,6 +4,7 @@ import 'package:cacheman/cacheman.dart';
 import 'package:cacheman_example/demo_backends.dart';
 import 'package:cacheman_example/demo_kit/demo_kit.dart';
 import 'package:cacheman_example/demo_support.dart';
+import 'package:cacheman_example/get_storage_cache.dart';
 import 'package:cacheman_example/main.dart';
 import 'package:cacheman_example/pages/ttl_page.dart';
 import 'package:flutter/material.dart';
@@ -80,7 +81,7 @@ void main() {
           const MethodChannel('plugins.flutter.io/path_provider'),
           (_) async => _storageDirectory.path,
         );
-    await Cacheman(
+    await GetStorageCache(
       container: demoContainer,
       path: _storageDirectory.path,
     ).ensureInitialized();
@@ -249,7 +250,7 @@ void main() {
     'clock observation never renews; explicit read renews; expiry and replay',
     (tester) async {
       await _show(tester, 'ttl');
-      final cache = Cacheman(
+      final cache = GetStorageCache(
         container: demoContainer,
         options: const CachemanOptions(
           namespace: 'expiry-sliding',
@@ -258,15 +259,15 @@ void main() {
       );
       await tester.runAsync(cache.ensureInitialized);
       final key = cache.storageKey(demoKey);
-      final initial = cache.container.read<String>(key);
+      final initial = cache.box.read<String>(key);
       await tester.runAsync(
         () => Future<void>.delayed(const Duration(milliseconds: 600)),
       );
       await tester.pump(const Duration(milliseconds: 200));
-      expect(cache.container.read<String>(key), initial);
+      expect(cache.box.read<String>(key), initial);
       await tester.tap(find.text('Read').at(2));
       await tester.pump();
-      expect(cache.container.read<String>(key), isNot(initial));
+      expect(cache.box.read<String>(key), isNot(initial));
       await tester.runAsync(
         () => Future<void>.delayed(
           demoLifetime + const Duration(milliseconds: 100),

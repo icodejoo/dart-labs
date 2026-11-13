@@ -1,0 +1,3 @@
+# Manifest 按原始字节校验，固定受检 JSON 的换行以保持摘要跨平台一致。
+tool/parity/cases/*.json text eol=lf
+test/parity/baselines/**/frames.json text eol=lf

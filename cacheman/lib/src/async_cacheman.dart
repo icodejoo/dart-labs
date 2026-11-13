@@ -85,11 +85,9 @@ abstract class AsyncCacheman {
   /// 同步返回加前缀/编码后的键，不访问后端；例如 cache.storageKey('report')。
   String storageKey(String key) => _core._fullKey(key);
 
-  /// Reads a fresh string; foreign non-strings are absent. / 每次读字符串，外部非字符串视为缺失。
-  Future<String?> _get(String key) async {
-    final value = await getRaw(_core.context(CacheOp.read, key), key);
-    return value is String ? value : null;
-  }
+  /// 每次异步读取原始后端值，由内核统一判断外部非字符串数据。
+  Future<Object?> _get(String key) =>
+      getRaw(_core.context(CacheOp.read, key), key);
 
   /// Deletes via the primitive. / 经原语删除。
   Future<void> _del(String key) =>
@@ -102,40 +100,29 @@ abstract class AsyncCacheman {
           .where(_core._owns)
           .toList(growable: false);
 
-  /// Purges quietly, protecting raw values and unmarked foreign envelopes.
-  /// 静默清理，保护 raw 值及无本库标记的外部信封。
+  /// 依照内核决策静默删除过期项，raw 跳过后端枚举。
   Future<void> _purgeExpired() async {
-    if (_core._opts.raw) return;
+    if (!_core.canPurge) return;
     final now = DateTime.now().millisecondsSinceEpoch;
     for (final key in await _ownKeys()) {
-      final raw = await _get(key);
-      if (raw != null && _core._isExpired(_core._load(raw), now)) {
-        await _del(key);
-      }
+      if (_core.shouldPurge(await _get(key), now)) await _del(key);
     }
   }
 
-  /// Builds once, then retries only backend writes; background failures stay separate.
-  /// 仅构造一次，然后只重试底层写入；后台失败独立处理。
-  Future<bool> _persist(String key, String Function() build) async {
+  /// 编码一次并执行 IO；重试和错误分类完全由内核决定。
+  Future<void> _persist(String key, _WritePlan plan) async {
     assert(_initialized, _initializationMessage);
-    final encoded = _core.build(key, build);
-    if (encoded == null) return false;
-    try {
-      await setRaw(_core.context(CacheOp.write, key), key, encoded);
-      return true;
-    } catch (error, trace) {
-      if (!_core._opts.force) {
-        _core._reportError(WriteError(key, error, trace));
-        return false;
-      }
+    final encoded = _core.build(key, plan.encode);
+    if (encoded == null) return;
+    var retried = false;
+    while (true) {
       try {
-        await _purgeExpired();
+        if (retried) await _purgeExpired();
         await setRaw(_core.context(CacheOp.write, key), key, encoded);
-        return true;
-      } catch (retryError, retryTrace) {
-        _core._reportError(WriteError(key, retryError, retryTrace));
-        return false;
+        return;
+      } catch (error, trace) {
+        if (!_core.retryWrite(key, error, trace, retried: retried)) return;
+        retried = true;
       }
     }
   }
@@ -162,35 +149,22 @@ abstract class AsyncCacheman {
           {T? defaultValue, ValueAdapter<T>? adapter}) =>
       _read(key, defaultValue, adapter);
 
-  /// Shared read orchestration with optional adaptation. / 带可选适配的共用读取编排。
+  /// 执行内核读取决策要求的删除或续期，再完成返回值转换。
   Future<T?> _read<T>(
       String key, T? defaultValue, ValueAdapter<T>? adapter) async {
     final sk = _core._fullKey(key);
     final raw = await _get(sk);
-    if (raw == null) return defaultValue;
-    if (_core._opts.raw) {
-      _core.warnRawAdapter(adapter);
-      return _core.typed(sk, raw, defaultValue, null);
+    final decision = _core.decideRead(
+        sk, raw, DateTime.now().millisecondsSinceEpoch, defaultValue, adapter);
+    switch (decision) {
+      case _DropAndDefault<T>():
+        await _del(sk);
+      case _Hit<T>(:final renewal):
+        if (renewal != null) await _persist(sk, renewal);
+      case _Miss<T>():
+        break;
     }
-    Object? failure;
-    StackTrace? failureTrace;
-    final entity = _core._load(raw, onFailure: (error, trace) {
-      failure = error;
-      failureTrace = trace;
-    });
-    if (entity == null) {
-      await _del(sk);
-      if (failure != null) _core.reportDecodeError(sk, failure!, failureTrace);
-      return defaultValue;
-    }
-    final now = DateTime.now().millisecondsSinceEpoch;
-    if (_core._isExpired(entity, now)) {
-      await _del(sk);
-      return defaultValue;
-    }
-    final renewed = _core.renewal(entity, now);
-    if (renewed != null) await _persist(sk, () => _core._dump(renewed));
-    return _core.typed(sk, entity.value, defaultValue, adapter);
+    return _core.finishRead(decision);
   }
 
   /// Sequential positional reads; missing defaults are null.
@@ -200,8 +174,7 @@ abstract class AsyncCacheman {
           [List<dynamic>? defaults]) async =>
       [
         for (var i = 0; i < keys.length; i++)
-          await read<dynamic>(keys[i],
-              defaults != null && i < defaults.length ? defaults[i] : null),
+          await read<dynamic>(keys[i], _core.batchDefault(defaults, i)),
       ];
 
   /// Writes with millisecond TTL or DateTime/integer absolute expiry.
@@ -217,29 +190,11 @@ abstract class AsyncCacheman {
   Future<void> write<T>(String key, T value,
       {int? ttl, Object? expireAt, ValueAdapter<T>? adapter}) async {
     final sk = _core._fullKey(key);
-    if (_core._opts.readonly && await _alive(sk)) return;
-    if (_core._opts.raw) {
-      _core.warnRawAdapter(adapter);
-      if (_core.acceptsRaw(key, value)) {
-        await _persist(sk, () => value as String);
-      }
-      return;
-    }
-    final entity = _core._mkEntity(value, ttl, expireAt, key);
-    if (entity != null) {
-      await _persist(sk, () => _core.encode(entity, value, adapter));
-    }
-  }
-
-  /// Presence probe without side effects; stored null counts as present.
-  /// 无副作用的存在性探测，存储的 null 值也算存在。
-  Future<bool> _alive(String key) async {
-    final raw = await _get(key);
-    if (raw == null) return false;
-    if (_core._opts.raw) return true;
-    final entity = _core._load(raw);
-    return entity != null &&
-        !_core._isExpired(entity, DateTime.now().millisecondsSinceEpoch);
+    final raw = _core.needsWriteProbe ? await _get(sk) : null;
+    final plan = _core.decideWrite(
+        key, value, raw, DateTime.now().millisecondsSinceEpoch,
+        ttl: ttl, expireAt: expireAt, adapter: adapter);
+    if (plan != null) await _persist(sk, plan);
   }
 
   /// Sequential positional writes; warns/skips missing values; expiry applies to all.
@@ -270,7 +225,7 @@ abstract class AsyncCacheman {
   /// 有 namespace/enckey 时删除自有键，否则调用 clearRaw 清空整个后端（含外部键），
   /// 与 Cacheman 一致。例如 await cache.erase()。
   Future<void> erase() async {
-    if (namespace.isEmpty && !_core._enckey) {
+    if (_core.clearsBackend) {
       await clearRaw(_core.context(CacheOp.clear));
       return;
     }

@@ -4,10 +4,11 @@
 
 [![pub](https://img.shields.io/pub/v/cacheman.svg)](https://pub.dev/packages/cacheman)
 
-A small, type-safe wrapper around [`get_storage`](https://pub.dev/packages/get_storage). It adds
-TTL and absolute expiry, sliding renewal, namespaces, custom serialization, an optional codec hook
-and key-bound shortcut accessors. It is the Dart/Flutter counterpart of `@codejoo/storage`
-(TypeScript).
+Type-safe cache semantics over storage you choose. Adds TTL and absolute expiry, sliding renewal,
+namespaces, custom serialization and key-bound accessors. `Cacheman()` uses pure Dart memory
+storage. For persistence, subclass `Cacheman` with `super.custom(...)` or subclass `AsyncCacheman`
+in your app.
+No storage package is required. This is the Dart/Flutter counterpart of `@codejoo/storage`.
 
 After one `await cache.ensureInitialized()`, `Cacheman` is fully synchronous (the reason is in the
 `Cacheman` class doc). For large values or other storage engines, use it next to your own
@@ -17,11 +18,11 @@ After one `await cache.ensureInitialized()`, `Cacheman` is fully synchronous (th
 
 ```yaml
 dependencies:
-  cacheman: ^0.7.1
+  cacheman: ^0.8.0
 ```
 
-Or from a local checkout: `cacheman: {path: ../cacheman}`. 0.7.0 has breaking changes. If you are
-upgrading from 0.6, read [Migration from 0.6 to 0.7.0](#migration-from-06-to-070).
+Or from a local checkout: `cacheman: {path: ../cacheman}`. **0.8.0 changes the default to memory.**
+Read [Migration from 0.7 to 0.8.0](#migration-from-07-to-080) before upgrading. From 0.6, also read [Migration from 0.6 to 0.7.0](#migration-from-06-to-070).
 
 ## Quick start
 
@@ -31,7 +32,7 @@ import 'package:cacheman/cacheman.dart';
 final cache = Cacheman();
 await cache.ensureInitialized();
 
-cache.write('token', 'abc');       // persists across restarts (get_storage)
+cache.write('token', 'abc');       // memory only; lost on restart
 cache.read<String>('token');       // 'abc' (synchronous)
 cache.write('session', 1, ttl: 60000); // expires in 60s
 cache.remove('token');
@@ -41,9 +42,10 @@ cache.setNamespace('alice');        // switch this instance to alice's keys
 
 ## API
 
-### `Cacheman({container, path, options})`
+### `Cacheman({container, options})`
 
-Creates a persistent `Cacheman` backed by `get_storage`. All read and write methods are on the
+Creates a memory cache. Equal container names (default `cacheman`) share data and notifications
+within the current isolate. Data is lost on restart. There is no `path` parameter. All read and write methods are on the
 instance itself (there is no `.ls`). Call and `await` `ensureInitialized()` once before the first
 read or write.
 
@@ -55,15 +57,15 @@ read or write.
 
 ### `cache.ensureInitialized()`
 
-The only `Future` in `Cacheman`'s read/write API. It waits for `get_storage` to load this instance's
-container from disk.
+The initialization boundary in `Cacheman`'s read/write API. Await it once, including for memory
+storage. Custom adapters use `initRaw` to prepare their backend.
 
 Subclassing: `Cacheman`'s constructor and `ensureInitialized()` are plain members, not factories,
 so a subclass can pass the constructor parameters up with `super(...)`. No factory code is needed:
 
 ```dart
 class MyCacheman extends Cacheman {
-  MyCacheman({super.container, super.path, super.options});
+  MyCacheman({super.container, super.options});
   int extra = 0;
 }
 
@@ -84,8 +86,8 @@ await cache.ensureInitialized();
 | `purge()` | Proactively delete expired entries (otherwise lazy). |
 | `erase()` | Erase owned keys (namespace/enckey-scoped) or everything. |
 | `namespace` / `setNamespace([ns])` | Current prefix / switch it in place. |
-| `container` | The underlying `GetStorage` instance. Use it when you need the raw container, for example `listenKey` to watch external changes. |
-| `storageKey(key)` | The key that is actually stored (namespace prefix added, `enckey`-encoded when enabled). Pass this to `container.listenKey(...)`, not `key`. |
+| `container` | The default `MemoryStorage` handle. Custom adapters expose their own handle, such as `GetStorageCache.box`. |
+| `storageKey(key)` | The key that is actually stored (namespace prefix added, `enckey`-encoded when enabled). Pass this to raw backend operations, not `key`. |
 | `watch<T>(key, onChange, {includeOwnWrites = false})` | Watch decoded values. Returns a cancel function and keeps working after `setNamespace`. |
 | `flush()` | Queue a save now. Returns void; errors go to `onError`. |
 
@@ -134,15 +136,14 @@ value gives null. It includes whole-container erase events and follows `setNames
 Type, read and callback failures go to `onError` and do not stop other watchers; if `onError`
 itself throws, the exception still propagates. Cancel the subscription when its owner is disposed.
 
-`flushDelay: null` keeps get_storage's default: one flush per event-loop turn that contains writes.
-Setting it to 200 ms batches writes and renewals (using `writeInMemory`) under one shared timer.
-The earliest deadline wins, so frequent writes never push back a pending flush. A crash can lose
-writes made inside that window. Deletes still call get_storage `remove` and immediately queue a flush (no public
-memory-only remove exists); erase keeps its original behavior. `flush()` cancels the timer and
-queues a save. Pending writes also flush on inactive/paused/hidden/detached lifecycle events.
-These are best-effort saves, not synchronous disk-write guarantees; get_storage 2.1.1 still
-drops its actual disk-flush Future. Observable hook failures go to the most recent delayed
-writer's onError, or the explicit flush caller's onError.
+Memory storage has nothing to persist: `flush()` is a no-op and writes are immediately readable.
+For adapters, `flushDelay` schedules `setDeferredRaw` / `flushRaw` on one shared timer; the earliest
+deadline wins. Pending writes also flush on inactive/paused/hidden/detached Flutter lifecycle events.
+Failures go to the latest delayed writer's `onError`, or the explicit flush caller's `onError`.
+
+The example `GetStorageCache` uses `writeInMemory` for delayed writes. Deletes still call `remove`
+and queue a whole-container save immediately. A crash can lose pending writes; get_storage 2.1.1
+drops its actual disk-flush Future, so `flush()` is a best-effort request, not a disk acknowledgement.
 
 `purgeOnInit: true` runs one purge with `Timer.run` after initialization, without blocking.
 Awaiting init does not wait for the purge, and raw mode skips it. `AsyncCacheman` ignores both
@@ -150,10 +151,10 @@ options.
 
 Subclasses that bring their own primitives must call `super.custom(...)` (see
 `PreferencesCache`). Such subclasses get an independent Hub identity (`this`) and no
-notifications by default, so they never implicitly open GetStorage; they rescan owned keys on
+notifications by default, so they never attach to the default memory store; they rescan owned keys on
 every enumeration, and `watch` throws UnsupportedError. Plain subclasses that only forward
 constructor params (like `MyCacheman` above) keep the default constructor and therefore the
-full get_storage behavior: shared Hub, `watch`, `flushDelay` and the incremental key index. For shared notifications, override `hubIdentity`
+default memory behavior: shared Hub, `watch`, `flushDelay` and the incremental key index. For shared notifications, override `hubIdentity`
 with a stable backend handle and implement `listenRaw(ctx, onChange)` (return cancellation;
 null key means clear), plus `syncNotificationsRaw`. All instances sharing an identity must use
 the same notification/persistence contract. If notifications are asynchronous, indexes still
@@ -163,8 +164,8 @@ Override `setDeferredRaw`/`flushRaw` for true delayed persistence; otherwise the
 
 ### GetX reactive interop (`watch`)
 
-`get_storage` depends on `get`, so `get` comes in as a transitive dependency. This package has no
-GetX binding. Build one in your app with `watch`, similar to VueUse's `useStorage`:
+Add `get` to your app if you use GetX; cacheman no longer brings it in transitively. There is no
+built-in GetX binding. Build one in your app with `watch`, similar to VueUse's `useStorage`:
 
 ```dart
 import 'dart:convert';
@@ -199,8 +200,8 @@ The comparison uses `==` then JSON content for collections and objects with `toJ
 
 - Default notifications are synchronous. `watch` skips this instance's own writes (including
   renewal and lazy deletion), so a freshly decoded Map or List cannot cause a write-back loop.
-- Raw `container.listenKey` still misses whole-container erase (changed key `""`); `watch`
-  translates it for every watched key. Scoped erase removes owned keys individually.
+- `MemoryStorage.listen` sends null on whole-container erase; `watch` notifies every watched key.
+  For get_storage, use the example adapter's `watch` to include erase events.
 - Each isolate has its own memory map/listeners; cross-isolate changes require your own synchronization.
 
 For direct container interop, use `storageKey(key)` instead of `namespace + key` with enckey.
@@ -298,6 +299,38 @@ final profile = cache.readWith<Profile>('profile', adapter: profiles);
 // AsyncCacheman：同样的适配器，write / readWith 须 await。
 ```
 
+## Migration from 0.7 to 0.8.0
+
+**Breaking:** `Cacheman()` now stores data in memory, and the default constructor no longer accepts
+`path`. Same-name containers still share data within an isolate. `container` now returns
+`MemoryStorage`, not `GetStorage`; replace raw get_storage calls with your adapter's `box` handle.
+Existing `Cacheman.custom` and `AsyncCacheman` subclasses keep their primitive contracts.
+
+To retain get_storage persistence:
+
+1. Add `get_storage: ^2.1.1` to your **app's** dependencies.
+2. Copy [`example/lib/get_storage_cache.dart`](example/lib/get_storage_cache.dart) into your app.
+3. Replace persistent `Cacheman(...)` construction with `GetStorageCache(...)`, keeping the same
+   container name, path and options. Existing keys and serialized values remain readable; cacheman
+   does not migrate or erase them. Memory caches do not load existing persisted data.
+4. If you imported `get` transitively, add it directly to your app.
+
+```dart
+import 'package:cacheman/cacheman.dart';
+import 'get_storage_cache.dart'; // copied from example/lib/
+
+final cache = GetStorageCache(
+  container: 'cacheman', // keep the previous name; pass the previous path if set
+  options: const CachemanOptions(namespace: 'account'),
+);
+await cache.ensureInitialized();
+cache.write('token', 'abc'); // app-owned persistence
+```
+
+The adapter implements all six synchronous primitives plus shared notifications and deferred saves.
+Its `box` is the underlying `GetStorage`. get_storage's platform restrictions remain in apps that
+choose it; the cacheman library and its runtime dependencies no longer include get_storage.
+
 ## Migration from 0.6 to 0.7.0
 
 - Change raw exception checks such as `error is FormatException` to
@@ -317,13 +350,20 @@ final profile = cache.readWith<Profile>('profile', adapter: profiles);
 ## Layered storage / custom backends
 
 Use multiple instances in parallel: small, frequently accessed data in synchronous `Cacheman`
-(default `get_storage`, which loads the entire container into memory), large values in your
+(default memory, or an app-owned persistent backend), large values in your
 `AsyncCacheman` subclass backed by on-demand disk IO. The caches do not route or migrate data
 automatically; choose the instance at the call site. Neither facade adds a read-value cache.
 Cacheman handles namespaces, TTL and absolute expiry, sliding renewal, envelopes,
 serialization and codecs, raw/readonly, `force` and key ownership. Your subclass only implements
 the backend primitives.
 No Hive, files, SharedPreferences backend or extra dependency ships in `lib/`.
+
+### Synchronous primitives: get_storage
+
+Use the app-owned [`GetStorageCache`](example/lib/get_storage_cache.dart) adapter described in
+[Migration from 0.7 to 0.8.0](#migration-from-07-to-080). The demo uses this adapter for persistence.
+Choose a Wasm-compatible backend in apps that target Wasm; this adapter still uses get_storage's
+platform implementation. No get_storage adapter is exported by `package:cacheman/cacheman.dart`.
 
 ### Synchronous primitives: SharedPreferencesWithCache
 
@@ -370,11 +410,8 @@ class PreferencesCache extends Cacheman {
 [SharedPreferencesWithCache](https://pub.dev/packages/shared_preferences) supplies cached synchronous
 reads. Its current [implementation](https://github.com/flutter/packages/blob/main/packages/shared_preferences/shared_preferences/lib/src/shared_preferences_async.dart)
 updates its cache before returning the persistence Future. Verify that contract for your chosen
-backend/version. `Cacheman.container` is still the way to reach the default GetStorage: even a fully
-custom subclass creates that default container if it reads the getter. Overriding all hooks
-avoids it completely. The default `GetStorage(container, path)` is now lazy; initialization or first
-container access still supplies the constructor's path. Same-name containers retain GetStorage's
-first-construction-path-wins rule, now determined by first backend access rather than facade creation.
+backend/version. `Cacheman.container` now returns `MemoryStorage`; it never opens a persistent
+backend. Custom adapters should expose their own typed handle (the get_storage example uses `box`).
 Sync owned-key snapshots now self-heal through Hub versions, or rescan on every query
 when the subclass lacks synchronous notifications (as in this preferences example).
 
@@ -572,7 +609,7 @@ flutter run -d chrome   # or any other Flutter device
   `Codec` interface.
 - **Cacheman `force` retries only synchronous backend write failures** (`setRaw` throwing).
   `get_storage`'s actual disk-flush failures are asynchronous and never retried; with 2.1.1 its write Future
-  can't carry them, so `onError` is only guaranteed for synchronous failures (see `Cacheman`'s `_gs` doc comment in `lib/src/cacheman.dart`).
+  can't carry them. Other adapters can report persistence Future failures as `FlushError`.
 - No `crossTab` equivalent (a browser-tab concept with no Flutter analogue).
 
 ## License

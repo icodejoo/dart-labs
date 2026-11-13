@@ -1,35 +1,10 @@
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:cacheman/cacheman.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:get_storage/get_storage.dart';
-import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 
 /// Error matcher label. / 错误断言标签。
 const _causeLabel = 'cause';
-
-/// `get_storage`'s io backend calls `getApplicationDocumentsDirectory()`
-/// unconditionally before falling back to an explicit `path` (see
-/// `get_storage`'s `StorageImpl._fileDb`), so even passing `path:` to
-/// `Cacheman()`'s constructor still needs a working path_provider platform channel
-/// — absent under plain `flutter test`. This fake satisfies that call; the
-/// path it returns is never actually used since our tests always pass an
-/// explicit `path:`.
-///
-/// `get_storage` 的 io 后端在决定要不要用传入的 `path` 之前，会无条件先调一次
-/// `getApplicationDocumentsDirectory()`（见 `get_storage` 的
-/// `StorageImpl._fileDb`），所以就算给 `Cacheman()` 构造函数传了 `path:`，也
-/// 还是需要一个能用的 path_provider 平台通道——纯 `flutter test` 下没有。这个
-/// 假实现就是补上这一调用；返回的路径本身用不到，因为我们的测试都显式传了
-/// `path:`。
-class FakePathProviderPlatform extends PathProviderPlatform {
-  FakePathProviderPlatform(this._path);
-  final String _path;
-
-  @override
-  Future<String?> getApplicationDocumentsPath() async => _path;
-}
 
 /// A trivial reversible codec for tests — NOT for real use (see [Codec]'s
 /// doc: this package ships no implementation on purpose). Base64-wraps the
@@ -40,7 +15,8 @@ class FakeCodec implements Codec {
   final String password;
 
   @override
-  String encode(String value) => '$password:${base64Encode(utf8.encode(value))}';
+  String encode(String value) =>
+      '$password:${base64Encode(utf8.encode(value))}';
 
   @override
   String? decode(String value) {
@@ -92,31 +68,12 @@ class _ThrowingCodec extends FakeCodec {
 }
 
 void main() {
-  late Directory tempDir;
   var containerSeq = 0;
 
-  /// A fresh container name per call, so every test gets its own isolated
-  /// `get_storage` backend within the shared [tempDir] — `get_storage`
-  /// caches its underlying instances by container name for the lifetime of
-  /// the process, so reusing a name across tests would leak state (and, for
-  /// the first caller of a given name, permanently pin its `path`).
-  ///
-  /// 每次调用给一个全新的 container 名，让每个测试都有自己独立的
-  /// `get_storage` 后端（都在共享的 [tempDir] 下）——`get_storage` 在整个
-  /// 进程生命周期内按 container 名缓存底层实例，同名复用会导致状态泄漏（对
-  /// 该名字的第一个调用方，还会把它的 `path` 永久钉死）。
+  /// 每次创建独立名称，避免内存容器在测试之间共享数据。
   String nextContainer() => 'cacheman_test_${containerSeq++}';
 
-  /// Builds a real `Cacheman` instance backed by `get_storage` — this is now
-  /// the *only* way to exercise [Cacheman]'s logic (TTL/sliding/namespace/
-  /// codec/force/...), since `Cacheman` no longer accepts an injected
-  /// fake backend (the `Store`/`MemoCache` abstraction seam was removed —
-  /// `Cacheman` talks directly to a `GetStorage` container).
-  ///
-  /// 构造一个真正由 `get_storage` 支撑的 `Cacheman` 实例——这是练到
-  /// [Cacheman] 逻辑（TTL/滑动/命名空间/codec/force/...）现在唯一的
-  /// 方式，因为 `Cacheman` 不再接受注入的假后端（`Store`/`MemoCache` 这层
-  /// 抽象已经拿掉——`Cacheman` 直接对接一个 `GetStorage` container）。
+  /// 使用默认纯 Dart 内存后端验证缓存语义。
   Future<Cacheman> newCache({
     String? container,
     bool codeable = false,
@@ -131,7 +88,6 @@ void main() {
   }) async {
     final cache = Cacheman(
       container: container ?? nextContainer(),
-      path: tempDir.path,
       options: CachemanOptions(
         codeable: codeable,
         codec: codec,
@@ -148,43 +104,28 @@ void main() {
     return cache;
   }
 
-  setUp(() {
-    tempDir = Directory.systemTemp.createTempSync('cacheman_test_');
-    PathProviderPlatform.instance = FakePathProviderPlatform(tempDir.path);
-  });
-
-  tearDown(() {
-    // get_storage never closes its RandomAccessFile handle once opened, so
-    // on Windows the temp dir stays locked for the rest of the process —
-    // best-effort cleanup only, not a correctness assertion.
-    //
-    // get_storage 打开的 RandomAccessFile 句柄从不关闭，Windows 下临时目录
-    // 会在整个进程生命周期内保持锁定——这里只是尽力清理，不是正确性断言。
-    try {
-      if (tempDir.existsSync()) tempDir.deleteSync(recursive: true);
-    } catch (_) {}
-  });
-
-  test('get_storage write remove erase notify synchronously before return', () async {
+  test('memory write remove erase notify synchronously before return',
+      () async {
     final cache = await newCache();
-    final events = <String>[];
-    final cancel = cache.container.listen(() {
-      events.add(cache.container.changes.keys.single);
+    final events = <String?>[];
+    final cancel = cache.container.listen((key) {
+      events.add(key);
     });
     final write = cache.container.write('sync', 'value');
     expect(events, ['sync']);
     final remove = cache.container.remove('sync');
     expect(events, ['sync', 'sync']);
     final erase = cache.container.erase();
-    expect(events, ['sync', 'sync', '']);
+    expect(events, ['sync', 'sync', null]);
     cancel();
     await Future.wait([write, remove, erase]);
   });
 
-  test('forwarding subclass keeps get_storage hub, watch and incremental index', () async {
+  test('forwarding subclass keeps memory hub, watch and incremental index',
+      () async {
     final name = nextContainer();
     final base = await newCache(container: name);
-    final sub = _Forwarding(container: name, path: tempDir.path);
+    final sub = _Forwarding(container: name);
     await sub.ensureInitialized();
     final seen = <String?>[];
     final stop = sub.watch<String>('k', seen.add);
@@ -195,18 +136,19 @@ void main() {
   });
 
   group('basic read/write/remove', () {
-    test('writes assert before initialization and succeed after awaiting it', () async {
+    test('writes assert before initialization and succeed after awaiting it',
+        () async {
       const key = 'guarded';
       const value = 'ready';
       for (final raw in [false, true]) {
         final cache = Cacheman(
           container: nextContainer(),
-          path: tempDir.path,
           options: CachemanOptions(raw: raw),
         );
         expect(
           () => cache.write(key, value),
-          throwsA(isA<AssertionError>().having((error) => error.message, 'message', contains('await ensureInitialized()'))),
+          throwsA(isA<AssertionError>().having((error) => error.message,
+              'message', contains('await ensureInitialized()'))),
         );
         await cache.ensureInitialized();
         expect(cache.read<String>(key), isNull);
@@ -256,15 +198,18 @@ void main() {
       expect(e.read<String>('a'), isNull);
     });
 
-    test('ttl <= 0 is warned and ignored — value persists with no expiry', () async {
+    test('ttl <= 0 is warned and ignored — value persists with no expiry',
+        () async {
       final e = await newCache();
       e.write('a', 'x', ttl: 0);
       expect(e.read<String>('a'), 'x');
     });
 
-    test('expireAt in the past (no sliding) skips the write entirely', () async {
+    test('expireAt in the past (no sliding) skips the write entirely',
+        () async {
       final e = await newCache();
-      e.write('a', 'x', expireAt: DateTime.now().subtract(const Duration(seconds: 1)));
+      e.write('a', 'x',
+          expireAt: DateTime.now().subtract(const Duration(seconds: 1)));
       expect(e.read<String>('a'), isNull);
     });
 
@@ -281,13 +226,17 @@ void main() {
     test('a read hit past 10% of ttl renews expireAt', () async {
       final e = await newCache(sliding: true);
       e.write('a', 'x', ttl: 100);
-      await Future<void>.delayed(const Duration(milliseconds: 20)); // > 10% of 100ms elapsed
+      await Future<void>.delayed(
+          const Duration(milliseconds: 20)); // > 10% of 100ms elapsed
       expect(e.read<String>('a'), 'x'); // triggers renewal
-      await Future<void>.delayed(const Duration(milliseconds: 90)); // would've expired without renewal
+      await Future<void>.delayed(
+          const Duration(milliseconds: 90)); // would've expired without renewal
       expect(e.read<String>('a'), 'x');
     });
 
-    test('without sliding, the same read pattern lets the entry expire on schedule', () async {
+    test(
+        'without sliding, the same read pattern lets the entry expire on schedule',
+        () async {
       final e = await newCache();
       e.write('a', 'x', ttl: 100);
       await Future<void>.delayed(const Duration(milliseconds: 20));
@@ -298,7 +247,9 @@ void main() {
   });
 
   group('namespace', () {
-    test('two engines sharing a backend but different namespaces do not collide', () async {
+    test(
+        'two engines sharing a backend but different namespaces do not collide',
+        () async {
       final container = nextContainer();
       final a = await newCache(container: container, namespace: 'a');
       final b = await newCache(container: container, namespace: 'b');
@@ -319,7 +270,9 @@ void main() {
       expect(b.read<int>('y'), 2);
     });
 
-    test('keys()/length() stay accurate as entries are added and removed (owned-key cache)', () async {
+    test(
+        'keys()/length() stay accurate as entries are added and removed (owned-key cache)',
+        () async {
       final container = nextContainer();
       final a = await newCache(container: container, namespace: 'a');
       final b = await newCache(container: container, namespace: 'b');
@@ -336,12 +289,15 @@ void main() {
       expect(a.length, 1); // unaffected by b's writes to a different namespace
     });
 
-    test('setNamespace invalidates the owned-key cache so keys() reflects the new namespace', () async {
+    test(
+        'setNamespace invalidates the owned-key cache so keys() reflects the new namespace',
+        () async {
       final e = await newCache(namespace: 'a');
       e.write('x', 1);
       expect(e.keys(), ['x']); // builds the owned-key cache under namespace 'a'
       e.setNamespace('b');
-      expect(e.keys(), isEmpty); // nothing written under 'b' yet — not stale from 'a'
+      expect(e.keys(),
+          isEmpty); // nothing written under 'b' yet — not stale from 'a'
       e.write('y', 2);
       expect(e.keys(), ['y']);
       e.setNamespace('a');
@@ -353,7 +309,8 @@ void main() {
       e.write('token', 'v1');
       expect(e.read<String>('token'), 'v1');
       e.setNamespace('alice');
-      expect(e.read<String>('token'), isNull); // different prefix now, nothing written there yet
+      expect(e.read<String>('token'),
+          isNull); // different prefix now, nothing written there yet
       e.write('token', 'v2');
       expect(e.read<String>('token'), 'v2');
       e.setNamespace(); // back to no namespace
@@ -370,14 +327,16 @@ void main() {
       expect(e.readAll(['a', 'b', 'c']), [null, 2, null]);
     });
 
-    test('readAll pairs defaults positionally, missing slots fall back to null', () async {
+    test('readAll pairs defaults positionally, missing slots fall back to null',
+        () async {
       final e = await newCache();
       e.write('a', 1);
       expect(e.readAll(['a', 'b'], [0, 'x']), [1, 'x']);
       expect(e.readAll(['a', 'b']), [1, null]);
     });
 
-    test('writeAll with fewer values than keys skips the missing entries', () async {
+    test('writeAll with fewer values than keys skips the missing entries',
+        () async {
       final e = await newCache();
       e.writeAll(['a', 'b', 'c'], [1, 2]);
       expect(e.readAll(['a', 'b', 'c']), [1, 2, null]);
@@ -385,7 +344,8 @@ void main() {
   });
 
   group('raw mode', () {
-    test('a String value is stored and read back untouched, no envelope', () async {
+    test('a String value is stored and read back untouched, no envelope',
+        () async {
       final e = await newCache(raw: true);
       e.write('a', 'plain-string');
       expect(e.read<String>('a'), 'plain-string');
@@ -399,7 +359,8 @@ void main() {
   });
 
   group('readonly', () {
-    test('writes only when the key is empty; a second write is discarded', () async {
+    test('writes only when the key is empty; a second write is discarded',
+        () async {
       final e = await newCache(readonly: true);
       e.write('a', 'first');
       e.write('a', 'second');
@@ -420,7 +381,9 @@ void main() {
     const fallback = 'fallback';
     const secret = 'secret';
 
-    test('enckey keys()/key() reuse decoded logical keys across repeated enumeration', () async {
+    test(
+        'enckey keys()/key() reuse decoded logical keys across repeated enumeration',
+        () async {
       const keys = ['x', 'y'];
       final codec = _CountingCodec();
       final e = await newCache(enckey: true, codec: codec, namespace: 'a');
@@ -433,12 +396,15 @@ void main() {
       expect(codec.decodeCalls, calls);
     });
 
-    test('setNamespace clears enckey logical mappings before enumerating the new scope', () async {
+    test(
+        'setNamespace clears enckey logical mappings before enumerating the new scope',
+        () async {
       const firstNs = 'a';
       const firstKey = 'x';
       const secondKey = 'y';
       const fullKey = '$firstNs:$firstKey';
-      final e = await newCache(enckey: true, codec: FakeCodec(), namespace: firstNs);
+      final e =
+          await newCache(enckey: true, codec: FakeCodec(), namespace: firstNs);
       e.write(firstKey, 1);
       expect(e.keys(), [firstKey]);
       e.setNamespace();
@@ -453,23 +419,29 @@ void main() {
       expect(e.key(0), firstKey);
     });
 
-    test('codeable + codec obfuscates the persisted string but reads decode transparently', () async {
+    test(
+        'codeable + codec obfuscates the persisted string but reads decode transparently',
+        () async {
       final container = nextContainer();
-      final e = await newCache(container: container, codeable: true, codec: FakeCodec());
+      final e = await newCache(
+          container: container, codeable: true, codec: FakeCodec());
       e.write('a', secret);
       expect(e.read<String>('a'), secret);
-      // read the raw persisted string straight from get_storage (same
+      // read the raw string straight from memory (same
       // cached instance, already initialized) to confirm it never shows the
       // plaintext.
-      final gsRaw = GetStorage(container).read<dynamic>('a');
+      final gsRaw = MemoryStorage.named(container).read<dynamic>('a');
       expect(gsRaw, isA<String>());
       expect(gsRaw as String, isNot(contains(secret)));
     });
 
-    test('a null codec result is reported once, deleted and returned as the default', () async {
+    test(
+        'a null codec result is reported once, deleted and returned as the default',
+        () async {
       const key = damagedKey;
       final container = nextContainer();
-      final withCodec = await newCache(container: container, codeable: true, codec: FakeCodec('right'));
+      final withCodec = await newCache(
+          container: container, codeable: true, codec: FakeCodec('right'));
       withCodec.write(key, secret);
       final errors = <(String, Object)>[];
       final wrongCodec = await newCache(
@@ -485,16 +457,23 @@ void main() {
       expect(wrongCodec.read<String>(key, fallback), fallback);
       expect(errors, hasLength(1));
       expect(errors.single.$1, key);
-      expect(errors.single.$2, isA<CorruptEntryError>().having((e) => e.cause, _causeLabel, isA<FormatException>()).having((e) => e.dropped, 'dropped', isTrue));
+      expect(
+          errors.single.$2,
+          isA<CorruptEntryError>()
+              .having((e) => e.cause, _causeLabel, isA<FormatException>())
+              .having((e) => e.dropped, 'dropped', isTrue));
       expect(wrongCodec.container.hasData(key), isFalse);
       expect(wrongCodec.read<String>(key, fallback), fallback);
       expect(errors, hasLength(1));
     });
 
-    test('a throwing replacement codec reports the original exception once and deletes the entry', () async {
+    test(
+        'a throwing replacement codec reports the original exception once and deletes the entry',
+        () async {
       const key = damagedKey;
       final container = nextContainer();
-      final writer = await newCache(container: container, codeable: true, codec: FakeCodec());
+      final writer = await newCache(
+          container: container, codeable: true, codec: FakeCodec());
       writer.write(key, secret);
       final failure = StateError('decode failed');
       final errors = <(String, Object)>[];
@@ -507,13 +486,18 @@ void main() {
       expect(reader.read<String>(key, fallback), fallback);
       expect(errors, hasLength(1));
       expect(errors.single.$1, key);
-      expect(errors.single.$2, isA<CorruptEntryError>().having((e) => e.cause, _causeLabel, same(failure)));
+      expect(
+          errors.single.$2,
+          isA<CorruptEntryError>()
+              .having((e) => e.cause, _causeLabel, same(failure)));
       expect(reader.container.hasData(key), isFalse);
       expect(reader.read<String>(key, fallback), fallback);
       expect(errors, hasLength(1));
     });
 
-    test('a throwing replacement deserialize reports once after deleting the entry', () async {
+    test(
+        'a throwing replacement deserialize reports once after deleting the entry',
+        () async {
       const key = damagedKey;
       final container = nextContainer();
       final writer = await newCache(container: container);
@@ -522,7 +506,6 @@ void main() {
       final errors = <(String, Object)>[];
       final reader = await _ready(Cacheman(
         container: container,
-        path: tempDir.path,
         options: CachemanOptions(
           deserialize: (_) => throw failure,
           onError: (key, error) {
@@ -534,19 +517,23 @@ void main() {
       expect(reader.read<String>(key, fallback), fallback);
       expect(errors, hasLength(1));
       expect(errors.single.$1, key);
-      expect(errors.single.$2, isA<CorruptEntryError>().having((e) => e.cause, _causeLabel, same(failure)));
+      expect(
+          errors.single.$2,
+          isA<CorruptEntryError>()
+              .having((e) => e.cause, _causeLabel, same(failure)));
       expect(reader.container.hasData(key), isFalse);
       expect(reader.read<String>(key, fallback), fallback);
       expect(errors, hasLength(1));
     });
 
-    test('raw reads bypass throwing codecs/deserializers and do not report decode errors', () async {
+    test(
+        'raw reads bypass throwing codecs/deserializers and do not report decode errors',
+        () async {
       const key = 'raw';
       const value = 'untouched';
       final errors = <Object>[];
       final cache = await _ready(Cacheman(
         container: nextContainer(),
-        path: tempDir.path,
         options: CachemanOptions(
           raw: true,
           codeable: true,
@@ -561,47 +548,24 @@ void main() {
       expect(errors, isEmpty);
     });
 
-    test('enckey obfuscates the storage key so foreign readers cannot see it', () async {
+    test('enckey obfuscates the storage key so foreign readers cannot see it',
+        () async {
       final container = nextContainer();
-      final e = await newCache(container: container, enckey: true, codec: FakeCodec());
+      final e = await newCache(
+          container: container, enckey: true, codec: FakeCodec());
       e.write('token', 'abc');
-      final gsKeys = GetStorage(container).getKeys<Iterable<dynamic>>().map((k) => k.toString());
+      final gsKeys =
+          MemoryStorage.named(container).keys.map((k) => k.toString());
       expect(gsKeys, isNot(contains('token')));
       expect(e.read<String>('token'), 'abc');
-      expect(e.keys(), ['token']); // logical keys are still plaintext to the owner
+      expect(
+          e.keys(), ['token']); // logical keys are still plaintext to the owner
     });
   });
 
   group('force / onError', () {
-    // The original `FakeStore.failNext` fake let a unit test inject a
-    // *synchronous* write exception to exercise `Cacheman._persist`'s
-    // purge-and-retry path. There is no real-backend equivalent: a real
-    // `GetStorage.write` call practically never throws synchronously (see
-    // `Cacheman`'s `_gs` doc — its actual flush failures are asynchronous and
-    // are never retried, by design). So instead this verifies the one thing
-    // that *is* observable against a real backend: a flush failure never
-    // throws out of write(). (get_storage 2.1.1's write Future can't carry
-    // flush errors, so `onError` is NOT guaranteed to fire for them.)
-    test('a background flush failure never throws out of write()', () async {
-      Object? reported;
-      final e = await newCache(onError: (key, err) => reported = err);
-      // Force a real async flush failure by erasing the temp dir out from
-      // under get_storage after it opened its file handle.
-      e.write('a', 'x'); // succeeds — establishes the container/file first
-      try {
-        tempDir.deleteSync(recursive: true);
-      } catch (_) {}
-      e.write('b', 'y');
-      // The failure surfaces asynchronously — give the flush a moment.
-      await Future<void>.delayed(const Duration(milliseconds: 200));
-      // On some platforms get_storage may still succeed (e.g. it recreates
-      // the file) — this assertion only checks that *if* a failure occurred,
-      // it was reported via onError and not thrown synchronously out of
-      // write().
-      expect(reported, anyOf(isNull, isA<Object>()));
-    });
-
-    test('write() does not throw synchronously even under default force:true', () async {
+    test('write() does not throw synchronously even under default force:true',
+        () async {
       final e = await newCache();
       expect(() => e.write('a', 'x'), returnsNormally);
       expect(e.read<String>('a'), 'x');
@@ -626,24 +590,29 @@ void main() {
 
     test('round-trips Uri', () {
       final uri = Uri.parse('https://example.com/path?q=1&r=2#frag');
-      final decoded = Jsonx.decode<Map<String, dynamic>>(Jsonx.encode({'url': uri}));
+      final decoded =
+          Jsonx.decode<Map<String, dynamic>>(Jsonx.encode({'url': uri}));
       expect(decoded['url'], uri);
     });
 
     test('round-trips RegExp, flags included', () {
-      final re = RegExp(r'a.b', multiLine: true, caseSensitive: false, dotAll: true);
-      final decoded = Jsonx.decode<Map<String, dynamic>>(Jsonx.encode({'re': re}));
+      final re =
+          RegExp(r'a.b', multiLine: true, caseSensitive: false, dotAll: true);
+      final decoded =
+          Jsonx.decode<Map<String, dynamic>>(Jsonx.encode({'re': re}));
       final out = decoded['re'] as RegExp;
       expect(out.pattern, re.pattern);
       expect(out.isMultiLine, re.isMultiLine);
       expect(out.isCaseSensitive, re.isCaseSensitive);
       expect(out.isDotAll, re.isDotAll);
-      expect(out.hasMatch('A\nB'), isTrue); // caseSensitive:false + dotAll:true both exercised
+      expect(out.hasMatch('A\nB'),
+          isTrue); // caseSensitive:false + dotAll:true both exercised
     });
   });
 
   group('review fixes', () {
-    test('namespaces containing ":" do not collide or erase each other', () async {
+    test('namespaces containing ":" do not collide or erase each other',
+        () async {
       final container = nextContainer();
       final a = await newCache(container: container, namespace: 'a');
       final ab = await newCache(container: container, namespace: 'a:b');
@@ -656,11 +625,12 @@ void main() {
       expect(ab.keys(), ['x']);
     });
 
-    test('serialize throwing is caught by write (reported via onError), read keeps working', () async {
+    test(
+        'serialize throwing is caught by write (reported via onError), read keeps working',
+        () async {
       Object? reported;
       final cache = Cacheman(
         container: nextContainer(),
-        path: tempDir.path,
         options: CachemanOptions(
           serialize: (_) => throw StateError('boom'),
           onError: (k, e) => reported = e,
@@ -668,11 +638,16 @@ void main() {
       );
       await cache.ensureInitialized();
       expect(() => cache.write('a', 1), returnsNormally);
-      expect(reported, isA<SerializeError>().having((e) => e.cause, _causeLabel, isA<StateError>()));
+      expect(
+          reported,
+          isA<SerializeError>()
+              .having((e) => e.cause, _causeLabel, isA<StateError>()));
       expect(cache.read<int>('a'), isNull);
     });
 
-    test('namespace with "%" is escaped and isolated from the literal-prefixed one', () async {
+    test(
+        'namespace with "%" is escaped and isolated from the literal-prefixed one',
+        () async {
       final container = nextContainer();
       final p = await newCache(container: container, namespace: '50%');
       final q = await newCache(container: container, namespace: '50%25');
@@ -687,7 +662,6 @@ void main() {
       var calls = 0;
       final cache = Cacheman(
         container: nextContainer(),
-        path: tempDir.path,
         options: CachemanOptions(serialize: (e) {
           if (calls++ == 0) throw StateError('once');
           return defaultSerialize(e);
@@ -699,7 +673,9 @@ void main() {
       expect(cache.read<int>('a'), isNull);
     });
 
-    test('purge() leaves raw values alone even if they look like an expired entity', () async {
+    test(
+        'purge() leaves raw values alone even if they look like an expired entity',
+        () async {
       final e = await newCache(raw: true);
       const lookalike = '{"value":"x","createdAt":1,"expireAt":2}';
       e.write('k', lookalike);
@@ -707,32 +683,37 @@ void main() {
       expect(e.read<String>('k'), lookalike);
     });
 
-    test('readonly treats a stored null as present and does not slide-renew', () async {
+    test('readonly treats a stored null as present and does not slide-renew',
+        () async {
       final e = await newCache(readonly: true);
       e.write<dynamic>('k', null);
       e.write('k', 'second');
       expect(e.read<dynamic>('k'), isNull);
     });
 
-    test('readonly write attempt does not extend the old value lifetime (sliding)', () async {
+    test(
+        'readonly write attempt does not extend the old value lifetime (sliding)',
+        () async {
       final e = await newCache(readonly: true, sliding: true);
       e.write('k', 'v', ttl: 1000);
-      final before = (jsonDecode(e.container.read<String>(e.storageKey('k'))!) as Map)['expireAt'];
+      final before = (jsonDecode(e.container.read<String>(e.storageKey('k'))!)
+          as Map)['expireAt'];
       await Future<void>.delayed(const Duration(milliseconds: 150));
       e.write('k', 'other', ttl: 1000);
-      final after = (jsonDecode(e.container.read<String>(e.storageKey('k'))!) as Map)['expireAt'];
+      final after = (jsonDecode(e.container.read<String>(e.storageKey('k'))!)
+          as Map)['expireAt'];
       expect(after, before);
     });
 
     test('keyCodec encodes keys independently of the value codec', () async {
       final cache = Cacheman(
         container: nextContainer(),
-        path: tempDir.path,
         options: CachemanOptions(enckey: true, keyCodec: FakeCodec()),
       );
       await cache.ensureInitialized();
       cache.write('token', 'abc');
-      expect(cache.container.getKeys<Iterable<dynamic>>().map((k) => k.toString()), isNot(contains('token')));
+      expect(cache.container.keys.map((k) => k.toString()),
+          isNot(contains('token')));
       expect(cache.read<String>('token'), 'abc');
       expect(cache.keys(), ['token']);
     });
@@ -779,19 +760,22 @@ void main() {
     });
 
     test('unsupported objects still throw', () {
-      expect(() => Jsonx.encode(Object()), throwsA(isA<JsonUnsupportedObjectError>()));
+      expect(() => Jsonx.encode(Object()),
+          throwsA(isA<JsonUnsupportedObjectError>()));
     });
   });
 
-  group('Cacheman() — real get_storage integration', () {
-    test('ls persists via get_storage', () async {
-      final cache = await _ready(Cacheman(container: 'cacheman_test_ls', path: tempDir.path));
+  group('Cacheman() — default memory integration', () {
+    test('ls shares data via named memory', () async {
+      final cache = await _ready(Cacheman(container: 'cacheman_test_ls'));
       cache.write('a', 'persisted');
       expect(cache.read<String>('a'), 'persisted');
     });
 
-    test('ls.key(index)/length walk get_storage directly without materializing keys()', () async {
-      final cache = await _ready(Cacheman(container: 'cacheman_test_ls_key', path: tempDir.path));
+    test(
+        'ls.key(index)/length walk memory directly without materializing keys()',
+        () async {
+      final cache = await _ready(Cacheman(container: 'cacheman_test_ls_key'));
       cache.write('a', 1);
       cache.write('b', 2);
       cache.write('c', 3);
@@ -806,7 +790,7 @@ void main() {
     });
 
     test('setNamespace switches ls', () async {
-      final cache = await _ready(Cacheman(container: 'cacheman_test_ns', path: tempDir.path));
+      final cache = await _ready(Cacheman(container: 'cacheman_test_ns'));
       cache.write('token', 'v1');
       cache.setNamespace('alice');
       expect(cache.read<String>('token'), isNull);
@@ -814,7 +798,7 @@ void main() {
 
     group('fast / lazy / batchFast', () {
       test('fast binds a key and forwards get/set/remove', () async {
-        final cache = await _ready(Cacheman(container: 'cacheman_test_fast', path: tempDir.path));
+        final cache = await _ready(Cacheman(container: 'cacheman_test_fast'));
         final token = fast<String>(cache, 'token');
         token.set('abc');
         expect(token.get(), 'abc');
@@ -823,8 +807,9 @@ void main() {
         expect(token.get('def'), 'def');
       });
 
-      test('lazy only builds the accessor on first call, then reuses it', () async {
-        final cache = await _ready(Cacheman(container: 'cacheman_test_lazy', path: tempDir.path));
+      test('lazy only builds the accessor on first call, then reuses it',
+          () async {
+        final cache = await _ready(Cacheman(container: 'cacheman_test_lazy'));
         final tokenLazy = lazy<String>(cache, 'token');
         final a = tokenLazy();
         final b = tokenLazy();
@@ -832,7 +817,8 @@ void main() {
       });
 
       test('batchFast binds several keys at once', () async {
-        final cache = await _ready(Cacheman(container: 'cacheman_test_batch_fast', path: tempDir.path));
+        final cache =
+            await _ready(Cacheman(container: 'cacheman_test_batch_fast'));
         final accessors = batchFast<String>(cache, ['a', 'b']);
         accessors['a']!.set('1');
         accessors['b']!.set('2');
@@ -842,19 +828,22 @@ void main() {
     });
 
     group('debug()', () {
-      test('returns every owned entry decrypted, namespace preserved', () async {
+      test('returns every owned entry decrypted, namespace preserved',
+          () async {
         final cache = await _ready(Cacheman(
           container: 'cacheman_test_debug',
-          path: tempDir.path,
-          options: CachemanOptions(namespace: 'ns', enckey: true, codec: FakeCodec()),
+          options: CachemanOptions(
+              namespace: 'ns', enckey: true, codec: FakeCodec()),
         ));
         cache.write('a', 1);
         cache.write('b', 2);
         expect(debug(cache), {'ns:a': 1, 'ns:b': 2});
       });
 
-      test('does not write anything back — keys()/length stay unaffected', () async {
-        final cache = await _ready(Cacheman(container: 'cacheman_test_debug_noop', path: tempDir.path));
+      test('does not write anything back — keys()/length stay unaffected',
+          () async {
+        final cache =
+            await _ready(Cacheman(container: 'cacheman_test_debug_noop'));
         cache.write('a', 1);
         debug(cache);
         expect(cache.length, 1);
@@ -879,8 +868,8 @@ class _Wrap {
 }
 
 /// Plain forwarding subclass: no overridden primitives, so it must keep the
-/// default get_storage behavior (shared hub, watch, incremental index).
-/// 只转发构造参数的子类：未覆写原语，必须保留默认 get_storage 行为。
+/// default memory behavior (shared hub, watch, incremental index).
+/// 只转发构造参数的子类：未覆写原语，必须保留默认内存行为。
 class _Forwarding extends Cacheman {
-  _Forwarding({super.container, super.path});
+  _Forwarding({super.container});
 }

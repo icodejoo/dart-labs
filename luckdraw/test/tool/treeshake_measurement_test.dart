@@ -17,6 +17,12 @@ const String _recheckPath = 'tool/treeshake/recheck_measurement.json';
 /// 已登记预算的包内路径。
 const String _budgetsPath = 'tool/treeshake/budgets.json';
 
+/// 本轮 CI 校准记录；首轮实测字段继续保留历史值。
+const String _ciCalibration = '_ciCalibration';
+
+/// CI 日志记录的实测字节数。
+const String _measuredBytes = 'measuredBytes';
+
 /// Web 后端名。
 const String _web = 'web';
 
@@ -96,6 +102,13 @@ void main() {
       final report = _readJson(_reportPath);
       final budgetJson = _readJson(_budgetsPath);
       final budgets = parseBudgets(jsonEncode(budgetJson));
+      final calibration = budgetJson[_ciCalibration]! as Map<String, Object?>;
+      final ciProbes = calibration[_web]! as Map<String, Object?>;
+      expect(calibration['date'], '2026-11-13');
+      expect(calibration['runId'], 43264055196);
+      expect(
+          calibration['headSha'], 'ee74a54f45675270da966293592b57006db37ed0');
+      expect(ciProbes.keys, unorderedEquals(kTreeshakeProbes));
       final probes = report[_probes]! as Map<String, Object?>;
       final baseline = _record(probes, _baseline);
       expect(probes.keys.toSet(), kTreeshakeProbes.toSet());
@@ -124,7 +137,17 @@ void main() {
             dartDelta,
             (measured[_dartGzip]! as int) -
                 (comparisonBaseline[_dartGzip]! as int));
-        expect(budgets[_web]![probe], (dartDelta * _margin).ceil(),
+        final previousBudget = (dartDelta * _margin).ceil();
+        final ciRecord = _record(ciProbes, probe);
+        final ciMeasured = ciRecord[_measuredBytes]! as int;
+        expect(ciRecord['previousBudgetBytes'], previousBudget, reason: probe);
+        expect(
+            budgets[_web]![probe],
+            ciMeasured > previousBudget
+                ? (ciMeasured * _margin).ceil()
+                : previousBudget,
+            reason: probe);
+        expect(checkBudget(probe, ciMeasured, budgets[_web]![probe]), isEmpty,
             reason: probe);
         expect(entry[_gnuLimit], (delta * _margin).ceil(), reason: probe);
         expect(checkBudget(probe, delta, entry[_gnuLimit]! as int), isEmpty);
