@@ -80806,7 +80806,7 @@ for(s=0;s<5;++s){r=B.Id[s]
 p.push(new A.jV(r.a,r.b,r.c,r.f,new A.a3w(r),q,"\u63a2\u7d22"))}p.push(new A.jV("presenters","UI backends","UI \u540e\u7aef",B.Gi,new A.a3x(),q,"\u63a2\u7d22"))
 p.push(new A.jV("setup","Setup","\u63a5\u5165\u8bf4\u660e",B.Gc,new A.a3y(),q,"\u63a2\u7d22"))
 p.push(new A.jV("diagnostics","Queue diagnostics","\u961f\u5217\u8bca\u65ad",B.oy,new A.a3z(),"Benchmarks","\u538b\u6d4b"))
-return new A.wD("layerman","1.0.3",p,"https://pub.dev/packages/layerman","https://github.com/icodejoo/dart-labs/tree/layerman/layerman","https://github.com/icodejoo/dart-labs/blob/layerman/layerman/README.md",this.c,null)}}
+return new A.wD("layerman","1.0.4",p,"https://pub.dev/packages/layerman","https://github.com/icodejoo/dart-labs/tree/layerman/layerman","https://github.com/icodejoo/dart-labs/blob/layerman/layerman/README.md",this.c,null)}}
 A.a3w.prototype={
 $1(a){return new A.nx(this.a,null)},
 $S:113}
