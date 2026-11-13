@@ -1,3 +1,7 @@
+## 0.8.1
+
+- Docs: pubspec `homepage` and `repository` now point to the package directory on the `main` branch.
+
 ## 0.8.0
 
 - Internal: sync and async share one decision core; behaviour unchanged.

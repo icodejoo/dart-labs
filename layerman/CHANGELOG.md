@@ -1,3 +1,7 @@
+## 1.0.4
+
+- Docs: pubspec `homepage` and `repository` now point to the package directory on the `main` branch.
+
 ## 1.0.3
 
 - Shorten the pubspec description to meet the pub.dev length limit.
