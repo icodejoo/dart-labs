@@ -1,9 +1,6 @@
-## 0.2.1
-
-- Fix: macOS builds failed at CodeSign when consuming the package from pub.dev because pub expands the framework's symlinks. The package now ships only `Versions/A`, and the podspec recreates the versioned-bundle symlinks at `pod install`. The archive no longer contains three copies of the binary.
-
 ## Unreleased
 
+- Fix: macOS builds failed at CodeSign when consuming the package from pub.dev because pub expands the framework's symlinks. The package now ships only `Versions/A`, and the podspec recreates the versioned-bundle symlinks at `pod install`. The archive no longer contains three copies of the binary.
 - Fix root viewBox origin, scaling and preserveAspectRatio on the animated (Dart) path, including text dispatch and image-provider rasterization. Root width/height accept unitless and `px` values.
 - `Xvg` / `SvgImageProvider` now route static SVGs containing `<text>` to the Dart engine so the text renders; documents without animations settle after the first frame. Explicit `StaticXvg` still skips text. The whole source follows Dart-path limits (no pattern/marker or tspan/textPath; filters limited to blur). `AnimationDetector.hasAnimations` keeps its meaning.
 - Upgrade usvg to 0.50 (Windows x64 prebuilt 462 KB → 448 KB).
