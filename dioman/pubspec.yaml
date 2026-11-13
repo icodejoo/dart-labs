@@ -1,6 +1,6 @@
 name: dioman
 description: "A Dio-powered request wrapper with an onion pipeline, normalized results, and composable request policies for Dart and Flutter."
-version: 0.8.3
+version: 0.8.4
 homepage: https://github.com/icodejoo/dart-labs/tree/main/dioman
 repository: https://github.com/icodejoo/dart-labs/tree/main/dioman
 issue_tracker: https://github.com/icodejoo/dart-labs/issues

@@ -1,3 +1,7 @@
+## 0.2.6
+
+- Docs: pubspec `homepage` and `repository` now point to the package directory on the `main` branch.
+
 ## 0.2.5
 
 - Docs only: rewrote README wording in plain language and added a Chinese README (README.zh-CN.md).

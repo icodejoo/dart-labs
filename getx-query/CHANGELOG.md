@@ -1,3 +1,7 @@
+## 0.2.1
+
+- Docs: pubspec `homepage` and `repository` now point to the package directory on the `main` branch.
+
 ## 0.2.0
 
 - Upgrade to `flutter_query ^0.11.1` and adapt the GetX bridge to its sealed
