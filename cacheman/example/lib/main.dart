@@ -32,7 +32,7 @@ class CachemanDemoApp extends StatelessWidget {
     locale: locale,
     home: DemoShell(
       project: demoProject,
-      version: '0.8.0',
+      version: '0.8.1',
       pubUrl: demoPubUrl,
       githubUrl: 'https://github.com/icodejoo/dart-labs/tree/main/cacheman',
       readmeUrl:
