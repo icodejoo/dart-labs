@@ -48,7 +48,7 @@ file paths are unsupported. Large animated documents parse on the main thread.
 
 ```yaml
 dependencies:
-  xvg: ^0.1.1
+  xvg: ^0.3.0
 ```
 
 Start the native (Rust) backend once, before the first `Xvg` widget is

@@ -45,7 +45,7 @@ pub 包仍仅支持 native 平台；未附带 web 预编译产物或自动加载
 
 ```yaml
 dependencies:
-  xvg: ^0.1.1
+  xvg: ^0.3.0
 ```
 
 在构建第一个 `Xvg` 组件之前，先启动一次原生（Rust）后端：
