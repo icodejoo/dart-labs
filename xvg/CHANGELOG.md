@@ -1,3 +1,7 @@
+## 0.2.1
+
+- Fix: macOS builds failed at CodeSign when consuming the package from pub.dev because pub expands the framework's symlinks. The package now ships only `Versions/A`, and the podspec recreates the versioned-bundle symlinks at `pod install`. The archive no longer contains three copies of the binary.
+
 ## Unreleased
 
 - **Breaking**: `XvgStatic` renamed to `StaticXvg` and `XvgAnimated` renamed to `AnimatedXvg` (Flutter-style naming; no deprecated aliases). `Xvg` is unchanged.

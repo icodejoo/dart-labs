@@ -41,6 +41,12 @@ migrate_working_dir/
 # （不用 Git LFS——pub 的 git checkout 拉不到 LFS 指针指向的实体文件）。
 # 把它 ignore 掉会静默破坏所有下游。
 
+# Recreated by the podspec at pod install; git/pub ship only Versions/A.
+# podspec 在 pod install 时补建；git/pub 只分发 Versions/A。
+/macos/xvg.framework/Versions/Current
+/macos/xvg.framework/xvg
+/macos/xvg.framework/Resources
+
 # FVM Version Cache
 .fvm/
 /example/web/pkg/

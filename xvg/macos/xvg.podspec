@@ -2,6 +2,8 @@
 # To learn more about a Podspec see http://guides.cocoapods.org/syntax/podspec.html.
 # Run `pod lib lint xvg.podspec` to validate before publishing.
 #
+require 'fileutils'
+
 Pod::Spec.new do |s|
   s.name             = 'xvg'
   s.version          = '0.0.1'
@@ -80,5 +82,36 @@ A new Flutter FFI plugin project.
   # `vendored_frameworks` 一旦跳出 pod 根目录就会静默失效：CocoaPods 既不生成
   # FRAMEWORK_SEARCH_PATHS，也不把它加进 embed 阶段（CocoaPods#7554、
   # CocoaPods#10731），于是 App 构建通过、启动即崩。本次迁移的 iOS 一侧已实测。
+  #
+  # Pub expands symlinks into regular files/directories, which makes codesign
+  # reject a macOS versioned framework. Ship only Versions/A and recreate the
+  # relative links here, including when reached through Flutter's plugin link.
+  # Lock the real binary so concurrent podspec evaluations repair one at a
+  # time, without adding a lock file to the package. Correct links stay intact.
+  #
+  # pub 会把符号链接展开成实体文件/目录，导致 macOS 版本化 framework 在 codesign
+  # 时失败。包里只分发 Versions/A，在此补建相对链接；经 Flutter 插件链接访问也适用。
+  # 锁住真实二进制，确保并发解析 podspec 时逐个修复，不向包内添加锁文件；正确链接不动。
+  framework = File.join(__dir__, 'xvg.framework')
+  binary = File.join(framework, 'Versions/A/xvg')
+  unless File.file?(binary)
+    raise "xvg: missing prebuilt macOS binary at #{binary}; reinstall the xvg package."
+  end
+
+  File.open(binary, 'rb') do |lock|
+    lock.flock(File::LOCK_EX)
+    {
+      'Versions/Current' => 'A',
+      'xvg' => 'Versions/Current/xvg',
+      'Resources' => 'Versions/Current/Resources'
+    }.each do |relative_path, target|
+      path = File.join(framework, relative_path)
+      next if File.symlink?(path) && File.readlink(path) == target
+
+      FileUtils.rm_rf(path)
+      File.symlink(target, path)
+    end
+  end
+
   s.vendored_frameworks = 'xvg.framework'
 end

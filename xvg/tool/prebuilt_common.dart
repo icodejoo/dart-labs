@@ -391,17 +391,16 @@ const String kMacosFramework = '../macos/xvg.framework';
 ///
 /// macOS framework bundle 内的两个真实文件，以清单键形式给出。
 ///
-/// A macOS framework is a *versioned* bundle: besides these two files it also
-/// contains three symlinks (`Versions/Current`, `xvg`, `Resources`) that
-/// `codesign` requires. Symlinks are deliberately NOT hashed — a Windows
-/// checkout materialises them as plain text files, so hashing them would make
-/// the manifest host-dependent. Their presence is verified by the macOS CI
-/// build instead, which is the only thing that can actually prove the layout.
+/// Only these real files ship in git/pub: pub expands symlinks into duplicate
+/// files/directories, which codesign rejects. The podspec recreates the three
+/// required links (`Versions/Current`, `xvg`, `Resources`) at `pod install`.
+/// Neither the manifest nor the checker requires generated links; macOS CI
+/// verifies the versioned layout of the embedded framework after building.
 ///
-/// macOS framework 是*版本化* bundle：除这两个文件外还有三个 `codesign` 必需的符号
-/// 链接（`Versions/Current`、`xvg`、`Resources`）。符号链接刻意不参与哈希——Windows
-/// 检出会把它们落成普通文本文件，纳入哈希会让清单依赖宿主。它们的存在改由 macOS CI
-/// 构建校验，那也是唯一能真正证明布局正确的手段。
+/// git/pub 只分发这两个真实文件：pub 会把符号链接展开成重复的实体文件/目录，被
+/// codesign 拒绝。podspec 在 `pod install` 时补建三个必需的链接（`Versions/Current`、
+/// `xvg`、`Resources`）。清单与校验不要求生成链接存在；macOS CI 在构建后检查嵌入
+/// framework 的版本化结构。
 const List<String> kMacosFrameworkFiles = <String>[
   '$kMacosFramework/Versions/A/$kMacosFrameworkName',
   '$kMacosFramework/Versions/A/Resources/Info.plist',
