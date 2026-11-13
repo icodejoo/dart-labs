@@ -872,9 +872,9 @@ class _SvgImageStreamCompleter extends ImageStreamCompleter {
     if (!hasListeners && !_disposed) _pause();
   }
 
-  /// Routes SVG text to a static or animated renderer. / 将 SVG 文本分流到静态或动画渲染。
+  /// Routes animations and text elements to Dart. / 将动画和文字元素交给 Dart 渲染。
   void _start(String source) {
-    if (AnimationDetector.hasAnimations(source)) {
+    if (AnimationDetector.needsDartEngine(source)) {
       _startAnimated(source);
     } else {
       unawaited(_emitStatic(source));
@@ -924,6 +924,7 @@ class _SvgImageStreamCompleter extends ImageStreamCompleter {
           final painter = AnimatedSvgPainter(
             root: document.root,
             intrinsicSize: intrinsicSize,
+            rootViewBoxTransform: document.rootViewBoxTransform,
             clock: clock,
             theme: theme ?? const XvgTheme(),
             fit: BoxFit.contain,

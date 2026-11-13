@@ -999,6 +999,9 @@ class RustXvgPictureCache {
 /// 缓存生成的 [ui.Picture]，此后每次重建直接重放。适用于不含 `<animate>`/CSS
 /// keyframes 的 SVG——需要自动判定走哪条渲染路径请用 [Xvg]。
 ///
+/// This explicit Rust path skips `<text>`; use Xvg or AnimatedXvg for text.
+/// 此显式 Rust 路径跳过 `<text>`；含文字的源请用 Xvg 或 AnimatedXvg。
+///
 /// Example:
 /// ```dart
 /// StaticXvg('<svg ...>...</svg>', width: 48, height: 48)

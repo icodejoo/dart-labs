@@ -276,15 +276,15 @@ class _RemoteStringIconState extends State<RemoteStringIcon> {
 | `colorFilter` | `null` | Flutter `ColorFilter` applied on both paths. Animated sources add a `ColorFiltered` layer only when a filter is supplied. |
 | `theme` | `null` | `XvgTheme(currentColor: …)`; resolves the SVG `currentColor` keyword (default opaque black). |
 | `pixelSnap` | `XvgPixelSnap.auto` | Composition-time alignment of the viewport to physical pixels. `auto` only for mask/clip documents; `always` / `never` override. |
-| `quality` | `null` (uses `XvgAnimationQuality.defaultQuality`) | Animation throughput/fidelity trade-off. Ignored by static sources. |
+| `quality` | `null` (uses `XvgAnimationQuality.defaultQuality`) | Animation throughput/fidelity trade-off. Ignored on the Rust path. |
 | `controller` | `null` | Shared `XvgAnimationController`. Mutually exclusive with `animation`; leave `playbackRate` at 1.0 and set the controller's rate instead. |
 | `animation` | `null` | Flutter `Animation<double>` drives document time (`value × animationSpan`). |
 | `animationSpan` | `null` | Span mapped to `animation`'s 0..1; `null` uses the document's natural duration. |
 | `autoplay` | `true` | Start implicit playback (no `controller`/`animation`). Must stay `true` with `animation`. |
 | `playbackRate` | `1.0` | Finite signed speed for implicit playback; negative reverses, `0` pauses. Must stay `1.0` with `controller` or `animation`. |
-| `fps` | `null` | null follows `Xvg.fps`; positive caps sampling/repaints; 0 freezes at the first frame; `double.infinity` is unlimited and ignores global. Ignored with `animation` and static sources. |
-| `onLoaded` | `null` | Animated source (and its embedded images) ready, with `XvgAnimationInfo`. Never called for static sources. |
-| `onError` | `null` | Receives load/parse/span failures. Static failures are reported after the frame, once per source/theme change. |
+| `fps` | `null` | null follows `Xvg.fps`; positive caps sampling/repaints; 0 freezes at the first frame; `double.infinity` is unlimited and ignores global. Ignored with `animation` and on the Rust path. |
+| `onLoaded` | `null` | Dart-rendered source (including animation-free text) and its embedded images ready, with `XvgAnimationInfo`. Never called on the Rust path. |
+| `onError` | `null` | Receives load/parse/span failures. Rust-path failures are reported after the frame, once per source/theme change. |
 | `errorBuilder` | `null` | Replacement content on failure (`ImageErrorWidgetBuilder`, like `Image.errorBuilder`). |
 | `onEvent` | `null` | Playback and element begin/end/repeat events (`XvgAnimationEvent`). |
 | `onAnimationStart` / `onAnimationComplete` / `onAnimationLoop` | `null` | First tick / natural finite completion / known loop crossings (iteration starts at one). Not called with `animation`. |
@@ -373,6 +373,7 @@ What to know:
 * Detection is a plain text match, not a semantic check. A static SVG that
   merely contains a `<set>` tag or an unused `@keyframes` rule is still routed to
   the animated engine (it renders correctly, just not on the Rust path).
+  A `<text>` element also selects the Dart engine, even without animations.
   Use `StaticXvg` / `AnimatedXvg` to pick a path explicitly.
 * Animated documents play implicitly (`autoplay: true`, rate `1.0`), follow
   `TickerMode` (paused when every widget using a clock is disabled; `Offstage`
@@ -382,8 +383,8 @@ What to know:
   `AnimationController`) instead of implicit playback; see
   [Animation playback](#animation-playback).
 * `onLoaded`, `onEvent`, `quality`, `fps`, `autoplay` and the controller /
-  animation / callback parameters only matter for animated sources; a static
-  source ignores them and attaches no listeners or controllers.
+  animation / callback parameters are forwarded on the Dart path, including
+  text sources; the Rust path ignores them and attaches no listeners or controllers.
 * `colorFilter` and `theme` work the same on both paths.
 
 ### Errors and placeholders
@@ -404,12 +405,12 @@ Widget safeIcon(String svg) => Xvg.string(
 
 * `errorBuilder` builds the replacement content; `onError` only reports. Give
   either or both.
-* **Static source, no handler:** a parse failure renders an empty box of
+* **Rust-path source, no handler:** a parse failure renders an empty box of
   `width` x `height` silently. Pass `onError`/`errorBuilder` so a broken
   asset is not mistaken for an invisible icon.
-* **Static source, only `onError`:** an empty box is shown and `onError` runs
+* **Rust-path source, only `onError`:** an empty box is shown and `onError` runs
   after the frame, once per failing source/theme change (not on every rebuild).
-* **Animated source, no handler:** the failure is reported through
+* **Dart-path source (including text), no handler:** the failure is reported through
   `FlutterError.reportError` and an empty box is shown.
 * `Xvg.asset` / `.network` / `.file`: load failures call `onError` /
   `errorBuilder`; with neither supplied, the original error is rethrown from
@@ -623,10 +624,10 @@ class _ControlledIconState extends State<ControlledIcon> {
 }
 ```
 
-Static sources ignore animation-only parameters and callbacks, including
+Rust-path sources ignore animation-only parameters and callbacks, including
 `onLoaded` and `onEvent`; they do not attach a controller or animation listener.
 `onError` and `errorBuilder` handle both static and animated parse failures.
-Static `onError` runs after the frame, once per failed source/theme change.
+Rust-path `onError` runs after the frame, once per failed source/theme change.
 Asset/network/file loading failures use either supplied handler; callback-only
 handling shows an empty sized box. With neither handler, load failures still
 propagate to the ambient `ErrorWidget.builder`. `errorBuilder` receives the
@@ -866,6 +867,19 @@ Everything exported by `package:xvg/xvg.dart`:
 
 ## Notes and limits
 
+* **`<text>`**: `Xvg` and `SvgImageProvider` automatically route the entire
+  source to the Dart engine, even without animations; it settles after rendering
+  and does not keep ticking. Explicit `StaticXvg` still skips text. The Dart path
+  has no pattern/marker, tspan/textPath or embedded fonts; filters support only
+  blur (including the limited transparent Figma prefix chain). See
+  [engine limits](doc/animation-engine-features.md). Text sources follow Dart
+  loading/error behavior; animation-free text calls `onLoaded` with zero duration.
+  Intrinsic viewport sizing accepts unitless or `px` width/height, then falls
+  back to the valid viewBox size, then 24 per missing axis; other units and
+  percentages count as missing. Root viewBox origins, scaling and
+  preserveAspectRatio (`none`, all nine alignments, `meet`/`slice`) are applied
+  before widget fit/alignment, with viewport clipping. `<use>` targets that
+  are symbols or nested SVGs still use the documented group simplification.
 * **Static `<image href>`**: only embedded `data:` URIs are decoded. Local
   paths, UNC paths and `file://` are never read, and `data:image/svg+xml` is
   skipped. This is a behavior change from the default `usvg` resolver.
