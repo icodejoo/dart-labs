@@ -1,3 +1,7 @@
+## 0.6.6
+
+- Docs: pubspec `homepage` and `repository` now point to the package directory on the `main` branch.
+
 ## 0.6.5
 
 - Docs only: rewrote README wording in plain language.

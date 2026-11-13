@@ -55,7 +55,7 @@ class CountmanDemoApp extends StatelessWidget {
     locale: locale,
     home: DemoShell(
       project: 'countman',
-      version: '0.3.2',
+      version: '0.3.3',
       pubUrl: 'https://pub.dev/packages/countman',
       githubUrl: 'https://github.com/icodejoo/dart-labs/tree/main/countman',
       readmeUrl:
