@@ -33,6 +33,7 @@ Future<ByteData> renderDoc(
   AnimatedSvgPainter(
     root: document.root,
     intrinsicSize: Size(document.width, document.height),
+    rootViewBoxTransform: document.rootViewBoxTransform,
     clock: ValueNotifier(time),
     theme: const XvgTheme(),
     fit: BoxFit.fill,

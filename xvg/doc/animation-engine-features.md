@@ -8,7 +8,8 @@
 
 ## 结论速览
 
-- **静态路径**:usvg 解析,支持形状/渐变/clip/mask/pattern/内嵌位图;**不渲染 `<text>`**,filter 只有 `feGaussianBlur`,mask/blur 不嵌套。
+- **静态路径**:usvg 解析,支持形状/渐变/clip/mask/pattern/内嵌位图;仍不渲染 `<text>`,但 **`Xvg`/`SvgImageProvider` 会将含 `<text>` 的源自动交给 Dart 引擎**（无动画时静止）；显式 `StaticXvg` 仍跳过文字。filter 只有 `feGaussianBlur`,mask/blur 不嵌套。
+- **文字源的自动分发限制**:整个源改走 Dart 路径，因此不支持 pattern/marker，filter 只支持 blur（单个 `feGaussianBlur`、单独 CSS blur 及下文限定的透明 Figma 前缀链），无 `<tspan>`/textPath/嵌入字体；其它限制以本文件“动画路径”章节为准。
 - **动画路径**:原创 SMIL 引擎 + SVGator CSS 导出子集;支持 begin 值列表、`#rgba`、组 opacity 合成;**不支持** `accumulate`、事件类 begin、`<tspan>`/textPath。
 - **安全边界**:静态路径有输入/嵌套/引用链/CSS/展开预算,超限返回 Err;`<image href>` 只解析内嵌 `data:` URI。
 - **同步阻塞**:`parse_svg` 是同步 FRB 调用,不可信 SVG 建议放后台 isolate(见"其它展开预算与同步解析")。
@@ -32,10 +33,15 @@
 
 **不支持 / 已牺牲**:
 
-- **`<text>` 完全不渲染**(2026-08-26,体积优先的刻意取舍):
+- **静态路径仍不渲染 `<text>`，入口自动分发补足文字**(体积优先的刻意取舍):
   - `usvg` 依赖改为 `default-features = false` 关闭了 `text`/`system-fonts`/`memmap-fonts`,静态路径的 `<text>` 被静默跳过,不产生任何路径几何,不报错。
   - 换来 release DLL 体积从 1.052MiB 降到 0.468MiB(−55.5%)。详细调研见 `doc/size-optimization-history.md`。
-  - 动画路径的 `<text>`(独立 `TextPainter` 实现)不受影响。
+  - `Xvg`/`SvgImageProvider` 将含 `<text>` 的整个源自动交给 Dart 引擎，以独立 `TextPainter` 实现文字；无动画的文档渲染后静止，不持续占用 ticker 或安排 provider 帧。
+  - 显式 `StaticXvg` 只走 Rust，仍静默跳过文字；含文字时请用 `Xvg` 或 `AnimatedXvg`。
+  - 自动分发后的源适用下文“动画路径”的全部边界：无 pattern/marker，filter 仅支持 blur 及限定的透明 Figma 前缀链，无 `<tspan>`/textPath、嵌入 `@font-face` 字体等。它不会将文字与其余 Rust 渲染内容混合。
+  - `currentColor`/theme、colorFilter、width/height、fit/alignment/pixelSnap 继续传递；provider 使用同一尺寸与 scale 计算。文字源现在触发 Dart 路径的 `onLoaded`（零时长），默认隐式控制器短暂初始化后自动 settle；显式外部驱动仍由调用者管理。
+  - **根视口映射**：Dart 固有宽高是 viewport 尺寸，接受无单位数字或 `px`，其它单位/百分比按缺失处理；每轴依次回退到有效 viewBox 的对应宽高、24。viewBox 必须是四个有限数字且宽高 >0，否则视为缺失。根 viewBox 原点、缩放及 preserveAspectRatio 已完整应用：支持 `none`、9 种对齐、`meet`/`slice`，缺省/非法值为 `xMidYMid meet`。先裁剪到 viewport，再变换用户坐标；外层 widget fit/alignment 在此基础上叠加。仅适用于根元素，`<use>`→symbol/嵌套 svg 的组简化不变。实现按 [SVG 2 §8.2](https://www.w3.org/TR/SVG2/coords.html#ComputingAViewportsTransform)；零宽高 viewBox 按本库约定视为缺失。
+  - `onError` 仍在帧后通知，配置的 errorBuilder 生效；未配置错误处理时沿用 Dart 路径的空盒子及 FlutterError 上报。小源同步解析，大源或内嵌图片就绪前显示 Dart 路径的尺寸占位；theme 变化重绘，不重新解析或重复报告同一解析错误。
 - **filter 只做 `feGaussianBlur`**:`feColorMatrix`/`feComposite`/`feOffset`/`feBlend`/`feDropShadow`/光照类图元等全部列为后续工作,当前一律不生效(不是画错,是不画)。多图元滤镜链同样整体忽略。
 - **mask/blur 是"最近祖先优先",不支持嵌套叠加**:真要嵌套需要完整的图层树,而扁平显示列表刻意不做这层结构。多层祖先都声明 mask/filter 时只有最内层生效。clip **不受此限**——多个祖先的裁剪会正确求交集。
 - **clip 内部的形状按并集处理**:把一个 `<clipPath>` 的所有子形状塞进同一条 `ui.Path`。重叠 + 反向绕向的极端情况下,非零环绕规则的结果与真正的布尔并集可能不同。
@@ -126,6 +132,8 @@
 ## 动画路径(原创 SMIL 引擎,`lib/src/animation/`)
 
 **元素**:`<svg>`/`<g>`(含 `transform`)/`<path>`/`<circle>`/`<rect>`(含 `rx`/`ry`)/`<ellipse>`/`<line>`/`<polyline>`/`<polygon>`/`<use>`/`<text>`/`<image>`/`<linearGradient>`/`<radialGradient>`/`<clipPath>`/`<mask>`。
+
+不支持 `<pattern>` 或 `<marker>`；含文字的静态源自动走本路径时也适用。
 
 **SMIL 动画**:
 
@@ -324,6 +332,8 @@
   - 与组 opacity 改动无关,为原有限制。现状用例为 `group_opacity_test.dart` 的 `knownLimitation` 测试;`css_animation_pixel_test.dart` 原有 255 断言保持不动。
 - **mask 区域**:未读取 SVG 的 `maskUnits`/`x`/`y`/`width`/`height`,即不按官方默认的 bbox ±10%/120% 去**裁剪** mask 区域;mask 内容画到哪里就覆盖到哪里。
   - 曾有"按 mask 内容自身几何边界分配离屏图层"的无损优化(`tightMaskLayerBounds`),已评估并否决,见下文。
+  - `maskContentUnits`/`clipPathUnits` 的 `objectBoundingBox` 换算尚未实现，内容按用户坐标解释；默认/显式 `userSpaceOnUse` 内容会继承根 viewBox 映射。根映射不改变这个既有限制，也不改变基于元素几何 bbox 的渐变计算。
+- **`<image>`**：位置和尺寸会继承根映射；图片自身的 preserveAspectRatio 仍未实现（目标矩形拉伸），不是根视口支持的一部分。
 
 ### 高并发下的故意有损降级(`XvgAnimationQuality`)
 
@@ -352,7 +362,7 @@
 
 - `XvgPixelSnap.auto` 为所有 SVG widget 入口默认值：动画直接读取文档 masks/clipPaths 注册表，静态在 picture 缓存未命中的共用录制出口读取 paths.effects 的 clips/mask 并保存布尔值；不扫描 SVG 源文本、不新建正则。静态未引用的定义可被解析器消去，不视为风险。
 - `always` 对所有文档启用；`never` 关闭。auto 无风险及 never 直接保留原 RepaintBoundary，不增加渲染对象或图层。ImageProvider 输出整像素图像，不提供此参数。
-- 目标为 painter 实际绘制视口，不是 widget 外框：两条 painter 和 boundary 布局共享固有尺寸、BoxFit、alignment 的计算。preserveAspectRatio 在各渲染路径内部的既有语义不变；SVG 内部的 viewBox 内容留白不当作新的外层视口。
+- 目标为 painter 实际绘制视口，不是 widget 外框：两条 painter 和 boundary 布局共享固有 viewport 尺寸、BoxFit、alignment 的计算。根 preserveAspectRatio 在 painter 内部应用；SVG 内部的 viewBox 内容留白不当作新的外层视口。painter 的 mask/clip 不另做逐路径像素取整，统一继承根矩阵和外层合成修正。
 - 仅在经审计的祖先层链上支持平移、轴对齐正缩放（含根 DPR）。物理原点、宽高取最近整数，半像素原点取下界、尺寸取上界；边缘视觉修正 <1 物理像素，布局、点击和语义仍按原位置。连续移动/缩放可能有像素栅格跳变；小于半物理像素、非有限几何回退。
 - 精确类型白名单：OffsetLayer、OpacityLayer、ImageFilterLayer、TransformLayer、PixelSnapLayer、ContainerLayer、ClipRectLayer、ClipRRectLayer、ClipRSuperellipseLayer、ClipPathLayer、ColorFilterLayer、ShaderMaskLayer、BackdropFilterLayer，以及 AnnotatedRegionLayer 的 SystemUiOverlayStyle、MouseCursor、Object、String、int、double、bool 泛型实例。Dart 没有任意泛型类的精确反射；其他实例类型保守回退，不按类型名猜测。已知类的未知子类同样回退。
 - 旋转、斜切、反射、透视、未知祖先及 Leader/Follower 祖先回退为普通 offset。后代链接可通过 applyTransform 读取本帧实际修正；图层注释查找使用同一矩阵的逆变换，嵌套对齐使用父层本帧矩阵。
@@ -362,7 +372,7 @@
 
 ### Dart 加载与 Widget 生命周期
 
-- `Xvg` 按源串缓存 SMIL/CSS 动画检测结果;动画与静态路径均应用 `colorFilter`,动画未设置滤镜时不添加包装层。
+- `Xvg`/`SvgImageProvider` 按 SMIL/CSS 动画或 `<text>` 分发，两个检测结论共用一次扫描和短源缓存（超过 4096 字符不缓存），`hasAnimations` 单独遇到文字仍返回 false；`clearMemo` 同时清空两个结论。两条路径均应用 `colorFilter`，Dart 路径未设置滤镜时不添加包装层。
 - 网络源按 URL 与排序后的 headers 比较,文件源按路径比较;替换加载期间继续显示上次成功内容。
 - 源缓存区分 asset/bundle、file、network 与请求头,并合并同键在途请求。网络连接和响应头等待各有 30 秒超时。
 - `XvgTheme` 按全部字段值比较,避免相同主题触发图片缓存失效和多余重绘。

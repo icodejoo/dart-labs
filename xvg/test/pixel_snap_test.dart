@@ -178,6 +178,39 @@ void main() {
 
   for (final animated in [false, true]) {
     final path = animated ? 'animated' : 'static';
+    testWidgets('$path root viewBox origin/scale keeps viewport snapping', (
+      tester,
+    ) async {
+      _view(tester);
+      final mapped = _svg
+          .replaceFirst('viewBox="0 0 24 24"', 'viewBox="50 50 48 48"')
+          .replaceFirst(
+            '<defs>',
+            '<g transform="translate(50 50) scale(2)"><defs>',
+          )
+          .replaceFirst('</svg>', '</g></svg>');
+      // Capture the full scene so composition-time correction is included.
+      // 读取完整场景，把合成阶段修正纳入像素比较。
+      final reference = <int>[];
+      for (final source in [_svg, mapped]) {
+        await tester.pumpWidget(
+          _scene(_icon(animated, XvgPixelSnap.auto, source: source)),
+        );
+        await tester.pumpAndSettle();
+        final snap = _layers(tester).whereType<PixelSnapLayer>().single;
+        expect(snap.viewport.left, closeTo(0, _epsilon));
+        expect(snap.viewport.top, closeTo(0, _epsilon));
+        expect(snap.viewport.width, closeTo(_iconExtent, _epsilon));
+        expect(snap.viewport.height, closeTo(_iconExtent, _epsilon));
+        final pixels = await _pixels(tester);
+        expect(snap.debugDidSnap, isTrue, reason: snap.debugSkipReason);
+        if (reference.isEmpty) {
+          reference.addAll(pixels);
+        } else {
+          expect(pixels, reference);
+        }
+      }
+    });
     for (final translate in [false, true]) {
       testWidgets(
         '$path ${translate ? 'parent translate' : 'fractional still'} 184 to zero',

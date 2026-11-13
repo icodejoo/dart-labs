@@ -1,5 +1,6 @@
 import 'css_chars.dart';
 import 'css_stylesheet.dart';
+import 'number_syntax.dart';
 
 /// 在顶层逗号处分隔列表，忽略空项。
 ///
@@ -78,14 +79,11 @@ List<String> _split(String value, {required bool comma}) {
   return result;
 }
 
-/// 有单位时间及普通数值的语法。
-const _numberSyntax = r'[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?';
-
 /// 有单位的时间匹配器。
-final _timePattern = RegExp('^($_numberSyntax)(ms|s)\$', caseSensitive: false);
+final _timePattern = RegExp('^($numberSyntax)(ms|s)\$', caseSensitive: false);
 
 /// 普通数值匹配器。
-final _numberPattern = RegExp('^$_numberSyntax\$');
+final _numberPattern = RegExp('^$numberSyntax\$');
 
 /// 解析带秒或毫秒单位的时间。
 ///

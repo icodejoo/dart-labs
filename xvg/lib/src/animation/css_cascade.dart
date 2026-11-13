@@ -1,6 +1,7 @@
 import 'css_animation_values.dart';
 import 'css_chars.dart';
 import 'css_stylesheet.dart';
+import 'number_syntax.dart';
 
 /// 选择器所需的元素视图；属性和父链由调用方提供，返回匹配所需文本。
 ///
@@ -325,7 +326,7 @@ final _varWithFallback = RegExp(
 );
 
 /// 可去掉单位的完整像素数值。
-final _pixels = RegExp(r'^([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)px$');
+final _pixels = RegExp('^($numberSyntax)px\$');
 
 /// 动画简写名称。
 const _animation = 'animation';

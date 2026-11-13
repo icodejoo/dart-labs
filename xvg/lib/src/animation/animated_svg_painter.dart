@@ -70,6 +70,7 @@ class AnimatedSvgPainter extends CustomPainter {
     this.approximateMasks = _neverApproximate,
     this.quality = XvgAnimationQuality.exact,
     this.backgroundColor,
+    this.rootViewBoxTransform,
   }) : super(repaint: clock);
 
   /// Default for [approximateMasks]: never approximate. Keeps every direct
@@ -137,8 +138,18 @@ class AnimatedSvgPainter extends CustomPainter {
   /// The document's root node. / 文档根节点。
   final SvgNode root;
 
-  /// The document's intrinsic (viewBox) size. / 文档固有（viewBox）尺寸。
+  /// The document's intrinsic viewport size. / 文档的固有视口尺寸。
   final Size intrinsicSize;
+
+  /// Root user-to-viewport affine; null means identity.
+  /// 根用户坐标到视口的仿射矩阵；null 表示恒等映射。
+  final List<double>? rootViewBoxTransform;
+
+  /// Expands the root affine once per painter, outside the per-frame work.
+  /// 每个 painter 只展开一次根仿射矩阵，避免逐帧分配。
+  late final _rootViewBoxMatrix = rootViewBoxTransform == null
+      ? null
+      : affineToMatrix4(rootViewBoxTransform!);
 
   /// The animation clock this painter samples. Also drives repaints — see the
   /// constructor.
@@ -158,7 +169,8 @@ class AnimatedSvgPainter extends CustomPainter {
   /// Alignment within the paint box. / 在绘制盒内的对齐方式。
   final Alignment alignment;
 
-  /// 根元素背景色，铺满整个绘制区域（与浏览器一致）；为空则不画。
+  /// Root background fills the paint box before viewport mapping.
+  /// 根背景在视口映射之前铺满绘制盒；为空则不画。
   final Color? backgroundColor;
 
   /// [backgroundColor] 对应的画笔，构造后只建一次，逐帧复用。
@@ -183,9 +195,8 @@ class AnimatedSvgPainter extends CustomPainter {
     // Clip to the SVG viewport before painting anything. Two reasons, the
     // second one measured:
     //
-    //  1. Correctness: the outermost `<svg>` has `overflow: hidden` per the
-    //     SVG spec, so content escaping the viewBox must not paint. The static
-    //     (usvg) path already behaves this way; this path used to not.
+    //  1. Correctness: keep root overflow hidden at the viewport boundary,
+    //     including content enlarged by preserveAspectRatio="slice".
     //  2. Performance — this is why it matters at scale. `_paintNode` opens
     //     `saveLayer` layers for `<mask>` and `feGaussianBlur` with a null
     //     bounds. A null bounds means "unbounded", so the renderer sizes the offscreen
@@ -204,9 +215,8 @@ class AnimatedSvgPainter extends CustomPainter {
     //
     // 绘制任何内容前先裁剪到 SVG 视口。两个原因，第二个是实测得出的：
     //
-    //  1. 正确性：按 SVG 规范，最外层 `<svg>` 的 `overflow` 默认为 hidden，
-    //     超出 viewBox 的内容不应绘制。静态（usvg）路径本来就是这个行为，
-    //     而本路径此前没有。
+    //  1. 正确性：根元素按 viewport 边界隐藏溢出，也裁掉
+    //     preserveAspectRatio="slice" 放大后超出视口的内容。
     //  2. 性能——这才是规模化时的关键。`_paintNode` 会为 `<mask>` 与
     //     `feGaussianBlur` 开 `saveLayer(null, ...)` 图层。bounds 传 null 意味
     //     着"无界"，渲染器于是按*当前裁剪区*来决定离屏渲染目标的尺寸，而
@@ -222,6 +232,10 @@ class AnimatedSvgPainter extends CustomPainter {
     canvas.clipRect(
       Rect.fromLTWH(0, 0, intrinsicSize.width, intrinsicSize.height),
     );
+    // Clip in viewport coordinates, then map every node from user space.
+    // 先在视口坐标中裁剪，再统一映射所有节点的用户坐标。
+    final rootMatrix = _rootViewBoxMatrix;
+    if (rootMatrix != null) canvas.transform(rootMatrix);
     _paintNode(canvas, root, ResolvedStyle.initial);
     canvas.restore();
   }
@@ -1815,6 +1829,8 @@ class AnimatedSvgPainter extends CustomPainter {
       oldDelegate.clock != clock ||
       oldDelegate.time != time ||
       oldDelegate.root != root ||
+      oldDelegate.intrinsicSize != intrinsicSize ||
+      !listEquals(oldDelegate.rootViewBoxTransform, rootViewBoxTransform) ||
       oldDelegate.theme != theme ||
       oldDelegate.fit != fit ||
       oldDelegate.alignment != alignment ||

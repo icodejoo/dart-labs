@@ -228,3 +228,12 @@ canvas.clipRect(Rect.fromLTWH(0, 0, intrinsicSize.width, intrinsicSize.height));
 | `227.svg` | `mask id="ehkAlMQgPna40" mask-type="luminance"`; `g id="ehkAlMQgPna41_to"` 内 `ellipse rx="52.769557" ry="52.769557" fill="#fff" stroke-width="0"` | 0/0/0/2/2/0/2/2 | 16 | 纯白 mask 改用 alpha 语义,8 帧逐字节一致 |
 
 - 控制实验临时关闭本次黑底填充,以独立的 alpha mask 生成参考,结束后恢复修复代码;临时诊断测试和帧数据只保留在仓库外。四个样本的差异均已解释,没有未解释的回归。
+
+### 2026-11-13:动画（Dart）路径根 viewBox 映射缺失
+
+- **现象与根因**：根 viewBox 原先只参与固有宽高回退，未把用户坐标映射到 viewport。`width="200" height="200" viewBox="0 0 100 100"` 的内容只占左上四分之一，非零 minX/minY 导致错位或被裁；含 `<text>` 的静态源自动分流到 Dart 后也会暴露此问题。
+- **修复**：解析根 viewBox 四个有限数字（宽高 >0），根 width/height 只接受无单位或 `px`；每轴缺失/零值依次回退到有效 viewBox 对应宽高、24。按 [SVG 2 §8.2](https://www.w3.org/TR/SVG2/coords.html#ComputingAViewportsTransform) 计算原点、缩放、preserveAspectRatio（none、9 种对齐、meet/slice，缺省/非法值为 xMidYMid meet）。SvgDocument 只新增纯数值仿射列表，恒等映射用 null。Painter 先做 widget fit/alignment、裁剪 viewport，再应用根矩阵；widget 与 ImageProvider 均传递此数据。`<use>`→symbol/嵌套 svg 简化未变。
+- **坐标检查**：pixelSnap 仍对齐外层 viewport，不对齐 viewBox 内容留白；mask/clip 无独立像素取整，用户坐标路径与渐变 bbox 计算自然继承根矩阵。根背景仍先铺满绘制盒。没有元素级几何命中测试或用户坐标事件接口。blur sigma 保持用户单位，经 Canvas CTM 缩放；实测 none 下 2×1 缩放与 Rust 显式 6×3 sigma 对拍通过。内嵌位图的位置/尺寸继承根矩阵，无需另改。
+- **测试**：新增 `root_viewbox_parser_test.dart`、`root_viewbox_pixel_test.dart`，扩展文字分流和 pixelSnap 回归；覆盖合法/非法解析、全部对齐、恒等矩阵快路径、非零原点、缩放、无 viewBox/尺寸的旧行为、外层 fit/alignment、viewport 裁剪、背景、用户坐标 mask/clip、ImageProvider、blur 和图片。主要对拍用同一份无动画无文字 SVG 的真实 StaticXvg / AnimatedXvg；比较全部 RGBA 通道，最大允许差为 2/255，透明区也参与，不跳过边缘。非零原点文字与等价零原点文字逐字节一致；pixelSnap 等价场景也逐字节一致。
+- **参考路径发现的旧问题（本次未改）**：StaticXvg 的 `_RustPicturePainter` 没有根 viewport 裁剪，slice 内容可溢出到 widget fit 的外层留白。slice 对拍因此使用与 SVG viewport 一致的 200×100 输出；另单独逐像素验证 Dart 在 200×200 外层盒的上下留白均透明。usvg 的根映射正确，泄漏发生在 Dart 静态绘制器。maskContentUnits/clipPathUnits 的 objectBoundingBox 换算、maskUnits 区域裁剪和 image 自身 preserveAspectRatio 也仍为既有缺口。
+- **验证**：Windows，Flutter 3.47.0 / Dart 3.13.0，PATH 加入 `prebuilt/windows/x64` 加载已有 usvg 0.50 DLL。`flutter analyze --no-pub`：0 issue；`flutter test --no-pub --reporter expanded`：2006 通过、7 跳过、0 失败；use 预算计时项未失败，无需单独重跑。`.fvmrc` 标记 3.47.1，本机使用现有 3.47.0。Rust、prebuilt、Cargo 文件未新增修改，原工作区改动保留，无 commit。

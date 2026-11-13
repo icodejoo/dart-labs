@@ -110,6 +110,39 @@ void main() {
     timeDilation = 1;
   });
 
+  testWidgets('无动画的文字源走 Dart，只交付一帧且重新监听不会恢复调度', (tester) async {
+    final template = (await tester.runAsync(_templateImage))!;
+    final samples = <Duration>[];
+    final texts = <String?>[];
+    debugSvgRasterize = (painter, width, height, filter) async {
+      final animated = painter as AnimatedSvgPainter;
+      samples.add(animated.time);
+      texts.add(animated.root.children.single.textContent);
+      return template.clone();
+    };
+    final observation = _Observation(
+      '<svg width="4" height="4"><text x="0" y="3" font-size="3">I</text></svg>',
+    );
+    try {
+      await tester.pump();
+      expect(samples, [Duration.zero]);
+      expect(texts, ['I']);
+      expect(observation.delivered, 1);
+      expect(tester.binding.hasScheduledFrame, isFalse);
+      await tester.pump(_longPause);
+      expect(samples, [Duration.zero]);
+      observation.detach();
+      observation.attach();
+      await tester.pump(_longPause);
+      expect(samples, [Duration.zero]);
+      expect(tester.binding.hasScheduledFrame, isFalse);
+      expect(tester.binding.transientCallbackCount, 0);
+    } finally {
+      observation.dispose();
+      template.dispose();
+    }
+  });
+
   testWidgets('finite animation publishes the terminal frame once then stops', (
     tester,
   ) async {

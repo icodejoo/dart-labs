@@ -687,6 +687,7 @@ class _XvgAnimatedState extends State<AnimatedXvg> {
       painter: AnimatedSvgPainter(
         root: document.root,
         intrinsicSize: Size(document.width, document.height),
+        rootViewBoxTransform: document.rootViewBoxTransform,
         clock: _controller.time,
         theme: widget.theme ?? const XvgTheme(),
         fit: widget.fit,

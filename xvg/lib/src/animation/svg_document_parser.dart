@@ -39,6 +39,7 @@ import 'css_keyframes_compiler.dart';
 import 'css_stylesheet.dart';
 import 'css_values.dart';
 import 'native_svg_values.dart';
+import 'number_syntax.dart';
 import 'smil_animation.dart';
 import 'svg_dom.dart';
 import 'svg_gradient.dart';
@@ -77,6 +78,7 @@ class SvgDocument {
     this.usesOffscreenLayers = false,
     this.useExpansionTruncated = false,
     this.backgroundColor,
+    this.rootViewBoxTransform,
   });
 
   /// Duration information for this document.
@@ -115,10 +117,13 @@ class SvgDocument {
   /// 是否有整个 `<use>` 实例因累计展开节点预算不足而被跳过。
   final bool useExpansionTruncated;
 
-  /// 根元素 `background-color`（或 `background` 里的纯色），没有则为空。
-  ///
-  /// 与浏览器一致：背景铺满整个绘制区域，而不只是 viewBox 内。
+  /// Root background fills the paint box before either viewport transform.
+  /// 根背景在两层视口变换之前铺满绘制盒，不随 viewBox 移动或缩放。
   final Color? backgroundColor;
+
+  /// Root user-to-viewport affine `[a,b,c,d,e,f]`; null means identity.
+  /// 根用户坐标到视口的纯数值仿射矩阵；null 表示恒等映射。
+  final List<double>? rootViewBoxTransform;
 
   /// `<clipPath>` definitions by id, as parsed [SvgNode] subtrees (their own
   /// `<animate>`/`<animateTransform>` children intact) — referenced by
@@ -158,10 +163,10 @@ class SvgDocument {
   /// 合并所有有效样式块后的具名关键帧。
   final Map<String, CssKeyframes> cssKeyframes;
 
-  /// Intrinsic width from `viewBox`/`width`. / 来自 `viewBox`/`width` 的固有宽度。
+  /// Intrinsic viewport width. / 视口的固有宽度。
   final double width;
 
-  /// Intrinsic height from `viewBox`/`height`. / 来自 `viewBox`/`height` 的固有高度。
+  /// Intrinsic viewport height. / 视口的固有高度。
   final double height;
 
   /// The latest `begin + dur * repeatCount` across every finite-repeat
@@ -207,21 +212,15 @@ SvgDocument parseAnimatedSvgDocument(String source) {
   final document = XmlDocument.parse(source);
   final svgElement = document.rootElement;
 
-  final viewBox = svgElement.getAttribute('viewBox');
-  double width = double.tryParse(svgElement.getAttribute('width') ?? '') ?? 0;
-  double height = double.tryParse(svgElement.getAttribute('height') ?? '') ?? 0;
-  if (viewBox != null) {
-    final parts = viewBox
-        .split(RegExp(r'[\s,]+'))
-        .map(double.tryParse)
-        .toList();
-    if (parts.length == 4 && parts.every((v) => v != null)) {
-      width = width == 0 ? parts[2]! : width;
-      height = height == 0 ? parts[3]! : height;
-    }
-  }
-  if (width == 0) width = 24;
-  if (height == 0) height = 24;
+  final viewBox = _parseRootViewBox(svgElement.getAttribute('viewBox'));
+  final width = _rootViewportLength(
+    svgElement.getAttribute('width'),
+    viewBox?[2],
+  );
+  final height = _rootViewportLength(
+    svgElement.getAttribute('height'),
+    viewBox?[3],
+  );
 
   final elementsById = <String, XmlElement>{};
   List<String>? styleBlocks;
@@ -321,6 +320,12 @@ SvgDocument parseAnimatedSvgDocument(String source) {
     cssKeyframes: sheet?.keyframes ?? const {},
     width: width,
     height: height,
+    rootViewBoxTransform: _rootViewBoxTransform(
+      viewBox,
+      width,
+      height,
+      svgElement.getAttribute('preserveAspectRatio'),
+    ),
     totalDuration: maxEnd,
     hasIndefiniteLoop: hasIndefiniteLoop,
     info: _animationInfo(timelines, hasIndefiniteLoop),
@@ -332,6 +337,73 @@ SvgDocument parseAnimatedSvgDocument(String source) {
     useExpansionTruncated: context.useExpansionTruncated,
     backgroundColor: _parseRootBackground(root.attributes),
   );
+}
+
+/// A viewBox requires exactly four comma/whitespace-separated numbers.
+/// viewBox 必须恰好包含四个逗号或空白分隔的数。
+final _rootViewBoxPattern = RegExp(
+  '^\\s*($numberSyntax)'
+  '${List.filled(3, '(?:\\s*,\\s*|\\s+)($numberSyntax)').join()}'
+  r'\s*$',
+);
+
+/// Root lengths accept only unitless numbers and px.
+/// 根长度只接受无单位数字和 px。
+final _rootLengthPattern = RegExp('^($numberSyntax)(?:px)?\$');
+
+/// Reads a finite, positive-size viewBox or treats it as absent.
+/// 读取有限且宽高为正的 viewBox，否则视为缺失。
+List<double>? _parseRootViewBox(String? raw) {
+  final match = _rootViewBoxPattern.firstMatch(raw ?? '');
+  if (match == null) return null;
+  final values = [for (var i = 1; i <= 4; i++) double.parse(match[i]!)];
+  return values.every((value) => value.isFinite) &&
+          values[2] > 0 &&
+          values[3] > 0
+      ? values
+      : null;
+}
+
+/// Resolves one viewport axis, retaining the legacy zero/missing fallback.
+/// 解析视口单轴，保留零值或缺失时回退到 viewBox、再到 24 的旧行为。
+double _rootViewportLength(String? raw, double? fallback) {
+  final match = _rootLengthPattern.firstMatch(raw?.trim() ?? '');
+  final value = match == null ? null : double.tryParse(match[1]!);
+  return value != null && value.isFinite && value != 0 ? value : fallback ?? 24;
+}
+
+/// Valid alignment grammar, with optional SVG 1.1 defer and meet/slice.
+/// 有效对齐语法，兼容 SVG 1.1 的可选 defer 及 meet/slice。
+final _rootAspectRatioPattern = RegExp(
+  r'^(?:defer\s+)?(none|x(Min|Mid|Max)Y(Min|Mid|Max))(?:\s+(meet|slice))?$',
+);
+
+/// Computes SVG 2 §8.2's root transform; identity needs no canvas operation.
+/// 按 SVG 2 §8.2 计算根变换；恒等映射无需额外画布操作。
+List<double>? _rootViewBoxTransform(
+  List<double>? viewBox,
+  double width,
+  double height,
+  String? aspectRatio,
+) {
+  if (viewBox == null) return null;
+  final match = _rootAspectRatioPattern.firstMatch(aspectRatio?.trim() ?? '');
+  var sx = width / viewBox[2];
+  var sy = height / viewBox[3];
+  var ax = .5;
+  var ay = .5;
+  if (match?[1] == 'none') {
+    ax = ay = 0;
+  } else {
+    sx = sy = match?[4] == 'slice' ? math.max(sx, sy) : math.min(sx, sy);
+    const alignmentFactors = {'Min': 0.0, 'Mid': .5, 'Max': 1.0};
+    ax = alignmentFactors[match?[2]] ?? .5;
+    ay = alignmentFactors[match?[3]] ?? .5;
+  }
+  final tx = -viewBox[0] * sx + (width - viewBox[2] * sx) * ax;
+  final ty = -viewBox[1] * sy + (height - viewBox[3] * sy) * ay;
+  if (sx == 1 && sy == 1 && tx == 0 && ty == 0) return null;
+  return List.unmodifiable([sx, 0.0, 0.0, sy, tx, ty]);
 }
 
 /// Maximum accepted loop period, checked before integer multiplication.

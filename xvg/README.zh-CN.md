@@ -266,15 +266,15 @@ class _RemoteStringIconState extends State<RemoteStringIcon> {
 | `colorFilter` | `null` | Flutter `ColorFilter`，两条路径都生效。动画源仅在传入滤镜时才多加一层 `ColorFiltered`。 |
 | `theme` | `null` | `XvgTheme(currentColor: …)`，解析 SVG 里的 `currentColor` 关键字（默认不透明黑色）。 |
 | `pixelSnap` | `XvgPixelSnap.auto` | 合成阶段把视口对齐到物理像素。`auto` 仅对遮罩/裁剪文档启用，`always` / `never` 强制覆盖。 |
-| `quality` | `null`（使用 `XvgAnimationQuality.defaultQuality`） | 动画吞吐与保真的取舍。静态源忽略。 |
+| `quality` | `null`（使用 `XvgAnimationQuality.defaultQuality`） | 动画吞吐与保真的取舍。Rust 路径忽略。 |
 | `controller` | `null` | 共享的 `XvgAnimationController`。与 `animation` 互斥；`playbackRate` 保持 1.0，改用控制器自己的速率。 |
 | `animation` | `null` | 由 Flutter `Animation<double>` 驱动文档时间（`value × animationSpan`）。 |
 | `animationSpan` | `null` | 对应 `animation` 的 0..1 的时长；`null` 使用文档自然时长。 |
 | `autoplay` | `true` | 是否启动隐式播放（未传 `controller`/`animation` 时）。传 `animation` 时必须保持 `true`。 |
 | `playbackRate` | `1.0` | 隐式播放的有限有符号速率；负值倒放，`0` 暂停。传 `controller` 或 `animation` 时必须保持 `1.0`。 |
-| `fps` | `null` | null 跟随 `Xvg.fps`；正数限制采样/重绘帧率；0 冻结首帧；`double.infinity` 不限速且无视全局。外部 `animation` 与静态源忽略。 |
-| `onLoaded` | `null` | 动画源（及其内嵌图片）就绪时回调，携带 `XvgAnimationInfo`。静态源永不调用。 |
-| `onError` | `null` | 接收加载、解析、时长映射错误。静态源的失败在帧结束后通知，每次源/主题变更一次。 |
+| `fps` | `null` | null 跟随 `Xvg.fps`；正数限制采样/重绘帧率；0 冻结首帧；`double.infinity` 不限速且无视全局。外部 `animation` 与Rust 路径忽略。 |
+| `onLoaded` | `null` | Dart 路径的源（含无动画的文字源）及其内嵌图片就绪时回调，携带 `XvgAnimationInfo`。Rust 路径不调用。 |
+| `onError` | `null` | 接收加载、解析、时长映射错误。Rust 路径的失败在帧结束后通知，每次源/主题变更一次。 |
 | `errorBuilder` | `null` | 失败时的替代内容（`ImageErrorWidgetBuilder`，与 `Image.errorBuilder` 相同）。 |
 | `onEvent` | `null` | 播放及元素 begin/end/repeat 事件（`XvgAnimationEvent`）。 |
 | `onAnimationStart` / `onAnimationComplete` / `onAnimationLoop` | `null` | 首次 tick / 有限文档自然完成 / 已知周期穿越（轮次从一开始）。传 `animation` 时不调用。 |
@@ -359,13 +359,14 @@ Widget spinner() => const Xvg.string(
 * 检测只是简单的文本匹配，不做语义判断。一个静态 SVG 只要含有 `<set>` 标签或
   一条没被引用的 `@keyframes` 规则，仍会被路由到动画引擎（能正确渲染，只是不走
   Rust 路径）。想明确指定路径，请用 `StaticXvg` / `AnimatedXvg`。
+  含 `<text>` 的源即使没有动画也会交给 Dart 引擎。
 * 动画文档默认隐式播放（`autoplay: true`，速率 `1.0`），遵循 `TickerMode`（使用
   同一时钟的控件全部被禁用时暂停；单独 `Offstage` 不暂停）与 `timeDilation`，
   有限文档停在最后一帧（`fill="freeze"` 会保留结束状态）。
 * 要共享、可跳转的控制，用 `controller`；要由自己的 Flutter `AnimationController`
   驱动，用 `animation`。这两种都用来代替隐式播放；见[动画播放](#动画播放)。
 * `onLoaded`、`onEvent`、`quality`、`fps`、`autoplay` 以及 controller /
-  animation / 各类动画回调只对动画源有意义；静态源会忽略它们，也不挂任何监听器
+  animation / 各类动画回调会传给 Dart 路径（含文字源）；Rust 路径忽略它们，也不挂任何监听器
   或控制器。
 * `colorFilter` 与 `theme` 在两条路径上表现一致。
 
@@ -386,11 +387,11 @@ Widget safeIcon(String svg) => Xvg.string(
 ```
 
 * `errorBuilder` 构建替代内容；`onError` 只负责上报。可以只给其一，也可以都给。
-* **静态源、未设任何处理器：** 解析失败会静默渲染一个 `width` x `height` 的空盒子。
+* **Rust 路径、未设任何处理器：** 解析失败会静默渲染一个 `width` x `height` 的空盒子。
   请传 `onError`/`errorBuilder`，避免把损坏的资源误当成“看不见的图标”。
-* **静态源、只设 `onError`：** 显示空盒子，`onError` 在帧结束后调用，每次失败的
+* **Rust 路径、只设 `onError`：** 显示空盒子，`onError` 在帧结束后调用，每次失败的
   源/主题变更只调用一次（重建不会重复）。
-* **动画源、未设任何处理器：** 失败经 `FlutterError.reportError` 上报，并显示空盒子。
+* **Dart 路径（含文字）、未设任何处理器：** 失败经 `FlutterError.reportError` 上报，并显示空盒子。
 * `Xvg.asset` / `.network` / `.file`：加载失败会调用 `onError` / `errorBuilder`；
   两者都没给时，原始错误会从 `build` 中重新抛出并到达 `ErrorWidget.builder`。
   `errorBuilder` 收到原始错误与堆栈，与 `Image` 一致。
@@ -587,9 +588,9 @@ class _ControlledIconState extends State<ControlledIcon> {
 }
 ```
 
-静态源会忽略动画专属参数与回调，包括 `onLoaded` 和 `onEvent`；它们不会挂载
+Rust 路径会忽略动画专属参数与回调，包括 `onLoaded` 和 `onEvent`；它们不会挂载
 控制器或 animation 监听器。`onError` 与 `errorBuilder` 同时处理静态和动画的
-解析失败。静态源的 `onError` 在帧结束后调用，每次失败的源/主题变更一次。
+解析失败。Rust 路径的 `onError` 在帧结束后调用，每次失败的源/主题变更一次。
 asset/network/file 的加载失败使用已提供的任一处理器；只设回调时显示指定尺寸的
 空盒子。两个处理器都没设时，加载失败仍会传播到环境的 `ErrorWidget.builder`。
 `errorBuilder` 收到原始错误与堆栈，与 Flutter 的图片组件一致。
@@ -691,7 +692,7 @@ Xvg.string(svg, fps: double.infinity);
 控制器才回到首帧并暂停。正数上限取挂载控件中最宽松的值，与 `quality` 取较大除数。
 选定片段也会冻结到文档零时刻，解除冻结后先恢复片段边界再播放。
 单独关闭 TickerMode 仍停在当前帧。外部 `animation` 驱动忽略实例及全局 fps，
-驱动策略由调用方负责；静态源也忽略。库不读取系统减少动画设置。
+驱动策略由调用方负责；Rust 路径也忽略。库不读取系统减少动画设置。
 
 ## 动画画质
 
@@ -810,6 +811,15 @@ SVG 动画在没有监听者时暂停，遵循 `timeDilation`，有限文档停�
 
 ## 注意事项与限制
 
+* **`<text>`**：`Xvg` 和 `SvgImageProvider` 会将含文字的整个源自动交给 Dart
+  引擎，即使没有动画；渲染后自动静止，不持续 tick。显式 `StaticXvg` 仍跳过文字。
+  Dart 路径不支持 pattern/marker、tspan/textPath、嵌入字体，filter 只有 blur
+  （含限定的透明 Figma 前缀链），完整边界见[引擎能力清单](doc/animation-engine-features.md)。
+  文字源沿用 Dart 的加载/错误行为，无动画时就绪后触发零时长的 `onLoaded`。
+  固有视口尺寸按无单位或 `px` 的 width/height、有效 viewBox 宽高、缺省每轴 24
+  的顺序解析；其它单位及百分比视为缺失。根 viewBox 已支持原点平移、缩放及
+  preserveAspectRatio（`none`、9 种对齐和 `meet`/`slice`），再叠加 widget 的
+  fit/alignment，并按 viewport 裁剪。`<use>` 指向 symbol/嵌套 SVG 仍按普通组简化。
 * **静态 `<image href>`**：只解码内嵌的 `data:` URI。本地路径、UNC 路径与
   `file://` 一律不读取，`data:image/svg+xml` 被跳过。这是相对 `usvg` 默认解析器的
   行为变更。
