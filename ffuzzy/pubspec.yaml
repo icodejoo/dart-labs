@@ -3,8 +3,8 @@ description: >-
   Fast fuzzy search for Flutter: a C engine via dart:ffi with fuzzy, substring,
   prefix, suffix and exact matching, resident corpus, threads, async, highlights, CJK.
 version: 0.6.5
-repository: https://github.com/icodejoo/dart-labs/tree/main/ffuzzy
 homepage: https://github.com/icodejoo/dart-labs/tree/main/ffuzzy
+repository: https://github.com/icodejoo/dart-labs/tree/main/ffuzzy
 issue_tracker: https://github.com/icodejoo/dart-labs/issues
 topics:
   - fuzzy-search

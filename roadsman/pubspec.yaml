@@ -2,7 +2,7 @@ name: roadsman
 description: "Pure-Dart road-map (bead plate) engine + Flutter render panel for baccarat/dragon-tiger/sic-bo."
 version: 0.1.4
 homepage: https://github.com/icodejoo/dart-labs/tree/main/roadsman
-repository: https://github.com/icodejoo/dart-labs
+repository: https://github.com/icodejoo/dart-labs/tree/main/roadsman
 issue_tracker: https://github.com/icodejoo/dart-labs/issues
 
 topics:
