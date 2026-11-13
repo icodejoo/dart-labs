@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:cacheman/cacheman.dart';
 import 'package:flutter/material.dart';
 import 'demo_kit/demo_kit.dart';
+import 'get_storage_cache.dart';
 
 /// 示例独占容器，避免清理用户应用的默认缓存。
 const demoContainer = 'cacheman_demo_kit';
@@ -79,8 +80,8 @@ abstract final class DemoCopy {
 }
 
 /// 创建并初始化专用作用域；重放只清理该卡片的数据。
-Future<Cacheman> demoCache(String scope, {CachemanOptions? options}) async {
-  final cache = Cacheman(
+Future<GetStorageCache> demoCache(String scope, {CachemanOptions? options}) async {
+  final cache = GetStorageCache(
     container: demoContainer,
     options: options ?? CachemanOptions(namespace: scope),
   );

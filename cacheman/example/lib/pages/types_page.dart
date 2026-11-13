@@ -78,7 +78,7 @@ class TypesPage extends StatelessWidget {
       }),
       DemoAction('Corrupt entry', '损坏条目', (_) async {
         errors.clear();
-        await cache.container.write(cache.storageKey(demoKey), '{');
+        await cache.box.write(cache.storageKey(demoKey), '{');
         final value = cache.read<String>(demoKey);
         return {
           demoValueField: value,

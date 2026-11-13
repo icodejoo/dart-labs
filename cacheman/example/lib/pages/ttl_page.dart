@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:cacheman/cacheman.dart';
 import 'package:flutter/material.dart';
 import '../demo_kit/demo_kit.dart';
+import '../get_storage_cache.dart';
 import '../demo_support.dart';
 
 /// 有限计时演示使用的寿命。
@@ -100,7 +101,7 @@ class ExpiryDemo extends StatefulWidget {
 /// 观察底层信封以避免倒计时渲染触发滑动续期。
 class _ExpiryDemoState extends State<ExpiryDemo> {
   /// 本卡片独有的缓存实例。
-  Cacheman? _cache;
+  GetStorageCache? _cache;
 
   /// 有限寿命的刷新计时器。
   Timer? _timer;
@@ -157,7 +158,7 @@ class _ExpiryDemoState extends State<ExpiryDemo> {
   int get _remaining {
     final cache = _cache;
     if (cache == null) return 0;
-    final raw = cache.container.read<String>(cache.storageKey(demoKey));
+    final raw = cache.box.read<String>(cache.storageKey(demoKey));
     if (raw == null) return 0;
     final expiry = defaultDeserialize(raw).expireAt!;
     return (expiry - DateTime.now().millisecondsSinceEpoch).clamp(

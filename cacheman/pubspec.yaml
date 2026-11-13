@@ -1,6 +1,6 @@
 name: cacheman
-description: "A small type-safe wrapper over get_storage with one API: TTL and absolute expiry, sliding renewal, namespaces, pluggable serialization and a key-bound helper."
-version: 0.7.3
+description: "Type-safe cache semantics over app-owned storage: TTL and absolute expiry, sliding renewal, namespaces, pluggable serialization and a key-bound helper."
+version: 0.8.0
 homepage: https://github.com/icodejoo/dart-labs/tree/cacheman/cacheman
 repository: https://github.com/icodejoo/dart-labs
 issue_tracker: https://github.com/icodejoo/dart-labs/issues
@@ -8,7 +8,6 @@ issue_tracker: https://github.com/icodejoo/dart-labs/issues
 topics:
   - cache
   - storage
-  - get-storage
   - ttl
   - key-value
 
@@ -19,10 +18,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  get_storage: ^2.1.1
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
-  path_provider_platform_interface: ^2.1.2

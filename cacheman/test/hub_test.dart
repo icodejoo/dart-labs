@@ -1,15 +1,12 @@
 import 'dart:async';
 import 'dart:convert' show JsonUnsupportedObjectError, jsonDecode, jsonEncode;
-import 'dart:io';
 
 import 'package:cacheman/cacheman.dart';
 import 'package:flutter/foundation.dart' show VoidCallback;
 import 'package:flutter/widgets.dart' show AppLifecycleState;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:get_storage/get_storage.dart';
-import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 
-import 'cacheman_test.dart' show FakePathProviderPlatform, FakeCodec;
+import 'cacheman_test.dart' show FakeCodec;
 
 /// Error matcher label. / 错误断言标签。
 const _causeLabel = 'cause';
@@ -118,7 +115,7 @@ class _Observable extends Cacheman {
   final contexts = <CacheContext>[];
 
   @override
-  GetStorage get container => throw StateError('must not open GetStorage');
+  MemoryStorage get container => throw StateError('must not open default memory');
   @override
   Future<void> initRaw(CacheContext ctx) async {}
   @override
@@ -194,7 +191,7 @@ class _Unobservable extends Cacheman {
   /// Inject a background write failure. / 注入后台写入错误。
   bool failedSave = false;
   @override
-  GetStorage get container => throw StateError('default backend accessed');
+  MemoryStorage get container => throw StateError('default backend accessed');
   @override
   Future<void> initRaw(CacheContext ctx) async {}
   @override
@@ -328,26 +325,11 @@ class _ParallelAsync extends AsyncCacheman {
 /// Runs real and custom-backend acceptance cases. / 执行真实与自定义底层的验收用例。
 void main() {
   final binding = TestWidgetsFlutterBinding.ensureInitialized();
-  late Directory dir;
   var seq = 0;
-  setUp(() async {
-    dir = await Directory.systemTemp.createTemp('cacheman_hub_');
-    PathProviderPlatform.instance = FakePathProviderPlatform(dir.path);
-  });
-  tearDown(() async {
-    await Future<void>.delayed(const Duration(milliseconds: 20));
-    // Backups are unawaited by get_storage; retain the fake for this isolate.
-    // get_storage 不等待备份完成，故在本测试 isolate 内持续保留路径 fake。
-    try {
-      await dir.delete(recursive: true);
-    } catch (_) {
-      // get_storage retains Windows handles. / get_storage 保留 Windows 句柄。
-    }
-  });
 
   Future<Cacheman> real(String name,
       [CachemanOptions options = const CachemanOptions(namespace: _ns)]) async {
-    final cache = Cacheman(container: name, path: dir.path, options: options);
+    final cache = Cacheman(container: name, options: options);
     await cache.ensureInitialized();
     return cache;
   }
@@ -357,7 +339,7 @@ void main() {
   test(
       'real watch before initialization survives empty changes and later writes',
       () async {
-    final cache = Cacheman(container: name(), path: dir.path);
+    final cache = Cacheman(container: name());
     final values = <int?>[];
     final stop = cache.watch<int>(_key, values.add, includeOwnWrites: true);
     addTearDown(stop);
@@ -368,24 +350,14 @@ void main() {
     expect(cache.read<int>(_key), 1);
   });
 
-  test('real initialization table replacement ignores stale single-key changes',
-      () async {
-    final id = name();
-    await File('${dir.path}/$id.gs').writeAsString(jsonEncode({
-      _key: defaultSerialize(CacheEntity(value: 1, createdAt: 1)),
-    }));
-    final cache = Cacheman(container: id, path: dir.path);
+  test('memory initialization preserves existing values without spurious events', () async {
+    final cache = Cacheman(container: name());
     final values = <int?>[];
-    final others = <int?>[];
     addTearDown(cache.watch<int>(_key, values.add, includeOwnWrites: true));
-    addTearDown(cache.watch<int>(_other, others.add, includeOwnWrites: true));
-    cache.container.writeInMemory(
-        _other, defaultSerialize(CacheEntity(value: 2, createdAt: 1)));
-    expect(values, isEmpty);
-    expect(others, [2]);
+    await cache.container.write(_key, defaultSerialize(CacheEntity(value: 1)));
     await cache.ensureInitialized();
-    expect(values, [null, 1]);
-    expect(others, [2, null, null]);
+    expect(values, [1]);
+    expect(cache.read<int>(_key), 1);
   });
 
   test(
@@ -677,24 +649,14 @@ void main() {
     }
   });
 
-  test('real deferred writes flush to disk and deletes still save immediately',
-      () async {
-    final id = name();
-    final cache = await real(id, const CachemanOptions(flushDelay: _longDelay));
-    final file = File('${dir.path}/$id.gs');
+  test('memory delayed writes are immediately readable and removable', () async {
+    final cache = await real(name(), const CachemanOptions(flushDelay: _longDelay));
     cache.write(_key, _value);
-    await Future<void>.delayed(const Duration(milliseconds: 30));
-    expect(jsonDecode(await file.readAsString()), isEmpty);
+    expect(cache.container.read<String>(_key), isNotNull);
+    expect(cache.read<String>(_key), _value);
     cache.flush();
-    await Future<void>.delayed(const Duration(milliseconds: 50));
-    expect((jsonDecode(await file.readAsString()) as Map).containsKey(_key),
-        isTrue);
-    cache.write(_other, _value);
     cache.remove(_key);
-    await Future<void>.delayed(const Duration(milliseconds: 50));
-    final stored = jsonDecode(await file.readAsString()) as Map;
-    expect(stored.containsKey(_key), isFalse);
-    expect(stored.containsKey(_other), isTrue);
+    expect(cache.container.hasData(_key), isFalse);
     cache.flush();
   });
 
@@ -1207,7 +1169,7 @@ void main() {
     expect(calls, 2);
   });
 
-  test('R4 real get_storage handler errors propagate unchanged through Zone',
+  test('R4 default memory handler errors propagate unchanged through Zone',
       () async {
     final id = name();
     final failure = StateError('watch handler');

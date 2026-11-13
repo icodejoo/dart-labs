@@ -1,6 +1,6 @@
 # Cacheman 架构文档
 
-cacheman 是 Flutter 缓存语义层：默认同步 `Cacheman` 使用 get_storage；用户可继承
+cacheman 是 Flutter 缓存语义层：默认同步 `Cacheman` 使用纯 Dart 内存；用户可继承
 `Cacheman` 或抽象 `AsyncCacheman` 提供自己的底层。两者并行使用，包不自动路由、迁移数据，
 不内置 Hive/文件等新后端，不新增依赖。类型由 `read<T>` / `write<T>` 指定。
 入口 `lib/cacheman.dart` 导出公共 API；两个 README 包含完整用法和应用内适配示例。
@@ -21,14 +21,14 @@ flowchart TD
     Hub --> Notify[单监听 / 版本自愈 / watch 分发]
     Hub --> Flush[最早截止 Timer / 生命周期 flush]
     Async --> AsyncRaw[抽象异步原语 + CacheContext]
-    SyncRaw --> Default[默认：惰性 GetStorage]
+    SyncRaw --> Default[默认：纯 Dart MemoryStorage]
     SyncRaw --> UserSync[用户：同步内存态后端]
     AsyncRaw --> UserAsync[用户：LazyBox / 文件 / 其他异步后端]
 ```
 
 | 文件 | 职责 |
 | --- | --- |
-| `lib/src/cacheman.dart` | 所属 Dart library；同步 API 编排、同步自有键集合缓存、默认 get_storage 原语。 |
+| `lib/src/cacheman.dart` | 所属 Dart library；同步 API 编排、同步自有键集合缓存、默认内存原语。 |
 | `lib/src/hub.dart` | 私有共享 Hub：Expando 身份注册、单监听/版本、watch 快照分发、延迟落盘/生命周期。 |
 | `lib/src/core.dart` | 私有 `_CacheCore`，由两类分别组合持有；无 IO，统一键空间、信封、续期判定、错误处理。 |
 | `lib/src/async_cacheman.dart` | 抽象异步 API 编排，必需/可选异步原语；不维护自有键集合缓存。 |
@@ -54,12 +54,12 @@ cache.write('summary', 1000, ttl: 60000);
 // await large.ensureInitialized(); await large.write('report', rows);
 ```
 
-`Cacheman` 构造函数仅保存 container/path/options；`late final _gs` 在访问 `container`
-或默认原语时才创建 `GetStorage(container, path)`。默认初始化仍先初始化 Flutter binding，
-再等待该实例的 `initStorage`，不调用 `GetStorage.init`。因此正常的构造→初始化路径仍带 path。
-同名容器仍以 GetStorage 首次构造 path 为准；惰性化意味着先后由首次访问后端决定，
-而非 Cacheman 对象的构造顺序。覆写所有原语的子类须经 `Cacheman.custom` 构造，完全不触碰 get_storage；主动访问
-`container` 仍会创建默认后端，这个 getter 只提供默认后端互操作。
+`Cacheman` 默认构造保存 container/options，惰性取得 `MemoryStorage.named(container)`。
+同名容器在当前 isolate 内共享数据、通知和 Hub；重启后数据丢失。默认构造不接收 path，
+`container` 返回 `MemoryStorage`。初始化原语默认无操作，调用方仍须 await ensureInitialized。
+自定义同步子类使用 `Cacheman.custom`，覆写存储原语后不会接触默认内存。
+get_storage 适配器只在 `example/lib/get_storage_cache.dart`：`GetStorageCache` 保留旧容器名、
+目录和信封格式，暴露 `box` 句柄；主库不导出它，主包 dependencies 不包含 get_storage。
 
 **原语是唯一接触底层的地方。** 同步原语为 initRaw / getRaw / keysRaw / setRaw /
 removeRaw / clearRaw；除初始化外，同步原语返回前须完成内存态更新。写删清空返回的 Future
@@ -113,7 +113,7 @@ key(index) 已弃用（O(index)，循环 O(n²)）；请一次 keys() 后遍历�
 
 ## 不变量与边界
 
-- 不调用 GetStorage.init；默认 path 规则见上文。
+- 主库不导入具体持久化库；get_storage 的 path 和初始化规则由示例适配器负责。
 - 不增加进程内读值缓存。内核仅维护编码键和逻辑键两个映射，各最多 1024 项，溢出整体清空；
   setNamespace 同时清空，不做 LRU，null 键解码不缓存。
 - 仅同步层维护自有键集合：Expando 按 hubIdentity 共享单个 Hub/listenRaw 订阅。
@@ -136,7 +136,7 @@ key(index) 已弃用（O(index)，循环 O(n²)）；请一次 keys() 后遍历�
 ## 验证
 
 阶段 1b 新增同步原语 listenRaw / syncNotificationsRaw / setDeferredRaw / flushRaw / hubIdentity。
-默认构造（含只转发参数的子类）身份是 GetStorage 单例；`Cacheman.custom` 子类默认 this + 无通知，避免隐式打开默认后端。
+默认构造（含只转发参数的子类）身份是同名 MemoryStorage；`Cacheman.custom` 子类默认 this + 无通知，避免隐式打开默认后端。
 共享自定义后端须覆写身份和通知原语；各实例的通知/落盘契约须一致。
 setDeferredRaw 对 custom 子类退化为 setRaw，flushRaw 默认无操作。
 watch 以实例维护可迁移记录，Hub 分发快照；_selfDepth 抑制自身事件（含续期/懒删）。
@@ -151,9 +151,10 @@ purgeOnInit 在 init 完成后用 Timer.run 非阻塞清过期，raw 跳过，�
 `dart run tool/coverage.dart --min=100`、`dart run tool/check_acceptance.dart`。
 
 在包根目录执行 `flutter analyze`、`flutter test`、`flutter analyze example`。
-原有 cacheman_test.dart 使用真实 get_storage；cacheman_primitives_test.dart 覆写全部
+cacheman_test.dart 使用默认纯 Dart 内存；cacheman_primitives_test.dart 覆写全部
 同步原语，container getter 访问即失败；async_cacheman_test.dart 使用测试内 Map 和可注入
-同步/Future 失败、写入闸门。example 新增分层演示页，内存异步子类仅存在于 example 内。
+同步/Future 失败、写入闸门。memory_storage_test.dart 验证纯 Dart 内存后端。
+真实 get_storage 的目录加载、整表通知、磁盘写入和 Zone 异常回归在 example/test/get_storage_cache_test.dart。
 
 ## Stage 2 typed access / 阶段 2 类型访问
 

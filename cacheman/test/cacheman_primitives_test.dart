@@ -1,28 +1,11 @@
-import 'dart:convert' show jsonEncode;
-import 'dart:io';
-
 import 'package:cacheman/cacheman.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:get_storage/get_storage.dart';
-import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 
 const _key = 'entry';
 const _other = 'other';
 const _value = 'value';
 const _ns = 'custom';
 const _ttl = 100000;
-
-/// Supplies a deliberately different implicit directory for the real path regression.
-/// 为真实 path 回归测试提供一个刻意不同的隐式目录。
-class _DocumentsDirectory extends PathProviderPlatform {
-  _DocumentsDirectory(this.path);
-
-  /// Implicit fallback path. / 隐式回退路径。
-  final String path;
-
-  @override
-  Future<String?> getApplicationDocumentsPath() async => path;
-}
 
 /// Fully synchronous custom backend; any default container access fails the test.
 /// 完全同步的自定义后端；访问默认容器即令测试失败。
@@ -49,7 +32,7 @@ class _MemorySync extends Cacheman {
   final failure = StateError('injected');
 
   @override
-  GetStorage get container {
+  MemoryStorage get container {
     containerAccesses++;
     throw StateError('default container must stay lazy');
   }
@@ -123,33 +106,20 @@ Future<_MemorySync> _ready(
 }
 
 void main() {
-  test('lazy default initialization still loads the explicitly supplied path',
-      () async {
-    final root = await Directory.systemTemp.createTemp('cacheman_lazy_path_');
-    final selected = await Directory('${root.path}/explicit').create();
-    final fallback = await Directory('${root.path}/implicit').create();
-    final previous = PathProviderPlatform.instance;
-    PathProviderPlatform.instance = _DocumentsDirectory(fallback.path);
-    try {
-      final name = 'cacheman_lazy_${DateTime.now().microsecondsSinceEpoch}';
-      final cache = Cacheman(container: name, path: selected.path);
-      // Seed after facade construction: loading must wait until first backend access.
-      // 在语义层构造后植入，确保首次访问后端才加载。
-      await File('${selected.path}/$name.gs').writeAsString(jsonEncode({
-        _key: defaultSerialize(CacheEntity(value: _value, createdAt: 1)),
-      }));
-      await cache.ensureInitialized();
-      expect(cache.read<String>(_key), _value);
-      expect(File('${fallback.path}/$name.gs').existsSync(), isFalse);
-      expect(cache.container, same(GetStorage(name)));
-    } finally {
-      PathProviderPlatform.instance = previous;
-      // GetStorage retains Windows handles; cleanup is best-effort, as in existing tests.
-      // GetStorage 保留 Windows 句柄，与现有测试一样只尽力清理。
-      try {
-        await root.delete(recursive: true);
-      } on FileSystemException {/* retained file handle / 文件句柄仍被持有 */}
-    }
+  test('pure Dart backends are replaceable without touching default memory', () async {
+    final defaultCache = Cacheman(container: 'replaceable');
+    final custom = await _ready();
+    await defaultCache.ensureInitialized();
+    defaultCache.write(_key, _other);
+    custom.write(_key, _value);
+    expect(defaultCache.read<String>(_key), _other);
+    expect(custom.read<String>(_key), _value);
+    expect(custom.data[_key], isA<String>());
+    expect(custom.containerAccesses, 0);
+    expect(() => custom.watch<String>(_key, (_) {}), throwsUnsupportedError);
+    final peer = Cacheman(container: 'replaceable');
+    await peer.ensureInitialized();
+    expect(peer.read<String>(_key), _other);
   });
 
   test('all primitives override default backend; CRUD is synchronous',
