@@ -1,8 +1,8 @@
 name: xvg
 description: "High-performance static & animated SVG rendering for Flutter. Rust (usvg) parses, Flutter's own GPU pipeline renders — no CPU rasterizer, SMIL animation support."
 version: 0.3.0
-homepage: https://github.com/icodejoo/dart-labs/tree/xvg/xvg
-repository: https://github.com/icodejoo/dart-labs
+homepage: https://github.com/icodejoo/dart-labs/tree/main/xvg
+repository: https://github.com/icodejoo/dart-labs/tree/main/xvg
 issue_tracker: https://github.com/icodejoo/dart-labs/issues
 
 topics:
