@@ -1,3 +1,7 @@
+## 0.5.2
+
+- Android：`packages/media_kit_libs_android_video_slim` 里的瘦身版 `libmpv.so`（四个 ABI）改为按 16KB 页面对齐链接（`-Wl,-z,max-page-size=16384`），满足 Google Play 对 Android 15+ 目标应用的要求。原因是 mpv 的 `c_link_args` 覆盖掉了这个参数，LOAD 段只有 4KB 对齐。pub.dev 包不含 `packages/`，只影响通过 `dependency_overrides` 使用瘦身版的应用。
+
 ## 0.5.1
 
 - 文档：pubspec 的 `homepage` 与 `repository` 改为指向 `main` 分支下的包目录。

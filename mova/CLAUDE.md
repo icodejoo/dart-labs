@@ -14,7 +14,7 @@
 >    **设计意图看 DESIGN，签名与落点一律以代码和 [doc/SPEC.md](doc/SPEC.md) 末节为准。**
 > 3. **各阶段的逐 Task 实现计划都在 [doc/plans/](doc/plans/)**，按功能分文件存放，按 Task
 >    顺序执行即可。
-> 4. **版本对照**：仓库 `pubspec.yaml` 与 `ios/mova.podspec` 为 **0.5.0**（2026-11-13 发布到 pub.dev，全量改名的破坏性版本），
+> 4. **版本对照**：仓库 `pubspec.yaml` 与 `ios/mova.podspec` 为 **0.5.2**（2026-11-23：Android 瘦身版 libmpv 改为 16KB 页面对齐；0.5.0 于 2026-11-13 发布到 pub.dev，是全量改名的破坏性版本），
 >    README 安装示例同号；pub.dev 上此前已有 0.4.0–0.4.3。之后的新改动记在 CHANGELOG 的 `Unreleased`。
 >    发版由用户决定，回答功能可用性前先区分 pub.dev 版本与本仓库 path/git 依赖。
 >    旧章节标题里的“0.2.0”是历史合并记法，版本以 pubspec 为准。

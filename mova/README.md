@@ -6,7 +6,7 @@ A Flutter video player built on [media_kit](https://pub.dev/packages/media_kit)
 (libmpv/ffmpeg) with a self-built gesture + control layer for VOD and live
 playback.
 
-> **Repository version: 0.4.2** (pubspec.yaml is authoritative).
+> **Repository version: 0.5.2** (pubspec.yaml is authoritative).
 > The CHANGELOG may have an `Unreleased` section. Those changes come after the
 > current release and are only available through a path or git dependency.
 > Before installing a pub.dev version, check its CHANGELOG entry, and don't assume
@@ -61,7 +61,7 @@ playback.
 
 ```yaml
 dependencies:
-  mova: ^0.5.0
+  mova: ^0.5.2
 ```
 
 To use picture-in-picture on Android, declare it on the Activity in `AndroidManifest.xml`:

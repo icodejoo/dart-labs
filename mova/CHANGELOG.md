@@ -1,3 +1,7 @@
+## 0.5.2
+
+- Android: the slimmed `libmpv.so` in `packages/media_kit_libs_android_video_slim` (all four ABIs) is now linked with 16 KB page alignment (`-Wl,-z,max-page-size=16384`), as Google Play requires for apps targeting Android 15+. The mpv `c_link_args` override had dropped the flag, leaving 4 KB-aligned LOAD segments. The pub.dev archive does not include `packages/`; this matters to apps that use the slim fork through `dependency_overrides`.
+
 ## 0.5.1
 
 - Docs: pubspec `homepage` and `repository` now point to the package directory on the `main` branch.
