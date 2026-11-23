@@ -115,7 +115,7 @@ index a709ac8..c1a4a5e 100755
 +	-Dandroid-media-ndk=enabled \
 +	-Dopensles=enabled \
 +	-Daudiotrack=enabled \
-+	-Dc_link_args="-landroid -llog -lEGL -lc++_static -lc++abi -Wl,--gc-sections -Wl,--exclude-libs,ALL"
++	-Dc_link_args="-landroid -llog -lEGL -lc++_static -lc++abi -Wl,--gc-sections -Wl,--exclude-libs,ALL -Wl,-z,max-page-size=16384"
  
  ninja -C $build -j$cores
  DESTDIR="$prefix_dir" ninja -C $build install
