@@ -470,6 +470,11 @@ pub fn parse_svg(data: String, current_color: Option<u32>) -> Result<SvgScene, S
     parse_svg_document(&data, &doc, current_color)
 }
 
+/// 在 FRB worker 上解析 SVG，参数、返回值和错误语义与 `parse_svg` 相同。
+pub fn parse_svg_async(data: String, current_color: Option<u32>) -> Result<SvgScene, String> {
+    parse_svg(data, current_color)
+}
+
 // CSS references are resolved only by usvg. Check the resulting recursive
 // wire paints on the worker too: otherwise a deep returned pattern can overflow
 // during SSE encoding or Drop back on the caller's small stack. Rejected scenes

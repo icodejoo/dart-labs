@@ -17,9 +17,12 @@ import 'stats.dart';
 /// 在 [active] 期间采集 [FrameTiming] 样本，输出 build/raster 耗时统计。
 class FrameTimingCollector {
   /// Registers the collector with [SchedulerBinding]. / 向 [SchedulerBinding] 注册采集器。
-  FrameTimingCollector() {
+  FrameTimingCollector({this.onFrame}) {
     SchedulerBinding.instance.addTimingsCallback(_onTimings);
   }
+
+  /// 可选的逐帧回调，供基准把绘制事件和引擎时间戳对齐。
+  final void Function(FrameTiming)? onFrame;
 
   bool _active = false;
   bool _everReceived = false;
@@ -64,6 +67,7 @@ class FrameTimingCollector {
     _everReceived = true;
     if (!_active) return;
     for (final t in timings) {
+      onFrame?.call(t);
       _build.add(Duration(microseconds: t.buildDuration.inMicroseconds));
       _raster.add(Duration(microseconds: t.rasterDuration.inMicroseconds));
       _rasterFinishUs.add(t.timestampInMicroseconds(FramePhase.rasterFinish));

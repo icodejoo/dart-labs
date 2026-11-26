@@ -2752,3 +2752,23 @@ B 为升级后,U 为升级前;每台设备 3 轮 × 2。原始文件与汇总脚
 - build avg 5.05ms(4.80–5.11),raster avg 10.20ms(10.14–10.22)。
 - 超过 16.6ms 的帧有 1–2 帧;parse 平均 0.19ms(n=1000);`cached_pictures`=1000。
 - **作废说明**:本日更早一次手机静态试跑(raster 3.9ms)不作数。当时 Android 预编译库没有随 wire 格式更新重编,静态路径解码失败,实际什么都没画(`cached_pictures`=0,parse n=0)。`e2781dd7` 重编 Android `.so` 后,本节是这台手机上第一组有效的静态数据。那次试跑从未写进本文。
+
+## 2026-11-26:大源 async 解析阈值校准
+
+背景与"为什么只对大源走 async"见 `doc/ffi-performance-audit.md`「补充调研九」。落地方式:原生端冷缓存未命中且 `source.length` ≥ 阈值时,`StaticXvg` 改走 `getOrRenderAsync`,其中用非 sync 的 `parseSvgAsync`(FRB worker)解析;小源维持同步 + `ColdMountFrameBudget`;Web 保持同步(wasm 构建无共享内存,FRB async worker 不可用)。
+
+**方法**:`LIB=async_threshold`(`benchmark/bench_app/lib/async_threshold_bench.dart`)。用 `mdi_icons_1000.dart` 的真实图标平铺拼出 4–256KB 各档合法 SVG,每档每轮 9 个不同样本,同一源 sync/async 成对冷挂载、先后交替;SM-A566B(120Hz)profile,4 轮冷启动,共 360 对。sync UI = 解析 + 录制;async UI = 派发 + SSE 解码 + 录制。原始数据与复现命令:`benchmark/async_threshold_results.md`。
+
+| KB | sync UI p50 | async UI p50 | sync / async 到光栅 p50 | async 多出占位帧 |
+|---:|---:|---:|---:|---:|
+| 4 | 0.64ms | 0.32ms | 10.2 / 17.7ms | 1 |
+| 8 | 1.15ms | 0.47ms | 10.9 / 17.9ms | 1 |
+| **16** | **5.35ms** | **1.51ms** | 16.3 / 19.5ms | 1 |
+| 32 | 9.37ms | 2.64ms | 20.2 / 28.1ms | 2 |
+| 64 | 13.43ms | 4.10ms | 25.2 / 29.9ms | 2 |
+| 128 | 19.68ms | 5.04ms | 32.8 / 36.9ms | 3 |
+| 256 | 34.17ms | 10.32ms | 54.7 / 62.7ms | 4 |
+
+**判定**:取 sync 解析 + 录制 p50 首次超过 4ms(120Hz 半帧,给更慢的设备留余量)的档位 → **16KB(16384 个 UTF-16 码元)**,常量 `staticSvgAsyncParseThreshold`(`lib/src/rust_static_svg.dart`)。该档 async 的 UI 占用降 72%,代价是端到端多约 3ms、多 1 帧占位。
+
+**局限**:8→16KB 的 sync 成本是非线性跳升(1.15→5.35ms,16KB 四轮 p50 为 3.2–5.9ms),阈值处于临界;语料以实心 MDI 路径为主,未覆盖渐变/滤镜/遮罩/位图,同长度的插画成本可能不同;只测了一台手机。换设备或语料后若要调整,重跑 `LIB=async_threshold`。

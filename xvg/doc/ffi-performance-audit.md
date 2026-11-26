@@ -11,6 +11,7 @@
   FRB 自己在 `read_buffer.dart` 里有原话注释:"Must copy when in `sync` mode, because the underlying buffer is a Rust pointer and will be freed later (but in non-sync mode,
   we can optimize this and do not copy)"——这是 FRB 为了避免访问已释放的 Rust 内存,故意加的安全拷贝,不是实现疏漏。
 - **想去掉这次拷贝,唯一办法是把 `parse_svg` 从 sync 改成 async**——但这条路已经在"性能验收条件"里评估过并明确否决(sync 单次解析 avg=0.026-0.106ms,1000 图标场景零掉帧,量级可忽略,不值得为了省这一次 bulk copy 换成跨 isolate 派发的 async)。
+  > **2026-11-26 修订**:对**图标**这条否决仍成立;但**几百 KB 的大源**冷未命中会在 UI 线程卡一整帧,已改为大源走 `parse_svg_async`,理由不是省拷贝而是把 usvg 解析移出 UI 线程。见下方「补充调研九」。
 - **`String` 入参换成 `Uint8List` 没有意义**:UTF-8 编码这一步不可避免只会发生一次,搬到调用方代码里做和留在 FRB 生成代码里做,总成本一样,不会减少。查了 `flutter_svg` 自己的 `SvgBytesLoader.provideSvg`,它也是先 `utf8.decode` 成 `String` 再解析,业界通用做法一致,不是我们独有的反模式。
 - **flutter_svg 的缓存 key 也是对完整字符串做 hash**(`Object.hash(_svg, theme, colorMapper)`),和 xvg 的 `(String, int?)` 缓存 key 成本量级相同——没有可以借鉴的更便宜方案。
 
@@ -195,3 +196,47 @@ return ans;
 - 生成代码仍走 `SseCodec`(`lib/src/rust/frb_generated.dart` 已核对),`parse_svg` 仍为 sync + SSE,主体结论与补充调研一至七不变。
 - 多 isolate 初始化竞态:见 FRB PR #3479,**2.13.0 未包含该修复**。是否影响本库(多 isolate 同时首次调用)尚未专项复现,待补。
 - 升级后的性能数据见 `doc/performance-benchmarks.md`「2026-11-04:依赖升级后的真机 A/B」。
+
+## 补充调研九(2026-11-26,真机实测:async 解析与 struct-of-arrays 载荷)
+
+另一会话参考 `flutter_avif`(ffigen + 原生线程 + `Dart_PostCObject`)提出两条设想,这次做了原型并在真机上量:
+
+1. **解析移出 UI 线程**:缓存未命中改走非 sync 的 FRB 接口(Rust 线程池解析,Dart 只 await)。
+2. **摊平 FFI 载荷(SoA)**:整场景只传一块 verbs `Uint8List`、一块 points `Float32List`、每路径偏移/颜色/标志位放 `Uint32List`,渐变/effects 放侧表按索引引用。
+
+**环境**:Samsung SM-A566B(120Hz),profile/AOT,Flutter 3.50.1,FRB 2.13,Rust `opt-level=z`;同一 APK 起 4 个独立进程,sync/async(结构化/扁平)先后顺序轮换,表内为中位数〔最小–最大〕。正确性:1000 个 Mdi 图标 + 6 个复杂样本 + 1 张大图逐路径比对 verbs/points/颜色/标志位(f32 按位比),1010 个用例全过、0 跳过。大图是一张本机真实活动页插画(233KB,375×2114,145 条路径,含渐变和裁剪,无动画/位图),**不入库**。原型在临时分支 `xvg-ffi-bench`,测完已删除。
+
+### 方向 1:async 解析
+
+| 场景 | sync | async |
+|---|---|---|
+| 大图冷渲染,UI 单帧最长 build | 24.52ms〔16.2–29.6〕 | **7.34ms**〔5.0–11.2〕 |
+| 大图 build 超 16.6ms 的帧 | 4 轮中 3 轮各 1 帧 | 0 |
+| 大图触发 → 光栅完成 | 39.1ms | 38.7ms(端到端不变,多 2~3 帧占位) |
+| 大图 async 仍留在 UI 的部分 | — | 派发 ~6.5ms(大字符串 SSE 序列化提交)+ SSE 解码 0.21ms + 录制 4.5ms |
+| 1000 图标逐个,单次延迟 | 56µs | 508µs〔304–761〕 |
+| 1000 图标逐个,UI 占用 | 56µs | 88µs(async 反而更多:派发固定开销 ~50–80µs) |
+| 50 个并发,单次延迟 | 47µs | 3606µs |
+| 一屏 50 个冷图标(现有 `ColdMountFrameBudget` 为基线) | 最长 build 10.9ms,光栅完成 24.3ms,2 帧画完 | 9.2ms,29.0ms,2 帧画完 |
+
+**结论:只有"冷未命中 + 大源"值得走 async**。小图标 async 的延迟和 UI 占用都更差;一屏大量冷图标已由 `ColdMountFrameBudget` 分摊到多帧,async 无收益。已落地为按源长度阈值分发,阈值校准见 `doc/performance-benchmarks.md`「2026-11-26:大源 async 解析阈值校准」。
+
+**附带发现**:大图出现后,几乎每帧 totalSpan 都超 16.6ms(触发前 30 帧 0 帧超,触发后约 25 帧超),sync/async 一样——那是这张插画每帧的光栅成本,不是解析。async 只消掉一次性的那帧卡顿。
+
+### 方向 2:SoA 载荷
+
+| 输入 | 指标 | 现状(嵌套) | 扁平 |
+|---|---|---|---|
+| Mdi 图标 | 传输(Rust SSE 编码 + Dart 解码) | 3.65µs/个 | 3.12µs/个 |
+| | 其中 Dart SSE 解码 | 0.59µs | 0.61µs |
+| | 建 `ui.Path` | 2.87µs | 2.78µs |
+| | parse → `ui.Picture` | 50.99µs | 50.99µs |
+| | Dart 分配(JIT,vm_service 计数) | 23 对象 / 1.4KB | **36 对象 / 1.9KB(更多)** |
+| 大图 | 传输 | 521µs | 448µs |
+| | Dart SSE 解码 | 176µs | 126µs |
+| | 建 `ui.Path` | 601µs | 589µs |
+| | Dart 分配 | 3944 对象 / 301KB | 3363 / 273KB |
+
+**结论:不做**。图标省 0.5µs/个,占 parse → Picture 的 ~1%;大图省 ~70µs,对比整次同步解析 15–28ms 不到 0.5%。时间大头在 usvg 解析、逐 verb 调 dart:ui、录制,SoA 都碰不到;图标场景分配反而变多。与补充调研六(host JIT 下 SSE 解码占 2.97%)方向一致,AOT 下占比更低(Dart SSE 解码 ~1.2%)。
+
+**不考虑 protobuf**:SSE 已是紧凑二进制,换 protobuf 只会多一次拷贝和一个依赖。

@@ -12,6 +12,7 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/widgets.dart';
 
 import 'animation/svg_theme.dart';
@@ -19,6 +20,23 @@ import 'cold_mount_budget.dart';
 import 'pixel_snap_layer.dart';
 import 'rust/api/svg.dart';
 import 'svg_affine.dart';
+
+/// 原生端大 SVG 冷未命中阈值，按 `String.length` 的 UTF-16 码元数计。
+/// SM-A566B 四轮 120 Hz 实测，16 KiB 是同步解析加录制 p50 首次超过
+/// 4 ms（约半帧）的档位。该档同步 p50 为 5.345 ms，异步 UI 占用为
+/// 1.513 ms。详见 `benchmark/async_threshold_results.md`。
+@visibleForTesting
+const staticSvgAsyncParseThreshold = 16 * 1024;
+
+/// 测试和基准可覆盖阈值，覆盖值只在原生端生效。
+@visibleForTesting
+int? debugStaticSvgAsyncParseThreshold;
+
+/// Web demo 的 wasm 构建不使用共享内存，无法依赖 FRB 的异步 worker。
+bool _shouldParseAsync(String source) =>
+    !kIsWeb &&
+    source.length >=
+        (debugStaticSvgAsyncParseThreshold ?? staticSvgAsyncParseThreshold);
 
 /// A recorded static SVG picture plus its intrinsic (viewport) size.
 ///
@@ -148,7 +166,10 @@ class RustXvgPictureCache {
   /// 把 [stopwatch] 的耗时上报给 [onParseMiss]；[stopwatch] 为 null 时不做
   /// 任何事（与 [_startParseMissStopwatch] 对应）。
   void _reportParseMiss(Stopwatch? stopwatch) {
-    if (stopwatch != null) onParseMiss!(stopwatch.elapsed);
+    // `?.` rather than `!`: on the worker-parse path the callback can be
+    // cleared while the parse is awaited. / 用 `?.` 而非 `!`：worker 解析路径上，
+    // 回调可能在等待解析期间被清空。
+    if (stopwatch != null) onParseMiss?.call(stopwatch.elapsed);
   }
 
   /// Returns the already-cached picture for [source]/[currentColorArgb], or
@@ -176,19 +197,19 @@ class RustXvgPictureCache {
   RustSvgPictureInfo? peek(String source, {int? currentColorArgb}) =>
       _touch((source, currentColorArgb));
 
-  /// Async counterpart of [getOrRender], for sources whose parsed scene
-  /// contains embedded `<image>` bitmaps — decoding those requires
-  /// `ui.instantiateImageCodec`, which is async, so this path can't stay
-  /// fully synchronous. Sources with no images never hit the async decode
-  /// step; callers that don't know in advance can always call this and it
-  /// degrades to the same sync work as [getOrRender] wrapped in a
-  /// synchronously-resolved [Future].
+  /// Async counterpart of [getOrRender], for two kinds of source: those whose
+  /// parsed scene contains embedded `<image>` bitmaps — decoding those
+  /// requires `ui.instantiateImageCodec`, which is async — and, on native
+  /// platforms, sources at or above the large-source threshold, which are
+  /// parsed on an FRB worker so usvg stays off the UI thread. Small
+  /// image-free sources degrade to the same sync work as [getOrRender]
+  /// wrapped in a synchronously-resolved [Future].
   ///
-  /// [getOrRender] 的异步版本，供解析出的场景含内嵌 `<image>` 位图的源使用——
-  /// 解码位图需要 `ui.instantiateImageCodec`，是异步的，这条路径没法保持全同步。
-  /// 不含图片的源不会走异步解码这一步；调用方若不确定可以直接调用本方法，
-  /// 无图片时会退化为与 [getOrRender] 相同的同步工作，包在一个同步 resolve 的
-  /// [Future] 里。
+  /// [getOrRender] 的异步版本，供两类源使用：解析出的场景含内嵌 `<image>`
+  /// 位图的源——解码位图需要 `ui.instantiateImageCodec`，是异步的；以及原生端
+  /// 长度达到大源阈值的源——交给 FRB worker 解析，让 usvg 不占 UI 线程。
+  /// 无图片的小源会退化为与 [getOrRender] 相同的同步工作，包在一个同步
+  /// resolve 的 [Future] 里。
   Future<RustSvgPictureInfo> getOrRenderAsync(
     String source, {
     int? currentColorArgb,
@@ -219,14 +240,14 @@ class RustXvgPictureCache {
     final future = _renderAsync(key, source, currentColorArgb);
     _inFlight[key] = future;
     // Deregistration is hung off the future rather than written into
-    // `_renderAsync`'s `finally`: an image-free source has no `await` at all,
-    // so that `finally` would run *before* the line above and leave the entry
-    // (and, through the key, the whole source string) stranded in the map
-    // forever. `then` always defers to a microtask, which is after
+    // `_renderAsync`'s `finally`: a small image-free source has no `await` at
+    // all, so that `finally` would run *before* the line above and leave the
+    // entry (and, through the key, the whole source string) stranded in the
+    // map forever. `then` always defers to a microtask, which is after
     // this synchronous block and before any other caller can get in.
     //
     // 摘除动作挂在 future 上，而不是写进 `_renderAsync` 的 `finally`：无图片的
-    // 源整条路径上没有任何 `await`，那个 `finally` 会在上面这行**之前**执行，
+    // 小源整条路径上没有任何 `await`，那个 `finally` 会在上面这行**之前**执行，
     // 于是条目（连同键里那整个源串）会永远卡在表里。`then` 一定推迟到
     // 一个 microtask，那已经在本同步块之后、且早于任何其它调用方进来。
     void cleanup() {
@@ -254,7 +275,9 @@ class RustXvgPictureCache {
     int? currentColorArgb,
   ) async {
     final stopwatch = _startParseMissStopwatch();
-    final scene = parseSvg(data: source, currentColor: currentColorArgb);
+    final scene = _shouldParseAsync(source)
+        ? await parseSvgAsync(data: source, currentColor: currentColorArgb)
+        : parseSvg(data: source, currentColor: currentColorArgb);
     final RustSvgPictureInfo info;
     if (scene.images.isEmpty) {
       info = _recordScene(scene, const []);
@@ -1062,11 +1085,12 @@ class StaticXvg extends StatelessWidget {
 
   // Cheap syntactic sniff (mirrors AnimationDetector's approach) so the
   // overwhelmingly common no-image case stays on the fully-sync build path
-  // with zero added cost — only sources that might embed a bitmap pay for
-  // the async branch below.
+  // with zero added cost — only sources that might embed a bitmap (or that
+  // are large enough to parse on a worker) pay for the async branch below.
   //
   // 廉价语法级嗅探（思路同 AnimationDetector），让绝大多数无图片的场景保持
-  // 全同步 build 路径、零额外开销——只有可能内嵌位图的源才走下面的异步分支。
+  // 全同步 build 路径、零额外开销——只有可能内嵌位图的源（或大到要交给
+  // worker 解析的源）才走下面的异步分支。
   static final RegExp _imagePattern = RegExp(
     r'<image[\s>]',
     caseSensitive: false,
@@ -1089,7 +1113,7 @@ class StaticXvg extends StatelessWidget {
       currentColorArgb: currentColorArgb,
     );
     if (cached != null) return _buildFromInfo(context, cached);
-    if (_imagePattern.hasMatch(source)) {
+    if (_shouldParseAsync(source) || _imagePattern.hasMatch(source)) {
       return _buildAsync(
         context,
         RustXvgPictureCache.instance.getOrRenderAsync(
@@ -1152,13 +1176,14 @@ class StaticXvg extends StatelessWidget {
 
   /// Shared async build path: waits on [future] behind a [FutureBuilder],
   /// showing a blank placeholder while pending and [errorBuilder] (or the
-  /// same placeholder) on failure. Used both by the `<image>`-embedding
-  /// decode path and by [budget]-deferred cold renders — same waiting shape,
-  /// different reason for waiting.
+  /// same placeholder) on failure. Used by the large-source worker parse, the
+  /// `<image>`-embedding decode path and [budget]-deferred cold renders —
+  /// same waiting shape, different reason for waiting.
   ///
   /// 共用的异步 build 路径：在 [FutureBuilder] 之后等待 [future]，等待期间
-  /// 显示空白占位符，失败时用 [errorBuilder]（或同一占位符）。`<image>` 内嵌
-  /// 解码路径与 [budget] 推迟的冷渲染都用它——等待的形状相同，等待的原因不同。
+  /// 显示空白占位符，失败时用 [errorBuilder]（或同一占位符）。大源 worker
+  /// 解析、`<image>` 内嵌解码路径与 [budget] 推迟的冷渲染都用它——等待的
+  /// 形状相同，等待的原因不同。
   Widget _buildAsync(BuildContext context, Future<RustSvgPictureInfo> future) {
     return FutureBuilder<RustSvgPictureInfo>(
       future: future,
@@ -1183,10 +1208,10 @@ class StaticXvg extends StatelessWidget {
   }
 
   /// Shared layout/paint wiring once a [RustSvgPictureInfo] is in hand,
-  /// whether it arrived synchronously or via the async image-decode path.
+  /// whether it arrived synchronously or via one of the async paths.
   ///
   /// 拿到 [RustSvgPictureInfo] 之后共用的布局/绘制逻辑，无论它是同步拿到的
-  /// 还是走异步图片解码路径拿到的。
+  /// 还是走某条异步路径拿到的。
   Widget _buildFromInfo(BuildContext context, RustSvgPictureInfo info) {
     final resolved = alignment.resolve(Directionality.maybeOf(context));
     final w = width ?? info.size.width;

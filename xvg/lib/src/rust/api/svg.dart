@@ -41,6 +41,13 @@ SvgScene parseSvg({required String data, int? currentColor}) => RustLib
     .api
     .crateApiSvgParseSvg(data: data, currentColor: currentColor);
 
+/// 在 FRB worker 上解析 SVG，参数、返回值和错误语义与 `parse_svg` 相同。
+Future<SvgScene> parseSvgAsync({required String data, int? currentColor}) =>
+    RustLib.instance.api.crateApiSvgParseSvgAsync(
+      data: data,
+      currentColor: currentColor,
+    );
+
 /// Parses any CSS3/SVG colour string (`red`, `cornflowerblue`, `#RGB`,
 /// `#RRGGBB`, `rgb()`, `rgba()`, `hsl()`, ...) into RGBA bytes, or returns
 /// `None` when the string isn't a colour.

@@ -70,7 +70,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => -705259901;
+  int get rustContentHash => 1773762583;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -89,6 +89,11 @@ abstract class RustLibApi extends BaseApi {
   Uint8List? crateApiSvgParseColor({required String s});
 
   SvgScene crateApiSvgParseSvg({required String data, int? currentColor});
+
+  Future<SvgScene> crateApiSvgParseSvgAsync({
+    required String data,
+    int? currentColor,
+  });
 
   Float32List? crateApiSvgParseTransform({required String s});
 }
@@ -201,13 +206,47 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   );
 
   @override
+  Future<SvgScene> crateApiSvgParseSvgAsync({
+    required String data,
+    int? currentColor,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(data, serializer);
+          sse_encode_opt_box_autoadd_u_32(currentColor, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 5,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_svg_scene,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiSvgParseSvgAsyncConstMeta,
+        argValues: [data, currentColor],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSvgParseSvgAsyncConstMeta => const TaskConstMeta(
+    debugName: "parse_svg_async",
+    argNames: ["data", "currentColor"],
+  );
+
+  @override
   Float32List? crateApiSvgParseTransform({required String s}) {
     return handler.executeSync(
       SyncTask(
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_String(s, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 5)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 6)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_opt_list_prim_f_32_strict,

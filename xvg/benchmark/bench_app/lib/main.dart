@@ -19,6 +19,7 @@ import 'anim_bench_screen.dart';
 import 'anim_fps_bench_screen.dart';
 import 'anim_parse_bench_screen.dart';
 import 'anim_transfer_bench_screen.dart';
+import 'async_threshold_bench.dart';
 import 'bare_anim_grid.dart';
 import 'capture_hook.dart';
 import 'bench_screen.dart';
@@ -104,7 +105,14 @@ Future<void> main() async {
   // 首次调用 parseSvg() 前必须初始化一次；漏掉这步会导致 StaticXvg 每次渲染都
   // 静默回退成空白 SizedBox（默认 errorBuilder 为空），基准就会变成在测「渲染
   // 空盒子」而非 xvg 的真实开销。
-  await RustLib.init();
+  final thresholdHandler = _libName == 'async_threshold'
+      ? AsyncThresholdHandler()
+      : null;
+  await RustLib.init(handler: thresholdHandler);
+  if (thresholdHandler != null) {
+    runApp(MaterialApp(home: AsyncThresholdBench(handler: thresholdHandler)));
+    return;
+  }
   if (_libName == 'micro') {
     // Deterministic Dart-side microbenchmarks: no widget tree, no GPU, no
     // scrolling — see micro_bench.dart for why the scrolling suite alone
