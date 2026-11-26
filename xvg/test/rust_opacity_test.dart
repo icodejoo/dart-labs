@@ -74,7 +74,7 @@ void main() {
         '<g opacity=".5"><rect width="30" height="30" fill="red"/><rect x="10" width="30" height="30" fill="blue"/></g><rect y="35" width="40" height="5"/>',
       );
       final scene = parseSvg(data: source);
-      expect(scene.commands.map((c) => c.kind), [2, 0, 0, 3, 0]);
+      expect(scene.displayList!.commands.map((c) => c.kind), [2, 0, 0, 3, 0]);
       expect(scene.paths.map((p) => p.fillArgb >> 24), everyElement(255));
       final pixels = await _pixels(source);
       expect(_alpha(pixels, 5, 15), closeTo(128, 1));
@@ -156,7 +156,7 @@ void main() {
         '<g opacity="$value"><rect width="40" height="40"/></g>',
       );
       expect(_alpha(await _pixels(source), 20, 20), alpha);
-      if (alpha == 255) expect(parseSvg(data: source).commands, isEmpty);
+      if (alpha == 255) expect(parseSvg(data: source).displayList, isNull);
     }
   });
 
@@ -201,7 +201,7 @@ void main() {
       ),
     );
     expect(scene.paths, hasLength(1));
-    expect(scene.commands, isEmpty);
+    expect(scene.displayList, isNull);
     expect(scene.paths.single.effects!.mask!.paths, hasLength(1));
     expect(scene.paths.single.effects!.mask!.commands, isEmpty);
     expect(scene.paths.single.effects!.fillPattern!.paths, hasLength(1));
@@ -218,7 +218,12 @@ void main() {
     final source = _svg(
       '<g opacity=".5"><rect width="40" height="40" fill="blue"/><image width="30" height="40" preserveAspectRatio="none" href="data:image/png;base64,$png"/></g>',
     );
-    expect(parseSvg(data: source).commands.map((c) => c.kind), [2, 0, 1, 3]);
+    expect(parseSvg(data: source).displayList!.commands.map((c) => c.kind), [
+      2,
+      0,
+      1,
+      3,
+    ]);
     final pixels = await _pixels(source, async: true);
     expect(_alpha(pixels, 20, 20), closeTo(128, 1));
     expect(_alpha(pixels, 35, 20), closeTo(128, 1));
@@ -229,7 +234,7 @@ void main() {
   test('opaque scene retains the existing flat replay', () async {
     if (!_rustAvailable) return;
     final source = _svg('<rect width="40" height="40" fill="red"/>');
-    expect(parseSvg(data: source).commands, isEmpty);
+    expect(parseSvg(data: source).displayList, isNull);
     expect(_alpha(await _pixels(source), 20, 20), 255);
   });
 }

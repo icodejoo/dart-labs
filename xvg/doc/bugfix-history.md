@@ -237,3 +237,15 @@ canvas.clipRect(Rect.fromLTWH(0, 0, intrinsicSize.width, intrinsicSize.height));
 - **测试**：新增 `root_viewbox_parser_test.dart`、`root_viewbox_pixel_test.dart`，扩展文字分流和 pixelSnap 回归；覆盖合法/非法解析、全部对齐、恒等矩阵快路径、非零原点、缩放、无 viewBox/尺寸的旧行为、外层 fit/alignment、viewport 裁剪、背景、用户坐标 mask/clip、ImageProvider、blur 和图片。主要对拍用同一份无动画无文字 SVG 的真实 StaticXvg / AnimatedXvg；比较全部 RGBA 通道，最大允许差为 2/255，透明区也参与，不跳过边缘。非零原点文字与等价零原点文字逐字节一致；pixelSnap 等价场景也逐字节一致。
 - **参考路径发现的旧问题（本次未改）**：StaticXvg 的 `_RustPicturePainter` 没有根 viewport 裁剪，slice 内容可溢出到 widget fit 的外层留白。slice 对拍因此使用与 SVG viewport 一致的 200×100 输出；另单独逐像素验证 Dart 在 200×200 外层盒的上下留白均透明。usvg 的根映射正确，泄漏发生在 Dart 静态绘制器。maskContentUnits/clipPathUnits 的 objectBoundingBox 换算、maskUnits 区域裁剪和 image 自身 preserveAspectRatio 也仍为既有缺口。
 - **验证**：Windows，Flutter 3.47.0 / Dart 3.13.0，PATH 加入 `prebuilt/windows/x64` 加载已有 usvg 0.50 DLL。`flutter analyze --no-pub`：0 issue；`flutter test --no-pub --reporter expanded`：2006 通过、7 跳过、0 失败；use 预算计时项未失败，无需单独重跑。`.fvmrc` 标记 3.47.1，本机使用现有 3.47.0。Rust、prebuilt、Cargo 文件未新增修改，原工作区改动保留，无 commit。
+
+## 静态路径逐路径裁剪：Impeller 每帧光栅 35ms + 半透明重叠边缘偏亮(2026-11-26)
+
+**发现方式**:FFI 优化评估时,一张 233KB 真实活动页插画(未入库,145 条路径、含渐变和裁剪)在 SM-A566B 上显示后,旁边 spinner 一转就几乎每帧超时;sync/async 解析一样,说明是光栅不是解析。
+
+**根因**:Rust `collect()` 把祖先 `<g clip-path>` 累进 `Inherited.clips` 后**复制到每条路径**,Dart 逐路径 `clipPath`——这张图录了 290 次 `clipPath`,叠加 28 个透明度 `saveLayer`。Impeller(Vulkan)没有光栅缓存,静止图也每帧重放,稳态 raster p50 **34.70ms**(28 帧/秒)。消融:去裁剪或去透明度层都回到约 4.9ms,去渐变无效;Skia 因有约 21MB 的 picture 光栅缓存只要 2.4ms。语义上也有问题:透明度层内逐笔裁剪会让重叠图元在抗锯齿边缘重复累积覆盖率,而规范要求裁剪作用于分组合成结果。
+
+**修复**:Rust 按分组输出"入裁剪 / 出裁剪"命令(`SvgCommand.kind` 4/5),裁剪几何放场景级 `SvgScene.display_list.clips`,删除 `SvgEffects.clips` / `SvgImage.clips`;Dart 按命令栈 `save + clipPath` / `restore` 重放,裁剪在透明度层外。中间一版为了与旧输出逐像素一致把裁剪放回层内,raster 只降到 8.97ms,终审弃用。
+
+**结果**:同场景 raster p50 34.70 → **4.905ms**、120 帧/秒、每帧 `clipPath` 290 → 2;1000 图标滚动无回归。像素对照(`test/rust_clip_pixels_test.dart`,HEAD 基线 3 种缩放/亚像素偏移)只有"裁剪包多笔透明度层"的两类样本在边缘变化(最大 18 色阶,即旧实现的累积误差被消除),非边缘像素最大差 1 色阶;边缘正确性由"重叠不透明绘制只覆盖一次"的独立用例保证。详细数据:`benchmark/raster_233kb_results.md`。
+
+**遗留**:整张大图在 Impeller 上仍按向量每帧重放,完全静止且极复杂的插画可再考虑按视口栅格化缓存(实测首屏视口缓存 9.4MB、首次约 101ms),目前未做。

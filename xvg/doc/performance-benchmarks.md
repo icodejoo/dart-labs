@@ -2772,3 +2772,17 @@ B 为升级后,U 为升级前;每台设备 3 轮 × 2。原始文件与汇总脚
 **判定**:取 sync 解析 + 录制 p50 首次超过 4ms(120Hz 半帧,给更慢的设备留余量)的档位 → **16KB(16384 个 UTF-16 码元)**,常量 `staticSvgAsyncParseThreshold`(`lib/src/rust_static_svg.dart`)。该档 async 的 UI 占用降 72%,代价是端到端多约 3ms、多 1 帧占位。
 
 **局限**:8→16KB 的 sync 成本是非线性跳升(1.15→5.35ms,16KB 四轮 p50 为 3.2–5.9ms),阈值处于临界;语料以实心 MDI 路径为主,未覆盖渐变/滤镜/遮罩/位图,同长度的插画成本可能不同;只测了一台手机。换设备或语料后若要调整,重跑 `LIB=async_threshold`。
+
+## 2026-11-26:静态裁剪改为分组命令(Impeller 光栅)
+
+根因、消融与修复过程见 `doc/bugfix-history.md` 同日条目,完整数据见 `benchmark/raster_233kb_results.md`(`LIB` 入口为 `benchmark/bench_app/lib/raster_233kb_bench.dart`,脚本 `tool/run_raster_233kb.ps1`,样本运行时传入、不入库)。SM-A566B,Impeller Vulkan,插画顶部可见、spinner 持续出帧,3 次冷启动中位数:
+
+| 版本 | raster p50 / p95 | totalSpan p50 | 帧完成速率 | 每帧 clipPath |
+|---|---:|---:|---:|---:|
+| 改前(逐路径裁剪) | 34.70 / 35.60ms | 67.33ms | 28.5 | 290 |
+| 层内裁剪方案(弃用) | 8.97 / 9.31ms | 14.82ms | 109.6 | 6 |
+| **最终(分组裁剪,层外)** | **4.91 / 5.43ms** | **6.39ms** | **120.2** | **2** |
+
+1000 图标滚动(`LIB=xvg`,3 次中位数)build / raster / parse 平均:改前 1.720 / 4.387 / 0.111ms,改后 1.693 / 4.312 / 0.115ms,超 16.6ms 帧均为 0。
+
+**方法学提醒**:Impeller 没有光栅缓存,静态 SVG 只要在屏上、且同屏有任何东西在动,就每帧按向量重放;评估复杂静态图时要在"有持续动画的页面"上测,静止页面测不出这类成本。

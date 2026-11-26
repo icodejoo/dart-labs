@@ -7,10 +7,10 @@ import '../frb_generated.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `append_clip_geometry`, `append_mapped_points`, `append_segments`, `append_subtree_commands`, `argb`, `build_clips_at_depth`, `build_clips`, `build_gradient`, `build_mask_at_depth`, `build_mask`, `build_pattern`, `charge_clips`, `charge_subtree`, `charge`, `check_xml_depth`, `check`, `checked_styles`, `close_opacity_layer`, `collect`, `concat`, `convert_gradient_stops`, `convert_image`, `convert_path`, `css_compound_certain`, `css_compound_matches`, `css_declarations_certain`, `css_ident`, `css_parts_match`, `css_selector_parts`, `css_space`, `css_string_end`, `current_color_insertion`, `extend_inherited`, `finish_commands`, `gaussian_blur_of`, `limit_scene_reference_depth`, `limit_source_depth`, `local_urls`, `map`, `paint_argb`, `parse_svg_document`, `parse_xml`, `resolve_paint`, `scan_css`, `some_if_present`, `source_reference_graph`, `spread_to_u8`, `stop_rgb`, `token_matrix`, `transform_to_vec6`, `try_scene_from_tree`, `usvg_options`
-// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `ExpansionBudget`, `GuardCss`, `Inherited`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`
-// These functions are ignored (category: IgnoreBecauseOwnerTyShouldIgnore): `default`, `default`, `default`
+// These functions are ignored because they are not marked as `pub`: `append_clip_geometry`, `append_mapped_points`, `append_segments`, `append_subtree_commands`, `argb`, `build_clips_at_depth`, `build_clips`, `build_gradient`, `build_mask_at_depth`, `build_mask`, `build_pattern`, `charge_clips`, `charge_subtree`, `charge`, `check_xml_depth`, `check`, `checked_styles`, `close_opacity_layer`, `collect`, `concat`, `convert_gradient_stops`, `convert_image`, `convert_path`, `css_compound_certain`, `css_compound_matches`, `css_declarations_certain`, `css_ident`, `css_parts_match`, `css_selector_parts`, `css_space`, `css_string_end`, `current_color_insertion`, `empty`, `extend_inherited`, `finish_commands`, `gaussian_blur_of`, `limit_scene_reference_depth`, `limit_source_depth`, `local_urls`, `map`, `paint_argb`, `parse_svg_document`, `parse_xml`, `resolve_paint`, `scan_css`, `some_if_present`, `source_reference_graph`, `spread_to_u8`, `stop_rgb`, `token_matrix`, `transform_to_vec6`, `try_scene_from_tree`, `usvg_options`
+// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `ClipCost`, `ExpansionBudget`, `GuardCss`, `Inherited`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`
+// These functions are ignored (category: IgnoreBecauseOwnerTyShouldIgnore): `default`, `default`, `default`, `default`
 
 /// Parses [data] (SVG markup) into an [SvgScene]. Errors return a message.
 ///
@@ -133,14 +133,8 @@ class SvgBlur {
 /// One clip region: the union of a `<clipPath>`'s shapes, already mapped into
 /// absolute space.
 ///
-/// A path carrying several [SvgClip]s must be clipped by *all* of them (set
-/// intersection) — that is how nested `clip-path` on a `<clipPath>` and
-/// clip-paths inherited from several ancestor groups compose.
-///
 /// 单个裁剪区域：一个 `<clipPath>` 内各形状的并集，已映射到绝对坐标空间。
-///
-/// 一条路径若带多个 [SvgClip]，必须被**全部**裁剪（求交集）——`<clipPath>` 自身
-/// 的嵌套 `clip-path`、以及从多层祖先分组继承来的 clip-path 就是这样合成的。
+/// 链式引用与祖先分组的裁剪通过多个嵌套命令求交集。
 class SvgClip {
   /// Verbs, same encoding as [SvgPath.verbs]. / 动词，编码同 [SvgPath.verbs]。
   final Uint8List verbs;
@@ -172,12 +166,12 @@ class SvgClip {
           evenOdd == other.evenOdd;
 }
 
-/// 静态显示列表命令：0 路径、1 图片、2 opacity 入层、3 出层。
+/// 静态显示列表命令：0 路径、1 图片、2 透明度入层、3 出层、4 入裁剪、5 出裁剪。
 class SvgCommand {
   /// 命令类型。
   final int kind;
 
-  /// 路径或图片下标；图层命令不用。
+  /// 路径、图片或裁剪区域的下标；透明度命令不使用此字段。
   final int index;
 
   /// 入层不透明度；其他命令不用。
@@ -202,18 +196,30 @@ class SvgCommand {
           opacity == other.opacity;
 }
 
+/// 含状态边界的静态场景显示列表。
+class SvgDisplayList {
+  /// 按绘制顺序排列的命令。
+  final List<SvgCommand> commands;
+
+  /// 已转到场景坐标的裁剪区域，由裁剪命令按下标引用。
+  final List<SvgClip> clips;
+
+  const SvgDisplayList({required this.commands, required this.clips});
+
+  @override
+  int get hashCode => commands.hashCode ^ clips.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SvgDisplayList &&
+          runtimeType == other.runtimeType &&
+          commands == other.commands &&
+          clips == other.clips;
+}
+
 /// Bundles the clip/mask/blur/pattern fields that only apply to a minority of
-/// paths (those under a `<clipPath>`/`<mask>`/blur `<filter>`, or painted
-/// with a `<pattern>`). Grouped into one struct — rather than left as five
-/// separate `Option`/`Vec` fields on [SvgPath] — so the overwhelmingly common
-/// "no such feature" case serializes as a single `None` tag over FFI instead
-/// of five independent empty/`None` tags.
-///
-/// 打包裁剪/遮罩/模糊/图案这几个只有少数路径用得到的字段（位于
-/// `<clipPath>`/`<mask>`/模糊 `<filter>` 之下，或用 `<pattern>` 上色的路径）。
-/// 归并成一个结构体——而不是在 [SvgPath] 上留 5 个独立的 `Option`/`Vec`
-/// 字段——这样绝大多数"没有用到这些特效"的情况，跨 FFI 时只序列化一个
-/// `None` tag，而不是 5 个各自独立的空/`None` tag。
+/// 打包路径的遮罩、模糊和图案；普通路径跨 FFI 时只序列化一个空值标记。
 class SvgEffects {
   /// Fill pattern, when the fill paint is a `<pattern>` (in which case
   /// [SvgPath::fill_argb] is only a grey fallback). / 填充图案，填充为
@@ -223,13 +229,6 @@ class SvgEffects {
   /// Stroke pattern, when the stroke paint is a `<pattern>`.
   /// 描边图案，描边为 `<pattern>` 时使用。
   final SvgPattern? strokePattern;
-
-  /// Clip regions inherited from ancestor groups; the path must be clipped
-  /// by all of them (intersection). Empty when unclipped.
-  ///
-  /// 从祖先分组继承来的裁剪区域；该路径必须被全部裁剪（求交集）。
-  /// 无裁剪时为空。
-  final List<SvgClip> clips;
 
   /// Mask inherited from the nearest ancestor group that declares one.
   /// 来自最近一个声明了遮罩的祖先分组的遮罩。
@@ -243,7 +242,6 @@ class SvgEffects {
   const SvgEffects({
     this.fillPattern,
     this.strokePattern,
-    required this.clips,
     this.mask,
     this.blur,
   });
@@ -252,7 +250,6 @@ class SvgEffects {
   int get hashCode =>
       fillPattern.hashCode ^
       strokePattern.hashCode ^
-      clips.hashCode ^
       mask.hashCode ^
       blur.hashCode;
 
@@ -263,7 +260,6 @@ class SvgEffects {
           runtimeType == other.runtimeType &&
           fillPattern == other.fillPattern &&
           strokePattern == other.strokePattern &&
-          clips == other.clips &&
           mask == other.mask &&
           blur == other.blur;
 }
@@ -448,11 +444,6 @@ class SvgImage {
   /// Encoding format of [data]. / [data] 的编码格式。
   final SvgImageFormat format;
 
-  /// Clip regions inherited from ancestor groups, same semantics as
-  /// [SvgEffects.clips]. / 从祖先分组继承的裁剪区域，语义同
-  /// [SvgEffects.clips]。
-  final List<SvgClip> clips;
-
   /// Mask inherited from the nearest ancestor group that declares one,
   /// same semantics as [SvgEffects.mask]. / 来自最近声明了遮罩的祖先分组的
   /// 遮罩，语义同 [SvgEffects.mask]。
@@ -470,7 +461,6 @@ class SvgImage {
     required this.matrix,
     required this.data,
     required this.format,
-    required this.clips,
     this.mask,
     this.blur,
   });
@@ -484,7 +474,6 @@ class SvgImage {
       matrix.hashCode ^
       data.hashCode ^
       format.hashCode ^
-      clips.hashCode ^
       mask.hashCode ^
       blur.hashCode;
 
@@ -500,7 +489,6 @@ class SvgImage {
           matrix == other.matrix &&
           data == other.data &&
           format == other.format &&
-          clips == other.clips &&
           mask == other.mask &&
           blur == other.blur;
 }
@@ -773,24 +761,20 @@ class SvgScene {
   /// Intrinsic height in px. / 固有高（px）。
   final double height;
 
-  /// Draw commands in paint order. / 按绘制顺序排列的绘制命令。
+  /// 解析后的路径，按文档顺序排列。
   final List<SvgPath> paths;
 
-  /// 含 opacity 时的有序重放命令；为空时沿用原有扁平绘制。
-  final List<SvgCommand> commands;
+  /// 含透明度或裁剪时提供有序重放；普通图标只传一个空值标记。
+  final SvgDisplayList? displayList;
 
-  /// Embedded raster images, in document order (drawn before [paths] — a
-  /// simplifying z-order assumption when [commands] is empty).
-  ///
-  /// 内嵌位图，按文档顺序排列（在 [paths] 之前绘制——简化的 z-order 假设，
-  /// 有 [commands] 时按命令顺序绘制）。
+  /// 内嵌位图，按文档顺序排列；无透明度层时先于路径绘制。
   final List<SvgImage> images;
 
   const SvgScene({
     required this.width,
     required this.height,
     required this.paths,
-    required this.commands,
+    this.displayList,
     required this.images,
   });
 
@@ -799,7 +783,7 @@ class SvgScene {
       width.hashCode ^
       height.hashCode ^
       paths.hashCode ^
-      commands.hashCode ^
+      displayList.hashCode ^
       images.hashCode;
 
   @override
@@ -810,6 +794,6 @@ class SvgScene {
           width == other.width &&
           height == other.height &&
           paths == other.paths &&
-          commands == other.commands &&
+          displayList == other.displayList &&
           images == other.images;
 }

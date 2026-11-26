@@ -360,6 +360,17 @@ impl SseDecode for Option<crate::api::svg::SvgBlur> {
     }
 }
 
+impl SseDecode for Option<crate::api::svg::SvgDisplayList> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<crate::api::svg::SvgDisplayList>::sse_decode(deserializer));
+        } else {
+            return None;
+        }
+    }
+}
+
 impl SseDecode for Option<crate::api::svg::SvgEffects> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -477,18 +488,28 @@ impl SseDecode for crate::api::svg::SvgCommand {
     }
 }
 
+impl SseDecode for crate::api::svg::SvgDisplayList {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_commands = <Vec<crate::api::svg::SvgCommand>>::sse_decode(deserializer);
+        let mut var_clips = <Vec<crate::api::svg::SvgClip>>::sse_decode(deserializer);
+        return crate::api::svg::SvgDisplayList {
+            commands: var_commands,
+            clips: var_clips,
+        };
+    }
+}
+
 impl SseDecode for crate::api::svg::SvgEffects {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_fillPattern = <Option<crate::api::svg::SvgPattern>>::sse_decode(deserializer);
         let mut var_strokePattern = <Option<crate::api::svg::SvgPattern>>::sse_decode(deserializer);
-        let mut var_clips = <Vec<crate::api::svg::SvgClip>>::sse_decode(deserializer);
         let mut var_mask = <Option<crate::api::svg::SvgMask>>::sse_decode(deserializer);
         let mut var_blur = <Option<crate::api::svg::SvgBlur>>::sse_decode(deserializer);
         return crate::api::svg::SvgEffects {
             fill_pattern: var_fillPattern,
             stroke_pattern: var_strokePattern,
-            clips: var_clips,
             mask: var_mask,
             blur: var_blur,
         };
@@ -543,7 +564,6 @@ impl SseDecode for crate::api::svg::SvgImage {
         let mut var_matrix = <Vec<f32>>::sse_decode(deserializer);
         let mut var_data = <Vec<u8>>::sse_decode(deserializer);
         let mut var_format = <crate::api::svg::SvgImageFormat>::sse_decode(deserializer);
-        let mut var_clips = <Vec<crate::api::svg::SvgClip>>::sse_decode(deserializer);
         let mut var_mask = <Option<crate::api::svg::SvgMask>>::sse_decode(deserializer);
         let mut var_blur = <Option<crate::api::svg::SvgBlur>>::sse_decode(deserializer);
         return crate::api::svg::SvgImage {
@@ -554,7 +574,6 @@ impl SseDecode for crate::api::svg::SvgImage {
             matrix: var_matrix,
             data: var_data,
             format: var_format,
-            clips: var_clips,
             mask: var_mask,
             blur: var_blur,
         };
@@ -660,13 +679,14 @@ impl SseDecode for crate::api::svg::SvgScene {
         let mut var_width = <f32>::sse_decode(deserializer);
         let mut var_height = <f32>::sse_decode(deserializer);
         let mut var_paths = <Vec<crate::api::svg::SvgPath>>::sse_decode(deserializer);
-        let mut var_commands = <Vec<crate::api::svg::SvgCommand>>::sse_decode(deserializer);
+        let mut var_displayList =
+            <Option<crate::api::svg::SvgDisplayList>>::sse_decode(deserializer);
         let mut var_images = <Vec<crate::api::svg::SvgImage>>::sse_decode(deserializer);
         return crate::api::svg::SvgScene {
             width: var_width,
             height: var_height,
             paths: var_paths,
-            commands: var_commands,
+            display_list: var_displayList,
             images: var_images,
         };
     }
@@ -777,12 +797,32 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::svg::SvgCommand>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::svg::SvgDisplayList {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.commands.into_into_dart().into_dart(),
+            self.clips.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::svg::SvgDisplayList
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::svg::SvgDisplayList>
+    for crate::api::svg::SvgDisplayList
+{
+    fn into_into_dart(self) -> crate::api::svg::SvgDisplayList {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::svg::SvgEffects {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.fill_pattern.into_into_dart().into_dart(),
             self.stroke_pattern.into_into_dart().into_dart(),
-            self.clips.into_into_dart().into_dart(),
             self.mask.into_into_dart().into_dart(),
             self.blur.into_into_dart().into_dart(),
         ]
@@ -854,7 +894,6 @@ impl flutter_rust_bridge::IntoDart for crate::api::svg::SvgImage {
             self.matrix.into_into_dart().into_dart(),
             self.data.into_into_dart().into_dart(),
             self.format.into_into_dart().into_dart(),
-            self.clips.into_into_dart().into_dart(),
             self.mask.into_into_dart().into_dart(),
             self.blur.into_into_dart().into_dart(),
         ]
@@ -968,7 +1007,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::svg::SvgScene {
             self.width.into_into_dart().into_dart(),
             self.height.into_into_dart().into_dart(),
             self.paths.into_into_dart().into_dart(),
-            self.commands.into_into_dart().into_dart(),
+            self.display_list.into_into_dart().into_dart(),
             self.images.into_into_dart().into_dart(),
         ]
         .into_dart()
@@ -1089,6 +1128,16 @@ impl SseEncode for Option<crate::api::svg::SvgBlur> {
     }
 }
 
+impl SseEncode for Option<crate::api::svg::SvgDisplayList> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::api::svg::SvgDisplayList>::sse_encode(value, serializer);
+        }
+    }
+}
+
 impl SseEncode for Option<crate::api::svg::SvgEffects> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -1185,12 +1234,19 @@ impl SseEncode for crate::api::svg::SvgCommand {
     }
 }
 
+impl SseEncode for crate::api::svg::SvgDisplayList {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <Vec<crate::api::svg::SvgCommand>>::sse_encode(self.commands, serializer);
+        <Vec<crate::api::svg::SvgClip>>::sse_encode(self.clips, serializer);
+    }
+}
+
 impl SseEncode for crate::api::svg::SvgEffects {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <Option<crate::api::svg::SvgPattern>>::sse_encode(self.fill_pattern, serializer);
         <Option<crate::api::svg::SvgPattern>>::sse_encode(self.stroke_pattern, serializer);
-        <Vec<crate::api::svg::SvgClip>>::sse_encode(self.clips, serializer);
         <Option<crate::api::svg::SvgMask>>::sse_encode(self.mask, serializer);
         <Option<crate::api::svg::SvgBlur>>::sse_encode(self.blur, serializer);
     }
@@ -1229,7 +1285,6 @@ impl SseEncode for crate::api::svg::SvgImage {
         <Vec<f32>>::sse_encode(self.matrix, serializer);
         <Vec<u8>>::sse_encode(self.data, serializer);
         <crate::api::svg::SvgImageFormat>::sse_encode(self.format, serializer);
-        <Vec<crate::api::svg::SvgClip>>::sse_encode(self.clips, serializer);
         <Option<crate::api::svg::SvgMask>>::sse_encode(self.mask, serializer);
         <Option<crate::api::svg::SvgBlur>>::sse_encode(self.blur, serializer);
     }
@@ -1304,7 +1359,7 @@ impl SseEncode for crate::api::svg::SvgScene {
         <f32>::sse_encode(self.width, serializer);
         <f32>::sse_encode(self.height, serializer);
         <Vec<crate::api::svg::SvgPath>>::sse_encode(self.paths, serializer);
-        <Vec<crate::api::svg::SvgCommand>>::sse_encode(self.commands, serializer);
+        <Option<crate::api::svg::SvgDisplayList>>::sse_encode(self.display_list, serializer);
         <Vec<crate::api::svg::SvgImage>>::sse_encode(self.images, serializer);
     }
 }

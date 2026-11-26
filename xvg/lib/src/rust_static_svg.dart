@@ -32,6 +32,14 @@ const staticSvgAsyncParseThreshold = 16 * 1024;
 @visibleForTesting
 int? debugStaticSvgAsyncParseThreshold;
 
+/// Rust 静态列表的绘制和状态边界命令编号。
+const _drawPath = 0,
+    _drawImage = 1,
+    _pushOpacity = 2,
+    _popOpacity = 3,
+    _pushClip = 4,
+    _popClip = 5;
+
 /// Web demo 的 wasm 构建不使用共享内存，无法依赖 FRB 的异步 worker。
 bool _shouldParseAsync(String source) =>
     !kIsWeb &&
@@ -424,8 +432,7 @@ class RustXvgPictureCache {
   /// document order unless opacity commands retain that order.
   ///
   /// 把 [scene] 的图片（[decodedImages] 已解码，按下标对应 [SvgScene.images]）
-  /// 再加路径录制进一张 picture。图片先于路径绘制——简化的 z-order 假设，
-  /// 有 opacity 命令时则按文档顺序保留合成边界。
+  /// 再加路径录制进一张 picture，有透明度层时按文档顺序绘制。
   RustSvgPictureInfo _recordScene(
     SvgScene scene,
     List<ui.Image?> decodedImages,
@@ -435,22 +442,36 @@ class RustXvgPictureCache {
       final recorder = ui.PictureRecorder();
       final canvas =
           debugWrapRecordingCanvas?.call(Canvas(recorder)) ?? Canvas(recorder);
+      final displayList = scene.displayList;
+      final commands = displayList?.commands ?? const <SvgCommand>[];
+      final clips = displayList?.clips ?? const <SvgClip>[];
+      final imagesFirst =
+          decodedImages.isNotEmpty && _needsImagesFirst(commands);
+      if (imagesFirst) {
+        _paintCommands(
+          canvas,
+          const [],
+          commands,
+          clips: clips,
+          images: scene.images,
+          decodedImages: decodedImages,
+        );
+      }
       _paintCommands(
         canvas,
         scene.paths,
-        scene.commands,
+        commands,
+        clips: clips,
         images: scene.images,
-        decodedImages: decodedImages,
+        decodedImages: imagesFirst ? const [] : decodedImages,
       );
       final picture = recorder.endRecording();
       return RustSvgPictureInfo(
         picture,
         Size(scene.width, scene.height),
-        hasPixelSnapRisk: scene.paths.any((path) {
-          final effects = path.effects;
-          return effects != null &&
-              (effects.clips.isNotEmpty || effects.mask != null);
-        }),
+        hasPixelSnapRisk:
+            clips.isNotEmpty ||
+            scene.paths.any((path) => path.effects?.mask != null),
       );
     } finally {
       // Each cached tile image was recorded into an `ImageShader`, which the
@@ -474,11 +495,24 @@ class RustXvgPictureCache {
     }
   }
 
-  /// 重放静态列表；opacity 边界包住整个子树，填充透明度仍由 paint 处理。
+  /// 无透明度层时延续既有图片优先顺序，仅在文档顺序需要重排时分两次重放。
+  bool _needsImagesFirst(List<SvgCommand> commands) {
+    var sawPath = false;
+    var needsReorder = false;
+    for (final command in commands) {
+      if (command.kind == _pushOpacity) return false;
+      if (command.kind == _drawPath) sawPath = true;
+      if (command.kind == _drawImage && sawPath) needsReorder = true;
+    }
+    return needsReorder;
+  }
+
+  /// 重放绘制及状态边界，子显示列表沿用其自身的透明度命令。
   void _paintCommands(
     Canvas canvas,
     List<SvgPath> paths,
     List<SvgCommand> commands, {
+    List<SvgClip> clips = const [],
     List<SvgImage> images = const [],
     List<ui.Image?> decodedImages = const [],
     bool nested = false,
@@ -493,48 +527,65 @@ class RustXvgPictureCache {
       }
       return;
     }
-    for (final command in commands) {
-      switch (command.kind) {
-        case 0:
-          _paintPath(canvas, paths[command.index], nested: nested);
-        case 1:
-          if (command.index < decodedImages.length) {
-            final image = decodedImages[command.index];
-            if (image != null) {
-              _paintImage(canvas, images[command.index], image);
+    final initialSaveCount = canvas.getSaveCount();
+    final scopes = <SvgCommand>[];
+
+    try {
+      for (final command in commands) {
+        final index = command.index;
+        switch (command.kind) {
+          case _drawPath:
+            if (index >= 0 && index < paths.length) {
+              _paintPath(canvas, paths[index], nested: nested);
             }
-          }
-        case 2:
-          canvas.saveLayer(
-            null,
-            Paint()..color = Color.fromRGBO(0, 0, 0, command.opacity),
-          );
-        case 3:
-          canvas.restore();
+          case _drawImage:
+            if (index >= 0 &&
+                index < decodedImages.length &&
+                index < images.length) {
+              final image = decodedImages[index];
+              if (image != null) _paintImage(canvas, images[index], image);
+            }
+          case _pushOpacity:
+            canvas.saveLayer(
+              null,
+              Paint()..color = Color.fromRGBO(0, 0, 0, command.opacity),
+            );
+            scopes.add(command);
+          case _pushClip:
+            canvas.save();
+            scopes.add(command);
+            if (index >= 0 && index < clips.length) {
+              canvas.clipPath(_toUiClipPath(clips[index]));
+            }
+          case _popOpacity:
+            if (scopes.lastOrNull?.kind == _pushOpacity) {
+              scopes.removeLast();
+              canvas.restore();
+            }
+          case _popClip:
+            final scope = scopes.lastOrNull;
+            if (scope != null &&
+                scope.kind == _pushClip &&
+                scope.index == index) {
+              scopes.removeLast();
+              canvas.restore();
+            }
+        }
+      }
+    } finally {
+      // 畸形命令或几何重放异常时，归还本列表使用的所有保存层。
+      while (canvas.getSaveCount() > initialSaveCount) {
+        canvas.restore();
       }
     }
   }
 
-  /// Draws one decoded `<image>`, applying its inherited clip/mask/blur (see
-  /// [SvgImage.clips]/[SvgImage.mask]/[SvgImage.blur]) with the same
-  /// filter-then-mask layer nesting [_paintPath] uses, then its [image.matrix]
-  /// — the full affine from [image]'s local (untransformed) box into absolute
-  /// space, which may include rotation/skew from an ancestor `transform`
-  /// that a plain destination [Rect] couldn't represent.
-  ///
-  /// 绘制一个已解码的 `<image>`，应用其继承的 clip/mask/blur（见
-  /// [SvgImage.clips]/[SvgImage.mask]/[SvgImage.blur]），图层嵌套顺序与
-  /// [_paintPath] 一致（先滤镜后遮罩），再应用 [image.matrix]——从 [image]
-  /// 本地（未变换）盒子到绝对空间的完整仿射，可能含祖先 `transform` 带来的
-  /// 旋转/斜切，是普通目标 [Rect] 表达不了的。
+  /// 绘制已解码的图片，使用完整仿射变换，并依次应用模糊和遮罩。
   void _paintImage(Canvas canvas, SvgImage image, ui.Image decoded) {
     final blur = image.blur;
     final mask = image.mask;
-    final needsSave = image.clips.isNotEmpty || blur != null || mask != null;
+    final needsSave = blur != null || mask != null;
     if (needsSave) canvas.save();
-    for (final clip in image.clips) {
-      canvas.clipPath(_toUiClipPath(clip));
-    }
     final Rect? maskRect = mask == null
         ? null
         : Rect.fromLTWH(mask.x, mask.y, mask.width, mask.height);
@@ -608,14 +659,13 @@ class RustXvgPictureCache {
   /// 兜住 `toImageSync` 的内存分配。
   static const int _maxPatternTilePx = 1024;
 
-  /// Paints one [SvgPath], honoring its inherited clip regions, mask and
-  /// Gaussian blur.
+  /// Paints one [SvgPath], honoring its inherited mask and Gaussian blur.
   ///
   /// [nested] is set when painting mask content or pattern-tile content: those
   /// sub-display-lists are drawn plainly (no further clip/mask/blur/pattern
   /// recursion) — see xvg CLAUDE.md for the documented limitation.
   ///
-  /// 绘制单个 [SvgPath]，并应用其继承的裁剪区域、遮罩与高斯模糊。
+  /// 绘制单个 [SvgPath]，并应用其继承的遮罩与高斯模糊。
   ///
   /// 绘制遮罩内容或图案贴片内容时置 [nested]：这些子显示列表按朴素方式绘制
   /// （不再递归处理裁剪/遮罩/模糊/图案）——限制说明见 xvg CLAUDE.md。
@@ -626,17 +676,11 @@ class RustXvgPictureCache {
         : ui.PathFillType.nonZero;
 
     final effects = path.effects;
-    final clips = nested
-        ? const <SvgClip>[]
-        : (effects?.clips ?? const <SvgClip>[]);
     final blur = nested ? null : effects?.blur;
     final mask = nested ? null : effects?.mask;
-    final needsSave = clips.isNotEmpty || blur != null || mask != null;
+    final needsSave = blur != null || mask != null;
 
     if (needsSave) canvas.save();
-    for (final clip in clips) {
-      canvas.clipPath(_toUiClipPath(clip));
-    }
     // Layer nesting follows SVG's filter -> mask pipeline: the mask
     // destination layer opens FIRST (outer) and the blur layer opens SECOND
     // (inner, nested inside it), so closing the blur layer composites

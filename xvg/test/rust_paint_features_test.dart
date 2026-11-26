@@ -116,11 +116,11 @@ void main() {
     }
   });
 
-  test('parseSvg carries a clip-path onto the clipped path', () {
+  test('parseSvg puts clip geometry into the scene display list', () {
     if (!_rustAvailable) return;
     final scene = parseSvg(data: _clipSvg, currentColor: null);
     expect(scene.paths, hasLength(1));
-    expect(scene.paths.single.effects?.clips, hasLength(1));
+    expect(scene.displayList?.clips, hasLength(1));
   });
 
   test('a clip-path actually clips the recorded picture', () async {

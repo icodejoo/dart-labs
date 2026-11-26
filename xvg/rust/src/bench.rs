@@ -425,7 +425,7 @@ fn time_sse_encode(corpus: &[String]) -> (Stats, f64) {
             // `sse_encode` consumes the scene, so each pass needs its own copy;
             // the clone is outside the timed window.
             // `sse_encode` 会消耗 scene，每遍都得有自己的副本；克隆在计时窗口外。
-            let owned = clone_scene(scene);
+            let owned = scene.clone();
             let mut ser = SseSerializer::new();
             let t = Instant::now();
             owned.sse_encode(&mut ser);
@@ -440,36 +440,6 @@ fn time_sse_encode(corpus: &[String]) -> (Stats, f64) {
     }
     let bytes = total_bytes as f64 / samples.len() as f64;
     (stats(samples), bytes)
-}
-
-/// `SvgScene` is not `Clone` (it never needs to be in production), so the
-/// benchmark rebuilds one field-by-field from its `Clone` members.
-///
-/// `SvgScene` 没有实现 `Clone`（生产代码里从不需要），基准这里按字段用它那些
-/// 实现了 `Clone` 的成员重建一份。
-fn clone_scene(s: &crate::api::svg::SvgScene) -> crate::api::svg::SvgScene {
-    crate::api::svg::SvgScene {
-        width: s.width,
-        height: s.height,
-        paths: s.paths.clone(),
-        commands: s.commands.clone(),
-        images: s
-            .images
-            .iter()
-            .map(|i| crate::api::svg::SvgImage {
-                x: i.x,
-                y: i.y,
-                width: i.width,
-                height: i.height,
-                matrix: i.matrix.clone(),
-                data: i.data.clone(),
-                format: i.format,
-                clips: i.clips.clone(),
-                mask: i.mask.clone(),
-                blur: i.blur.clone(),
-            })
-            .collect(),
-    }
 }
 
 /// Splits usvg's cost into "roxmltree XML parse" and "XML → usvg::Tree", to see
@@ -517,16 +487,18 @@ fn fingerprint(corpus: &[String], current_color: Option<u32>) -> u64 {
             eat(b);
         }
     };
+    // 路径和裁剪使用相同的几何字节顺序。
+    let eat_geometry = |verbs: &[u8], points: &[f32], eat: &mut dyn FnMut(u8)| {
+        for &verb in verbs {
+            eat(verb);
+        }
+        for &point in points {
+            eat_f32(point, eat);
+        }
+    };
     let walk = |paths: &[crate::api::svg::SvgPath], eat: &mut dyn FnMut(u8)| {
-        for p in paths {
-            for &v in &p.verbs {
-                eat(v);
-            }
-            for &c in &p.points {
-                for b in c.to_bits().to_le_bytes() {
-                    eat(b);
-                }
-            }
+        for path in paths {
+            eat_geometry(&path.verbs, &path.points, eat);
         }
     };
     for s in corpus {
@@ -534,18 +506,13 @@ fn fingerprint(corpus: &[String], current_color: Option<u32>) -> u64 {
         eat_f32(scene.width, &mut eat);
         eat_f32(scene.height, &mut eat);
         walk(&scene.paths, &mut eat);
+        if let Some(list) = &scene.display_list {
+            for clip in &list.clips {
+                eat_geometry(&clip.verbs, &clip.points, &mut eat);
+            }
+        }
         for p in &scene.paths {
             if let Some(e) = &p.effects {
-                for c in &e.clips {
-                    for &v in &c.verbs {
-                        eat(v);
-                    }
-                    for &x in &c.points {
-                        for b in x.to_bits().to_le_bytes() {
-                            eat(b);
-                        }
-                    }
-                }
                 if let Some(m) = &e.mask {
                     walk(&m.paths, &mut eat);
                 }

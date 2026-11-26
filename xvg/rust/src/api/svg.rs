@@ -7,37 +7,72 @@ use usvg::tiny_skia_path::{Point, Transform};
 /// A parsed SVG reduced to a flat list of paths with resolved paints.
 ///
 /// 解析后的 SVG，规约为一组带已解析描边/填充的扁平路径。
+#[cfg_attr(test, derive(Clone))]
 pub struct SvgScene {
     /// Intrinsic width in px. / 固有宽（px）。
     pub width: f32,
     /// Intrinsic height in px. / 固有高（px）。
     pub height: f32,
-    /// Draw commands in paint order. / 按绘制顺序排列的绘制命令。
+    /// 解析后的路径，按文档顺序排列。
     pub paths: Vec<SvgPath>,
-    /// 含 opacity 时的有序重放命令；为空时沿用原有扁平绘制。
-    pub commands: Vec<SvgCommand>,
-    /// Embedded raster images, in document order (drawn before [paths] — a
-    /// simplifying z-order assumption when [commands] is empty).
-    ///
-    /// 内嵌位图，按文档顺序排列（在 [paths] 之前绘制——简化的 z-order 假设，
-    /// 有 [commands] 时按命令顺序绘制）。
+    /// 含透明度或裁剪时提供有序重放；普通图标只传一个空值标记。
+    pub display_list: Option<SvgDisplayList>,
+    /// 内嵌位图，按文档顺序排列；无透明度层时先于路径绘制。
     pub images: Vec<SvgImage>,
 }
 
-/// 静态显示列表命令：0 路径、1 图片、2 opacity 入层、3 出层。
+/// 含状态边界的静态场景显示列表。
+#[derive(Clone)]
+pub struct SvgDisplayList {
+    /// 按绘制顺序排列的命令。
+    pub commands: Vec<SvgCommand>,
+    /// 已转到场景坐标的裁剪区域，由裁剪命令按下标引用。
+    pub clips: Vec<SvgClip>,
+}
+
+impl SvgDisplayList {
+    /// 为主树收集器创建空列表。
+    fn empty() -> Self {
+        Self {
+            commands: Vec::new(),
+            clips: Vec::new(),
+        }
+    }
+}
+
+/// 静态显示列表命令：0 路径、1 图片、2 透明度入层、3 出层、4 入裁剪、5 出裁剪。
 #[derive(Clone)]
 pub struct SvgCommand {
     /// 命令类型。
     pub kind: u8,
-    /// 路径或图片下标；图层命令不用。
+    /// 路径、图片或裁剪区域的下标；透明度命令不使用此字段。
     pub index: u32,
     /// 入层不透明度；其他命令不用。
     pub opacity: f32,
 }
 
-/// 无 opacity 时不传重复的逐元素命令，保持普通图标载荷精简。
+const DRAW_PATH: u8 = 0;
+const DRAW_IMAGE: u8 = 1;
+const PUSH_OPACITY: u8 = 2;
+const POP_OPACITY: u8 = 3;
+const PUSH_CLIP: u8 = 4;
+const POP_CLIP: u8 = 5;
+
+/// 构造默认透明度为 1 的命令，索引沿用对应列表的下标。
+fn indexed_command(kind: u8, index: usize) -> SvgCommand {
+    SvgCommand {
+        kind,
+        index: index as u32,
+        opacity: 1.0,
+    }
+}
+
+/// 只有绘制命令时沿用扁平重放，保持普通图标载荷精简。
 fn finish_commands(commands: &mut Vec<SvgCommand>) {
-    if !commands.iter().any(|c| c.kind == 2) {
+    if !commands
+        .iter()
+        .any(|c| matches!(c.kind, PUSH_OPACITY | PUSH_CLIP))
+    {
         commands.clear();
     }
 }
@@ -47,11 +82,7 @@ fn close_opacity_layer(commands: &mut Vec<SvgCommand>, start: usize) {
     if commands.len() == start + 1 {
         commands.truncate(start);
     } else {
-        commands.push(SvgCommand {
-            kind: 3,
-            index: 0,
-            opacity: 1.0,
-        });
+        commands.push(indexed_command(POP_OPACITY, 0));
     }
 }
 
@@ -65,6 +96,7 @@ fn close_opacity_layer(commands: &mut Vec<SvgCommand>, start: usize) {
 ///
 /// 仅覆盖 `usvg::ImageKind::Raster`（PNG/JPEG/GIF/WEBP）；嵌套引用另一份 SVG 的
 /// `<image>`（`ImageKind::SVG`）在收集阶段静默跳过——本轮不做。
+#[cfg_attr(test, derive(Clone))]
 pub struct SvgImage {
     /// Local (untransformed) object-bbox X. / 本地（未变换）物体包围盒 X。
     pub x: f32,
@@ -91,10 +123,6 @@ pub struct SvgImage {
     pub data: Vec<u8>,
     /// Encoding format of [data]. / [data] 的编码格式。
     pub format: SvgImageFormat,
-    /// Clip regions inherited from ancestor groups, same semantics as
-    /// [SvgEffects.clips]. / 从祖先分组继承的裁剪区域，语义同
-    /// [SvgEffects.clips]。
-    pub clips: Vec<SvgClip>,
     /// Mask inherited from the nearest ancestor group that declares one,
     /// same semantics as [SvgEffects.mask]. / 来自最近声明了遮罩的祖先分组的
     /// 遮罩，语义同 [SvgEffects.mask]。
@@ -117,14 +145,8 @@ pub enum SvgImageFormat {
 /// One clip region: the union of a `<clipPath>`'s shapes, already mapped into
 /// absolute space.
 ///
-/// A path carrying several [SvgClip]s must be clipped by *all* of them (set
-/// intersection) — that is how nested `clip-path` on a `<clipPath>` and
-/// clip-paths inherited from several ancestor groups compose.
-///
 /// 单个裁剪区域：一个 `<clipPath>` 内各形状的并集，已映射到绝对坐标空间。
-///
-/// 一条路径若带多个 [SvgClip]，必须被**全部**裁剪（求交集）——`<clipPath>` 自身
-/// 的嵌套 `clip-path`、以及从多层祖先分组继承来的 clip-path 就是这样合成的。
+/// 链式引用与祖先分组的裁剪通过多个嵌套命令求交集。
 #[derive(Clone)]
 pub struct SvgClip {
     /// Verbs, same encoding as [SvgPath.verbs]. / 动词，编码同 [SvgPath.verbs]。
@@ -265,17 +287,7 @@ pub struct SvgPath {
 }
 
 /// Bundles the clip/mask/blur/pattern fields that only apply to a minority of
-/// paths (those under a `<clipPath>`/`<mask>`/blur `<filter>`, or painted
-/// with a `<pattern>`). Grouped into one struct — rather than left as five
-/// separate `Option`/`Vec` fields on [SvgPath] — so the overwhelmingly common
-/// "no such feature" case serializes as a single `None` tag over FFI instead
-/// of five independent empty/`None` tags.
-///
-/// 打包裁剪/遮罩/模糊/图案这几个只有少数路径用得到的字段（位于
-/// `<clipPath>`/`<mask>`/模糊 `<filter>` 之下，或用 `<pattern>` 上色的路径）。
-/// 归并成一个结构体——而不是在 [SvgPath] 上留 5 个独立的 `Option`/`Vec`
-/// 字段——这样绝大多数"没有用到这些特效"的情况，跨 FFI 时只序列化一个
-/// `None` tag，而不是 5 个各自独立的空/`None` tag。
+/// 打包路径的遮罩、模糊和图案；普通路径跨 FFI 时只序列化一个空值标记。
 #[derive(Clone)]
 pub struct SvgEffects {
     /// Fill pattern, when the fill paint is a `<pattern>` (in which case
@@ -285,12 +297,6 @@ pub struct SvgEffects {
     /// Stroke pattern, when the stroke paint is a `<pattern>`.
     /// 描边图案，描边为 `<pattern>` 时使用。
     pub stroke_pattern: Option<SvgPattern>,
-    /// Clip regions inherited from ancestor groups; the path must be clipped
-    /// by all of them (intersection). Empty when unclipped.
-    ///
-    /// 从祖先分组继承来的裁剪区域；该路径必须被全部裁剪（求交集）。
-    /// 无裁剪时为空。
-    pub clips: Vec<SvgClip>,
     /// Mask inherited from the nearest ancestor group that declares one.
     /// 来自最近一个声明了遮罩的祖先分组的遮罩。
     pub mask: Option<SvgMask>,
@@ -309,22 +315,15 @@ impl SvgEffects {
     fn some_if_present(
         fill_pattern: Option<SvgPattern>,
         stroke_pattern: Option<SvgPattern>,
-        clips: Vec<SvgClip>,
         mask: Option<SvgMask>,
         blur: Option<SvgBlur>,
     ) -> Option<Self> {
-        if fill_pattern.is_none()
-            && stroke_pattern.is_none()
-            && clips.is_empty()
-            && mask.is_none()
-            && blur.is_none()
-        {
+        if fill_pattern.is_none() && stroke_pattern.is_none() && mask.is_none() && blur.is_none() {
             return None;
         }
         Some(SvgEffects {
             fill_pattern,
             stroke_pattern,
-            clips,
             mask,
             blur,
         })
@@ -480,7 +479,7 @@ pub fn parse_svg_async(data: String, current_color: Option<u32>) -> Result<SvgSc
 // during SSE encoding or Drop back on the caller's small stack. Rejected scenes
 // are dropped here, while still on the large stack.
 /// Check recursive wire paints in scene; return Err above the depth budget.
-/// 检查 scene 的递归 wire 画笔；超过深度预算返回 Err；不涉及 simplecss 匹配。
+/// 检查场景递归画笔的深度，裁剪引用则在 usvg 解析前检查。
 fn limit_scene_reference_depth(scene: &SvgScene) -> Result<(), String> {
     let mut pending = vec![(scene.paths.as_slice(), 0usize)];
     for image in &scene.images {
@@ -1700,35 +1699,25 @@ fn try_scene_from_tree(tree: &usvg::Tree) -> Result<SvgScene, String> {
     let size = tree.size();
     let mut paths = Vec::new();
     let mut images = Vec::new();
-    let mut commands = Vec::new();
-    // The root `<svg>` can itself carry clip-path/mask/filter, so seed the
-    // inherited context from it rather than starting empty.
-    // 根 `<svg>` 自身也可能带 clip-path/mask/filter，因此继承上下文从它起算，
-    // 而不是从空开始。
+    let mut display_list = SvgDisplayList::empty();
     let mut image_budget = MAX_IMAGE_BYTES;
     let mut expansion_budget = ExpansionBudget::default();
-    let root_ctx = if tree.root().opacity().get() == 0.0 {
-        Inherited::default()
-    } else {
-        extend_inherited(&Inherited::default(), tree.root(), &mut expansion_budget)?
-            .unwrap_or_default()
-    };
     collect(
         tree.root(),
-        &root_ctx,
+        &Inherited::default(),
         &mut paths,
         &mut images,
-        &mut commands,
+        &mut display_list,
         0,
         &mut image_budget,
         &mut expansion_budget,
     )?;
-    finish_commands(&mut commands);
+    finish_commands(&mut display_list.commands);
     Ok(SvgScene {
         width: size.width(),
         height: size.height(),
         paths,
-        commands,
+        display_list: (!display_list.commands.is_empty()).then_some(display_list),
         images,
     })
 }
@@ -1785,27 +1774,15 @@ fn current_color_insertion(
     Some(out)
 }
 
-/// Group-level state a path inherits from its ancestors: clip regions, the
-/// nearest mask, and the nearest single-`feGaussianBlur` filter.
-///
-/// Kept private (not FRB-exported): it is a walk-time accumulator, and what
-/// crosses the FFI boundary is the per-path snapshot baked into [SvgPath].
-///
-/// 路径从祖先继承的分组级状态：裁剪区域、最近的遮罩、最近的单
-/// `feGaussianBlur` 滤镜。
-///
-/// 保持私有（不导出给 FRB）：它只是遍历期的累加器，真正跨 FFI 的是烘焙进
-/// [SvgPath] 的每路径快照。
+/// 绘制元素从祖先继承的最近遮罩和单个高斯模糊滤镜。
 #[flutter_rust_bridge::frb(ignore)]
-#[derive(Clone, Default)]
+#[derive(Default)]
 struct Inherited {
-    clips: Vec<SvgClip>,
     mask: Option<SvgMask>,
     blur: Option<SvgBlur>,
 }
 
-// Charge the fully expanded wire geometry before cloning it onto each output.
-// Bound both points (x,y pairs) and paths: tiny paths still have owned buffers.
+// 限制展开后的几何和命令数量，坐标按 x/y 对计数。
 const MAX_EXPANSION_POINTS: usize = 4_000_000;
 const MAX_EXPANSION_PATHS: usize = 100_000;
 const MAX_EXPANSION_COMMANDS: usize = 100_000;
@@ -1822,11 +1799,25 @@ struct ExpansionBudget {
     points: usize,
     paths: usize,
     commands: usize,
+    /// 场景级表累计处理的裁剪复杂度，含事后撤销的空子树。
+    clip_storage: ClipCost,
+    /// 当前祖先裁剪链的成本，同一链按旧版每绘制元素扣费。
+    active_clips: ClipCost,
+}
+
+/// 裁剪区域和坐标对的计数。
+#[flutter_rust_bridge::frb(ignore)]
+#[derive(Clone, Copy, Default)]
+struct ClipCost {
+    regions: usize,
+    points: usize,
 }
 
 impl ExpansionBudget {
+    /// 在复制遮罩前扣除配额，并沿用按实际绘制元素累积的裁剪上限。
     fn charge(&mut self, ctx: &Inherited) -> Result<(), String> {
-        self.charge_clips(&ctx.clips);
+        self.paths = self.paths.saturating_add(self.active_clips.regions);
+        self.points = self.points.saturating_add(self.active_clips.points);
         if let Some(mask) = &ctx.mask {
             self.charge_subtree(&mask.paths, &mask.commands)?;
         }
@@ -1843,7 +1834,6 @@ impl ExpansionBudget {
             for path in paths {
                 self.points = self.points.saturating_add(path.points.len() / 2);
                 if let Some(e) = &path.effects {
-                    self.charge_clips(&e.clips);
                     if let Some(m) = &e.mask {
                         pending.push((&m.paths, &m.commands));
                     }
@@ -1857,17 +1847,24 @@ impl ExpansionBudget {
         Ok(())
     }
 
-    fn charge_clips(&mut self, clips: &[SvgClip]) {
-        self.paths = self.paths.saturating_add(clips.len());
-        for clip in clips {
-            self.points = self.points.saturating_add(clip.points.len() / 2);
-        }
+    /// 对新裁剪区域计入场景存储、边界命令和当前继承链成本。
+    fn charge_clips(&mut self, clips: &[SvgClip]) -> Result<(), String> {
+        let regions = clips.len();
+        let points = clips.iter().map(|clip| clip.points.len() / 2).sum();
+        self.clip_storage.regions = self.clip_storage.regions.saturating_add(regions);
+        self.clip_storage.points = self.clip_storage.points.saturating_add(points);
+        self.active_clips.regions = self.active_clips.regions.saturating_add(regions);
+        self.active_clips.points = self.active_clips.points.saturating_add(points);
+        self.commands = self.commands.saturating_add(regions.saturating_mul(2));
+        self.check()
     }
 
     fn check(&self) -> Result<(), String> {
         if self.points > MAX_EXPANSION_POINTS
             || self.paths > MAX_EXPANSION_PATHS
             || self.commands > MAX_EXPANSION_COMMANDS
+            || self.clip_storage.regions > MAX_EXPANSION_PATHS
+            || self.clip_storage.points > MAX_EXPANSION_POINTS
         {
             return Err(EXPANSION_ERROR.into());
         }
@@ -1876,7 +1873,7 @@ impl ExpansionBudget {
 }
 
 /// Recursively walks a group, flattening path nodes into [out] while carrying
-/// [ctx] (clip/mask/blur inherited from ancestor groups) down the tree.
+/// [ctx] (mask/blur inherited from ancestor groups) down the tree.
 /// In the main tree, normal Path/Image children have their parent's absolute
 /// transform (usvg 0.49 converter.rs:1006, image.rs:236-251).
 /// usvg 0.49's root background Path is inconsistent:
@@ -1885,7 +1882,7 @@ impl ExpansionBudget {
 /// parent fixes that background while preserving normal Path/Image output.
 ///
 /// 递归遍历分组，把路径节点扁平化收集进 [out]，同时把 [ctx]（从祖先分组继承的
-/// 裁剪/遮罩/模糊）沿树向下传递。
+/// 遮罩/模糊）沿树向下传递，并输出裁剪与透明度边界。
 /// 主树中普通 Path/Image 与父组的绝对变换相同（usvg 0.49 的
 /// converter.rs:1006、image.rs:236-251）。usvg 0.49
 /// 的根背景 Path 存在不一致：`background_path` 用 `Path::new_simple` 创建路径，
@@ -1896,7 +1893,7 @@ fn collect(
     ctx: &Inherited,
     out: &mut Vec<SvgPath>,
     images: &mut Vec<SvgImage>,
-    commands: &mut Vec<SvgCommand>,
+    display_list: &mut SvgDisplayList,
     depth: usize,
     image_budget: &mut usize,
     expansion_budget: &mut ExpansionBudget,
@@ -1908,45 +1905,47 @@ fn collect(
     if opacity == 0.0 {
         return Ok(());
     }
-    let layer_start = commands.len();
+    let clip_start = display_list.clips.len();
+    let active_clips = expansion_budget.active_clips;
+    if let Some(clip) = group.clip_path() {
+        build_clips(clip, &group.abs_transform(), &mut display_list.clips);
+        expansion_budget.charge_clips(&display_list.clips[clip_start..])?;
+    }
+    let clip_end = display_list.clips.len();
+    let clip_command_start = display_list.commands.len();
+    for index in clip_start..clip_end {
+        display_list
+            .commands
+            .push(indexed_command(PUSH_CLIP, index));
+    }
+    let layer_start = display_list.commands.len();
     if opacity != 1.0 {
-        commands.push(SvgCommand {
-            kind: 2,
+        display_list.commands.push(SvgCommand {
+            kind: PUSH_OPACITY,
             index: 0,
             opacity,
         });
     }
+    let local_ctx = extend_inherited(ctx, group, expansion_budget)?;
+    let ctx = local_ctx.as_ref().unwrap_or(ctx);
     for node in group.children() {
         match node {
-            usvg::Node::Group(g) if g.opacity().get() == 0.0 => continue,
-            usvg::Node::Group(g) => match extend_inherited(ctx, g, expansion_budget)? {
-                Some(child_ctx) => collect(
-                    g,
-                    &child_ctx,
-                    out,
-                    images,
-                    commands,
-                    depth + 1,
-                    image_budget,
-                    expansion_budget,
-                )?,
-                None => collect(
-                    g,
-                    ctx,
-                    out,
-                    images,
-                    commands,
-                    depth + 1,
-                    image_budget,
-                    expansion_budget,
-                )?,
-            },
+            usvg::Node::Group(g) => collect(
+                g,
+                ctx,
+                out,
+                images,
+                display_list,
+                depth + 1,
+                image_budget,
+                expansion_budget,
+            )?,
             usvg::Node::Path(p) => {
                 if let Some(mut sp) = convert_path(p, &Transform::default(), &group.abs_transform())
                 {
-                    // Fold the inherited clip/mask/blur into whatever pattern
+                    // Fold the inherited mask/blur into whatever pattern
                     // fields `convert_path` already produced.
-                    // 把继承来的裁剪/遮罩/模糊，并入 `convert_path` 已经产出的
+                    // 把继承来的遮罩/模糊，并入 `convert_path` 已经产出的
                     // 图案字段。
                     let (fill_pattern, stroke_pattern) = match sp.effects.take() {
                         Some(e) => (e.fill_pattern, e.stroke_pattern),
@@ -1959,15 +1958,12 @@ fn collect(
                     sp.effects = SvgEffects::some_if_present(
                         fill_pattern,
                         stroke_pattern,
-                        ctx.clips.clone(),
                         ctx.mask.clone(),
                         ctx.blur.clone(),
                     );
-                    commands.push(SvgCommand {
-                        kind: 0,
-                        index: out.len() as u32,
-                        opacity: 1.0,
-                    });
+                    display_list
+                        .commands
+                        .push(indexed_command(DRAW_PATH, out.len()));
                     out.push(sp);
                 }
             }
@@ -1979,11 +1975,9 @@ fn collect(
                     image_budget,
                     expansion_budget,
                 )? {
-                    commands.push(SvgCommand {
-                        kind: 1,
-                        index: images.len() as u32,
-                        opacity: 1.0,
-                    });
+                    display_list
+                        .commands
+                        .push(indexed_command(DRAW_IMAGE, images.len()));
                     images.push(si);
                 }
             }
@@ -2002,32 +1996,32 @@ fn collect(
         }
     }
     if opacity != 1.0 {
-        close_opacity_layer(commands, layer_start);
+        close_opacity_layer(&mut display_list.commands, layer_start);
     }
+    if clip_start != clip_end {
+        if display_list.commands.len() == layer_start {
+            display_list.commands.truncate(clip_command_start);
+            display_list.clips.truncate(clip_start);
+        } else {
+            for index in (clip_start..clip_end).rev() {
+                display_list.commands.push(indexed_command(POP_CLIP, index));
+            }
+        }
+    }
+    expansion_budget.active_clips = active_clips;
     Ok(())
 }
 
-/// Returns an [Inherited] extended by [g]'s own clip-path/mask/filter, or
-/// `None` when [g] declares none of them (so the caller can keep passing the
-/// parent context without cloning).
-///
-/// 返回被 [g] 自身的 clip-path/mask/filter 扩展过的 [Inherited]；若 [g] 三者
-/// 皆无则返回 `None`（调用方可直接沿用父上下文，避免克隆）。
+/// 更新本组的最近遮罩或模糊；两者都缺省时沿用父组上下文。
 fn extend_inherited(
     ctx: &Inherited,
     g: &usvg::Group,
     expansion_budget: &mut ExpansionBudget,
 ) -> Result<Option<Inherited>, String> {
-    let clip = g.clip_path();
     let mask = g.mask();
     let blur = gaussian_blur_of(g);
-    if clip.is_none() && mask.is_none() && blur.is_none() {
+    if mask.is_none() && blur.is_none() {
         return Ok(None);
-    }
-    let base = g.abs_transform();
-    let mut next = ctx.clone();
-    if let Some(c) = clip {
-        build_clips(c, &base, &mut next.clips);
     }
     // Nearest-ancestor-wins for mask and blur: nesting either of them would
     // need a real layer tree, which the flat display list deliberately does
@@ -2035,13 +2029,14 @@ fn extend_inherited(
     //
     // 遮罩与模糊按"最近祖先优先"处理：真要嵌套需要完整的图层树，而扁平显示
     // 列表刻意不做这层结构。作为限制如实记录。
-    if let Some(m) = mask {
-        next.mask = build_mask(m, &base, expansion_budget)?;
-    }
-    if let Some(b) = blur {
-        next.blur = Some(b);
-    }
-    Ok(Some(next))
+    let mask = match mask {
+        Some(mask) => build_mask(mask, &g.abs_transform(), expansion_budget)?,
+        None => ctx.mask.clone(),
+    };
+    Ok(Some(Inherited {
+        mask,
+        blur: blur.or_else(|| ctx.blur.clone()),
+    }))
 }
 
 /// Extracts the `feGaussianBlur` sigma of [g]'s filter, in absolute-space
@@ -2239,7 +2234,6 @@ fn build_mask_at_depth(
                 let effects = path.effects.get_or_insert_with(|| SvgEffects {
                     fill_pattern: None,
                     stroke_pattern: None,
-                    clips: Vec::new(),
                     mask: None,
                     blur: None,
                 });
@@ -2297,7 +2291,7 @@ fn append_subtree_commands(
     let layer_start = commands.len();
     if opacity != 1.0 {
         commands.push(SvgCommand {
-            kind: 2,
+            kind: PUSH_OPACITY,
             index: 0,
             opacity,
         });
@@ -2307,11 +2301,7 @@ fn append_subtree_commands(
             usvg::Node::Group(g) => append_subtree_commands(g, base, out, commands, depth + 1),
             usvg::Node::Path(p) => {
                 if let Some(sp) = convert_path(p, base, &p.abs_transform()) {
-                    commands.push(SvgCommand {
-                        kind: 0,
-                        index: out.len() as u32,
-                        opacity: 1.0,
-                    });
+                    commands.push(indexed_command(DRAW_PATH, out.len()));
                     out.push(sp);
                 }
             }
@@ -2381,7 +2371,6 @@ fn convert_image(
         matrix: transform_to_vec6(&t),
         data,
         format,
-        clips: ctx.clips.clone(),
         mask: ctx.mask.clone(),
         blur: ctx.blur.clone(),
     }))
@@ -2559,7 +2548,7 @@ fn convert_path(p: &usvg::Path, base: &Transform, node_abs: &Transform) -> Optio
         stroke_first,
         fill_gradient,
         stroke_gradient,
-        effects: SvgEffects::some_if_present(fill_pattern, stroke_pattern, Vec::new(), None, None),
+        effects: SvgEffects::some_if_present(fill_pattern, stroke_pattern, None, None),
     })
 }
 
@@ -2897,7 +2886,7 @@ mod tests {
     #[test]
     fn opacity_commands_preserve_group_and_element_boundaries() {
         let scene = opacity_scene("<g opacity='.5'><rect width='30' height='30'/><rect x='10' width='30' height='30' opacity='.5' fill-opacity='.5'/></g><rect y='35' width='40' height='5'/>");
-        let commands = &scene.commands;
+        let commands = &scene.display_list.as_ref().unwrap().commands;
         assert_eq!(
             commands.iter().map(|c| c.kind).collect::<Vec<_>>(),
             [2, 0, 2, 0, 3, 3, 0]
@@ -2933,11 +2922,11 @@ mod tests {
         assert!(commands.is_empty());
         assert!(
             opacity_scene("<g opacity='1'><rect width='10' height='10'/></g>")
-                .commands
-                .is_empty()
+                .display_list
+                .is_none()
         );
         let scene = opacity_scene("<rect width='10' height='10' opacity='.5'/>");
-        assert_eq!(scene.commands.len(), 3);
+        assert_eq!(scene.display_list.unwrap().commands.len(), 3);
     }
 
     #[test]
@@ -2960,12 +2949,13 @@ mod tests {
     fn opacity_commands_include_images_and_root() {
         let source = IMAGE_SVG.replace("<svg ", "<svg opacity='.5' ");
         let scene = parse_svg(source, None).unwrap();
+        let commands = scene.display_list.unwrap().commands;
         assert_eq!(
-            scene.commands.iter().map(|c| c.kind).collect::<Vec<_>>(),
+            commands.iter().map(|c| c.kind).collect::<Vec<_>>(),
             [2, 1, 3]
         );
-        assert_eq!(scene.commands[0].opacity, 0.5);
-        assert_eq!(scene.commands[1].index, 0);
+        assert_eq!(commands[0].opacity, 0.5);
+        assert_eq!(commands[1].index, 0);
     }
 
     /// 空 opacity 组不能随遮罩或图案引用放大命令数。
@@ -3001,7 +2991,8 @@ mod tests {
                             })
                             .sum()
                     }
-                    assert_eq!(scene.commands.len() + count(&scene.paths), 0, "{effect}");
+                    assert!(scene.display_list.is_none(), "{effect}");
+                    assert_eq!(count(&scene.paths), 0, "{effect}");
                 }
                 Err(error) => assert_eq!(error, EXPANSION_ERROR, "{effect}"),
             }
@@ -3042,7 +3033,7 @@ mod tests {
         let scene =
             opacity_scene("<g opacity='0'><g opacity='.5'><rect width='40' height='40'/></g></g>");
         assert!(scene.paths.is_empty());
-        assert!(scene.commands.is_empty());
+        assert!(scene.display_list.is_none());
         let scene = opacity_scene("<defs><mask id='m'><g opacity='0'><rect width='40' height='40'/></g><rect width='40' height='40' fill='white'/></mask><pattern id='p' patternUnits='userSpaceOnUse' width='40' height='40'><g opacity='0'><rect width='40' height='40'/></g><rect width='40' height='40'/></pattern></defs><rect width='40' height='40' fill='url(#p)' mask='url(#m)'/>");
         let effects = scene.paths[0].effects.as_ref().unwrap();
         let mask = effects.mask.as_ref().unwrap();
@@ -3068,19 +3059,20 @@ mod tests {
         );
         assert!(paths.is_empty());
         assert!(commands.is_empty());
+        let mut display_list = SvgDisplayList::empty();
         collect(
             tree.root(),
             &Inherited::default(),
             &mut paths,
             &mut Vec::new(),
-            &mut commands,
+            &mut display_list,
             MAX_DEPTH - 1,
             &mut 0,
             &mut ExpansionBudget::default(),
         )
         .unwrap();
         assert!(paths.is_empty());
-        assert!(commands.is_empty());
+        assert!(display_list.commands.is_empty());
     }
 
     /// 检查根背景两种声明写法的绝对坐标包围盒。
@@ -3964,7 +3956,6 @@ mod tests {
             parent.effects = SvgEffects::some_if_present(
                 None,
                 None,
-                Vec::new(),
                 Some(SvgMask {
                     kind: 0,
                     x: 0.0,
@@ -4280,11 +4271,10 @@ mod tests {
             // including the surviving clip/mask, rather than stripping attributes.
             let tree = usvg::Tree::from_str(&source, usvg_options()).unwrap();
             let expected = scene_from_tree(&tree);
-            let effects = expected.paths[0].effects.as_ref().unwrap();
             assert!(if attr == "mask" {
-                effects.mask.is_some()
+                expected.paths[0].effects.as_ref().unwrap().mask.is_some()
             } else {
-                !effects.clips.is_empty()
+                !expected.display_list.as_ref().unwrap().clips.is_empty()
             });
             let mut ser = flutter_rust_bridge::for_generated::SseSerializer::new();
             expected.sse_encode(&mut ser);
@@ -4648,8 +4638,23 @@ mod tests {
                 hash = (hash ^ b as u64).wrapping_mul(0x100000001b3);
             }
         }
-        // 新增的空 commands 长度也属于 SSE 载荷。
-        assert_eq!(hash, 0x9e3ca7e4b26bf30b, "full SSE wire bytes changed");
+        assert_eq!(hash, 0x761f43c0a72ee4ee, "full SSE wire bytes changed");
+    }
+
+    /// 普通图标只为显示列表传一个 SSE 空值标记。
+    #[test]
+    fn ordinary_icon_has_no_display_list_payload() {
+        use crate::frb_generated::SseEncode;
+        let scene = parse_svg(CIRCLE_SVG.into(), None).unwrap();
+        assert!(scene.display_list.is_none());
+        let mut prefix = flutter_rust_bridge::for_generated::SseSerializer::new();
+        scene.width.sse_encode(&mut prefix);
+        scene.height.sse_encode(&mut prefix);
+        scene.paths.sse_encode(&mut prefix);
+        let wire = wire_bytes(CIRCLE_SVG);
+        assert!(wire.starts_with(prefix.cursor.get_ref()));
+        // 一个空值标记，接一个四字节的空图片列表长度。
+        assert_eq!(&wire[prefix.cursor.get_ref().len()..], &[0; 5]);
     }
 
     fn expansion_source(shapes: usize, outputs: usize, effect: &str) -> String {
@@ -4712,8 +4717,7 @@ mod tests {
         };
         let mut budget = ExpansionBudget {
             points: MAX_EXPANSION_POINTS,
-            paths: 0,
-            commands: 0,
+            ..Default::default()
         };
         let mut image_bytes = 64 * 1024 * 1024;
         let (image, parent) = find_image(tree.root());
@@ -4737,20 +4741,39 @@ mod tests {
         for (effect, shapes, outputs) in [("mask", 100, 999), ("clip-path", 2000, 499)] {
             let scene = parse_svg(expansion_source(shapes, outputs, effect), None).unwrap();
             assert_eq!(scene.paths.len(), outputs);
+            if effect == "clip-path" {
+                let list = scene.display_list.as_ref().unwrap();
+                assert_eq!(list.clips.len(), 1);
+                assert_eq!(list.commands.len(), outputs + 2);
+                assert_eq!(list.clips[0].points.len(), shapes * 8);
+                assert!(list.clips[0]
+                    .points
+                    .chunks_exact(8)
+                    .all(|p| p == scene.paths[0].points));
+            }
             for path in &scene.paths {
                 assert_eq!(path.points, vec![0., 0., 10., 0., 10., 10., 0., 10.]);
-                let e = path.effects.as_ref().unwrap();
                 if effect == "mask" {
-                    let mask = e.mask.as_ref().unwrap();
+                    let mask = path.effects.as_ref().unwrap().mask.as_ref().unwrap();
                     assert_eq!(mask.paths.len(), shapes);
                     assert!(mask.paths.iter().all(|p| p.points == path.points));
                 } else {
-                    assert_eq!(e.clips.len(), 1);
-                    assert_eq!(e.clips[0].points.len(), shapes * 8);
-                    assert!(e.clips[0].points.chunks_exact(8).all(|p| p == path.points));
+                    assert!(path.effects.is_none());
                 }
             }
         }
+    }
+
+    /// 不重复存储裁剪几何后，仍限制大量带裁剪的兄弟分组。
+    #[test]
+    fn audit_clip_group_commands_are_budgeted() {
+        let groups = "<g clip-path='url(#c)'><rect width='5' height='5'/></g>"
+            .repeat(MAX_EXPANSION_COMMANDS / 2 + 1);
+        let source = format!("<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10'><defs><clipPath id='c'><rect width='5' height='5'/></clipPath></defs>{groups}</svg>");
+        assert_eq!(
+            parse_svg(source, None).err().as_deref(),
+            Some(EXPANSION_ERROR)
+        );
     }
 
     #[test]
@@ -4954,7 +4977,7 @@ mod tests {
                 &Inherited::default(),
                 &mut paths,
                 &mut images,
-                &mut Vec::new(),
+                &mut SvgDisplayList::empty(),
                 depth,
                 &mut (64 * 1024 * 1024),
                 &mut ExpansionBudget::default(),
@@ -4978,10 +5001,7 @@ mod tests {
     fn audit_extreme_depth_subprocess() {
         if let Some(kind) = std::env::var_os("XVG_EXTREME_CHILD") {
             let kind = kind.to_str().unwrap();
-            let depth: usize = std::env::var("XVG_EXTREME_DEPTH")
-                .unwrap()
-                .parse()
-                .unwrap();
+            let depth: usize = std::env::var("XVG_EXTREME_DEPTH").unwrap().parse().unwrap();
             let shape = "<rect width='1' height='1'/>";
             let body = if kind == "groups" {
                 format!(
@@ -5330,11 +5350,7 @@ mod tests {
             <path d="M0 0 L24 0 L24 24 L0 24 Z" fill="#000000" clip-path="url(#c)"/>
         </svg>"##;
         let scene = parse_svg(svg.to_string(), None).expect("valid svg should parse");
-        let clips = &scene.paths[0]
-            .effects
-            .as_ref()
-            .expect("path should carry a clip effect")
-            .clips;
+        let clips = &scene.display_list.as_ref().unwrap().clips;
         assert_eq!(clips.len(), 1);
         assert!(
             !clips[0].even_odd,
@@ -5568,13 +5584,20 @@ mod tests {
     </svg>"##;
 
     #[test]
-    fn clip_path_is_carried_on_the_clipped_path() {
+    fn clip_path_is_addressed_in_the_scene() {
         let scene = parse_svg(CLIP_SVG.to_string(), None).expect("valid svg should parse");
         assert_eq!(scene.paths.len(), 1);
-        let path = &scene.paths[0];
-        let clips = &path.effects.as_ref().expect("expected effects").clips;
-        assert_eq!(clips.len(), 1, "expected exactly one inherited clip region");
-        let clip = &clips[0];
+        assert!(scene.paths[0].effects.is_none());
+        let list = scene.display_list.unwrap();
+        assert_eq!(list.clips.len(), 1);
+        assert_eq!(
+            list.commands
+                .iter()
+                .map(|c| (c.kind, c.index))
+                .collect::<Vec<_>>(),
+            [(PUSH_CLIP, 0), (DRAW_PATH, 0), (POP_CLIP, 0)]
+        );
+        let clip = &list.clips[0];
         assert!(!clip.verbs.is_empty(), "clip geometry must not be empty");
         // The clip rect spans x in [0, 50]; its points are already absolute.
         // 裁剪矩形 x 范围为 [0, 50]；其坐标已是绝对空间。
@@ -5598,18 +5621,84 @@ mod tests {
         </svg>"##;
         let scene = parse_svg(svg.to_string(), None).expect("valid svg should parse");
         assert_eq!(scene.paths.len(), 2);
-        for path in &scene.paths {
-            assert_eq!(
-                path.effects.as_ref().expect("expected effects").clips.len(),
-                1,
-                "every descendant inherits the group clip"
-            );
-        }
+        assert!(scene.paths.iter().all(|path| path.effects.is_none()));
+        let list = scene.display_list.unwrap();
+        assert_eq!(list.clips.len(), 1);
+        assert_eq!(
+            list.commands
+                .iter()
+                .map(|c| (c.kind, c.index))
+                .collect::<Vec<_>>(),
+            [
+                (PUSH_CLIP, 0),
+                (DRAW_PATH, 0),
+                (DRAW_PATH, 1),
+                (POP_CLIP, 0)
+            ]
+        );
+    }
+
+    /// 每个求交区域独占一对边界，透明度层和兄弟绘制各自闭合。
+    #[test]
+    fn clip_commands_wrap_opacity_and_intersect_all_regions() {
+        let scene = opacity_scene("<defs><clipPath id='i'><rect width='8' height='8'/></clipPath><clipPath id='o' clip-path='url(#i)'><rect x='3' width='10' height='10'/></clipPath><clipPath id='s'><rect width='20' height='20'/></clipPath></defs><g clip-path='url(#o)' opacity='.5'><rect width='20' height='20'/></g><g clip-path='url(#s)'><rect width='20' height='20'/></g><rect width='40' height='40'/>");
+        let list = scene.display_list.unwrap();
+        assert_eq!(list.clips.len(), 3);
+        assert_eq!(
+            list.commands
+                .iter()
+                .map(|c| (c.kind, c.index))
+                .collect::<Vec<_>>(),
+            [
+                (PUSH_CLIP, 0),
+                (PUSH_CLIP, 1),
+                (PUSH_OPACITY, 0),
+                (DRAW_PATH, 0),
+                (POP_OPACITY, 0),
+                (POP_CLIP, 1),
+                (POP_CLIP, 0),
+                (PUSH_CLIP, 2),
+                (DRAW_PATH, 1),
+                (POP_CLIP, 2),
+                (DRAW_PATH, 2),
+            ]
+        );
+    }
+
+    /// 达到深度边界时，未绘制的子树同时回收裁剪几何与命令。
+    #[test]
+    fn truncated_clip_subtree_reclaims_its_region() {
+        let source = "<svg xmlns='http://www.w3.org/2000/svg' width='40' height='40'><defs><clipPath id='c'><rect width='20' height='30'/></clipPath></defs><g clip-path='url(#c)' opacity='.5'><g opacity='.8'><rect width='40' height='40'/></g></g></svg>";
+        let tree = usvg::Tree::from_str(source, usvg_options()).unwrap();
+        let usvg::Node::Group(group) = &tree.root().children()[0] else {
+            panic!("missing clipped group");
+        };
+        assert!(group.clip_path().is_some());
+        let mut display_list = SvgDisplayList::empty();
+        let mut budget = ExpansionBudget::default();
+        let mut paths = Vec::new();
+        collect(
+            group,
+            &Inherited::default(),
+            &mut paths,
+            &mut Vec::new(),
+            &mut display_list,
+            MAX_DEPTH - 1,
+            &mut 0,
+            &mut budget,
+        )
+        .unwrap();
+        assert!(paths.is_empty());
+        assert!(display_list.commands.is_empty());
+        assert!(display_list.clips.is_empty());
+        assert_eq!(budget.clip_storage.regions, 1);
+        assert_eq!(budget.active_clips.regions, 0);
     }
 
     #[test]
     fn paths_without_a_clip_path_carry_no_clip_regions() {
         let scene = parse_svg(CIRCLE_SVG.to_string(), None).expect("valid svg should parse");
+        assert!(scene.display_list.is_none());
         assert!(
             scene.paths[0].effects.is_none(),
             "no clip/mask/blur/pattern in use should leave effects unset"

@@ -32,6 +32,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   SvgBlur dco_decode_box_autoadd_svg_blur(dynamic raw);
 
   @protected
+  SvgDisplayList dco_decode_box_autoadd_svg_display_list(dynamic raw);
+
+  @protected
   SvgEffects dco_decode_box_autoadd_svg_effects(dynamic raw);
 
   @protected
@@ -77,6 +80,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   SvgBlur? dco_decode_opt_box_autoadd_svg_blur(dynamic raw);
 
   @protected
+  SvgDisplayList? dco_decode_opt_box_autoadd_svg_display_list(dynamic raw);
+
+  @protected
   SvgEffects? dco_decode_opt_box_autoadd_svg_effects(dynamic raw);
 
   @protected
@@ -105,6 +111,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SvgCommand dco_decode_svg_command(dynamic raw);
+
+  @protected
+  SvgDisplayList dco_decode_svg_display_list(dynamic raw);
 
   @protected
   SvgEffects dco_decode_svg_effects(dynamic raw);
@@ -150,6 +159,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SvgBlur sse_decode_box_autoadd_svg_blur(SseDeserializer deserializer);
+
+  @protected
+  SvgDisplayList sse_decode_box_autoadd_svg_display_list(
+    SseDeserializer deserializer,
+  );
 
   @protected
   SvgEffects sse_decode_box_autoadd_svg_effects(SseDeserializer deserializer);
@@ -199,6 +213,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   SvgBlur? sse_decode_opt_box_autoadd_svg_blur(SseDeserializer deserializer);
 
   @protected
+  SvgDisplayList? sse_decode_opt_box_autoadd_svg_display_list(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   SvgEffects? sse_decode_opt_box_autoadd_svg_effects(
     SseDeserializer deserializer,
   );
@@ -235,6 +254,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SvgCommand sse_decode_svg_command(SseDeserializer deserializer);
+
+  @protected
+  SvgDisplayList sse_decode_svg_display_list(SseDeserializer deserializer);
 
   @protected
   SvgEffects sse_decode_svg_effects(SseDeserializer deserializer);
@@ -280,6 +302,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_box_autoadd_svg_blur(SvgBlur self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_svg_display_list(
+    SvgDisplayList self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_box_autoadd_svg_effects(
@@ -351,6 +379,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_opt_box_autoadd_svg_display_list(
+    SvgDisplayList? self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_box_autoadd_svg_effects(
     SvgEffects? self,
     SseSerializer serializer,
@@ -397,6 +431,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_svg_command(SvgCommand self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_svg_display_list(
+    SvgDisplayList self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_svg_effects(SvgEffects self, SseSerializer serializer);
