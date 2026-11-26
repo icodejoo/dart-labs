@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="375" height="1500" viewBox="0 0 375 1500">
+  <defs>
+    <clipPath id="panel"><rect width="375" height="750"/></clipPath>
+    <linearGradient id="night" x2=".9" y2="1" gradientUnits="objectBoundingBox">
+      <stop stop-color="#10152d"/><stop offset=".5" stop-color="#172950"/><stop offset="1" stop-color="#242044"/>
+    </linearGradient>
+    <linearGradient id="filament">
+      <stop stop-color="#62f0d7"/><stop offset=".45" stop-color="#80a4ff"/><stop offset="1" stop-color="#ea74d8"/>
+    </linearGradient>
+    <radialGradient id="pearl">
+      <stop stop-color="#f8f5ff"/><stop offset=".28" stop-color="#8fbfff"/><stop offset=".72" stop-color="#bc78d7"/><stop offset="1" stop-color="#472e90" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="mist" x="-.5" y="-.5" width="2" height="2"><feGaussianBlur stdDeviation="13"/></filter>
+    <filter id="glow" x="-.5" y="-.5" width="2" height="2"><feGaussianBlur stdDeviation="5"/></filter>
+    <path id="arc" d="M-48 138 C52 4 268 27 421 154 C345 87 265 245 197 265 C65 317 40 91-48 138 Z"/>
+    <path id="curl" d="M-20 424C88 259 186 516 391 314S241 634 172 537 68 415-20 575Z"/>
+    <g id="veins" fill="none" stroke="url(#filament)" stroke-width="2">
+      <path d="M-38 402Q94 164 281 329T431 198"/>
+      <path d="M-31 417Q94 174 281 340T428 208"/>
+      <path d="M-24 432Q94 184 281 351T425 218"/>
+      <path d="M-17 447Q94 194 281 362T422 228"/>
+      <path d="M-10 462Q94 204 281 373T419 238"/>
+      <path d="M-3 477Q94 214 281 384T416 248"/>
+      <path d="M4 492Q94 224 281 395T413 258"/>
+      <path d="M11 507Q94 234 281 406T410 268"/>
+      <path d="M18 522Q94 244 281 417T407 278"/>
+      <path d="M25 537Q94 254 281 428T404 288"/>
+      <path d="M32 552Q94 264 281 439T401 298"/>
+      <path d="M39 567Q94 274 281 450T398 308"/>
+    </g>
+    <g id="aurora" clip-path="url(#panel)">
+      <rect width="375" height="750" fill="url(#night)"/>
+      <g fill="url(#filament)">
+        <use href="#arc" opacity=".72" filter="url(#mist)" transform="translate(0 26) rotate(9 175 140)"/>
+        <use href="#arc" opacity=".75" filter="url(#mist)" transform="translate(-10 122) rotate(-14 175 140)"/>
+        <use href="#arc" opacity=".58" filter="url(#glow)" transform="translate(17 210) rotate(18 175 140)"/>
+        <use href="#arc" opacity=".68" filter="url(#mist)" transform="translate(-22 440) rotate(-8 175 140)"/>
+        <use href="#arc" opacity=".48" filter="url(#glow)" transform="translate(27 480) rotate(22 175 140)"/>
+        <use href="#curl" opacity=".68" filter="url(#mist)" transform="translate(0 -41)"/>
+        <use href="#curl" opacity=".44" filter="url(#glow)" transform="translate(20 95)"/>
+        <use href="#curl" opacity=".41" filter="url(#mist)" transform="translate(-22 201)"/>
+      </g>
+      <g opacity=".74"><use href="#veins"/><use href="#veins" transform="translate(0 300) scale(1 -.78)"/></g>
+      <g opacity=".51"><use href="#veins" transform="translate(0 187)"/><use href="#veins" transform="translate(375 112) scale(-1 1)"/></g>
+      <g opacity=".56" fill="url(#pearl)">
+        <ellipse cx="55" cy="132" rx="115" ry="89" filter="url(#glow)"/>
+        <ellipse cx="183" cy="280" rx="120" ry="140" filter="url(#mist)"/>
+        <ellipse cx="349" cy="307" rx="97" ry="143" filter="url(#mist)"/>
+        <ellipse cx="66" cy="505" rx="127" ry="135" filter="url(#glow)"/>
+        <ellipse cx="275" cy="583" rx="123" ry="105" filter="url(#mist)"/>
+        <ellipse cx="147" cy="745" rx="125" ry="91" filter="url(#glow)"/>
+      </g>
+      <g fill="#e5e4ff" opacity=".68">
+        <circle cx="42" cy="58" r="2"/><circle cx="301" cy="80" r="3"/><circle cx="101" cy="148" r="2"/>
+        <circle cx="290" cy="184" r="4"/><circle cx="201" cy="232" r="2"/><circle cx="330" cy="269" r="2"/>
+        <circle cx="67" cy="315" r="3"/><circle cx="184" cy="377" r="2"/><circle cx="281" cy="412" r="3"/>
+        <circle cx="26" cy="471" r="2"/><circle cx="119" cy="524" r="3"/><circle cx="297" cy="529" r="2"/>
+        <circle cx="219" cy="580" r="4"/><circle cx="52" cy="652" r="2"/><circle cx="336" cy="698" r="2"/>
+      </g>
+    </g>
+  </defs>
+  <use href="#aurora"/>
+  <use href="#aurora" transform="translate(375 750) scale(-1 1)"/>
+</svg>

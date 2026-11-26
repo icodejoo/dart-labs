@@ -111,6 +111,7 @@ const Xvg.string(
   XvgPixelSnap pixelSnap = XvgPixelSnap.auto,
   Alignment alignment = Alignment.center,
   ColorFilter? colorFilter,
+  XvgRasterCache? rasterCache,
   XvgTheme? theme,
   XvgAnimationQuality? quality,
   XvgAnimationController? controller,
@@ -276,6 +277,7 @@ class _RemoteStringIconState extends State<RemoteStringIcon> {
 | `colorFilter` | `null` | Flutter `ColorFilter` applied on both paths. Animated sources add a `ColorFiltered` layer only when a filter is supplied. |
 | `theme` | `null` | `XvgTheme(currentColor: …)`; resolves the SVG `currentColor` keyword (default opaque black). |
 | `pixelSnap` | `XvgPixelSnap.auto` | Composition-time alignment of the viewport to physical pixels. `auto` only for mask/clip documents; `always` / `never` override. |
+| `rasterCache` | `null` | Opt-in bitmap tiles for static (Rust-path) sources: only visible 512 px tiles are rasterized, sharing one LRU byte budget (`XvgRasterCache.byteBudget`, 32 MiB). `resolutionScale: 0.5` cuts texture bytes to a quarter at softer edges. Turns `pixelSnap: auto` into `always`; with `never`, fractional scrolling falls back to vectors. Ignored on the animated path. Use it for heavy static art that repaints under animation or scrolling. |
 | `quality` | `null` (uses `XvgAnimationQuality.defaultQuality`) | Animation throughput/fidelity trade-off. Ignored on the Rust path. |
 | `controller` | `null` | Shared `XvgAnimationController`. Mutually exclusive with `animation`; leave `playbackRate` at 1.0 and set the controller's rate instead. |
 | `animation` | `null` | Flutter `Animation<double>` drives document time (`value × animationSpan`). |
@@ -849,7 +851,7 @@ Everything exported by `package:xvg/xvg.dart`:
 | Symbol | Kind | Purpose |
 | --- | --- | --- |
 | `Xvg` | widget | Entry widget that picks the renderer. `Xvg.string` constructor; `Xvg.asset`, `Xvg.network`, `Xvg.file`, `Xvg.memory` static factories; `Xvg.ensureInitialized()`. |
-| `StaticXvg` | widget | Rust (`usvg`) static renderer. Parameters: `source`, `pixelSnap`, `width`, `height`, `fit`, `alignment`, `colorFilter`, `theme`, `errorBuilder`. |
+| `StaticXvg` | widget | Rust (`usvg`) static renderer. Parameters: `source`, `pixelSnap`, `width`, `height`, `fit`, `alignment`, `colorFilter`, `rasterCache`, `theme`, `errorBuilder`. |
 | `RustXvgPictureCache` | class | Process-wide LRU of recorded static pictures. `instance`, `maximumSize` (200), `onParseMiss`, `getOrRender`, `getOrRenderAsync`, `peek`, `clear`, `length`, `approximateBytesUsed`. |
 | `AnimatedXvg` | widget | Dart-side SMIL / CSS `@keyframes` renderer. `AnimatedXvg.string` with the animation, quality and callback parameters of `Xvg.string`. |
 | `XvgDocumentCache` | class | Process-wide cache of parsed animated documents. `instance`, `maximumSize` (1000), `getOrParse`, `getOrParseAsync`, `prewarm`, `clear`, `length`. |
@@ -862,6 +864,7 @@ Everything exported by `package:xvg/xvg.dart`:
 | `XvgAnimationLoaded`, `XvgAnimationStarted`, `XvgAnimationCompleted`, `XvgAnimationLooped`, `XvgAnimationRangeLooped`, `XvgAnimationElementBegin`, `XvgAnimationElementEnd`, `XvgAnimationElementRepeat`, `XvgAnimationError` | final classes | Playback and element events; carry `info`, `natural`, `iteration`, `id` / `elementId`, `error` / `stack` as applicable. |
 | `XvgAnimationQuality` | class | Fidelity/throughput profile: `adaptiveFrameSkipping`, `frameSkipThreshold`, `maxFrameDivisor`, `offscreenLayerFrameDivisor`, `approximateSimpleMasksAsClip`; presets `balanced`, `exact`; global `defaultQuality`. |
 | `XvgPixelSnap` | enum | `auto`, `always`, `never` viewport alignment to physical pixels. |
+| `XvgRasterCache` | class | Opt-in tile cache config: `resolutionScale`; static `byteBudget`, `bytesUsed`, `tileCount`. |
 | `StringXvg`, `AssetXvg`, `NetworkXvg`, `FileXvg`, `MemoryXvg` | `ImageProvider`s | For `Image`, `DecorationImage`, `precacheImage`. Common parameters `width`, `height`, `colorFilter`, `theme`, `animationFrameRate` (default 30); plus `source` / `assetName`+`bundle`+`package` / `url`+`headers` / `file` / `bytes`. |
 | `RustLib` | class | Generated flutter_rust_bridge entry point, exposed for `RustLib.initMock()` / `RustLib.dispose()` in tests. Prefer `Xvg.ensureInitialized()` to start the backend. |
 

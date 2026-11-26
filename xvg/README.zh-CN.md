@@ -105,6 +105,7 @@ const Xvg.string(
   XvgPixelSnap pixelSnap = XvgPixelSnap.auto,
   Alignment alignment = Alignment.center,
   ColorFilter? colorFilter,
+  XvgRasterCache? rasterCache,
   XvgTheme? theme,
   XvgAnimationQuality? quality,
   XvgAnimationController? controller,
@@ -266,6 +267,7 @@ class _RemoteStringIconState extends State<RemoteStringIcon> {
 | `colorFilter` | `null` | Flutter `ColorFilter`，两条路径都生效。动画源仅在传入滤镜时才多加一层 `ColorFiltered`。 |
 | `theme` | `null` | `XvgTheme(currentColor: …)`，解析 SVG 里的 `currentColor` 关键字（默认不透明黑色）。 |
 | `pixelSnap` | `XvgPixelSnap.auto` | 合成阶段把视口对齐到物理像素。`auto` 仅对遮罩/裁剪文档启用，`always` / `never` 强制覆盖。 |
+| `rasterCache` | `null` | 静态（Rust 路径）源的可选位图分块缓存：只栅格化可见的 512 像素块，所有组件共用一个 LRU 字节预算（`XvgRasterCache.byteBudget`，默认 32 MiB）。`resolutionScale: 0.5` 让纹理字节降到四分之一，边缘更柔和。启用后 `pixelSnap: auto` 按 `always` 处理；设为 `never` 时小数像素滚动期间回落向量。动画路径忽略。适合在动画或滚动下反复重绘的重型静态插画。 |
 | `quality` | `null`（使用 `XvgAnimationQuality.defaultQuality`） | 动画吞吐与保真的取舍。Rust 路径忽略。 |
 | `controller` | `null` | 共享的 `XvgAnimationController`。与 `animation` 互斥；`playbackRate` 保持 1.0，改用控制器自己的速率。 |
 | `animation` | `null` | 由 Flutter `Animation<double>` 驱动文档时间（`value × animationSpan`）。 |
@@ -793,7 +795,7 @@ SVG 动画在没有监听者时暂停，遵循 `timeDilation`，有限文档停�
 | 符号 | 类别 | 用途 |
 | --- | --- | --- |
 | `Xvg` | 组件 | 入口组件，负责选渲染器。`Xvg.string` 构造函数；`Xvg.asset`、`Xvg.network`、`Xvg.file`、`Xvg.memory` 静态工厂；`Xvg.ensureInitialized()`。 |
-| `StaticXvg` | 组件 | Rust（`usvg`）静态渲染器。参数：`source`、`pixelSnap`、`width`、`height`、`fit`、`alignment`、`colorFilter`、`theme`、`errorBuilder`。 |
+| `StaticXvg` | 组件 | Rust（`usvg`）静态渲染器。参数：`source`、`pixelSnap`、`width`、`height`、`fit`、`alignment`、`colorFilter`、`rasterCache`、`theme`、`errorBuilder`。 |
 | `RustXvgPictureCache` | 类 | 进程级 LRU，缓存录制好的静态 picture。`instance`、`maximumSize`（200）、`onParseMiss`、`getOrRender`、`getOrRenderAsync`、`peek`、`clear`、`length`、`approximateBytesUsed`。 |
 | `AnimatedXvg` | 组件 | Dart 侧 SMIL / CSS `@keyframes` 渲染器。`AnimatedXvg.string`，动画、画质与回调参数同 `Xvg.string`。 |
 | `XvgDocumentCache` | 类 | 进程级缓存，缓存已解析的动画文档。`instance`、`maximumSize`（1000）、`getOrParse`、`getOrParseAsync`、`prewarm`、`clear`、`length`。 |
@@ -806,6 +808,7 @@ SVG 动画在没有监听者时暂停，遵循 `timeDilation`，有限文档停�
 | `XvgAnimationLoaded`、`XvgAnimationStarted`、`XvgAnimationCompleted`、`XvgAnimationLooped`、`XvgAnimationRangeLooped`、`XvgAnimationElementBegin`、`XvgAnimationElementEnd`、`XvgAnimationElementRepeat`、`XvgAnimationError` | final 类 | 播放与元素事件；按需携带 `info`、`natural`、`iteration`、`id` / `elementId`、`error` / `stack`。 |
 | `XvgAnimationQuality` | 类 | 保真/吞吐配置：`adaptiveFrameSkipping`、`frameSkipThreshold`、`maxFrameDivisor`、`offscreenLayerFrameDivisor`、`approximateSimpleMasksAsClip`；预设 `balanced`、`exact`；全局 `defaultQuality`。 |
 | `XvgPixelSnap` | 枚举 | `auto`、`always`、`never`：视口对齐物理像素的策略。 |
+| `XvgRasterCache` | 类 | 可选分块缓存配置：`resolutionScale`；静态成员 `byteBudget`、`bytesUsed`、`tileCount`。 |
 | `StringXvg`、`AssetXvg`、`NetworkXvg`、`FileXvg`、`MemoryXvg` | `ImageProvider` | 用于 `Image`、`DecorationImage`、`precacheImage`。共有参数 `width`、`height`、`colorFilter`、`theme`、`animationFrameRate`（默认 30）；另有 `source` / `assetName`+`bundle`+`package` / `url`+`headers` / `file` / `bytes`。 |
 | `RustLib` | 类 | flutter_rust_bridge 生成的入口，导出供测试使用 `RustLib.initMock()` / `RustLib.dispose()`。启动后端请优先用 `Xvg.ensureInitialized()`。 |
 

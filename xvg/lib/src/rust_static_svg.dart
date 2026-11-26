@@ -20,6 +20,7 @@ import 'cold_mount_budget.dart';
 import 'pixel_snap_layer.dart';
 import 'rust/api/svg.dart';
 import 'svg_affine.dart';
+import 'xvg_raster_cache.dart';
 
 /// 原生端大 SVG 冷未命中阈值，按 `String.length` 的 UTF-16 码元数计。
 /// SM-A566B 四轮 120 Hz 实测，16 KiB 是同步解析加录制 p50 首次超过
@@ -1084,6 +1085,7 @@ class StaticXvg extends StatelessWidget {
     this.fit = BoxFit.contain,
     this.alignment = Alignment.center,
     this.colorFilter,
+    this.rasterCache,
     this.theme,
     this.errorBuilder,
   });
@@ -1091,11 +1093,11 @@ class StaticXvg extends StatelessWidget {
   /// Raw static SVG markup (no `<animate>`). / 原始静态 SVG 源（无 `<animate>`）。
   final String source;
 
-  /// Composition alignment; defaults to auto for mask/clip risk. Only positive
+  /// Composition alignment; auto enables it for mask/clip risk or bitmap caching. Only positive
   /// axis-aligned scaling and translation apply; visual edges move <1 physical
   /// pixel. Layout, hit tests and semantics retain their original positions.
   /// See [XvgPixelSnap] for an example.
-  /// 合成对齐默认 auto，仅遮罩/裁剪风险启用；仅平移及轴对齐正缩放生效，边缘
+  /// 合成对齐默认 auto，有遮罩/裁剪风险或启用位图缓存时开启；仅平移及轴对齐正缩放生效，边缘
   /// 视觉修正 <1 物理像素；布局、点击及语义保留原位置，示例见 [XvgPixelSnap]。
   final XvgPixelSnap pixelSnap;
 
@@ -1113,6 +1115,14 @@ class StaticXvg extends StatelessWidget {
 
   /// Optional recolor filter. / 可选的重着色滤镜。
   final ColorFilter? colorFilter;
+
+  /// Visible bitmap tiles; null keeps vector painting.
+  /// With caching enabled, [XvgPixelSnap.auto] enables pixel alignment.
+  /// [XvgPixelSnap.never] keeps fractional offsets and falls back to vectors
+  /// during fractional scrolling until the grid settles.
+  /// 可见位图分块，null 保持向量绘制。启用缓存时，[XvgPixelSnap.auto] 开启像素对齐。
+  /// [XvgPixelSnap.never] 保留小数偏移，亚像素滚动期间回退到向量，直到网格停稳。
+  final XvgRasterCache? rasterCache;
 
   /// Theme controlling `currentColor`; defaults to opaque black. Mirrors
   /// [AnimatedXvg]'s `theme` param for API consistency across the animated
@@ -1258,22 +1268,21 @@ class StaticXvg extends StatelessWidget {
   /// 还是走某条异步路径拿到的。
   Widget _buildFromInfo(BuildContext context, RustSvgPictureInfo info) {
     final resolved = alignment.resolve(Directionality.maybeOf(context));
-    final w = width ?? info.size.width;
-    final h = height ?? info.size.height;
+    final preferredSize = Size(
+      width ?? info.size.width,
+      height ?? info.size.height,
+    );
 
-    Widget child = CustomPaint(
-      size: Size(w, h),
-      painter: _RustPicturePainter(
-        picture: info.picture,
-        pictureSize: info.size,
-        fit: fit,
-        alignment: resolved,
-      ),
+    final painter = _RustPicturePainter(
+      picture: info.picture,
+      pictureSize: info.size,
+      fit: fit,
+      alignment: resolved,
     );
     // No `SizedBox` wrapper: a childless `CustomPaint` already sizes itself to
     // `size` via `RenderCustomPaint.computeSizeForNoChild` ->
     // `constraints.constrain(preferredSize)`, which is what a
-    // `SizedBox(width: w, height: h)` around it produced — identically under
+    // `SizedBox` with the same dimensions produced — identically under
     // tight, loose and parent-tighter-than-icon constraints alike. It was a
     // `RenderConstrainedBox` per icon that could not change a pixel, inflated,
     // attached, laid out and walked once per cell per appearance in a scrolling
@@ -1284,18 +1293,36 @@ class StaticXvg extends StatelessWidget {
     //
     // 不套 `SizedBox`：无 child 的 `CustomPaint` 本就通过
     // `RenderCustomPaint.computeSizeForNoChild` -> `constraints.constrain(
-    // preferredSize)` 把自己撑到 `size`，与在它外面套 `SizedBox(width: w,
-    // height: h)` 的结果完全相同——紧约束、松约束、父级比图标更紧三种情形都一致。
+    // preferredSize)` 把自己撑到 `size`，与用相同尺寸套 `SizedBox` 的结果
+    // 完全相同——紧约束、松约束、父级比图标更紧三种情形都一致。
     // 它此前只是每个图标一个不可能改变任何像素的 `RenderConstrainedBox`，而在滚动
     // 网格里每格每次出现都要 inflate、attach、布局、遍历一遍。与动画路径是同一处
     // 移除、同一套理由——见 `animation/animated_svg_widget.dart`，其
     // `test/animation/widget_tree_depth_test.dart` 钉住了各约束状态下的尺寸等价性。
-    if (colorFilter != null) {
-      child = ColorFiltered(colorFilter: colorFilter!, child: child);
+    final cache = rasterCache;
+    final filter = colorFilter;
+    final Widget child;
+    if (cache == null) {
+      final paint = CustomPaint(size: preferredSize, painter: painter);
+      child = filter == null
+          ? paint
+          : ColorFiltered(colorFilter: filter, child: paint);
+    } else {
+      child = XvgRasterPaint(
+        preferredSize: preferredSize,
+        intrinsicSize: info.size,
+        fit: fit,
+        alignment: resolved,
+        painter: painter,
+        colorFilter: filter,
+        resolutionScale: cache.resolutionScale,
+      );
     }
     return pixelSnapBoundary(
       child: child,
-      mode: pixelSnap,
+      mode: cache != null && pixelSnap == XvgPixelSnap.auto
+          ? XvgPixelSnap.always
+          : pixelSnap,
       hasRisk: info.hasPixelSnapRisk,
       intrinsicSize: info.size,
       fit: fit,

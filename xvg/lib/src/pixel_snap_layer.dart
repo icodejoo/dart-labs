@@ -185,17 +185,26 @@ class PixelSnapLayer extends OffsetLayer {
   @visibleForTesting
   int debugSceneCount = 0;
 
-  static bool _positiveScaleTranslation(Matrix4 matrix) {
+  /// Whether the matrix supports physical pixel alignment. / 矩阵是否支持物理像素对齐。
+  static bool isPositiveScaleTranslation(Matrix4 matrix) {
     final m = matrix.storage;
-    return m.every((v) => v.isFinite) &&
-        m[0] > 0 &&
-        m[5] > 0 &&
-        _zeroEntries.every((i) => m[i].abs() <= _matrixTolerance) &&
+    for (final i in _zeroEntries) {
+      if (!(m[i].abs() <= _matrixTolerance)) return false;
+    }
+    final scaleX = m[0];
+    final scaleY = m[5];
+    return scaleX.isFinite &&
+        scaleX > 0 &&
+        scaleY.isFinite &&
+        scaleY > 0 &&
+        m[12].isFinite &&
+        m[13].isFinite &&
         (m[10] - 1).abs() <= _matrixTolerance &&
         (m[15] - 1).abs() <= _matrixTolerance;
   }
 
-  static Matrix4? _localTransform(Layer layer) {
+  /// Returns the audited layer transform. / 返回已审核的图层变换。
+  static Matrix4? sceneTransform(Layer layer) {
     final type = layer.runtimeType;
     if (type == PixelSnapLayer) {
       return (layer as PixelSnapLayer)._effectiveLocal;
@@ -240,8 +249,8 @@ class PixelSnapLayer extends OffsetLayer {
     }
     final world = Matrix4.identity();
     for (final ancestor in ancestors.reversed) {
-      final local = _localTransform(ancestor);
-      if (local == null || !_positiveScaleTranslation(local)) {
+      final local = sceneTransform(ancestor);
+      if (local == null || !isPositiveScaleTranslation(local)) {
         debugSkipReason =
             '${local == null ? 'unknown' : 'non-axis'}:${ancestor.runtimeType}';
         return Matrix4.identity();
@@ -249,7 +258,7 @@ class PixelSnapLayer extends OffsetLayer {
       world.multiply(local);
     }
     world.translateByDouble(offset.dx, offset.dy, 0, 1);
-    if (!_positiveScaleTranslation(world) ||
+    if (!isPositiveScaleTranslation(world) ||
         !viewport.isFinite ||
         viewport.isEmpty) {
       debugSkipReason = 'invalid-viewport';

@@ -46,3 +46,5 @@ export 'src/svg_image_provider.dart'
 export 'src/xvg_widget.dart' show Xvg;
 
 export 'src/pixel_snap_layer.dart' show XvgPixelSnap;
+
+export 'src/xvg_raster_cache.dart' show XvgRasterCache;

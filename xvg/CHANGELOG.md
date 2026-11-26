@@ -1,5 +1,6 @@
 ## Unreleased
 
+- Add opt-in, viewport-tiled bitmap caching for static SVGs with a shared byte budget and adjustable raster resolution, with pixel snapping enabled for `pixelSnap: XvgPixelSnap.auto`.
 - Rust emits scoped clip commands for static SVGs, sharing inherited clip geometry across paths and images.
 - Large static SVGs now parse on a background Rust worker on native platforms when their picture is uncached, reducing UI-thread work during the first render.
 
