@@ -107,9 +107,9 @@ class _TileRasterBenchState extends State<_TileRasterBench> {
   String? _error;
 
   /// 本轮使用的静态缓存参数。
-  XvgRasterCache? get _cache => switch (widget.run[1]) {
-    'full' || 'async' || _neverMode => const XvgRasterCache(),
-    'half' => const XvgRasterCache(resolutionScale: 0.5),
+  XvgRasterCacheOverride? get _cache => switch (widget.run[1]) {
+    'full' || 'async' || _neverMode => XvgRasterCacheOverride.enabled,
+    'half' => XvgRasterCacheOverride.halfResolution,
     _ => null,
   };
 
@@ -120,6 +120,8 @@ class _TileRasterBenchState extends State<_TileRasterBench> {
   @override
   void initState() {
     super.initState();
+    // ignore: invalid_use_of_visible_for_testing_member
+    debugXvgRasterCacheOverride = _cache ?? XvgRasterCacheOverride.disabled;
     SchedulerBinding.instance.addTimingsCallback(_frames.addAll);
     WidgetsBinding.instance.addPostFrameCallback((_) => unawaited(_run()));
   }
@@ -320,7 +322,6 @@ class _TileRasterBenchState extends State<_TileRasterBench> {
                       widget.source,
                       width: width,
                       height: width / double.parse(widget.run[2]),
-                      rasterCache: _cache,
                       pixelSnap: widget.run[1] == _neverMode
                           ? XvgPixelSnap.never
                           : XvgPixelSnap.auto,
@@ -347,6 +348,8 @@ class _TileRasterBenchState extends State<_TileRasterBench> {
   /// 停止帧采样并释放滚动控制器。
   @override
   void dispose() {
+    // ignore: invalid_use_of_visible_for_testing_member
+    debugXvgRasterCacheOverride = null;
     SchedulerBinding.instance.removeTimingsCallback(_frames.addAll);
     _scroll.dispose();
     super.dispose();
