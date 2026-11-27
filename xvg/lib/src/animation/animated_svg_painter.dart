@@ -19,6 +19,7 @@ import 'smil_animation.dart';
 
 import 'svg_dom.dart';
 import 'svg_gradient.dart';
+import 'svg_lengths.dart';
 import 'svg_path_data.dart';
 import 'svg_path_morph.dart';
 import 'svg_style.dart';
@@ -200,14 +201,46 @@ class AnimatedSvgPainter extends CustomPainter {
     canvas.restore();
   }
 
-  /// `attributes[key]` parsed as a double, or [fallback] when absent/invalid.
-  ///
-  /// `attributes[key]` 解析为 double；缺失或非法时返回 [fallback]。
-  static double _num(
-    Map<String, String> attributes,
-    String key, [
-    double fallback = 0,
-  ]) => double.tryParse(attributes[key] ?? '') ?? fallback;
+  /// Current SVG viewport in user units. / 当前 SVG 视口的用户坐标尺寸。
+  late Size _userViewport = _rootUserViewport;
+
+  /// The root viewBox defines the percentage bases when present. / 根 viewBox 存在时提供百分比基准。
+  late final Size _rootUserViewport = root.viewportBox == null
+      ? intrinsicSize
+      : Size(root.viewportBox![2], root.viewportBox![3]);
+
+  /// Resolves a geometry length against the relevant viewport axis. / 按对应视口轴换算几何长度。
+  double? _length(Map<String, String> attributes, String key, double fontSize) {
+    final raw = attributes[key];
+    if (raw == null) return null;
+    final basis = raw.endsWith('%') || raw.trimRight().endsWith('%')
+        ? switch (key) {
+            'x' ||
+            'x1' ||
+            'x2' ||
+            'cx' ||
+            'width' ||
+            'rx' ||
+            'dx' => _userViewport.width,
+            'y' ||
+            'y1' ||
+            'y2' ||
+            'cy' ||
+            'height' ||
+            'ry' ||
+            'dy' => _userViewport.height,
+            _ => svgNormalizedDiagonal(
+              _userViewport.width,
+              _userViewport.height,
+            ),
+          }
+        : null;
+    return resolveSvgLength(raw, percentageBase: basis, fontSize: fontSize);
+  }
+
+  /// Reads a geometry length with a zero default. / 读取默认值为零的几何长度。
+  double _num(Map<String, String> attributes, String key, double fontSize) =>
+      _length(attributes, key, fontSize) ?? 0;
 
   /// [node]'s presentation style with [inherited] folded in, reusing the
   /// result cached on the node when the three inputs it was resolved from are
@@ -249,14 +282,20 @@ class AnimatedSvgPainter extends CustomPainter {
     if (cached != null &&
         identical(node.styleInheritedKey, inherited) &&
         identical(node.styleAttributesKey, attributes) &&
+        node.styleViewportKey == _userViewport &&
         (identical(node.styleThemeKey, theme) || node.styleThemeKey == theme)) {
       return cached as ResolvedStyle;
     }
-    final resolved = inherited.inherit(attributes, theme);
+    final resolved = inherited.inherit(
+      attributes,
+      theme,
+      viewport: _userViewport,
+    );
     node
       ..cachedStyle = resolved
       ..styleInheritedKey = inherited
       ..styleAttributesKey = attributes
+      ..styleViewportKey = _userViewport
       ..styleThemeKey = theme;
     return resolved;
   }
@@ -383,7 +422,12 @@ class AnimatedSvgPainter extends CustomPainter {
       slot += width;
     }
     final cached = node.cachedAnimatedAttributes;
-    if (!changed && cached != null) return cached;
+    if (!changed &&
+        cached != null &&
+        (!node.hasAdditiveNumericAnimation ||
+            node.additiveViewportKey == _userViewport)) {
+      return cached;
+    }
 
     // 只在真要改属性（数值覆盖，或整数位置的 `d`）时才拷贝属性表；纯路径变形
     // 的插值帧属性内容不变，直接复用节点自己的表，不击穿 [_resolveStyle] 的缓存。
@@ -417,10 +461,19 @@ class AnimatedSvgPainter extends CustomPainter {
       // 一个结束时*未*设置 `fill="freeze"` 的 `<animate>` 会弹回静态值、而不是
       // 残留最后一次采样值的原因。
       if (sampled != _kNoSample) {
-        (overlaid ??= Map<String, String>.of(
-          node.attributes,
-        ))[animations[i].attributeName] = sampled
-            .toString();
+        final animation = animations[i];
+        final attributes = overlaid ??= Map<String, String>.of(node.attributes);
+        final base = animation.additiveBase;
+        final value = base == null
+            ? sampled
+            : sampled +
+                  (_length(
+                        attributes,
+                        animation.attributeName,
+                        svgInitialFontSize,
+                      ) ??
+                      base);
+        attributes[animation.attributeName] = value.toString();
       }
     }
     // 颜色覆盖：哨兵 -1.0 写成 `none`，其余把 0xAARRGGBB 重排成 `#RRGGBBAA`。
@@ -440,16 +493,23 @@ class AnimatedSvgPainter extends CustomPainter {
       final animation = listAnimations[i];
       final width = animation.width;
       if (width > 0 && key[slot] != _kNoSample) {
-        (overlaid ??= Map<String, String>.of(
-          node.attributes,
-        ))[animation.attributeName] = key
-            .sublist(slot, slot + width)
-            .join(' ');
+        final frames = animation.serializedFrames;
+        final suffixes = animation.unitSuffixes;
+        final attributes = overlaid ??= Map<String, String>.of(node.attributes);
+        attributes[animation.attributeName] = frames != null
+            ? frames[key[slot].toInt()]
+            : suffixes == null
+            ? key.sublist(slot, slot + width).join(' ')
+            : [for (var j = 0; j < width; j++) '${key[slot + j]}${suffixes[j]}']
+                  .join(' ');
       }
       slot += width;
     }
     final result = overlaid ?? node.attributes;
     node.cachedAnimatedAttributes = result;
+    if (node.hasAdditiveNumericAnimation) {
+      node.additiveViewportKey = _userViewport;
+    }
     return result;
   }
 
@@ -496,10 +556,25 @@ class AnimatedSvgPainter extends CustomPainter {
     // 每帧省掉两次 map 查找，而不是拿 null 键去哈希两次。
     final clipPathId = node.clipPathId;
     final maskId = node.maskId;
-    final clipDef = (nested || clipPathId == null)
-        ? null
-        : clipPaths[clipPathId];
-    var maskDef = (nested || maskId == null) ? null : masks[maskId];
+    final clipDef = clipPathId == null ? null : clipPaths[clipPathId];
+    var maskDef = nested || maskId == null ? null : masks[maskId];
+    if (maskDef != null && _activeMasks.contains(maskDef)) maskDef = null;
+    final clipUsesBounds =
+        clipDef?.attributes['clipPathUnits'] == _objectBoundingBox;
+    final maskUsesBounds =
+        maskDef != null &&
+        (maskDef.attributes['maskUnits'] != _userSpaceOnUse ||
+            maskDef.attributes['maskContentUnits'] == _objectBoundingBox);
+    final bounds = clipUsesBounds || maskUsesBounds
+        ? _objectBounds(node, effectiveAttributes, style)
+        : Rect.zero;
+    final maskRegion = maskDef == null ? null : _maskRegion(maskDef, bounds);
+    if (maskRegion != null && maskRegion.isEmpty) return;
+    final maskContentBox =
+        maskDef?.attributes['maskContentUnits'] == _objectBoundingBox
+        ? bounds
+        : null;
+    if (maskContentBox != null && maskContentBox.isEmpty) return;
     // LOSSY FAST PATH, off by default and concurrency-gated by the caller
     // (see [approximateMasks]): a `<mask>` whose content is nothing but
     // fully-opaque pure-black/pure-white fills expresses a *binary* coverage
@@ -551,7 +626,13 @@ class AnimatedSvgPainter extends CustomPainter {
     if (maskDef != null && !hasBlur) {
       final asClip = approximateMasks();
       if (asClip && _maskIsClipEligible(maskDef)) {
+        final viewport = _userViewport;
+        if (maskContentBox != null) _userViewport = const Size.square(1);
         maskClip = _resolveMaskClipPath(maskDef, time);
+        _userViewport = viewport;
+        if (maskContentBox != null) {
+          maskClip = _mapToBounds(maskClip, maskContentBox);
+        }
         maskDef = null;
       }
     }
@@ -585,17 +666,25 @@ class AnimatedSvgPainter extends CustomPainter {
     final hasOwnTransform =
         node.transformAnimations.isNotEmpty ||
         node.motionAnimations.isNotEmpty ||
-        node.transform != null;
+        node.transform != null ||
+        node.dynamicUsePlacement;
     if (hasOwnTransform) {
       canvas.save();
       _applyOwnTransform(canvas, node);
+      if (node.dynamicUsePlacement) {
+        canvas.translate(
+          _num(effectiveAttributes, 'x', style.fontSize),
+          _num(effectiveAttributes, 'y', style.fontSize),
+        );
+      }
     }
     // Install clips before ALL effect layers, in the node's coordinate system.
     // A layer's final composite uses the clip active when it was opened; a clip
     // added inside the layer only constrains its draws. No render pass is added.
     // 在节点坐标系中先装裁剪，再开所有效果图层。图层最终合成使用开层时的父级
     // 裁剪；层内追加的裁剪只约束层内绘制。不增加渲染通道。
-    if (clipDef != null) canvas.clipPath(_resolveClipPath(clipDef, time));
+    if (clipDef != null) canvas.clipPath(_resolveClipPath(clipDef, bounds));
+    if (maskRegion != null) canvas.clipRect(maskRegion, doAntiAlias: false);
     if (maskClip != null) canvas.clipPath(maskClip);
     if (opacityLayer) {
       canvas.saveLayer(
@@ -624,7 +713,7 @@ class AnimatedSvgPainter extends CustomPainter {
       childOpacity: pushOpacity ? style.opacity : 1,
     );
     if (hasBlur) canvas.restore();
-    if (maskDef != null) _applyMaskLayer(canvas, maskDef);
+    if (maskDef != null) _applyMaskLayer(canvas, maskDef, maskContentBox);
     if (opacityLayer) canvas.restore();
     if (hasOwnTransform) canvas.restore();
     if (needsClipMaskSave) canvas.restore();
@@ -669,9 +758,11 @@ class AnimatedSvgPainter extends CustomPainter {
   /// 供 clipPath、mask 的几何遍历使用，与 [_applyOwnTransform] 的顺序一致。
   List<double> _concatOwnTransform(List<double> parent, SvgNode node) {
     var accum = parent;
-    final staticTransform = _activeStaticTransform(node);
+    final start = _activeSmilTransformStart(node);
+    final staticTransform = start == null ? _activeStaticTransform(node) : null;
     if (staticTransform != null) accum = concatAffine(accum, staticTransform);
-    for (final transformAnimation in node.transformAnimations) {
+    for (var i = start ?? 0; i < node.transformAnimations.length; i++) {
+      final transformAnimation = node.transformAnimations[i];
       final sampled = transformAnimation.sample(time);
       if (sampled == null) continue;
       accum = concatAffine(
@@ -695,7 +786,8 @@ class AnimatedSvgPainter extends CustomPainter {
   /// 把节点自身的变换依次应用到 [canvas]：静态 `transform`、各 `animateTransform`，
   /// 最后是 `animateMotion`。绘制内容与遮罩共用，保证两者在同一坐标系。
   void _applyOwnTransform(Canvas canvas, SvgNode node) {
-    final staticTransform = _activeStaticTransform(node);
+    final start = _activeSmilTransformStart(node);
+    final staticTransform = start == null ? _activeStaticTransform(node) : null;
     if (staticTransform != null) {
       // Expanded once and kept on the node: `transform` is final and fixed at
       // parse time, so the 4x4 form can never go stale (see
@@ -709,7 +801,8 @@ class AnimatedSvgPainter extends CustomPainter {
         node.cachedTransformMatrix ??= affineToMatrix4(staticTransform),
       );
     }
-    for (final transformAnimation in node.transformAnimations) {
+    for (var i = start ?? 0; i < node.transformAnimations.length; i++) {
+      final transformAnimation = node.transformAnimations[i];
       final sampled = transformAnimation.sample(time);
       if (sampled == null) continue; // not started / ended without freeze
       switch (transformAnimation.type) {
@@ -774,7 +867,8 @@ class AnimatedSvgPainter extends CustomPainter {
   /// 把 [maskDef] 的内容（在 [time] 采样）作为覆盖度合成到刚绘制进当前目标图层
   /// 的内容之上，然后关闭该图层——是 `_paintNode` 用
   /// `canvas.saveLayer(null, Paint())` 开启的 mask 机制的后半段。
-  void _applyMaskLayer(Canvas canvas, SvgNode maskDef) {
+  void _applyMaskLayer(Canvas canvas, SvgNode maskDef, Rect? contentBox) {
+    _activeMasks.add(maskDef);
     final alpha = _isAlphaMask(maskDef);
     canvas.saveLayer(null, _maskCoveragePaint(alpha));
     // Flatten luminance content over black so unpremultiplied RGB includes
@@ -783,12 +877,175 @@ class AnimatedSvgPainter extends CustomPainter {
     if (!alpha) canvas.drawColor(const Color(0xff000000), BlendMode.src);
     // 当前画布已位于被遮罩节点自己的坐标系（含其自身 transform）。
     canvas.save();
+    final viewport = _userViewport;
+    if (contentBox != null) {
+      canvas.translate(contentBox.left, contentBox.top);
+      canvas.scale(contentBox.width, contentBox.height);
+      _userViewport = const Size.square(1);
+    }
     _paintNode(canvas, maskDef, ResolvedStyle.initial, nested: true);
+    _userViewport = viewport;
+    _activeMasks.remove(maskDef);
     canvas
       ..restore()
       ..restore()
       ..restore();
   }
+
+  /// In-progress masks used to bound nested references. / 用于阻断嵌套引用环的绘制中遮罩。
+  final _activeMasks = <SvgNode>{};
+
+  /// Current clip reference chain used to detect cycles. / 用于检测引用环的裁剪链。
+  final _activeClips = <SvgNode>{};
+
+  /// Computes a target's geometry box before its own transform or effects. / 计算目标自身变换与效果之前的几何包围盒。
+  Rect _objectBounds(
+    SvgNode node,
+    Map<String, String> attributes,
+    ResolvedStyle style,
+  ) {
+    final geometry = _geometryPath(node, attributes, style.fontSize);
+    if (geometry != null) return geometry.getBounds();
+    if (node.kind == SvgNodeKind.image) {
+      return Rect.fromLTWH(
+        _num(attributes, 'x', style.fontSize),
+        _num(attributes, 'y', style.fontSize),
+        _length(attributes, 'width', style.fontSize) ??
+            node.resolvedImage?.width.toDouble() ??
+            0,
+        _length(attributes, 'height', style.fontSize) ??
+            node.resolvedImage?.height.toDouble() ??
+            0,
+      );
+    }
+    if (node.kind == SvgNodeKind.text) {
+      return _paintText(null, node, style, attributes) ?? Rect.zero;
+    }
+    if (node.children.isEmpty) return Rect.zero;
+    final parent = _userViewport;
+    List<double>? viewportTransform;
+    if (node.isViewport) {
+      final width =
+          _length(attributes, 'width', style.fontSize) ?? parent.width;
+      final height =
+          _length(attributes, 'height', style.fontSize) ?? parent.height;
+      if (width <= 0 || height <= 0) return Rect.zero;
+      final box = node.viewportBox;
+      viewportTransform = concatAffine(
+        [
+          1,
+          0,
+          0,
+          1,
+          _num(attributes, 'x', style.fontSize),
+          _num(attributes, 'y', style.fontSize),
+        ],
+        svgViewportTransform(
+              box,
+              width,
+              height,
+              attributes['preserveAspectRatio'],
+            ) ??
+            _identityAffine,
+      );
+      _userViewport = box == null ? Size(width, height) : Size(box[2], box[3]);
+    }
+    Rect? bounds;
+    for (final child in node.children) {
+      final attrs = _effectiveAttributes(child);
+      if (attrs[_kDisplayAttribute] == _kNone) continue;
+      final childStyle = _resolveStyle(child, style, attrs);
+      var matrix = _concatOwnTransform(
+        viewportTransform ?? _identityAffine,
+        child,
+      );
+      if (child.dynamicUsePlacement) {
+        matrix = _concatUsePlacement(matrix, attrs, childStyle.fontSize);
+      }
+      final shape = _geometryPath(child, attrs, childStyle.fontSize);
+      final Rect childBounds;
+      if (shape != null) {
+        childBounds = identical(matrix, _identityAffine)
+            ? shape.getBounds()
+            : shape.transform(affineToMatrix4(matrix)).getBounds();
+      } else if (child.children.isNotEmpty ||
+          child.kind == SvgNodeKind.image ||
+          child.kind == SvgNodeKind.text) {
+        childBounds = MatrixUtils.transformRect(
+          Matrix4.fromFloat64List(affineToMatrix4(matrix)),
+          _objectBounds(child, attrs, childStyle),
+        );
+      } else {
+        continue;
+      }
+      bounds = bounds?.expandToInclude(childBounds) ?? childBounds;
+    }
+    _userViewport = parent;
+    return bounds ?? Rect.zero;
+  }
+
+  /// Converts a unit-box path to target user space. / 将单位盒路径变换到目标用户坐标空间。
+  static ui.Path _mapToBounds(ui.Path path, Rect bounds) => path.transform(
+    affineToMatrix4([
+      bounds.width,
+      0,
+      0,
+      bounds.height,
+      bounds.left,
+      bounds.top,
+    ]),
+  );
+
+  /// Resolves the mask region independently of the mask content units. / 独立于内容单位解析遮罩区域。
+  Rect _maskRegion(SvgNode mask, Rect target) {
+    final attrs = _effectiveAttributes(mask);
+    final bbox = attrs['maskUnits'] != _userSpaceOnUse;
+    final width = bbox ? 1.0 : _userViewport.width;
+    final height = bbox ? 1.0 : _userViewport.height;
+    final font = _resolveStyle(mask, ResolvedStyle.initial, attrs).fontSize;
+    final x =
+        resolveSvgLength(attrs['x'], percentageBase: width, fontSize: font) ??
+        -.1 * width;
+    final y =
+        resolveSvgLength(attrs['y'], percentageBase: height, fontSize: font) ??
+        -.1 * height;
+    final w =
+        resolveSvgLength(
+          attrs['width'],
+          percentageBase: width,
+          fontSize: font,
+        ) ??
+        1.2 * width;
+    final h =
+        resolveSvgLength(
+          attrs['height'],
+          percentageBase: height,
+          fontSize: font,
+        ) ??
+        1.2 * height;
+    return bbox
+        ? Rect.fromLTWH(
+            target.left + x * target.width,
+            target.top + y * target.height,
+            w * target.width,
+            h * target.height,
+          )
+        : Rect.fromLTWH(x, y, w, h);
+  }
+
+  /// Appends a use placement resolved in the current viewport. / 附加在当前视口解析的 use 位置。
+  List<double> _concatUsePlacement(
+    List<double> matrix,
+    Map<String, String> attributes,
+    double fontSize,
+  ) => concatAffine(matrix, [
+    1,
+    0,
+    0,
+    1,
+    _num(attributes, 'x', fontSize),
+    _num(attributes, 'y', fontSize),
+  ]);
 
   /// SVG `luminanceToAlpha` coefficients turning a `<mask>`'s rendered
   /// content into coverage. Approach (`dstIn` + [ColorFilter.matrix])
@@ -873,6 +1130,8 @@ class AnimatedSvgPainter extends CustomPainter {
     // mask 内部嵌套 clip/mask/模糊，意味着这条扁平裁剪路径无法表达的覆盖度。
     if (node.clipPathId != null ||
         node.maskId != null ||
+        node.isViewport ||
+        node.dynamicUsePlacement ||
         (node.blurSigma != null && node.blurSigma! > 0)) {
       return false;
     }
@@ -886,7 +1145,8 @@ class AnimatedSvgPainter extends CustomPainter {
     if (attributes.containsKey('opacity') ||
         attributes.containsKey('fill-opacity') ||
         attributes.containsKey('stroke-opacity') ||
-        attributes.containsKey('style')) {
+        attributes.containsKey('style') ||
+        attributes.containsKey('font-size')) {
       return false;
     }
     for (final animation in node.animations) {
@@ -1052,6 +1312,7 @@ class AnimatedSvgPainter extends CustomPainter {
     final signature = _maskSampleSignature(defRoot, time);
     final cachedPath = defRoot.cachedMaskClip;
     if (cachedPath != null &&
+        defRoot.maskClipViewportKey == _userViewport &&
         _sameSignature(defRoot.maskClipSampleKey, signature)) {
       return cachedPath;
     }
@@ -1140,8 +1401,24 @@ class AnimatedSvgPainter extends CustomPainter {
     }
     defRoot
       ..cachedMaskClip = built
-      ..maskClipSampleKey = signature;
+      ..maskClipSampleKey = signature
+      ..maskClipViewportKey = _userViewport;
     return built;
+  }
+
+  /// Finds the last active replacement in the SMIL transform stack. / 查找 SMIL 变换栈中最后一条生效的替换轨道。
+  int? _activeSmilTransformStart(SvgNode node) {
+    if ((node.transform == null && node.transformAnimations.length <= 1) ||
+        !node.hasSmilTransformReplacement) {
+      return null;
+    }
+    for (var i = node.transformAnimations.length - 1; i >= 0; i--) {
+      final animation = node.transformAnimations[i];
+      if (animation.replacesTransformStack && animation.isActiveAt(time)) {
+        return i;
+      }
+    }
+    return null;
   }
 
   /// 本帧该节点应叠加的静态 transform；被 CSS transform 动画替换期间返回 null。
@@ -1265,50 +1542,85 @@ class AnimatedSvgPainter extends CustomPainter {
   /// 遍历 [defRoot] 子树，把每个节点的静态/动画变换累积成仿射矩阵，应用到该
   /// 节点自身的几何路径（经 [_geometryPath]）上后再并入总路径。`<image>`/
   /// `<text>` 内容不是几何图形，不参与（明确的范围限制）。
-  ui.Path _resolveClipPath(SvgNode defRoot, Duration time) {
+  ui.Path _resolveClipPath(SvgNode defRoot, Rect bounds) {
+    if (!_activeClips.add(defRoot)) return ui.Path();
+    final viewport = _userViewport;
+    final objectUnits =
+        defRoot.attributes['clipPathUnits'] == _objectBoundingBox;
+    if (objectUnits) _userViewport = const Size.square(1);
     final union = _RegionBuilder();
-    void walk(
-      SvgNode node,
-      List<double> matrix,
-      ui.PathFillType inheritedRule,
-    ) {
-      final effectiveAttributes = _effectiveAttributes(node);
-      final accum = _concatOwnTransform(matrix, node);
+    _appendClipGeometry(
+      defRoot,
+      _identityAffine,
+      ResolvedStyle.initial,
+      ui.PathFillType.nonZero,
+      union,
+    );
+    final path = union.build();
+    _userViewport = viewport;
+    _activeClips.remove(defRoot);
+    return objectUnits
+        ? (bounds.isEmpty ? ui.Path() : _mapToBounds(path, bounds))
+        : path;
+  }
 
-      // clip-rule 可继承，每个子形状按自己的规则参与合成。
-      final rule = parseSvgFillRule(
-        effectiveAttributes[kClipRuleAttribute],
-        inheritedRule,
-      );
-      if (node.kind == SvgNodeKind.root || node.kind == SvgNodeKind.group) {
-        for (final child in node.children) {
-          walk(child, accum, rule);
-        }
-        return;
-      }
-      final geometry = _geometryPath(node, effectiveAttributes);
-      if (geometry == null) return;
-      // `Path.transform` *returns* a transformed copy and leaves the receiver
-      // alone (dart:ui docs: "Returns a copy of the path with all the segments
-      // of every sub-path transformed by the given matrix"). This used to be
-      // written as a bare `geometry.transform(...)` statement whose result was
-      // dropped, so a transform inside a `<clipPath>` was silently ignored and
-      // a whole Path copy was allocated per clip node per frame for nothing.
-      // `addPath`'s own `matrix4` applies the transform as the segments are
-      // appended — correct, and with no intermediate copy.
-      //
-      // `Path.transform` 是**返回**一份变换后的副本、不动接收者的（dart:ui 文档：
-      // "Returns a copy of the path with all the segments of every sub-path
-      // transformed by the given matrix"）。这里原先写成了裸的
-      // `geometry.transform(...)` 语句、返回值被丢弃，于是 `<clipPath>` 内部的
-      // 变换被静默忽略，同时每个裁剪节点每帧还白白分配了一整份 Path 副本。
-      // 改用 `addPath` 自带的 `matrix4`，在追加线段时就地应用变换——既正确，
-      // 又不产生中间副本。
-      union.add(geometry, accum, rule);
+  /// Collects clip geometry, intersecting each explicit local clip before its transform. / 收集裁剪几何，并在变换前与各节点自己的裁剪相交。
+  void _appendClipGeometry(
+    SvgNode node,
+    List<double> matrix,
+    ResolvedStyle inherited,
+    ui.PathFillType inheritedRule,
+    _RegionBuilder output,
+  ) {
+    final attributes = _effectiveAttributes(node);
+    if (attributes[_kDisplayAttribute] == _kNone) return;
+    final style = _resolveStyle(node, inherited, attributes);
+    var transform = _concatOwnTransform(matrix, node);
+    if (node.dynamicUsePlacement) {
+      transform = _concatUsePlacement(transform, attributes, style.fontSize);
     }
+    final rule = parseSvgFillRule(
+      attributes[kClipRuleAttribute],
+      inheritedRule,
+    );
+    final clip = node.clipPathId == null ? null : clipPaths[node.clipPathId];
+    if (clip == null) {
+      _appendClipContent(node, attributes, transform, style, rule, output);
+      return;
+    }
+    final local = _RegionBuilder();
+    _appendClipContent(node, attributes, _identityAffine, style, rule, local);
+    final shape = local.build();
+    final intersection = _resolveClipPath(clip, shape.getBounds());
+    try {
+      final clipped = ui.Path.combine(
+        ui.PathOperation.intersect,
+        shape,
+        intersection,
+      );
+      output.add(clipped, transform, ui.PathFillType.nonZero);
+    } on StateError {
+      // A degenerate intersection contributes no clip geometry. / 退化交集不贡献裁剪几何。
+    }
+  }
 
-    walk(defRoot, const [1, 0, 0, 1, 0, 0], ui.PathFillType.nonZero);
-    return union.build();
+  /// Appends a clip node's own geometry or its children. / 追加裁剪节点的几何或子节点。
+  void _appendClipContent(
+    SvgNode node,
+    Map<String, String> attributes,
+    List<double> matrix,
+    ResolvedStyle style,
+    ui.PathFillType rule,
+    _RegionBuilder output,
+  ) {
+    if (node.kind == SvgNodeKind.root || node.kind == SvgNodeKind.group) {
+      for (final child in node.children) {
+        _appendClipGeometry(child, matrix, style, rule, output);
+      }
+      return;
+    }
+    final geometry = _geometryPath(node, attributes, style.fontSize);
+    if (geometry != null) output.add(geometry, matrix, rule);
   }
 
   /// Expands one sampled `<animateTransform>` component list into an affine
@@ -1369,6 +1681,10 @@ class AnimatedSvgPainter extends CustomPainter {
     switch (node.kind) {
       case SvgNodeKind.root:
       case SvgNodeKind.group:
+        if (node.isViewport) {
+          _paintViewport(canvas, node, style, attributes, childOpacity);
+          return;
+        }
         // Indexed rather than `for (final child in ...)`: the latter allocates
         // a list iterator per group per frame, and a real icon's tree is
         // mostly groups.
@@ -1391,7 +1707,7 @@ class AnimatedSvgPainter extends CustomPainter {
       case SvgNodeKind.line:
       case SvgNodeKind.polyline:
       case SvgNodeKind.polygon:
-        final path = _geometryPath(node, attributes);
+        final path = _geometryPath(node, attributes, style.fontSize);
         if (path != null) {
           _paintShape(canvas, node, path, style, applyOpacity: applyOpacity);
         }
@@ -1402,19 +1718,89 @@ class AnimatedSvgPainter extends CustomPainter {
         if (img == null) {
           return; // not yet decoded / failed to decode: skip silently
         }
-        final x = _num(attributes, 'x');
-        final y = _num(attributes, 'y');
-        final w = _num(attributes, 'width');
-        final h = _num(attributes, 'height');
+        final x = _num(attributes, 'x', style.fontSize);
+        final y = _num(attributes, 'y', style.fontSize);
+        final w =
+            _length(attributes, 'width', style.fontSize) ??
+            img.width.toDouble();
+        final h =
+            _length(attributes, 'height', style.fontSize) ??
+            img.height.toDouble();
         if (w <= 0 || h <= 0) return;
+        final source = Rect.fromLTWH(
+          0,
+          0,
+          img.width.toDouble(),
+          img.height.toDouble(),
+        );
+        final mapping = svgViewportTransform(
+          [0, 0, source.width, source.height],
+          w,
+          h,
+          attributes['preserveAspectRatio'],
+        );
+        final dest = mapping == null
+            ? source.shift(Offset(x, y))
+            : Rect.fromLTWH(
+                x + mapping[4],
+                y + mapping[5],
+                source.width * mapping[0],
+                source.height * mapping[3],
+              );
+        final viewport = Rect.fromLTWH(x, y, w, h);
+        final clip =
+            !viewport.contains(dest.topLeft) ||
+            dest.right > viewport.right ||
+            dest.bottom > viewport.bottom;
+        if (clip) {
+          canvas.save();
+          canvas.clipRect(viewport, doAntiAlias: false);
+        }
         canvas.drawImageRect(
           img,
-          Rect.fromLTWH(0, 0, img.width.toDouble(), img.height.toDouble()),
-          Rect.fromLTWH(x, y, w, h),
+          source,
+          dest,
           Paint()
             ..color = Color.fromRGBO(0, 0, 0, applyOpacity ? style.opacity : 1),
         );
+        if (clip) canvas.restore();
     }
+  }
+
+  /// Paints children in a nested viewport. / 在嵌套视口中绘制子节点。
+  void _paintViewport(
+    Canvas canvas,
+    SvgNode node,
+    ResolvedStyle style,
+    Map<String, String> attributes,
+    double childOpacity,
+  ) {
+    final parent = _userViewport;
+    final width = _length(attributes, 'width', style.fontSize) ?? parent.width;
+    final height =
+        _length(attributes, 'height', style.fontSize) ?? parent.height;
+    if (width <= 0 || height <= 0) return;
+    final x = _num(attributes, 'x', style.fontSize);
+    final y = _num(attributes, 'y', style.fontSize);
+    final box = node.viewportBox;
+    final transform = svgViewportTransform(
+      box,
+      width,
+      height,
+      attributes['preserveAspectRatio'],
+    );
+    canvas.save();
+    if (attributes['overflow'] != 'visible') {
+      canvas.clipRect(Rect.fromLTWH(x, y, width, height), doAntiAlias: false);
+    }
+    canvas.translate(x, y);
+    if (transform != null) canvas.transform(affineToMatrix4(transform));
+    _userViewport = box == null ? Size(width, height) : Size(box[2], box[3]);
+    for (final child in node.children) {
+      _paintNode(canvas, child, style, opacityMultiplier: childOpacity);
+    }
+    _userViewport = parent;
+    canvas.restore();
   }
 
   /// Builds the plain `ui.Path` for a geometry shape kind (`path`/`circle`/
@@ -1436,7 +1822,11 @@ class AnimatedSvgPainter extends CustomPainter {
   /// 由 [_paintNodeContent]（实际绘制）与 [_resolveClipPath]（构建
   /// `<clipPath>` 的并集路径）共用，使两者读取完全相同的几何逻辑——不存在一份
   /// 会与绘制路径走岔的"裁剪专用几何"实现。
-  ui.Path? _geometryPath(SvgNode node, Map<String, String> attributes) {
+  ui.Path? _geometryPath(
+    SvgNode node,
+    Map<String, String> attributes, [
+    double fontSize = svgInitialFontSize,
+  ]) {
     // Geometry is rebuilt from strings on every frame unless it can be proven
     // unchanged, and the proof is an identity check on whatever the shape is
     // built from (see [SvgNode.cachedGeometry]):
@@ -1479,12 +1869,18 @@ class AnimatedSvgPainter extends CustomPainter {
     final Object? cacheKey = node.kind == SvgNodeKind.path
         ? attributes['d']
         : attributes;
-    if (cacheKey != null && identical(node.geometryCacheKey, cacheKey)) {
+    final lengthKey = node.kind == SvgNodeKind.path
+        ? null
+        : (_userViewport.width, _userViewport.height, fontSize);
+    if (cacheKey != null &&
+        identical(node.geometryCacheKey, cacheKey) &&
+        node.geometryLengthKey == lengthKey) {
       return node.cachedGeometry;
     }
-    final built = _buildGeometryPath(node.kind, attributes);
+    final built = _buildGeometryPath(node.kind, attributes, fontSize);
     if (cacheKey != null) {
       node.geometryCacheKey = cacheKey;
+      node.geometryLengthKey = lengthKey;
       node.cachedGeometry = built;
     }
     return built;
@@ -1498,27 +1894,29 @@ class AnimatedSvgPainter extends CustomPainter {
   ui.Path? _buildGeometryPath(
     SvgNodeKind kind,
     Map<String, String> attributes,
+    double fontSize,
   ) {
     switch (kind) {
       case SvgNodeKind.path:
         final d = attributes['d'];
         return d == null ? null : parseSvgPathData(d);
       case SvgNodeKind.circle:
-        final cx = _num(attributes, 'cx');
-        final cy = _num(attributes, 'cy');
-        final r = _num(attributes, 'r');
+        final cx = _num(attributes, 'cx', fontSize);
+        final cy = _num(attributes, 'cy', fontSize);
+        final r = _num(attributes, 'r', fontSize);
+        if (r <= 0) return null;
         return ui.Path()
           ..addOval(Rect.fromCircle(center: Offset(cx, cy), radius: r));
       case SvgNodeKind.rect:
-        final x = _num(attributes, 'x');
-        final y = _num(attributes, 'y');
-        final w = _num(attributes, 'width');
-        final h = _num(attributes, 'height');
+        final x = _num(attributes, 'x', fontSize);
+        final y = _num(attributes, 'y', fontSize);
+        final w = _num(attributes, 'width', fontSize);
+        final h = _num(attributes, 'height', fontSize);
         if (w <= 0 || h <= 0) {
           return null; // SVG: non-positive size renders nothing
         }
-        var rx = double.tryParse(attributes['rx'] ?? '');
-        var ry = double.tryParse(attributes['ry'] ?? '');
+        var rx = _length(attributes, 'rx', fontSize);
+        var ry = _length(attributes, 'ry', fontSize);
         rx ??= ry;
         ry ??= rx;
         final path = ui.Path();
@@ -1536,10 +1934,11 @@ class AnimatedSvgPainter extends CustomPainter {
         }
         return path;
       case SvgNodeKind.ellipse:
-        final cx = _num(attributes, 'cx');
-        final cy = _num(attributes, 'cy');
-        final rx = _num(attributes, 'rx');
-        final ry = _num(attributes, 'ry');
+        final cx = _num(attributes, 'cx', fontSize);
+        final cy = _num(attributes, 'cy', fontSize);
+        final rx = _num(attributes, 'rx', fontSize);
+        final ry = _num(attributes, 'ry', fontSize);
+        if (rx <= 0 || ry <= 0) return null;
         return ui.Path()..addOval(
           Rect.fromCenter(
             center: Offset(cx, cy),
@@ -1548,10 +1947,10 @@ class AnimatedSvgPainter extends CustomPainter {
           ),
         );
       case SvgNodeKind.line:
-        final x1 = _num(attributes, 'x1');
-        final y1 = _num(attributes, 'y1');
-        final x2 = _num(attributes, 'x2');
-        final y2 = _num(attributes, 'y2');
+        final x1 = _num(attributes, 'x1', fontSize);
+        final y1 = _num(attributes, 'y1', fontSize);
+        final x2 = _num(attributes, 'x2', fontSize);
+        final y2 = _num(attributes, 'y2', fontSize);
         return ui.Path()
           ..moveTo(x1, y1)
           ..lineTo(x2, y2);
@@ -1573,71 +1972,113 @@ class AnimatedSvgPainter extends CustomPainter {
     }
   }
 
-  /// Paints a `<text>` node's flat content (no `<tspan>`) at `x`/`y`, honoring
-  /// `font-size`/`font-family`/`text-anchor` and the already-resolved [style]
-  /// (`fill`/`opacity` — the same generic animation mechanism every other
-  /// node kind uses, see [_paintNode]).
-  ///
-  /// `x`/`y` is SVG's text-anchor point on the *baseline*; [TextPainter]
-  /// paints from a top-left origin, so the vertical offset is corrected via
-  /// [TextPainter.computeDistanceToActualBaseline].
-  ///
-  /// 在 `x`/`y` 处绘制 `<text>` 节点的纯文本内容（不支持 `<tspan>`），遵循
-  /// `font-size`/`font-family`/`text-anchor` 及已解析好的 [style]
-  /// （`fill`/`opacity`——与其它任何节点种类相同的通用动画机制，见
-  /// [_paintNode]）。
-  ///
-  /// `x`/`y` 是 SVG 文本在*基线*上的锚点；[TextPainter] 从左上角原点开始绘制，
-  /// 因此垂直偏移通过 [TextPainter.computeDistanceToActualBaseline] 校正。
-  void _paintText(
-    Canvas canvas,
+  /// Lays out a line of positioned text chunks, painting or measuring its bounds. / 布置单行文字定位块，并绘制或测量其包围盒。
+  Rect? _paintText(
+    Canvas? canvas,
     SvgNode node,
     ResolvedStyle style,
     Map<String, String> attributes, {
     bool applyOpacity = true,
   }) {
-    final content = node.textContent;
-    final fillAlpha = applyOpacity ? style.fillAlpha : style.fillOpacity;
-    if (content == null || content.isEmpty || fillAlpha <= 0) return;
-    final fill = style.fill;
-    if (fill == null) return; // fill="none": SVG renders no glyphs
+    var cursor = Offset.zero;
+    _SvgTextChunk? currentChunk;
+    final chunks = <_SvgTextChunk>[];
 
-    final x = _num(attributes, 'x');
-    final y = _num(attributes, 'y');
-
-    TextPainter painter;
-    if (node.cachedTextPainter != null &&
-        identical(node.textPainterAttributesKey, attributes) &&
-        identical(node.textPainterStyleKey, style)) {
-      painter = node.cachedTextPainter! as TextPainter;
-    } else {
-      final fontSize = double.tryParse(attributes['font-size'] ?? '') ?? 16;
-      (node.cachedTextPainter as TextPainter?)?.dispose();
-      painter = TextPainter(
-        text: TextSpan(
-          text: content,
-          style: TextStyle(
-            fontSize: fontSize,
-            fontFamily: attributes['font-family'],
-            color: _fade(fill, fillAlpha),
-          ),
+    void collect(
+      SvgNode current,
+      ResolvedStyle style,
+      Map<String, String> attrs,
+      double opacity,
+    ) {
+      final fontSize = style.fontSize;
+      final x = _length(attrs, 'x', fontSize);
+      final y = _length(attrs, 'y', fontSize);
+      if (x != null || y != null) currentChunk = null;
+      cursor = Offset(
+        (x ?? cursor.dx) + _num(attrs, 'dx', fontSize),
+        (y ?? cursor.dy) + _num(attrs, 'dy', fontSize),
+      );
+      for (final child in current.children) {
+        final childAttrs = _effectiveAttributes(child);
+        if (childAttrs[_kDisplayAttribute] == _kNone) continue;
+        final childStyle = _resolveStyle(child, style, childAttrs);
+        collect(child, childStyle, childAttrs, opacity * childStyle.opacity);
+      }
+      final content = current.textContent;
+      if (content == null || content.isEmpty || fontSize <= 0) return;
+      final alpha = opacity * style.fillOpacity;
+      final painter = _layoutText(current, content, style, alpha);
+      var chunk = currentChunk;
+      if (chunk == null) {
+        chunk = _SvgTextChunk(cursor.dx, style.textAnchor);
+        currentChunk = chunk;
+        chunks.add(chunk);
+      }
+      chunk.runs.add((
+        painter: painter,
+        origin: cursor.translate(
+          0,
+          -painter.computeDistanceToActualBaseline(TextBaseline.alphabetic),
         ),
-        textDirection: TextDirection.ltr,
-      )..layout();
-      node.cachedTextPainter = painter;
-      node.textPainterAttributesKey = attributes;
-      node.textPainterStyleKey = style;
+        visible: style.fill != null && alpha > 0,
+      ));
+      cursor = cursor.translate(painter.width, 0);
+      chunk.end = cursor.dx;
     }
 
-    final dx = switch (attributes['text-anchor']) {
-      'middle' => -painter.width / 2,
-      'end' => -painter.width,
-      _ => 0.0,
-    };
-    final baseline = painter.computeDistanceToActualBaseline(
-      TextBaseline.alphabetic,
-    );
-    painter.paint(canvas, Offset(x + dx, y - baseline));
+    collect(node, style, attributes, applyOpacity ? style.opacity : 1);
+    Rect? bounds;
+    for (final chunk in chunks) {
+      final advance = chunk.end - chunk.start;
+      final dx = switch (chunk.anchor) {
+        'middle' => -advance / 2,
+        'end' => -advance,
+        _ => 0.0,
+      };
+      for (final run in chunk.runs) {
+        final origin = run.origin.translate(dx, 0);
+        if (canvas != null) {
+          if (run.visible) run.painter.paint(canvas, origin);
+        } else {
+          final rect = origin & run.painter.size;
+          bounds = bounds?.expandToInclude(rect) ?? rect;
+        }
+      }
+    }
+    return bounds;
+  }
+
+  /// Caches paragraph layout while font, paint and content are unchanged. / 在字体、涂料和内容不变时复用段落布局。
+  TextPainter _layoutText(
+    SvgNode node,
+    String content,
+    ResolvedStyle style,
+    double alpha,
+  ) {
+    final cached = node.cachedTextPainter as TextPainter?;
+    if (cached != null &&
+        identical(node.textPainterStyleKey, style) &&
+        node.textPainterOpacityKey == alpha) {
+      return cached;
+    }
+    final fill = style.fill;
+    cached?.dispose();
+    final painter = TextPainter(
+      text: TextSpan(
+        text: content,
+        style: TextStyle(
+          fontSize: style.fontSize,
+          fontFamily: style.fontFamily,
+          color: fill == null ? const Color(0x00000000) : _fade(fill, alpha),
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    node
+      ..cachedTextPainter = painter
+      ..textPainterStyleKey = style
+      ..textPainterOpacityKey = alpha;
+    return painter;
   }
 
   /// Shader for a `url(#id)` paint over [path]'s bounds, or null when the id
@@ -1704,22 +2145,33 @@ class AnimatedSvgPainter extends CustomPainter {
     final dashArray = style.strokeDasharray;
     if (dashArray.isEmpty) return path;
     final dashOffset = style.strokeDashoffset;
+    final pathLength = resolveSvgLength(
+      (node.cachedAnimatedAttributes ?? node.attributes)['pathLength'],
+    );
     final cached = node.cachedDashedPath;
     if (cached != null &&
         identical(node.dashedPathSourceKey, path) &&
         identical(node.dashedPathArrayKey, dashArray) &&
-        node.dashedPathOffsetKey == dashOffset) {
+        node.dashedPathOffsetKey == dashOffset &&
+        node.dashedPathLengthKey == pathLength) {
       return cached;
     }
-    final dashed = dashPath(path, dashArray: dashArray, dashOffset: dashOffset);
+    final dashed = dashPath(
+      path,
+      dashArray: dashArray,
+      dashOffset: dashOffset,
+      pathLength: pathLength,
+    );
     node
       ..cachedDashedPath = dashed
       ..dashedPathSourceKey = path
       ..dashedPathArrayKey = dashArray
-      ..dashedPathOffsetKey = dashOffset;
+      ..dashedPathOffsetKey = dashOffset
+      ..dashedPathLengthKey = pathLength;
     return dashed;
   }
 
+  /// Paints fill and stroke in the resolved SVG order. / 按 SVG 样式指定的顺序绘制填充和描边。
   void _paintShape(
     Canvas canvas,
     SvgNode node,
@@ -1728,6 +2180,21 @@ class AnimatedSvgPainter extends CustomPainter {
     bool applyOpacity = true,
   }) {
     final fillAlpha = applyOpacity ? style.fillAlpha : style.fillOpacity;
+    final strokeAlpha = applyOpacity ? style.strokeAlpha : style.strokeOpacity;
+    if (style.strokeFirst) _paintStroke(canvas, node, path, style, strokeAlpha);
+    _paintFill(canvas, path, style, fillAlpha);
+    if (!style.strokeFirst) {
+      _paintStroke(canvas, node, path, style, strokeAlpha);
+    }
+  }
+
+  /// Paints the fill with its rule and solid fallback. / 根据填充规则与回退色绘制形状。
+  void _paintFill(
+    Canvas canvas,
+    ui.Path path,
+    ResolvedStyle style,
+    double fillAlpha,
+  ) {
     if (fillAlpha > 0) {
       // fill-rule：几何 Path 是挂在节点上的共享缓存，默认且始终保持 nonZero。
       // 只有 evenodd 的节点才临时改写，填充画完立刻还原——默认节点只多一次字段
@@ -1752,14 +2219,23 @@ class AnimatedSvgPainter extends CustomPainter {
       }
       if (evenOdd) path.fillType = ui.PathFillType.nonZero;
     }
-    final strokeAlpha = applyOpacity ? style.strokeAlpha : style.strokeOpacity;
-    if (strokeAlpha <= 0) return;
+  }
+
+  /// Paints the stroke with its dash pattern and paint fallback. / 使用虚线图案与回退涂料绘制描边。
+  void _paintStroke(
+    Canvas canvas,
+    SvgNode node,
+    ui.Path path,
+    ResolvedStyle style,
+    double strokeAlpha,
+  ) {
+    if (strokeAlpha <= 0 || style.strokeWidth <= 0) return;
     final strokeShader = _gradientShader(
       style.strokeGradientId,
       path,
       strokeAlpha,
     );
-    if (strokeShader != null && style.strokeWidth > 0) {
+    if (strokeShader != null) {
       canvas.drawPath(
         _strokePath(node, path, style),
         Paint()
@@ -1771,7 +2247,7 @@ class AnimatedSvgPainter extends CustomPainter {
       );
       return;
     }
-    if (style.stroke != null && style.strokeWidth > 0) {
+    if (style.stroke != null) {
       canvas.drawPath(
         _strokePath(node, path, style),
         Paint()
@@ -1802,6 +2278,28 @@ class AnimatedSvgPainter extends CustomPainter {
 }
 
 /// `<mask>` 上的 `mask-type` 属性名。
+/// Text runs that share a text-anchor shift. / 共享文字锚点位移的一组文字段。
+class _SvgTextChunk {
+  /// Starts a chunk at the first glyph origin. / 从首个字符原点开始定位块。
+  _SvgTextChunk(this.start, this.anchor) : end = start;
+
+  /// The first glyph's baseline x. / 首个字符的基线横坐标。
+  final double start;
+
+  /// Computed text-anchor of the first run. / 首段的计算文字锚点。
+  final String? anchor;
+
+  /// The cursor after the final run. / 最后一段之后的光标位置。
+  double end;
+
+  /// Paragraphs in document order. / 按文档顺序排列的段落。
+  final runs = <({TextPainter painter, Offset origin, bool visible})>[];
+}
+
+const _objectBoundingBox = 'objectBoundingBox';
+const _userSpaceOnUse = 'userSpaceOnUse';
+const _identityAffine = <double>[1, 0, 0, 1, 0, 0];
+
 const String _kMaskTypeAttribute = 'mask-type';
 
 /// `mask-type` 的 alpha 取值（小写，比较前已转小写）。

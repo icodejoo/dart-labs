@@ -123,6 +123,7 @@ ui.Path dashPath(
   ui.Path source, {
   required List<double> dashArray,
   double dashOffset = 0,
+  double? pathLength,
 }) {
   // SVG's odd-length rule is pure index arithmetic, not a longer list: the
   // conceptually-doubled pattern reads the same value at every index
@@ -144,6 +145,22 @@ ui.Path dashPath(
   if (segments.isOdd) cycle *= 2;
   if (cycle <= 0 || !cycle.isFinite || !dashOffset.isFinite) return source;
   final metrics = source.computeMetrics().toList();
+  if (pathLength != null && pathLength > 0) {
+    var actual = 0.0;
+    for (final metric in metrics) {
+      actual += metric.length;
+    }
+    if (actual <= 0) return source;
+    final scale = actual / pathLength;
+    if (!scale.isFinite ||
+        !(cycle * scale).isFinite ||
+        !(dashOffset * scale).isFinite) {
+      return source;
+    }
+    cycle *= scale;
+    dashOffset *= scale;
+    dashArray = [for (final value in dashArray) value * scale];
+  }
   var estimatedSegments = 0.0;
   for (final metric in metrics) {
     estimatedSegments +=

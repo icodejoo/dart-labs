@@ -9,8 +9,8 @@
 ## 结论速览
 
 - **静态路径**:usvg 解析,支持形状/渐变/clip/mask/pattern/内嵌位图;仍不渲染 `<text>`,但 **`Xvg`/`SvgImageProvider` 会将含 `<text>` 的源自动交给 Dart 引擎**（无动画时静止）；显式 `StaticXvg` 仍跳过文字。filter 只有 `feGaussianBlur`,mask/blur 不嵌套。
-- **文字源的自动分发限制**:整个源改走 Dart 路径，因此不支持 pattern/marker，filter 只支持 blur（单个 `feGaussianBlur`、单独 CSS blur 及下文限定的透明 Figma 前缀链），无 `<tspan>`/textPath/嵌入字体；其它限制以本文件“动画路径”章节为准。
-- **动画路径**:原创 SMIL 引擎 + SVGator CSS 导出子集;支持 begin 值列表、`#rgba`、组 opacity 合成;**不支持** `accumulate`、事件类 begin、`<tspan>`/textPath。
+- **文字源的自动分发限制**:整个源改走 Dart 路径，因此不支持 pattern/marker，filter 只支持 blur（单个 `feGaussianBlur`、单独 CSS blur 及下文限定的透明 Figma 前缀链），无 textPath/嵌入字体；其它限制以本文件“动画路径”章节为准。
+- **动画路径**:原创 SMIL 引擎 + SVGator CSS 导出子集;支持 begin 值列表、数值与变换累加、组 opacity 合成与单行 `<tspan>`；事件类 begin 和 textPath 暂不支持。
 - **安全边界**:静态路径有输入/嵌套/引用链/CSS/展开预算,超限返回 Err;`<image href>` 只解析内嵌 `data:` URI。
 - **同步阻塞**:`parse_svg` 是同步 FRB 调用,不可信 SVG 建议放后台 isolate(见"其它展开预算与同步解析")。
 - **未实测平台**:Android/iOS、32 位、wasm 及无线程目标的栈行为均未实测。
@@ -41,9 +41,9 @@
   - 换来 release DLL 体积从 1.052MiB 降到 0.468MiB(−55.5%)。详细调研见 `doc/size-optimization-history.md`。
   - `Xvg`/`SvgImageProvider` 将含 `<text>` 的整个源自动交给 Dart 引擎，以独立 `TextPainter` 实现文字；无动画的文档渲染后静止，不持续占用 ticker 或安排 provider 帧。
   - 显式 `StaticXvg` 只走 Rust，仍静默跳过文字；含文字时请用 `Xvg` 或 `AnimatedXvg`。
-  - 自动分发后的源适用下文“动画路径”的全部边界：无 pattern/marker，filter 仅支持 blur 及限定的透明 Figma 前缀链，无 `<tspan>`/textPath、嵌入 `@font-face` 字体等。它不会将文字与其余 Rust 渲染内容混合。
+  - 自动分发后的源适用下文“动画路径”的全部边界：无 pattern/marker，filter 仅支持 blur 及限定的透明 Figma 前缀链，无 textPath、嵌入 `@font-face` 字体等。它不会将文字与其余 Rust 渲染内容混合。
   - `currentColor`/theme、colorFilter、width/height、fit/alignment/pixelSnap 继续传递；provider 使用同一尺寸与 scale 计算。文字源现在触发 Dart 路径的 `onLoaded`（零时长），默认隐式控制器短暂初始化后自动 settle；显式外部驱动仍由调用者管理。
-  - **根视口映射**：Dart 固有宽高是 viewport 尺寸，接受无单位数字或 `px`，其它单位/百分比按缺失处理；每轴依次回退到有效 viewBox 的对应宽高、24。viewBox 必须是四个有限数字且宽高 >0，否则视为缺失。根 viewBox 原点、缩放及 preserveAspectRatio 已完整应用：支持 `none`、9 种对齐、`meet`/`slice`，缺省/非法值为 `xMidYMid meet`。先裁剪到 viewport，再变换用户坐标；外层 widget fit/alignment 在此基础上叠加。仅适用于根元素，`<use>`→symbol/嵌套 svg 的组简化不变。实现按 [SVG 2 §8.2](https://www.w3.org/TR/SVG2/coords.html#ComputingAViewportsTransform)；零宽高 viewBox 按本库约定视为缺失。
+  - **根视口映射**：Dart 固有宽高接受无单位、绝对长度和字体相对长度；百分比缺少图像容器基准时，逐轴用有效 viewBox 对应尺寸，否则用默认对象尺寸 300×150。根 viewBox 先应用位置、缩放和 preserveAspectRatio 裁剪，再应用组件 fit/alignment。Rust 缺少宽高与 viewBox 时可用内容边界推导固有尺寸，例如 500×400 的矩形得到 500×400。
   - **图片视口裁剪**：静态与动画都裁到按 `fit`/`alignment` 映射后的 SVG 视口与组件边界的交集。忽略根 `overflow`，保留 `meet` 留边内的内容。
   - `onError` 仍在帧后通知，配置的 errorBuilder 生效；未配置错误处理时沿用 Dart 路径的空盒子及 FlutterError 上报。小源同步解析，大源或内嵌图片就绪前显示 Dart 路径的尺寸占位；theme 变化重绘，不重新解析或重复报告同一解析错误。
 - **filter 只做 `feGaussianBlur`**:`feColorMatrix`/`feComposite`/`feOffset`/`feBlend`/`feDropShadow`/光照类图元等全部列为后续工作,当前一律不生效(不是画错,是不画)。多图元滤镜链同样整体忽略。
@@ -136,18 +136,28 @@
 
 ## 动画路径(原创 SMIL 引擎,`lib/src/animation/`)
 
-**元素**:`<svg>`/`<g>`(含 `transform`)/`<path>`/`<circle>`/`<rect>`(含 `rx`/`ry`)/`<ellipse>`/`<line>`/`<polyline>`/`<polygon>`/`<use>`/`<text>`/`<image>`/`<linearGradient>`/`<radialGradient>`/`<clipPath>`/`<mask>`。
+**元素**:`<svg>`（含嵌套视口）/`<g>`(含 `transform`)/`<a>`/`<switch>`/`<path>`/`<circle>`/`<rect>`(含 `rx`/`ry`)/`<ellipse>`/`<line>`/`<polyline>`/`<polygon>`/`<use>`/`<symbol>`（经 use）/`<text>`/`<tspan>`/`<image>`/`<linearGradient>`/`<radialGradient>`/`<clipPath>`/`<mask>`。
 
 不支持 `<pattern>` 或 `<marker>`；含文字的静态源自动走本路径时也适用。
+
+**视口与绘制**：
+
+- 几何、描边及字号接受无单位数字和 `px`、`pt`、`pc`、`mm`、`cm`、`in`、`em`、`ex`、`%`。百分比按最近 SVG 视口的用户空间宽、高或归一化对角线换算；字号百分比用继承字号，`ex` 用字体度量不可用时的 0.5em 回退。[SVG 2 坐标与单位](https://www.w3.org/TR/SVG2/coords.html)
+- 嵌套 SVG 以及 `<use>` 引用的 symbol/svg 建立自己的视口，应用 viewBox 与 preserveAspectRatio。默认裁剪到视口，`overflow="visible"` 可取消嵌套视口裁剪。`<switch>` 选第一个条件匹配的可绘制子元素，`systemLanguage` 以解析时平台语言为准。`<a>` 渲染内容及样式，图片模式下无链接交互。
+- `color` 可从属性或 CSS 继承，theme 提供最外层 `currentColor` 默认色。fill/stroke 支持 URL 后的回退色和 `inherit`，无效颜色声明保留原有有效值。支持继承的 `paint-order` 调整填充与描边顺序。
+- 裁剪支持 `clipPathUnits`、裁剪定义和形状自身的 `clip-path`。遮罩支持 `maskUnits`、`maskContentUnits` 以及显式区域；默认包围盒区域各边向外扩 10%。精确与近似路径均应用遮罩区域。[CSS Masking](https://www.w3.org/TR/css-masking-1/)
+- 内嵌栅格图片支持 preserveAspectRatio 的 `none`、对齐、`meet` 和 `slice`，默认 `xMidYMid meet`。
 
 **SMIL 动画**:
 
 - 时钟值支持 `HH:MM:SS(.fff)`、`MM:SS`、`Nh`、`Nmin`、`Ns`、`Nms` 和纯数字(秒);所有使用 `parseSmilDuration` 的时序字段共用此解析。
   - 非法值沿用零回退;有限时长超过 1e7 秒时饱和至 1e7 秒,正向 `begin` 超限则永不开始。
   - `NaN`/`Infinity` 仍按非法值处理。
-- `<animate>`:`values`/`from-to`/仅 `to`(to-animation)、`dur`、`begin`(数值偏移、syncbase 与分号列表)、`fill="freeze"` vs 复原、`repeatCount`(有限/`indefinite`)、`calcMode`(`linear`/`discrete`/`paced`/`spline`)、`keyTimes`、`keySplines`;任意单数值展示属性动画(通用,不限于 `stroke-dashoffset`)。
+- `<animate>`:`values`/`from-to`/仅 `to`(to-animation)/`by`/`from-by`、`dur`、`begin`(数值偏移、syncbase 与分号列表)、`fill="freeze"` vs 复原、`repeatCount`(有限/`indefinite`)、`repeatDur`、`calcMode`(`linear`/`discrete`/`paced`/`spline`)、`keyTimes`、`keySplines`;任意单数值展示属性动画(通用,不限于 `stroke-dashoffset`)。
   - **to-animation 基础值**:解析期取目标自身展示属性、行内 `style` 与已有 `<style>` 级联结果;继承沿用渲染器规则(`stroke-dashoffset`/`stroke-width`/`fill-opacity`/`stroke-opacity` 继承,`opacity` 与几何数值不继承),缺省取现有通道的初始值;`<use>` 取实例祖先链。`fill`/`stroke` 同样支持仅 `to` 的字面颜色插值,fill 缺省 black,stroke 缺省 none 时丢弃;基础涂料为 none/currentColor/渐变引用等无法解析的颜色时也丢弃。
-  - **近似与限制**:基础值固定在解析期,不含其它动画的叠加结果;没有实现规范中同属性其它动画作用后的当前动画值。`by-animation`(仅 `by`、`from+by`)与数值/颜色 `additive` 尚不支持,不会模拟为静态基础值加增量。
+  - 数值 `additive="sum"` 将当前样本加到底值或先前轨道输出，`accumulate="sum"` 将每轮末值累加到后续迭代。`repeatDur` 与 `repeatCount` 同写时以先结束者为准，支持在半轮中定格。
+  - 解析时验证 keyTimes 的项数、端点与顺序，以及 spline 的段数和坐标范围。无效时间列表使轨道失效，默认等距时间点仍可搭配有效 spline。[SVG 1.1 动画](https://www.w3.org/TR/SVG11/animate.html)
+  - **to-animation 的底值边界**：解析时固定，不跟随同一属性上的其它轨道实时变化。数值及变换通道支持相加，颜色和路径变形仍只支持替换。
 - `fill-opacity`/`stroke-opacity`(静态属性与 `<animate>`/`<set>` 驱动均支持):
   - **继承属性**(与不继承的 `opacity` 不同),取值钳制到 `[0, 1]`;纯色、渐变着色器、`<text>` 填充都生效。
   - 最终 alpha = 颜色自身 alpha × `fill-opacity`(描边为 `stroke-opacity`)× `opacity`。
@@ -166,13 +176,13 @@
   - `#rgba` 各位复制为完整字节,alpha 在末位(如 `#36c8` → `0x883366cc`)。
   - 属性、行内 style、CSS、关键帧、渐变 stop-color 与 SMIL 颜色通道共用相同语义。
   - 普通节点的 SMIL `fill`/`stroke`/`stop-color` 也接入颜色通道,支持多段 `values` 与 `calcMode="discrete"`,组上的 fill/stroke 动画可沿子元素继承。
-  - `attributeName="color"` 虽可被解析,实际不影响绘制:静态 `currentColor` 仍由运行时 theme 解析,不会跟随该动画。
+  - `attributeName="color"` 改变沿子树求值的 `currentColor`。
 
-### begin 值列表(已支持)
+### begin 和活动区间
 
 - **语法**:分号分隔的 offset(`1s`、`+0.5s`、`-1s`)、syncbase(`id.begin`/`id.end` ± offset)与 `indefinite`。
   - 忽略空白、空项和末尾分号;`indefinite` 不产生实例。实例去重并按时间排序。
-- **属性生效范围**:`restart`、`end`、`min`、`max` **仅在含 begin 列表的连通分量内生效**(包括分量内的单值 syncbase)。无列表且不连通的单值 begin 仍忽略 end/restart/min/max。
+- **属性生效范围**：单值 begin、begin 列表及其 syncbase 依赖均支持 `restart`、`end`、`min` 和 `max`。显式 end 截断时，freeze 保持截断点的样本。min 延长活动区间时，简单动画结束后 remove 恢复底值，freeze 保持末值。
 - **restart**:默认 `always`(新区间截断旧活动区间)、`whenNotActive`(忽略活动期间的实例)、`never`(只用首个实例)。
 - **区间语义**:
   - 活动区间为 `[begin,end)`,先丢弃 `end≤0` 的过去区间,再应用 restart 与配额。
@@ -192,7 +202,7 @@
   - 整个文档共用累计 **600000 工作单位**(引用实例访问、候选处理、通知与排序/比较预留),初始解析和惰性扩展均计入。
 - **复杂图**:复杂负偏移、动态 end 与不收敛图使用此预算约束的固定点求解,可能提前触顶。
 - **触顶处理**:任何安全预算耗尽都标记**整个连通分量** `instancesTruncated`,保留已接受结果并停止扩展,不提交半成品。超限时间不饱和成伪造 begin。
-- **旧路径不变**:无列表且不依赖列表的轨道沿用旧单值路径,不分配区间集合,CSS 编译路径不变。
+- **旧路径不变**:无开始列表和时序约束、且不依赖受约束轨道的单值轨道沿用原采样路径。
 
 ### begin 列表的残余限制(如实记录)
 
@@ -202,7 +212,6 @@
   - 仓库 399 个 Iconify 图标里没有这类写法;常见的 svg-spinners/line-md 循环(`0;id.end`、`1s;id.begin+6s`)走按需扩展路径,不受此限。
 - **触顶后的表现**:每轨 20000 个区间或文档 100000 个区间用尽后,不崩溃、不伪造 begin;动画回到基值(fill=remove)或定格在末值(fill=freeze),Ticker 仍在空转。每个文档的区间内存上限约 10 MB(每区间约 77–114 B)。
 - **偶发的假无限循环**:`hasPendingInstances` 只看"图中有环且队列非空",像 `begin="0;100s;a.end" restart="never"` 这种实际只播一次的文档,会被标成 `hasIndefiniteLoop=true`,Ticker 不停。只多耗帧,画面正确。
-- **`accumulate` 不支持**(引擎本身没有实现,与是否使用 begin 列表无关):`<animate>`/`<animateTransform>` 的 `accumulate="sum"` 一律按 `none` 处理。
 - **事件类 begin 不支持**:在列表中永不触发,见下文"明确不支持"。
 - 长远方向:对环做周期检测、按时间取模外推,可做到常量内存的真无限循环并消除触顶问题。
 
@@ -217,7 +226,7 @@
   - `begin` 之前不覆盖(显示静态属性);**无 `dur` = 活动期无限**,从 `begin` 起一直保持;有 `dur` 且无 `fill="freeze"` 时结束后撤销覆盖。
   - 数值属性(`opacity`/`fill-opacity` 等,`to` 必须是纯数字)复用数值通道,`d` 复用路径通道。
   - 无 `dur` 的 `<set>` 忽略 `repeatCount`,其结束时刻按 `begin` 计,不会让 Ticker 一直跑。
-- `<animateTransform>`:`type="translate"/"scale"/"rotate"/"skewX"/"skewY"`(`rotate` 支持 `angle`/`angle cx cy`),同一元素多个按文档顺序合成,叠加在静态 `<g transform>` 之上;仅 `to` 时 from 近似为各类型恒等值(translate `0 0`、scale `1 1`、rotate/skew `0`),不分解规范中的 underlying transform;`by` 与 `accumulate="sum"` 不支持,不会逐轮累加。
+- `<animateTransform>` 支持 translate/scale/rotate/skewX/skewY、`by`、`from-by` 及 `accumulate="sum"`。默认 replace 以文档顺序覆盖前面的生效变换与底层静态变换；`additive="sum"` 拼接变换。仅 `to` 仍以该类型的恒等值近似起点。
 - `<animateMotion>`:自身 `path="..."` 与 `<mpath href="#id">`。
   - 弧长参数化用 `dart:ui` 的 `Path.computeMetrics()`+`getTangentForOffset()`(129 个等弧长采样点,逐帧线性插值)。
   - `rotate="auto"`/`"auto-reverse"`/固定角度;`keyPoints`/`keyTimes`/`keySplines`/`calcMode`。
@@ -232,7 +241,7 @@
 - 具名 CSS 颜色、`rgb()`/`hsl()`:靠 Rust 侧 `svgtypes` 一次性归一化为 hex(仅解析阶段调用,逐帧仍是纯 Dart 数值插值)。
 - 动画渐变:`<stop>` 的 `stop-color`/`stop-opacity`、渐变自身 `x1/y1/x2/y2/cx/cy/r/fx/fy` 均可被 `<animate>` 驱动,每帧重采样重建 shader(无假设静止的缓存)。
 - 动画 `<clipPath>`/`<mask>`:裁剪路径/遮罩内容按当前帧采样(不是只按静止态生效一次)。
-- `<text>`:`TextPainter` 渲染,支持 `x`/`y`(基线锚点)/`font-size`/`font-family`/`text-anchor`,`fill`/`opacity` 走通用动画机制;不支持 `<tspan>`/textPath,文字内容本身不可被动画驱动。
+- `<text>`/单行 `<tspan>` 继承字号、字体、锚点及填充样式。支持每段一个 `x`/`y`/`dx`/`dy`，按定位块应用 text-anchor；跨段排版、逐字坐标列表、textPath 及文字内容动画仍有限制。
 - `<image>`:`resolvedImage` 异步解码 `data:` URI(base64),ticker 等解码完成后才启动,避免动画偷跑进度。
 - `feGaussianBlur`(`filter="blur(Npx)"`,或 `filter="url(#id)"` 指向单个 `<feGaussianBlur>`(in 为空或 SourceGraphic)或下文的透明 Figma 前缀 filter):`canvas.saveLayer` + `ui.ImageFilter.blur` 包裹节点子树。
 
@@ -269,18 +278,15 @@
 
 ### SMIL
 
-- **`accumulate` 不支持**,包括 `<animateTransform>`;`additive` 不等同于逐轮累加。
 - **事件类 `begin`** 不支持:`click`、`id.click`、`repeat(...)` 等,以及 `wallclock()`、`accessKey()`。
   - 在 begin 列表中这些项永不触发,其它有效项继续生效;单值 begin 保留既有零偏移回退(立即开始)。
   - 已评估不做:需要"事件监听 + 时间线动态重触发",与当前"一次性建好全时间线、之后纯按 elapsed 驱动"的架构冲突,属架构级改动,建议单独排期。
 - **`<set>` 只支持数值属性与 `d`**:`to` 为非数字(如 `visibility="hidden"`、`fill="red"`、带单位的 `"2px"`)的 `<set>` 解析期丢弃。
-  - `<animate>` 已支持 `fill`/`stroke`/`stop-color` 字面颜色插值;`color` 动画不影响 currentColor/theme。
+  - `<animate>` 支持 `fill`/`stroke`/`stop-color`/`color` 字面颜色插值。
 - **路径变形限制**:
   - 各帧命令序列/参数个数不同,或圆弧的 large/sweep 标志位不同,退化为离散(不做点重采样、不做子路径对齐)。
-  - `keySplines` 的 y 值超出 `[0, 1]`(过冲)时进度被钳制在 `[0, 1]`。
   - 不支持 `by`/`additive`/`accumulate`;`fill-opacity`/`stroke-opacity` 不支持百分比写法。
 - **颜色**:OKLCH 等感知色彩空间插值不支持,只做逐字节 ARGB 插值;"作用在渐变属性/`<stop>` 上"的动画仅限 `<animate>`。
-- **文本**:`<tspan>`、textPath 不支持。
 
 ### CSS 动画的边界
 
@@ -288,7 +294,7 @@
 - `@media`、`@import` 整块忽略。
 - `calc()` 声明直接忽略,保留前面的有效 CSS 值。
 - 带逗号回退的 `var(--x, fallback)` 也保留前值,不解析自定义属性、不套用 fallback。
-- 无回退 `var()`、`env()` 及 `inherit`/`initial`/`unset`/`revert`/`revert-layer` 仍清除同属性已累计的 CSS 值,随后回落到元素表现属性(未写表现属性时再按继承/默认值处理)。
+- 无回退 `var()`、`env()` 及 `initial`/`unset`/`revert`/`revert-layer` 仍清除同属性已累计的 CSS 值,随后回落到元素表现属性(未写表现属性时再按继承/默认值处理)。
 - SVGator **JS 导出**不支持(闭源播放器、无公开规范,见 `doc/svgator-positioning.md`)。
 
 ### CSS 动画的已知限制
@@ -297,7 +303,7 @@
 - `offset-path` 与 `transform` 同时存在时的合成顺序未与浏览器逐项核对。
 - 嵌入 `@font-face` 的文字不渲染对应字体(回退到系统字体)。
 - **`currentColor` 关键帧**与需要该静态值补端点的颜色动画:当前颜色时间线只保存字面 ARGB,无法逐帧按主题解析,因此整条颜色通道跳过并返回 `currentColorRuntimeUnsupported` 诊断。
-  - 静态 `currentColor`(含大小写变体)仍在运行时按 theme 解析。
+  - 静态 `currentColor`(含大小写变体)按元素的计算 `color` 解析，theme 提供外层默认值。
   - 具名颜色、`hsl()` 关键帧复用原生颜色归一化钩子,无 DLL 时按已有颜色解析可用性降级。
 - **正延迟配合 `backwards`/`both`**:SMIL 时间线仅有 remove/freeze,延迟期仍显示静态值,返回 `backwardsFillUnsupported` **近似**诊断;开始后的动画和 `both` 的结束定格正常。
 - **多个 transform 动画的覆盖顺序**:同一元素的多个 transform 动画按列表顺序覆盖。
@@ -318,10 +324,11 @@
   - CSS `blur(Npx)` 仅接受单独一个 blur。
 - **重复 id 与渐变**:
   - 解析时重复 id 一律取文档中首个元素(包含 `<use>` 引用、渐变、clipPath、mask);渐变 `href`/`xlink:href` 均按 local name 继承。
-  - 渐变色标保持文档顺序,offset 逐项按 `max(prev, offset)` 钳制,无效色标与对应动画节点同步跳过。
+  - 渐变色标保持文档顺序,offset 逐项按 `max(prev, offset)` 钳制,无效颜色声明按缺省色处理；无法解析的色标与对应动画节点同步跳过。
   - 径向渐变 `r<=0` 使用最后色标的纯色。
 - **`stroke-dasharray`**:
-  - 接受逐词元 px 单位;任一负数、百分比或非法词元使整个列表退化为 none。描边宽度/偏移支持 px。
+  - 描边长度与偏移可用归一化视口对角线百分比，并按有效正值 `pathLength` 校准。非法列表沿用继承值。
+  - SMIL 支持等长 `points` 和等长同单位 `stroke-dasharray` 逐项插值。不兼容的列表用离散切换。
   - 虚线预估划线与间隙合计段数超过 5000(约 2500 段实际划线)、全零或总和非正时退化实线。
   - 零长度 dash 配合 round cap 的圆点仍未实现。
 - **`<use>` 展开预算**:全局 **100000 单位**(含包装节点),与原有深度/环检测共同生效。
@@ -330,15 +337,7 @@
   - 展开前饱和估算整个实例,剩余预算不足时整实例跳过,不会画出半个 symbol,后续较小实例仍可使用剩余额度。
   - `SvgDocument.useExpansionTruncated` 仅为内部标识,未从 `lib/xvg.dart` 导出为公共 API。
   - 指数引用、动画及悬空引用放大回归要求解析在 2 秒内完成。
-- **`<use>` 指向 `<symbol>`/`<svg>`**:不应用其 `width`/`height`/`viewBox` 缩放(按普通 `<g>` 处理);`<use>` 自身的 `width`/`height` 同样忽略。
-- **嵌套 mask/clip**:不支持(嵌套内容里的 `clip-path`/`mask` 属性被忽略);mask 内容里的 `<image>` 不支持。
-- **luminance mask 已知限制**:
-  - 忽略遮罩内容自身的 alpha(opacity/fill-opacity 不生效,例如 mask 内 opacity=.5 的叶子或组按 255 处理,浏览器应为 128);alpha mask 正常。
-  - 与组 opacity 改动无关,为原有限制。现状用例为 `group_opacity_test.dart` 的 `knownLimitation` 测试;`css_animation_pixel_test.dart` 原有 255 断言保持不动。
-- **mask 区域**:未读取 SVG 的 `maskUnits`/`x`/`y`/`width`/`height`,即不按官方默认的 bbox ±10%/120% 去**裁剪** mask 区域;mask 内容画到哪里就覆盖到哪里。
-  - 曾有"按 mask 内容自身几何边界分配离屏图层"的无损优化(`tightMaskLayerBounds`),已评估并否决,见下文。
-  - `maskContentUnits`/`clipPathUnits` 的 `objectBoundingBox` 换算尚未实现，内容按用户坐标解释；默认/显式 `userSpaceOnUse` 内容会继承根 viewBox 映射。根映射不改变这个既有限制，也不改变基于元素几何 bbox 的渐变计算。
-- **`<image>`**：位置和尺寸会继承根映射；图片自身的 preserveAspectRatio 仍未实现（目标矩形拉伸），不是根视口支持的一部分。
+- **裁剪与遮罩边界**：裁剪内容以几何形状构造，文字轮廓与遮罩内容的内嵌位图暂未支持。近似遮罩仍由下文的并发门槛和覆盖度条件控制。
 
 ### 高并发下的故意有损降级(`XvgAnimationQuality`)
 

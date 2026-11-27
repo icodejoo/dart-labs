@@ -370,7 +370,7 @@ void main() {
       expect(n.animations.first.repeatCount.count, 1);
       expect(n.animations[1].begin, const Duration(seconds: 1));
       expect(n.animations.first.sample(kMs * 500), 0.5);
-      expect(n.motionAnimations.single.keyPoints, isNull);
+      expect(n.motionAnimations, isEmpty);
     });
   }
   test('repeatCount indefinite 保持无限循环', () {
