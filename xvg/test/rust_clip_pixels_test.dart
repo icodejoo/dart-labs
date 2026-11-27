@@ -97,8 +97,12 @@ const _samples = <String, (String, int, int)>{
     '''
     <defs>
       <clipPath id="clip"><path d="M8 9L48 13L38 46L13 43Z"/></clipPath>
-      <filter id="outer"><feGaussianBlur stdDeviation="3"/></filter>
-      <filter id="inner"><feGaussianBlur stdDeviation="1.4"/></filter>
+      <filter id="outer" x="-100%" y="-100%" width="300%" height="300%">
+        <feGaussianBlur stdDeviation="3"/>
+      </filter>
+      <filter id="inner" x="-100%" y="-100%" width="300%" height="300%">
+        <feGaussianBlur stdDeviation="1.4"/>
+      </filter>
     </defs>
     <g clip-path="url(#clip)" filter="url(#outer)">
       <rect x="5" y="4" width="20" height="36" fill="#254fae"/>

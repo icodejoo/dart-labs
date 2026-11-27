@@ -431,6 +431,30 @@ impl SseDecode for Option<crate::api::svg::SvgPattern> {
     }
 }
 
+impl SseDecode for Option<crate::api::svg::SvgStrokeGeometry> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<crate::api::svg::SvgStrokeGeometry>::sse_decode(
+                deserializer,
+            ));
+        } else {
+            return None;
+        }
+    }
+}
+
+impl SseDecode for Option<crate::api::svg::SvgStrokeStyle> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<crate::api::svg::SvgStrokeStyle>::sse_decode(deserializer));
+        } else {
+            return None;
+        }
+    }
+}
+
 impl SseDecode for Option<u32> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -469,9 +493,11 @@ impl SseDecode for crate::api::svg::SvgBlur {
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_stdDevX = <f32>::sse_decode(deserializer);
         let mut var_stdDevY = <f32>::sse_decode(deserializer);
+        let mut var_region = <Option<Vec<f32>>>::sse_decode(deserializer);
         return crate::api::svg::SvgBlur {
             std_dev_x: var_stdDevX,
             std_dev_y: var_stdDevY,
+            region: var_region,
         };
     }
 }
@@ -659,6 +685,8 @@ impl SseDecode for crate::api::svg::SvgPath {
         let mut var_hasStroke = <bool>::sse_decode(deserializer);
         let mut var_strokeArgb = <u32>::sse_decode(deserializer);
         let mut var_strokeWidth = <f32>::sse_decode(deserializer);
+        let mut var_strokeStyle =
+            <Option<crate::api::svg::SvgStrokeStyle>>::sse_decode(deserializer);
         let mut var_strokeFirst = <bool>::sse_decode(deserializer);
         let mut var_fillGradient = <Option<crate::api::svg::SvgGradient>>::sse_decode(deserializer);
         let mut var_strokeGradient =
@@ -673,6 +701,7 @@ impl SseDecode for crate::api::svg::SvgPath {
             has_stroke: var_hasStroke,
             stroke_argb: var_strokeArgb,
             stroke_width: var_strokeWidth,
+            stroke_style: var_strokeStyle,
             stroke_first: var_strokeFirst,
             fill_gradient: var_fillGradient,
             stroke_gradient: var_strokeGradient,
@@ -723,6 +752,35 @@ impl SseDecode for crate::api::svg::SvgScene {
             display_list: var_displayList,
             images: var_images,
             content_bounds: var_contentBounds,
+        };
+    }
+}
+
+impl SseDecode for crate::api::svg::SvgStrokeGeometry {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_verbs = <Vec<u8>>::sse_decode(deserializer);
+        let mut var_points = <Vec<f32>>::sse_decode(deserializer);
+        return crate::api::svg::SvgStrokeGeometry {
+            verbs: var_verbs,
+            points: var_points,
+        };
+    }
+}
+
+impl SseDecode for crate::api::svg::SvgStrokeStyle {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_flags = <u8>::sse_decode(deserializer);
+        let mut var_miterLimit = <f32>::sse_decode(deserializer);
+        let mut var_matrix = <Option<Vec<f32>>>::sse_decode(deserializer);
+        let mut var_geometry =
+            <Option<crate::api::svg::SvgStrokeGeometry>>::sse_decode(deserializer);
+        return crate::api::svg::SvgStrokeStyle {
+            flags: var_flags,
+            miter_limit: var_miterLimit,
+            matrix: var_matrix,
+            geometry: var_geometry,
         };
     }
 }
@@ -785,6 +843,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::svg::SvgBlur {
         [
             self.std_dev_x.into_into_dart().into_dart(),
             self.std_dev_y.into_into_dart().into_dart(),
+            self.region.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -1020,6 +1079,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::svg::SvgPath {
             self.has_stroke.into_into_dart().into_dart(),
             self.stroke_argb.into_into_dart().into_dart(),
             self.stroke_width.into_into_dart().into_dart(),
+            self.stroke_style.into_into_dart().into_dart(),
             self.stroke_first.into_into_dart().into_dart(),
             self.fill_gradient.into_into_dart().into_dart(),
             self.stroke_gradient.into_into_dart().into_dart(),
@@ -1075,6 +1135,50 @@ impl flutter_rust_bridge::IntoDart for crate::api::svg::SvgScene {
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::svg::SvgScene {}
 impl flutter_rust_bridge::IntoIntoDart<crate::api::svg::SvgScene> for crate::api::svg::SvgScene {
     fn into_into_dart(self) -> crate::api::svg::SvgScene {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::svg::SvgStrokeGeometry {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.verbs.into_into_dart().into_dart(),
+            self.points.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::svg::SvgStrokeGeometry
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::svg::SvgStrokeGeometry>
+    for crate::api::svg::SvgStrokeGeometry
+{
+    fn into_into_dart(self) -> crate::api::svg::SvgStrokeGeometry {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::svg::SvgStrokeStyle {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.flags.into_into_dart().into_dart(),
+            self.miter_limit.into_into_dart().into_dart(),
+            self.matrix.into_into_dart().into_dart(),
+            self.geometry.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::svg::SvgStrokeStyle
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::svg::SvgStrokeStyle>
+    for crate::api::svg::SvgStrokeStyle
+{
+    fn into_into_dart(self) -> crate::api::svg::SvgStrokeStyle {
         self
     }
 }
@@ -1247,6 +1351,26 @@ impl SseEncode for Option<crate::api::svg::SvgPattern> {
     }
 }
 
+impl SseEncode for Option<crate::api::svg::SvgStrokeGeometry> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::api::svg::SvgStrokeGeometry>::sse_encode(value, serializer);
+        }
+    }
+}
+
+impl SseEncode for Option<crate::api::svg::SvgStrokeStyle> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::api::svg::SvgStrokeStyle>::sse_encode(value, serializer);
+        }
+    }
+}
+
 impl SseEncode for Option<u32> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -1282,6 +1406,7 @@ impl SseEncode for crate::api::svg::SvgBlur {
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <f32>::sse_encode(self.std_dev_x, serializer);
         <f32>::sse_encode(self.std_dev_y, serializer);
+        <Option<Vec<f32>>>::sse_encode(self.region, serializer);
     }
 }
 
@@ -1411,6 +1536,7 @@ impl SseEncode for crate::api::svg::SvgPath {
         <bool>::sse_encode(self.has_stroke, serializer);
         <u32>::sse_encode(self.stroke_argb, serializer);
         <f32>::sse_encode(self.stroke_width, serializer);
+        <Option<crate::api::svg::SvgStrokeStyle>>::sse_encode(self.stroke_style, serializer);
         <bool>::sse_encode(self.stroke_first, serializer);
         <Option<crate::api::svg::SvgGradient>>::sse_encode(self.fill_gradient, serializer);
         <Option<crate::api::svg::SvgGradient>>::sse_encode(self.stroke_gradient, serializer);
@@ -1441,6 +1567,24 @@ impl SseEncode for crate::api::svg::SvgScene {
         <Option<crate::api::svg::SvgDisplayList>>::sse_encode(self.display_list, serializer);
         <Vec<crate::api::svg::SvgImage>>::sse_encode(self.images, serializer);
         <Option<crate::api::svg::SvgContentBounds>>::sse_encode(self.content_bounds, serializer);
+    }
+}
+
+impl SseEncode for crate::api::svg::SvgStrokeGeometry {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <Vec<u8>>::sse_encode(self.verbs, serializer);
+        <Vec<f32>>::sse_encode(self.points, serializer);
+    }
+}
+
+impl SseEncode for crate::api::svg::SvgStrokeStyle {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <u8>::sse_encode(self.flags, serializer);
+        <f32>::sse_encode(self.miter_limit, serializer);
+        <Option<Vec<f32>>>::sse_encode(self.matrix, serializer);
+        <Option<crate::api::svg::SvgStrokeGeometry>>::sse_encode(self.geometry, serializer);
     }
 }
 

@@ -21,14 +21,17 @@
 
 - `<svg>`/`<g>`/基础形状/`<use>`/`<switch>`/`<marker>`(usvg 解析期即展开或求值,xvg 零成本继承)。
 - `currentColor`+`PaintOrder`(`parse_svg(data, currentColor)`,`SvgPath.strokeFirst` 控制先描边后填充)。
-- 静态渐变(线性/径向,`objectBoundingBox`/`userSpaceOnUse`)。
+- 描边按 SVG 用户空间计算。均匀缩放及旋转可展平，非均匀缩放和斜切保留局部路径与仿射矩阵。`stroke-linecap`、`stroke-linejoin`、`stroke-miterlimit` 均参与绘制，`stroke-dasharray` 和 `stroke-dashoffset` 由 usvg 重新导出的 tiny-skia-path 在 Rust 解析时切段。根 SVG 的默认相对字号为 16px。
+- 线性和径向渐变保留完整仿射矩阵，支持 `objectBoundingBox`、`userSpaceOnUse` 和 `gradientTransform`。
+- `visibility:hidden/collapse` 跳过不可见的路径和图片，分组中的子元素可用 `visibility:visible` 覆盖继承值。
 - `<g>` 与元素的 `opacity`（含根 `<svg>`、嵌套）：按 usvg `Group.opacity` 保留成对的入层/出层命令，Dart 用 `saveLayer` 把组整体合成；重叠子元素、同一元素的填充与描边只应用一次 opacity。`fill-opacity`/`stroke-opacity` 保持 paint 级透明度，再与各层 opacity 相乘。
-  - `opacity=0` 的子树直接跳过;`opacity=1` 不产生额外命令载荷。
-  - mask/pattern 子内容也保留 opacity 边界；图片包含在所属组内。
-  - 无 opacity 合成的列表不传逐元素命令，保留原有扁平快路径；FRB 仍为 sync + SSE。
-- `<clipPath>`、`<mask>`、`<pattern>`(基础形态)。
+  - `opacity=0` 的子树直接跳过。普通 `opacity=1` 的分组直接绘制。
+  - `mix-blend-mode` 和 `isolation:isolate` 复用分组合成命令。带混合子元素的裁剪组使用独立背景，裁剪几何仍按分组共享；SVG 图片与外部画布的背景隔离。
+  - mask/pattern 子内容保留分组合成边界；图片包含在所属组内。
+  - 无合成或裁剪边界的场景沿用扁平快路径，FRB 仍使用 SSE。
+- `<clipPath>`、`<mask>`、`<pattern>`。支持 `patternUnits`、`patternContentUnits`、`viewBox` 和 `patternTransform`，贴片原点由 shader 放置。
   - 亮度(luminance)mask 现在正确计入遮罩内容自身的 alpha(此前一律按 255 处理)。
-- `feGaussianBlur`(仅此一种 filter 图元)。
+- 单个 `feGaussianBlur` 的输出及内容边界受 `<filter>` 区域约束。支持默认的 −10% / 120%、显式区域及区域的仿射变换，CSS `blur()` 沿用无 SVG 区域的绘制方式。
 - `<image>`(内嵌 base64 位图,PNG/JPEG/GIF/WEBP)。
 
 **不支持 / 已牺牲**:
@@ -50,9 +53,9 @@
 - **`<clipPath>` 内部元素自身再带 `clip-path` 会被忽略**(clipPath 的 `clip-path` 属性本身是支持的,走 `build_clips` 递归)。
 - **遮罩矩形在有旋转时取的是变换后 4 角的轴对齐包围盒**,不是真正的旋转矩形。
 - **遮罩内容 / 图案贴片内容按"朴素"方式绘制**:不再递归应用它们内部的 clip/mask/blur/pattern。也不支持遮罩内的 `<image>`。
-- **`<pattern>` 贴片分辨率上限 1024px/轴**,按图案→绝对矩阵的缩放量推算;极端放大时会糊。贴片 `ui.Image` 由 shader 持有,不显式 dispose(交给 Dart GC)。
+- **`<pattern>` 贴片分辨率上限 1024px/轴**，按图案到 Picture 的矩阵缩放量推算，极端放大时会糊。Picture 录制后释放贴片的 Dart 句柄，shader 持有原生图像引用。
 - **不支持嵌套 SVG**(`<image href="...svg">` 或 `ImageKind::SVG`)——静态路径直接跳过。
-- **图片 z-order 简化**:无 opacity 合成命令时，图片仍一律先于路径/形状绘制；有 opacity 合成命令时按文档顺序重放，以保持图片与路径的组边界。
+- **图片 z-order 简化**：无分组合成命令时图片先于路径绘制，有分组合成命令时按文档顺序重放。
 
 ### 图片来源与预算(安全策略)
 

@@ -7,9 +7,9 @@ import '../frb_generated.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `append_clip_geometry`, `append_mapped_points`, `append_segments`, `append_subtree_commands`, `argb`, `build_clips_at_depth`, `build_clips`, `build_gradient`, `build_mask_at_depth`, `build_mask`, `build_pattern`, `charge_clips`, `charge_subtree`, `charge`, `check_xml_depth`, `check`, `checked_styles`, `close_opacity_layer`, `collect`, `concat`, `convert_gradient_stops`, `convert_image`, `convert_path`, `css_compound_certain`, `css_compound_matches`, `css_declarations_certain`, `css_ident`, `css_parts_match`, `css_selector_parts`, `css_space`, `css_string_end`, `current_color_insertion`, `empty`, `extend_inherited`, `finish_commands`, `finish`, `flutter_blur_bounds`, `gaussian_blur_of`, `include`, `indexed_command`, `limit_scene_reference_depth`, `limit_source_depth`, `local_urls`, `map`, `paint_argb`, `parse_svg_document`, `parse_xml`, `resolve_paint`, `scan_css`, `some_if_present`, `source_reference_graph`, `spread_to_u8`, `stop_rgb`, `stroke_bounds_match`, `token_matrix`, `transform_to_vec6`, `try_scene_from_tree`, `usvg_options`
+// These functions are ignored because they are not marked as `pub`: `append_clip_geometry`, `append_mapped_points`, `append_segments`, `append_subtree_commands`, `argb`, `blend_index`, `build_clips_at_depth`, `build_clips`, `build_gradient`, `build_mask_at_depth`, `build_mask`, `build_pattern`, `charge_clips`, `charge_subtree`, `charge`, `check_xml_depth`, `check`, `checked_styles`, `children_blend`, `close_opacity_layer`, `collect`, `concat`, `convert_gradient_stops`, `convert_image`, `convert_path`, `css_compound_certain`, `css_compound_matches`, `css_declarations_certain`, `css_ident`, `css_parts_match`, `css_selector_parts`, `css_space`, `css_string_end`, `current_color_insertion`, `empty`, `extend_inherited`, `finish_commands`, `finish`, `flutter_blur_bounds`, `gaussian_blur_of`, `include`, `indexed_command`, `limit_scene_reference_depth`, `limit_source_depth`, `local_urls`, `map`, `paint_argb`, `parse_svg_document`, `parse_xml`, `resolve_paint`, `scan_css`, `some_if_present`, `source_reference_graph`, `spread_to_u8`, `stop_rgb`, `stroke_flags`, `stroke_scale`, `token_matrix`, `transform_to_vec6`, `try_scene_from_tree`, `usvg_options`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `ClipCost`, `ExpansionBudget`, `GuardCss`, `Inherited`, `SceneBounds`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`
 // These functions are ignored (category: IgnoreBecauseOwnerTyShouldIgnore): `default`, `default`, `default`, `default`, `default`
 
 /// Parses [data] (SVG markup) into an [SvgScene]. Errors return a message.
@@ -116,10 +116,13 @@ class SvgBlur {
   /// Vertical sigma. / 垂直 sigma。
   final double stdDevY;
 
-  const SvgBlur({required this.stdDevX, required this.stdDevY});
+  /// Rect edges or four affine-mapped corners in picture coordinates. / Picture 坐标中的矩形四边或经仿射变换的四个顶点。
+  final Float32List? region;
+
+  const SvgBlur({required this.stdDevX, required this.stdDevY, this.region});
 
   @override
-  int get hashCode => stdDevX.hashCode ^ stdDevY.hashCode;
+  int get hashCode => stdDevX.hashCode ^ stdDevY.hashCode ^ region.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -127,7 +130,8 @@ class SvgBlur {
       other is SvgBlur &&
           runtimeType == other.runtimeType &&
           stdDevX == other.stdDevX &&
-          stdDevY == other.stdDevY;
+          stdDevY == other.stdDevY &&
+          region == other.region;
 }
 
 /// One clip region: the union of a `<clipPath>`'s shapes, already mapped into
@@ -166,12 +170,12 @@ class SvgClip {
           evenOdd == other.evenOdd;
 }
 
-/// 静态显示列表命令：0 路径、1 图片、2 透明度入层、3 出层、4 入裁剪、5 出裁剪。
+/// 静态显示列表命令：0 路径、1 图片、2 合成入层、3 出层、4 入裁剪、5 出裁剪。
 class SvgCommand {
   /// 命令类型。
   final int kind;
 
-  /// 路径、图片或裁剪区域的下标；透明度命令不使用此字段。
+  /// 路径、图片、裁剪区域下标或入层混合模式（0 为普通合成）。
   final int index;
 
   /// 入层不透明度；其他命令不用。
@@ -362,9 +366,7 @@ class SvgGradient {
   /// 仅径向：半径（局部空间）；线性时不使用。
   final double radius;
 
-  /// Radial only: local-to-absolute affine `[a, b, c, d, e, f]`; empty for
-  /// linear.
-  /// 仅径向：局部到绝对空间的仿射变换 `[a, b, c, d, e, f]`；线性时为空。
+  /// Gradient-to-path affine `[a, b, c, d, e, f]`, empty for identity. / 渐变到路径的仿射变换，单位矩阵时为空。
   final Float32List matrix;
 
   /// Color stops, in offset order. / 色标，按 offset 顺序排列。
@@ -601,14 +603,12 @@ class SvgMask {
           commands == other.commands;
 }
 
-/// One path node: geometry (in absolute coords) plus fill/stroke.
-///
-/// 单个路径节点：几何（绝对坐标）+ 填充/描边。
+/// One path node: geometry and its fill and stroke. / 单个路径节点的几何、填充和描边。
 class SvgPath {
   /// Verbs: 0=move 1=line 2=quad 3=cubic 4=close. / 动词：0 移动 1 直线 2 二次 3 三次 4 闭合。
   final Uint8List verbs;
 
-  /// Flattened x,y coordinate pairs. / 扁平的 x,y 坐标对。
+  /// Flattened x,y pairs, local if stroke_style has a matrix. / 扁平的 x,y 坐标对，有描边矩阵时为局部坐标。
   final Float32List points;
 
   /// Whether a fill is present. / 是否有填充。
@@ -626,8 +626,11 @@ class SvgPath {
   /// Stroke color as 0xAARRGGBB. / 描边色 0xAARRGGBB。
   final int strokeArgb;
 
-  /// Stroke width in px. / 描边宽度（px）。
+  /// Stroke width in path coordinates. / 路径坐标中的描边宽度。
   final double strokeWidth;
+
+  /// Non-default stroke style or extra geometry. / 非默认描边样式或附加几何。
+  final SvgStrokeStyle? strokeStyle;
 
   /// Paint order: true paints stroke before fill (`paint-order="stroke fill"`),
   /// false (default) paints fill before stroke.
@@ -665,6 +668,7 @@ class SvgPath {
     required this.hasStroke,
     required this.strokeArgb,
     required this.strokeWidth,
+    this.strokeStyle,
     required this.strokeFirst,
     this.fillGradient,
     this.strokeGradient,
@@ -681,6 +685,7 @@ class SvgPath {
       hasStroke.hashCode ^
       strokeArgb.hashCode ^
       strokeWidth.hashCode ^
+      strokeStyle.hashCode ^
       strokeFirst.hashCode ^
       fillGradient.hashCode ^
       strokeGradient.hashCode ^
@@ -699,6 +704,7 @@ class SvgPath {
           hasStroke == other.hasStroke &&
           strokeArgb == other.strokeArgb &&
           strokeWidth == other.strokeWidth &&
+          strokeStyle == other.strokeStyle &&
           strokeFirst == other.strokeFirst &&
           fillGradient == other.fillGradient &&
           strokeGradient == other.strokeGradient &&
@@ -838,4 +844,65 @@ class SvgScene {
           displayList == other.displayList &&
           images == other.images &&
           contentBounds == other.contentBounds;
+}
+
+/// A pre-cut dash or stroke outline. / 预切的虚线或描边轮廓。
+class SvgStrokeGeometry {
+  /// Segment commands in SvgPath encoding. / 采用 SvgPath 编码的路径命令。
+  final Uint8List verbs;
+
+  /// Flattened points in the same space as the path. / 与原路径处在同一空间的扁平点集。
+  final Float32List points;
+
+  const SvgStrokeGeometry({required this.verbs, required this.points});
+
+  @override
+  int get hashCode => verbs.hashCode ^ points.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SvgStrokeGeometry &&
+          runtimeType == other.runtimeType &&
+          verbs == other.verbs &&
+          points == other.points;
+}
+
+/// Stroke information used only outside the default fast path. / 仅非默认描边携带的重放信息。
+class SvgStrokeStyle {
+  /// Cap in bits 0–1, join in bits 2–3, filled outline in bit 4. / 低两位端点、接着两位连接、第 4 位标记轮廓填充。
+  final int flags;
+
+  /// Miter limit in stroke-width units. / 以线宽为单位的斜接限制。
+  final double miterLimit;
+
+  /// Optional local-to-picture affine in SVG order. / 可选的 SVG 顺序局部到 Picture 仿射矩阵。
+  final Float32List? matrix;
+
+  /// Distinct stroke geometry when the original path is needed for fill. / 填充需要原路径时单独携带的描边几何。
+  final SvgStrokeGeometry? geometry;
+
+  const SvgStrokeStyle({
+    required this.flags,
+    required this.miterLimit,
+    this.matrix,
+    this.geometry,
+  });
+
+  @override
+  int get hashCode =>
+      flags.hashCode ^
+      miterLimit.hashCode ^
+      matrix.hashCode ^
+      geometry.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SvgStrokeStyle &&
+          runtimeType == other.runtimeType &&
+          flags == other.flags &&
+          miterLimit == other.miterLimit &&
+          matrix == other.matrix &&
+          geometry == other.geometry;
 }

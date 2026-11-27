@@ -2,7 +2,7 @@
 //
 // SVG 解析核心：usvg → 扁平显示列表，交给 Dart 重放为 ui.Picture。
 
-use usvg::tiny_skia_path::{Point, Rect, Transform};
+use usvg::tiny_skia_path::{Path, PathStroker, Point, Rect, Transform};
 
 /// A parsed SVG reduced to a flat list of paths with resolved paints.
 ///
@@ -55,12 +55,12 @@ impl SvgDisplayList {
     }
 }
 
-/// 静态显示列表命令：0 路径、1 图片、2 透明度入层、3 出层、4 入裁剪、5 出裁剪。
+/// 静态显示列表命令：0 路径、1 图片、2 合成入层、3 出层、4 入裁剪、5 出裁剪。
 #[derive(Clone)]
 pub struct SvgCommand {
     /// 命令类型。
     pub kind: u8,
-    /// 路径、图片或裁剪区域的下标；透明度命令不使用此字段。
+    /// 路径、图片、裁剪区域下标或入层混合模式（0 为普通合成）。
     pub index: u32,
     /// 入层不透明度；其他命令不用。
     pub opacity: f32,
@@ -80,6 +80,43 @@ fn indexed_command(kind: u8, index: usize) -> SvgCommand {
         index: index as u32,
         opacity: 1.0,
     }
+}
+
+/// Encodes the compositing operation shared by native and Web replay. / 编码原生与 Web 共用的合成操作。
+fn blend_index(mode: usvg::BlendMode) -> u32 {
+    use usvg::BlendMode::*;
+    match mode {
+        Normal => 0,
+        Multiply => 1,
+        Screen => 2,
+        Overlay => 3,
+        Darken => 4,
+        Lighten => 5,
+        ColorDodge => 6,
+        ColorBurn => 7,
+        HardLight => 8,
+        SoftLight => 9,
+        Difference => 10,
+        Exclusion => 11,
+        Hue => 12,
+        Saturation => 13,
+        Color => 14,
+        Luminosity => 15,
+        PlusLighter => 16,
+    }
+}
+
+/// Finds blending that can see the current group's backdrop. / 查找能看到当前分组背景的混合操作。
+fn children_blend(group: &usvg::Group, depth: usize) -> bool {
+    depth < MAX_DEPTH
+        && group.children().iter().any(|node| {
+            let usvg::Node::Group(child) = node else {
+                return false;
+            };
+            child.opacity().get() != 0.0
+                && (child.blend_mode() != usvg::BlendMode::Normal
+                    || (!child.should_isolate() && children_blend(child, depth + 1)))
+        })
 }
 
 /// 只有绘制命令时沿用扁平重放，保持普通图标载荷精简。
@@ -253,16 +290,16 @@ pub struct SvgBlur {
     pub std_dev_x: f32,
     /// Vertical sigma. / 垂直 sigma。
     pub std_dev_y: f32,
+    /// Rect edges or four affine-mapped corners in picture coordinates. / Picture 坐标中的矩形四边或经仿射变换的四个顶点。
+    pub region: Option<Vec<f32>>,
 }
 
-/// One path node: geometry (in absolute coords) plus fill/stroke.
-///
-/// 单个路径节点：几何（绝对坐标）+ 填充/描边。
+/// One path node: geometry and its fill and stroke. / 单个路径节点的几何、填充和描边。
 #[derive(Clone)]
 pub struct SvgPath {
     /// Verbs: 0=move 1=line 2=quad 3=cubic 4=close. / 动词：0 移动 1 直线 2 二次 3 三次 4 闭合。
     pub verbs: Vec<u8>,
-    /// Flattened x,y coordinate pairs. / 扁平的 x,y 坐标对。
+    /// Flattened x,y pairs, local if stroke_style has a matrix. / 扁平的 x,y 坐标对，有描边矩阵时为局部坐标。
     pub points: Vec<f32>,
     /// Whether a fill is present. / 是否有填充。
     pub has_fill: bool,
@@ -274,8 +311,10 @@ pub struct SvgPath {
     pub has_stroke: bool,
     /// Stroke color as 0xAARRGGBB. / 描边色 0xAARRGGBB。
     pub stroke_argb: u32,
-    /// Stroke width in px. / 描边宽度（px）。
+    /// Stroke width in path coordinates. / 路径坐标中的描边宽度。
     pub stroke_width: f32,
+    /// Non-default stroke style or extra geometry. / 非默认描边样式或附加几何。
+    pub stroke_style: Option<SvgStrokeStyle>,
     /// Paint order: true paints stroke before fill (`paint-order="stroke fill"`),
     /// false (default) paints fill before stroke.
     ///
@@ -299,6 +338,28 @@ pub struct SvgPath {
     /// 特效（`None`），SSE 序列化时只写一个 tag，而不是像拆分成 5 个独立字段
     /// 那样每个都写一个 tag——详见 [SvgEffects]。
     pub effects: Option<SvgEffects>,
+}
+
+/// Stroke information used only outside the default fast path. / 仅非默认描边携带的重放信息。
+#[derive(Clone)]
+pub struct SvgStrokeStyle {
+    /// Cap in bits 0–1, join in bits 2–3, filled outline in bit 4. / 低两位端点、接着两位连接、第 4 位标记轮廓填充。
+    pub flags: u8,
+    /// Miter limit in stroke-width units. / 以线宽为单位的斜接限制。
+    pub miter_limit: f32,
+    /// Optional local-to-picture affine in SVG order. / 可选的 SVG 顺序局部到 Picture 仿射矩阵。
+    pub matrix: Option<Vec<f32>>,
+    /// Distinct stroke geometry when the original path is needed for fill. / 填充需要原路径时单独携带的描边几何。
+    pub geometry: Option<SvgStrokeGeometry>,
+}
+
+/// A pre-cut dash or stroke outline. / 预切的虚线或描边轮廓。
+#[derive(Clone)]
+pub struct SvgStrokeGeometry {
+    /// Segment commands in SvgPath encoding. / 采用 SvgPath 编码的路径命令。
+    pub verbs: Vec<u8>,
+    /// Flattened points in the same space as the path. / 与原路径处在同一空间的扁平点集。
+    pub points: Vec<f32>,
 }
 
 /// Bundles the clip/mask/blur/pattern fields that only apply to a minority of
@@ -413,9 +474,7 @@ pub struct SvgGradient {
     /// Radial only: radius (local space); unused for linear.
     /// 仅径向：半径（局部空间）；线性时不使用。
     pub radius: f32,
-    /// Radial only: local-to-absolute affine `[a, b, c, d, e, f]`; empty for
-    /// linear.
-    /// 仅径向：局部到绝对空间的仿射变换 `[a, b, c, d, e, f]`；线性时为空。
+    /// Gradient-to-path affine `[a, b, c, d, e, f]`, empty for identity. / 渐变到路径的仿射变换，单位矩阵时为空。
     pub matrix: Vec<f32>,
     /// Color stops, in offset order. / 色标，按 offset 顺序排列。
     pub stops: Vec<SvgGradientStop>,
@@ -1662,6 +1721,8 @@ fn source_reference_graph(
 fn usvg_options() -> &'static usvg::Options<'static> {
     static OPTIONS: std::sync::OnceLock<usvg::Options<'static>> = std::sync::OnceLock::new();
     OPTIONS.get_or_init(|| usvg::Options {
+        // Standalone SVG images use the browser's 16px initial font size. / SVG 图片的初始字号按浏览器取 16px。
+        font_size: 16.0,
         // Keep embedded data URIs; reject paths before any filesystem/UNC access.
         // 保留内嵌 data URI；拒绝所有路径，避免文件系统读取或 UNC 网络访问。
         image_href_resolver: usvg::ImageHrefResolver {
@@ -1731,6 +1792,19 @@ fn try_scene_from_tree(tree: &usvg::Tree) -> Result<SvgScene, String> {
         &mut bounds,
     )?;
     finish_commands(&mut display_list.commands);
+    // An SVG image has its own backdrop, even when the Picture is drawn over other content.
+    // SVG 图片拥有独立的混合背景，即使 Picture 绘制在别的内容上方。
+    if display_list
+        .commands
+        .iter()
+        .any(|c| c.kind == PUSH_OPACITY && c.index != 0)
+        && children_blend(tree.root(), 0)
+    {
+        display_list
+            .commands
+            .insert(0, indexed_command(PUSH_OPACITY, 0));
+        display_list.commands.push(indexed_command(POP_OPACITY, 0));
+    }
     let content_bounds = if paths.is_empty() && images.is_empty() {
         None
     } else {
@@ -1759,14 +1833,20 @@ struct SceneBounds {
 }
 
 impl SceneBounds {
-    /// Includes paint restricted by the current clip or the supplied bound. / 纳入当前裁剪或给定边界限制的绘制。
-    fn include(&mut self, compute: impl FnOnce() -> Option<Rect>) {
-        let added = self.clip.or_else(compute);
-        self.extra = match (self.extra, added) {
-            (Some(a), Some(b)) => a.join(&b),
-            (_, bound) => bound,
+    /// Includes extra paint within the active clip. / 纳入当前裁剪以内的额外绘制区域。
+    fn include(&mut self, bbox: Option<Rect>) {
+        let added = match (self.clip, bbox) {
+            (Some(a), Some(b)) => a.intersect(&b),
+            (a, b) => a.or(b),
         };
-        self.unknown |= self.extra.is_none();
+        if let Some(added) = added {
+            self.extra = self
+                .extra
+                .map_or(Some(added), |previous| previous.join(&added));
+            self.unknown |= self.extra.is_none();
+        } else {
+            self.unknown |= self.clip.is_none() && bbox.is_none();
+        }
     }
 
     /// Combines the SVG layer box with any extra replay coverage. / 合并 SVG 图层与回放的额外覆盖区域。
@@ -1788,29 +1868,30 @@ impl SceneBounds {
     }
 }
 
-/// Includes the Flutter blur kernel even when the SVG filter region is narrower. / SVG 滤镜区域较窄时仍覆盖 Flutter 模糊核。
+/// Expands for Flutter's blur kernel within the SVG filter region. / 在 SVG 滤镜区域内覆盖 Flutter 模糊核。
 fn flutter_blur_bounds(bbox: Rect, blur: Option<&SvgBlur>) -> Option<Rect> {
     // Four sigma conservatively covers the Flutter blur kernel. / 四倍 sigma 保守覆盖 Flutter 模糊核。
     const BLUR_MARGIN_SIGMA: f32 = 4.0;
     match blur {
-        Some(blur) => bbox.outset(
-            BLUR_MARGIN_SIGMA * blur.std_dev_x,
-            BLUR_MARGIN_SIGMA * blur.std_dev_y,
-        ),
+        Some(blur) => {
+            let expanded = bbox.outset(
+                BLUR_MARGIN_SIGMA * blur.std_dev_x,
+                BLUR_MARGIN_SIGMA * blur.std_dev_y,
+            );
+            let region = match blur.region.as_deref() {
+                Some([left, top, right, bottom]) => Rect::from_ltrb(*left, *top, *right, *bottom),
+                Some([x0, y0, x1, y1, x2, y2, x3, y3]) => Rect::from_ltrb(
+                    x0.min(*x1).min(*x2).min(*x3),
+                    y0.min(*y1).min(*y2).min(*y3),
+                    x0.max(*x1).max(*x2).max(*x3),
+                    y0.max(*y1).max(*y2).max(*y3),
+                ),
+                _ => return expanded,
+            };
+            region.and_then(|rect| expanded.map_or(Some(rect), |bounds| rect.intersect(&bounds)))
+        }
         None => Some(bbox),
     }
-}
-
-/// Whether the SVG stroke box covers the flattened Flutter stroke. / SVG 描边边界是否覆盖展平后的 Flutter 描边。
-fn stroke_bounds_match(stroke: &usvg::Stroke, transform: Transform) -> bool {
-    const FLUTTER_MITER_LIMIT: f32 = 4.0;
-    !transform.has_skew()
-        && transform.sx.abs() == transform.sy.abs()
-        && transform.sx.abs() >= 1.0
-        && stroke.dasharray().is_none()
-        && stroke.linecap() == usvg::LineCap::Butt
-        && stroke.linejoin() == usvg::LineJoin::Miter
-        && stroke.miterlimit().get() >= FLUTTER_MITER_LIMIT
 }
 
 /// Injects a `color="#RRGGBB"` attribute into the root `<svg>` tag, unless it
@@ -1924,6 +2005,13 @@ impl ExpansionBudget {
             self.check()?;
             for path in paths {
                 self.points = self.points.saturating_add(path.points.len() / 2);
+                if let Some(geometry) = path
+                    .stroke_style
+                    .as_ref()
+                    .and_then(|style| style.geometry.as_ref())
+                {
+                    self.points = self.points.saturating_add(geometry.points.len() / 2);
+                }
                 if let Some(e) = &path.effects {
                     if let Some(m) = &e.mask {
                         pending.push((&m.paths, &m.commands));
@@ -2025,17 +2113,29 @@ fn collect(
             .push(indexed_command(PUSH_CLIP, index));
     }
     let layer_start = display_list.commands.len();
-    if opacity != 1.0 {
+    let blend = blend_index(group.blend_mode());
+    let needs_layer = opacity != 1.0
+        || blend != 0
+        || group.isolate()
+        || (clip_start != clip_end && children_blend(group, depth));
+    if needs_layer {
         display_list.commands.push(SvgCommand {
             kind: PUSH_OPACITY,
-            index: 0,
+            index: blend,
             opacity,
         });
     }
     let local_ctx = extend_inherited(ctx, group, expansion_budget)?;
     let ctx = local_ctx.as_ref().unwrap_or(ctx);
     if !group.filters().is_empty() && group.has_children() {
-        bounds.include(|| flutter_blur_bounds(group.abs_stroke_bounding_box()?, ctx.blur.as_ref()));
+        // Unsupported filters replay their unfiltered geometry; a supported blur is bounded by its region.
+        // 未处理的滤镜回放原始几何，已支持的模糊由滤镜区域限制。
+        let paint = group
+            .abs_stroke_bounding_box()
+            .and_then(|bbox| flutter_blur_bounds(bbox, ctx.blur.as_ref()));
+        if paint.is_some() || ctx.blur.as_ref().is_none_or(|blur| blur.region.is_none()) {
+            bounds.include(paint);
+        }
     }
     for node in group.children() {
         match node {
@@ -2051,19 +2151,18 @@ fn collect(
                 bounds,
             )?,
             usvg::Node::Path(p) => {
-                if let Some(mut sp) = convert_path(p, &Transform::default(), &transform) {
-                    if let Some(stroke) = p.stroke().filter(|s| !stroke_bounds_match(s, transform))
-                    {
-                        // Flutter's miter can reach two stroke widths from the centerline. / Flutter 斜接最远可达中心线外两倍线宽。
-                        const STROKE_MARGIN_WIDTHS: f32 = 2.0;
-                        bounds.include(|| {
-                            let margin = stroke.width().get() * STROKE_MARGIN_WIDTHS;
-                            let bbox = p
-                                .bounding_box()?
-                                .transform(transform)?
-                                .outset(margin, margin)?;
-                            flutter_blur_bounds(bbox, ctx.blur.as_ref())
-                        });
+                if let Some(mut sp) = convert_path(p, transform) {
+                    if p.stroke().is_some_and(|s| {
+                        s.dasharray().is_some() || s.linejoin() == usvg::LineJoin::MiterClip
+                    }) {
+                        let extra = sp
+                            .stroke_style
+                            .as_ref()
+                            .and_then(|style| style.geometry.as_ref());
+                        expansion_budget.points = expansion_budget.points.saturating_add(
+                            extra.map_or(sp.points.len(), |geometry| geometry.points.len()) / 2,
+                        );
+                        expansion_budget.check()?;
                     }
                     // Fold the inherited mask/blur into whatever pattern
                     // fields `convert_path` already produced.
@@ -2117,7 +2216,7 @@ fn collect(
             usvg::Node::Text(_) => {}
         }
     }
-    if opacity != 1.0 {
+    if needs_layer {
         close_opacity_layer(&mut display_list.commands, layer_start);
     }
     if clip_start != clip_end {
@@ -2175,7 +2274,8 @@ fn gaussian_blur_of(g: &usvg::Group) -> Option<SvgBlur> {
     if filters.len() != 1 {
         return None;
     }
-    let primitives = filters[0].primitives();
+    let filter = &filters[0];
+    let primitives = filter.primitives();
     if primitives.len() != 1 {
         return None;
     }
@@ -2192,9 +2292,52 @@ fn gaussian_blur_of(g: &usvg::Group) -> Option<SvgBlur> {
     let sy = (t.kx * t.kx + t.sy * t.sy).sqrt();
     let x = blur.std_dev_x().get() * sx;
     let y = blur.std_dev_y().get() * sy;
-    (x.is_finite() && y.is_finite()).then_some(SvgBlur {
+    if !x.is_finite() || !y.is_finite() {
+        return None;
+    }
+    // usvg synthesizes this placeholder region for the unbounded CSS blur() function.
+    // usvg 为无区域限制的 CSS blur() 函数生成这个占位区域。
+    let css_function = primitives[0].result() == "result"
+        && primitives[0].rect() == filter.rect()
+        && primitives[0].color_interpolation() == usvg::filter::ColorInterpolation::SRGB
+        && filter
+            .id()
+            .strip_prefix("filter")
+            .is_some_and(|suffix| suffix.parse::<usize>().is_ok())
+        && g.bounding_box()
+            .and_then(|bbox| bbox.to_non_zero_rect())
+            .is_some_and(|bbox| {
+                filter.rect()
+                    == usvg::NonZeroRect::from_xywh(-0.5, -0.5, 2.0, 2.0)
+                        .unwrap()
+                        .bbox_transform(bbox)
+            });
+    let region = if css_function {
+        None
+    } else {
+        let r = filter.rect();
+        Some(if !t.has_skew() {
+            let rect = r.transform(t)?;
+            vec![rect.left(), rect.top(), rect.right(), rect.bottom()]
+        } else {
+            let corners = [
+                Point::from_xy(r.left(), r.top()),
+                Point::from_xy(r.right(), r.top()),
+                Point::from_xy(r.right(), r.bottom()),
+                Point::from_xy(r.left(), r.bottom()),
+            ];
+            let mut points = Vec::new();
+            append_mapped_points(&t, &corners, &mut points);
+            if !points.iter().all(|value| value.is_finite()) {
+                return None;
+            }
+            points
+        })
+    };
+    Some(SvgBlur {
         std_dev_x: x,
         std_dev_y: y,
+        region,
     })
 }
 
@@ -2255,7 +2398,7 @@ fn build_clips_at_depth(
         0,
     );
     region.even_odd = saw_evenodd && !saw_nonzero;
-    if !region.verbs.is_empty() && region.points.iter().all(|v| v.is_finite()) {
+    if region.points.iter().all(|v| v.is_finite()) {
         out.push(region);
         return true;
     }
@@ -2285,9 +2428,9 @@ fn append_clip_geometry(
             usvg::Node::Group(g) => {
                 append_clip_geometry(g, base, region, saw_evenodd, saw_nonzero, depth + 1)
             }
-            usvg::Node::Path(p) => {
+            usvg::Node::Path(p) if p.is_visible() => {
                 let t = base.pre_concat(p.abs_transform());
-                append_segments(p, &t, &mut region.verbs, &mut region.points);
+                append_segments(p.data(), &t, &mut region.verbs, &mut region.points);
                 if let Some(f) = p.fill() {
                     if matches!(f.rule(), usvg::FillRule::EvenOdd) {
                         *saw_evenodd = true;
@@ -2381,14 +2524,7 @@ fn build_mask_at_depth(
     }))
 }
 
-/// Keeps subroot composition as base × leaf abs_transform. Unlike the main
-/// tree, usvg's push_pattern_transform only updates the wrapper group, leaving
-/// descendants unchanged (paint_server.rs TODO). Existing tile replay relies
-/// on those leaf values; objectBoundingBox content rendering remains a separate,
-/// pre-existing limitation.
-/// 子根保持 base × 叶子 abs_transform。与主树不同，usvg 的
-/// push_pattern_transform 只更新包裹组，未更新后代（paint_server.rs 的 TODO）。
-/// 现有贴片重放依赖这些叶子值；objectBoundingBox 内容渲染不正确是另一个既有问题。
+/// Collects subroot geometry for test fixtures. / 为测试夹具收集子根几何。
 #[cfg(test)]
 fn append_subtree_paths_at_depth(
     group: &usvg::Group,
@@ -2399,7 +2535,7 @@ fn append_subtree_paths_at_depth(
     append_subtree_commands(group, base, out, &mut Vec::new(), depth);
 }
 
-/// 收集子根的路径及 opacity 边界，保持叶子的原有坐标变换。
+/// Composes local groups because usvg's pattern wrappers leave leaf absolutes stale. / 累乘子组局部矩阵，因为 usvg 的图案包裹组不会更新叶子的绝对矩阵。
 fn append_subtree_commands(
     group: &usvg::Group,
     base: &Transform,
@@ -2414,19 +2550,24 @@ fn append_subtree_commands(
     if opacity == 0.0 {
         return;
     }
+    let transform = base.pre_concat(group.transform());
     let layer_start = commands.len();
-    if opacity != 1.0 {
+    let blend = blend_index(group.blend_mode());
+    let needs_layer = opacity != 1.0 || blend != 0 || group.isolate();
+    if needs_layer {
         commands.push(SvgCommand {
             kind: PUSH_OPACITY,
-            index: 0,
+            index: blend,
             opacity,
         });
     }
     for node in group.children() {
         match node {
-            usvg::Node::Group(g) => append_subtree_commands(g, base, out, commands, depth + 1),
+            usvg::Node::Group(g) => {
+                append_subtree_commands(g, &transform, out, commands, depth + 1)
+            }
             usvg::Node::Path(p) => {
-                if let Some(sp) = convert_path(p, base, &p.abs_transform()) {
+                if let Some(sp) = convert_path(p, transform) {
                     commands.push(indexed_command(DRAW_PATH, out.len()));
                     out.push(sp);
                 }
@@ -2437,7 +2578,7 @@ fn append_subtree_commands(
             usvg::Node::Image(_) | usvg::Node::Text(_) => {}
         }
     }
-    if opacity != 1.0 {
+    if needs_layer {
         close_opacity_layer(commands, layer_start);
     }
 }
@@ -2457,6 +2598,9 @@ fn convert_image(
     image_budget: &mut usize,
     expansion_budget: &mut ExpansionBudget,
 ) -> Result<Option<SvgImage>, String> {
+    if !img.is_visible() {
+        return Ok(None);
+    }
     let (data, format) = match img.kind() {
         usvg::ImageKind::PNG(d) => (d.as_ref(), SvgImageFormat::Png),
         usvg::ImageKind::JPEG(d) => (d.as_ref(), SvgImageFormat::Jpeg),
@@ -2544,10 +2688,9 @@ fn transform_to_vec6(t: &Transform) -> Vec<f32> {
 /// `Map<slice::Iter<_>, _>` 实现了 `TrustedLen`，`extend` 因此走 std 的
 /// `extend_trusted` 分支——只做一次精确 `reserve`，随后用裸指针写入，
 /// 每个元素都不再有容量检查与长度自增。
-fn append_segments(p: &usvg::Path, t: &Transform, verbs: &mut Vec<u8>, points: &mut Vec<f32>) {
+fn append_segments(data: &Path, t: &Transform, verbs: &mut Vec<u8>, points: &mut Vec<f32>) {
     use usvg::tiny_skia_path::PathVerb;
 
-    let data = p.data();
     verbs.extend(data.verbs().iter().map(|v| match v {
         PathVerb::Move => 0u8,
         PathVerb::Line => 1,
@@ -2629,16 +2772,84 @@ fn append_mapped_points(t: &Transform, src: &[Point], out: &mut Vec<f32>) {
 ///
 /// 返回值的 [SvgPath::effects] 只带自身的填充/描边图案（如果有）——继承的
 /// 裁剪/遮罩/模糊由 [collect] 按分组上下文并入。
-fn convert_path(p: &usvg::Path, base: &Transform, node_abs: &Transform) -> Option<SvgPath> {
-    let t = base.pre_concat(*node_abs);
+fn convert_path(p: &usvg::Path, transform: Transform) -> Option<SvgPath> {
+    if !p.is_visible() {
+        return None;
+    }
+    // SVG fills enclose an area; Skia can leave coverage on a collapsed open contour.
+    // SVG 填充需要面积，Skia 可能在退化的开放轮廓上留下覆盖率。
+    let fill = p.fill().filter(|_| {
+        let bounds = p.data().bounds();
+        bounds.width() > 0.0 && bounds.height() > 0.0
+    });
+    let stroke = p.stroke();
+    let mut t = transform;
+    let mut stroke_matrix = None;
+    let mut stroke_width = 0.0;
+    let mut flags = 0;
+    let mut miter_limit = DEFAULT_MITER_LIMIT;
+    let mut stroke_geometry = None;
+    let mut dash_or_outline = None;
+    let mut has_stroke = stroke.is_some();
+    if let Some(s) = stroke {
+        if let Some(scale) = stroke_scale(transform) {
+            stroke_width = s.width().get() * scale;
+            if !stroke_width.is_finite() || stroke_width == 0.0 {
+                return None;
+            }
+        } else {
+            if transform.invert().is_none() {
+                return None;
+            }
+            stroke_width = s.width().get();
+            stroke_matrix = Some(transform_to_vec6(&transform));
+            t = Transform::default();
+        }
+        flags = stroke_flags(s);
+        miter_limit = s.miterlimit().get();
+        if s.dasharray().is_some() || flags & STROKE_OUTLINE != 0 {
+            let mut style = s.to_tiny_skia();
+            let scale = PathStroker::compute_resolution_scale(&transform);
+            let dashed = style.dash.take().map(|dash| p.data().dash(&dash, scale));
+            let source = match &dashed {
+                Some(path) => path.as_ref(),
+                None => Some(p.data()),
+            };
+            if flags & STROKE_OUTLINE != 0 {
+                dash_or_outline = source.and_then(|path| path.stroke(&style, scale));
+            } else {
+                dash_or_outline = dashed.flatten();
+            }
+            has_stroke = dash_or_outline.is_some();
+        }
+    }
     let mut verbs = Vec::new();
     let mut points = Vec::new();
-    append_segments(p, &t, &mut verbs, &mut points);
+    let primary = if fill.is_none() {
+        dash_or_outline.as_ref().unwrap_or_else(|| p.data())
+    } else {
+        if let Some(path) = &dash_or_outline {
+            let mut geometry = SvgStrokeGeometry {
+                verbs: Vec::new(),
+                points: Vec::new(),
+            };
+            append_segments(path, &t, &mut geometry.verbs, &mut geometry.points);
+            if !geometry.points.iter().all(|v| v.is_finite()) {
+                return None;
+            }
+            stroke_geometry = Some(geometry);
+        }
+        p.data()
+    };
+    if fill.is_none() && !has_stroke {
+        return None;
+    }
+    append_segments(primary, &t, &mut verbs, &mut points);
     if !points.iter().all(|v| v.is_finite()) {
         return None;
     }
 
-    let (has_fill, fill_argb, even_odd, fill_gradient, fill_pattern) = match p.fill() {
+    let (has_fill, fill_argb, even_odd, fill_gradient, fill_pattern) = match fill {
         Some(f) => {
             let (argb, gradient, pattern) = resolve_paint(f.paint(), &t, f.opacity().get());
             (
@@ -2651,14 +2862,20 @@ fn convert_path(p: &usvg::Path, base: &Transform, node_abs: &Transform) -> Optio
         }
         None => (false, 0, false, None, None),
     };
-    let (has_stroke, stroke_argb, stroke_width, stroke_gradient, stroke_pattern) = match p.stroke()
-    {
-        Some(s) => {
-            let (argb, gradient, pattern) = resolve_paint(s.paint(), &t, s.opacity().get());
-            (true, argb, s.width().get(), gradient, pattern)
-        }
-        None => (false, 0, 0.0, None, None),
+    let (stroke_argb, stroke_gradient, stroke_pattern) = match stroke.filter(|_| has_stroke) {
+        Some(s) => resolve_paint(s.paint(), &t, s.opacity().get()),
+        None => (0, None, None),
     };
+    let stroke_style = (flags != 0
+        || miter_limit != DEFAULT_MITER_LIMIT
+        || stroke_matrix.is_some()
+        || stroke_geometry.is_some())
+    .then_some(SvgStrokeStyle {
+        flags,
+        miter_limit,
+        matrix: stroke_matrix,
+        geometry: stroke_geometry,
+    });
 
     let stroke_first = matches!(p.paint_order(), usvg::PaintOrder::StrokeAndFill);
 
@@ -2671,6 +2888,7 @@ fn convert_path(p: &usvg::Path, base: &Transform, node_abs: &Transform) -> Optio
         has_stroke,
         stroke_argb,
         stroke_width,
+        stroke_style,
         stroke_first,
         fill_gradient,
         stroke_gradient,
@@ -2678,23 +2896,37 @@ fn convert_path(p: &usvg::Path, base: &Transform, node_abs: &Transform) -> Optio
     })
 }
 
+/// The default SVG miter limit. / SVG 默认斜接限制。
+const DEFAULT_MITER_LIMIT: f32 = 4.0;
+
+/// Indicates a stroke to draw as a filled outline. / 标记需要以填充轮廓绘制的描边。
+const STROKE_OUTLINE: u8 = 1 << 4;
+
+/// Returns the uniform scale of a rotation or reflection. / 返回旋转或反射矩阵中的均匀缩放。
+fn stroke_scale(t: Transform) -> Option<f32> {
+    ((t.sx == t.sy && t.ky == -t.kx) || (t.sx == -t.sy && t.ky == t.kx)).then(|| t.sx.hypot(t.ky))
+}
+
+/// Packs the line cap, join and outline marker for Flutter. / 打包 Flutter 重放所需的端点、连接和轮廓标记。
+fn stroke_flags(stroke: &usvg::Stroke) -> u8 {
+    let cap = match stroke.linecap() {
+        usvg::LineCap::Butt => 0,
+        usvg::LineCap::Round => 1,
+        usvg::LineCap::Square => 2,
+    };
+    let join = match stroke.linejoin() {
+        usvg::LineJoin::Miter => 0,
+        usvg::LineJoin::Round => 1 << 2,
+        usvg::LineJoin::Bevel => 2 << 2,
+        usvg::LineJoin::MiterClip => STROKE_OUTLINE,
+    };
+    cap | join
+}
+
 /// Builds an [SvgPattern] when [paint] is a `<pattern>` paint server.
 ///
-/// usvg has already normalized `patternUnits`/`patternContentUnits` to user
-/// space by the time the tree is public, so `rect()` and the tile contents
-/// share the pattern's local space; [abs] (the referencing path's absolute
-/// transform) composed with the pattern's own `transform()` maps that space
-/// into the display list's absolute space.
-/// Tile replay preserves leaf transforms (see [append_subtree_paths_at_depth]);
-/// objectBoundingBox content units still have a pre-existing rendering defect.
-///
-/// 当 [paint] 是 `<pattern>` paint server 时构建 [SvgPattern]。
-///
-/// 树公开时 usvg 已把 `patternUnits`/`patternContentUnits` 归一到用户空间，因此
-/// `rect()` 与贴片内容共享图案的局部空间；[abs]（引用路径的绝对变换）与图案
-/// 自身的 `transform()` 组合后，即可把该空间映射到显示列表的绝对空间。
-/// 贴片重放保留叶子变换（见 [append_subtree_paths_at_depth]）；objectBoundingBox
-/// 内容单位仍有既有的渲染缺陷。
+/// usvg resolves tile placement separately from its origin-relative content.
+/// usvg 分别解析贴片的位置和以贴片原点为基准的内容。
 fn build_pattern(paint: &usvg::Paint, abs: &Transform) -> Option<SvgPattern> {
     let usvg::Paint::Pattern(pattern) = paint else {
         return None;
@@ -2726,63 +2958,34 @@ fn build_pattern(paint: &usvg::Paint, abs: &Transform) -> Option<SvgPattern> {
     })
 }
 
-/// Builds an [SvgGradient] when [paint] is a linear/radial gradient, resolving
-/// its geometry into the same absolute space as the path's own points.
-///
-/// [abs] is the path's `abs_transform()`. The gradient's own `transform()`
-/// (which usvg has already pre-multiplied with the `objectBoundingBox`→bbox
-/// scale, verified empirically against `resvg`'s rasterized output — see
-/// xvg CLAUDE.md for the investigation) is combined via
-/// `abs.pre_concat(gradient.transform())`, matching `abs.map(gradient
-/// .transform().map(point))` — i.e. gradient-local point → gradient's resolved
-/// user space → this path's absolute space, the same chain [convert_path]
-/// uses for its own geometry.
-///
-/// `Linear` bakes this combined transform directly into its two endpoints
-/// (an affine map is fully determined by where it sends two points). `Radial`
-/// cannot do the same for `r` (a scalar can't capture an anisotropic bbox
-/// scale turning the circle into an ellipse), so it ships the combined
-/// transform as a matrix instead, for the Dart side to apply via
-/// `ui.Gradient.radial`'s `matrix4`.
-///
-/// 当 [paint] 是线性/径向渐变时构建 [SvgGradient]，把其几何解析到与路径自身
-/// 点集相同的绝对空间。
-///
-/// [abs] 是路径的 `abs_transform()`。渐变自身的 `transform()`（usvg 已把
-/// `objectBoundingBox`→bbox 缩放预乘在内，已通过对照 `resvg` 光栅化输出做过
-/// 实测验证——调查过程见 xvg CLAUDE.md）通过
-/// `abs.pre_concat(gradient.transform())` 组合，等价于
-/// `abs.map(gradient.transform().map(point))`——即渐变局部坐标点 → 渐变已解析
-/// 的用户空间 → 该路径的绝对空间，与 [convert_path] 处理自身几何的链路一致。
-///
-/// `Linear` 把该组合变换直接烘焙进两个端点（仿射变换由其对两点的映射结果
-/// 完全确定）。`Radial` 无法对 `r` 做同样处理（标量无法表达把圆变成椭圆的
-/// 非均匀 bbox 缩放），因此改为把组合变换以矩阵形式传出，供 Dart 侧通过
-/// `ui.Gradient.radial` 的 `matrix4` 应用。
+/// Preserves the gradient's coordinate system so replay can transform the whole shader.
+/// 保留渐变的坐标系，让回放能对整个 shader 应用变换。
 fn build_gradient(paint: &usvg::Paint, abs: &Transform, opacity: f32) -> Option<SvgGradient> {
     match paint {
         usvg::Paint::LinearGradient(lg) => {
             let combined = abs.pre_concat(lg.transform());
-            let (x1, y1) = map(&combined, Point::from_xy(lg.x1(), lg.y1()));
-            let (x2, y2) = map(&combined, Point::from_xy(lg.x2(), lg.y2()));
-            if ![x1, y1, x2, y2].iter().all(|v| v.is_finite()) {
+            if !combined.is_finite() {
                 return None;
             }
             Some(SvgGradient {
                 kind: 0,
-                x1,
-                y1,
-                x2,
-                y2,
+                x1: lg.x1(),
+                y1: lg.y1(),
+                x2: lg.x2(),
+                y2: lg.y2(),
                 radius: 0.0,
-                matrix: Vec::new(),
+                matrix: if combined.is_identity() {
+                    Vec::new()
+                } else {
+                    transform_to_vec6(&combined)
+                },
                 stops: convert_gradient_stops(lg.stops(), opacity),
                 spread: spread_to_u8(lg.spread_method()),
             })
         }
         usvg::Paint::RadialGradient(rg) => {
             let combined = abs.pre_concat(rg.transform());
-            if !transform_to_vec6(&combined).iter().all(|v| v.is_finite()) {
+            if !combined.is_finite() {
                 return None;
             }
             Some(SvgGradient {
@@ -2792,7 +2995,11 @@ fn build_gradient(paint: &usvg::Paint, abs: &Transform, opacity: f32) -> Option<
                 x2: rg.cx(),
                 y2: rg.cy(),
                 radius: rg.r().get(),
-                matrix: transform_to_vec6(&combined),
+                matrix: if combined.is_identity() {
+                    Vec::new()
+                } else {
+                    transform_to_vec6(&combined)
+                },
                 stops: convert_gradient_stops(rg.stops(), opacity),
                 spread: spread_to_u8(rg.spread_method()),
             })
@@ -4765,7 +4972,7 @@ mod tests {
                 hash = (hash ^ b as u64).wrapping_mul(0x100000001b3);
             }
         }
-        assert_eq!(hash, 0x3bb2fcc9726aff66, "full SSE wire bytes changed");
+        assert_eq!(hash, 0x116a80b1c8b2ccdf, "full SSE wire bytes changed");
     }
 
     /// Verifies the existing empty fields and the fixed-size bound. / 验证已有空字段和定长边界。
@@ -4774,6 +4981,7 @@ mod tests {
         use crate::frb_generated::SseEncode;
         let scene = parse_svg(CIRCLE_SVG.into(), None).unwrap();
         assert!(scene.display_list.is_none());
+        assert!(scene.paths[0].stroke_style.is_none());
         let mut prefix = flutter_rust_bridge::for_generated::SseSerializer::new();
         scene.width.sse_encode(&mut prefix);
         scene.height.sse_encode(&mut prefix);
@@ -5912,55 +6120,16 @@ mod tests {
         assert_eq!(pattern.paths[0].fill_argb, 0xFFFF0000);
     }
 
-    /// Pins leaf-based subroot replay, not correct objectBoundingBox rendering.
-    /// 钉住基于叶子的子根重放行为，不代表 objectBoundingBox 图案渲染正确。
+    /// Pattern contents use the resolved local transform. / 图案内容使用解析后的局部变换。
     #[test]
-    fn pattern_object_bounding_box_content_preserves_leaf_transform() {
+    fn pattern_object_bounding_box_content_uses_resolved_scale() {
         let source = r##"<svg xmlns="http://www.w3.org/2000/svg" width="120" height="90">
             <defs><pattern id="p" width=".5" height=".5" patternContentUnits="objectBoundingBox">
                 <path d="M.05 .1 L.2 .1 L.2 .3 Z" fill="#ff0000"/>
             </pattern></defs>
             <g transform="translate(3 7)"><rect x="10" y="15" width="80" height="60" fill="url(#p)"/></g>
         </svg>"##;
-        // Find the leaf and its direct parent without assuming wrapper depth.
-        // 不假定包裹层数，查找叶子及其直接父组。
-        fn first_path(group: &usvg::Group) -> Option<(&usvg::Path, &usvg::Group)> {
-            for node in group.children() {
-                match node {
-                    usvg::Node::Path(p) => return Some((p, group)),
-                    usvg::Node::Group(g) => {
-                        if let Some(found) = first_path(g) {
-                            return Some(found);
-                        }
-                    }
-                    _ => {}
-                }
-            }
-            None
-        }
-        let tree = usvg::Tree::from_str(source, usvg_options()).unwrap();
-        let (reference, _) = first_path(tree.root()).unwrap();
-        let usvg::Paint::Pattern(pattern) = reference.fill().unwrap().paint() else {
-            panic!("fixture pattern missing");
-        };
-        let (leaf, parent) = first_path(pattern.root()).unwrap();
-        assert_ne!(leaf.abs_transform(), parent.abs_transform());
-        let t = Transform::default().pre_concat(leaf.abs_transform());
-        let mut expected_verbs = Vec::new();
-        let mut expected_points = Vec::new();
-        append_segments(leaf, &t, &mut expected_verbs, &mut expected_points);
-        let mut parent_verbs = Vec::new();
-        let mut parent_points = Vec::new();
-        append_segments(
-            leaf,
-            &parent.abs_transform(),
-            &mut parent_verbs,
-            &mut parent_points,
-        );
-        assert_ne!(expected_points, parent_points);
-
         let scene = parse_svg(source.into(), None).unwrap();
-        assert_eq!(scene.paths.len(), 1);
         let tile = scene.paths[0]
             .effects
             .as_ref()
@@ -5968,30 +6137,21 @@ mod tests {
             .fill_pattern
             .as_ref()
             .unwrap();
-        assert_eq!(tile.paths.len(), 1);
-        let actual = &tile.paths[0];
-        assert_eq!(actual.verbs, expected_verbs);
         assert_eq!(
-            actual
-                .points
-                .iter()
-                .map(|v| v.to_bits())
-                .collect::<Vec<_>>(),
-            expected_points
-                .iter()
-                .map(|v| v.to_bits())
-                .collect::<Vec<_>>()
+            (tile.x, tile.y, tile.width, tile.height),
+            (10.0, 15.0, 40.0, 30.0)
         );
-        assert!(actual.has_fill);
-        assert_eq!(actual.fill_argb, 0xffff0000);
-        assert!(!actual.even_odd);
-        assert!(!actual.has_stroke);
-        assert_eq!(actual.stroke_argb, 0);
-        assert_eq!(actual.stroke_width.to_bits(), 0.0f32.to_bits());
-        assert!(!actual.stroke_first);
-        assert!(actual.fill_gradient.is_none());
-        assert!(actual.stroke_gradient.is_none());
-        assert!(actual.effects.is_none());
+        assert_eq!(tile.matrix, vec![1.0, 0.0, 0.0, 1.0, 3.0, 7.0]);
+        assert_eq!(tile.paths.len(), 1);
+        assert_eq!(tile.paths[0].verbs, vec![0, 1, 1, 4]);
+        assert_eq!(tile.paths[0].points.len(), 6);
+        for (actual, expected) in tile.paths[0]
+            .points
+            .iter()
+            .zip([4.0, 6.0, 16.0, 6.0, 16.0, 18.0])
+        {
+            assert!((actual - expected).abs() < 1e-5, "{actual} != {expected}");
+        }
     }
 
     // ---- feGaussianBlur ----
@@ -6033,14 +6193,14 @@ mod tests {
         assert_eq!(content_bounds(BLUR_SVG), Some([-10.0, -10.0, 110.0, 110.0]));
     }
 
-    /// A tight filter region cannot underbound the Flutter replay. / 过窄的滤镜区域不会低估 Flutter 回放边界。
+    /// A tight filter region bounds the Flutter replay. / 滤镜区域限制 Flutter 回放边界。
     #[test]
-    fn content_bounds_cover_replayed_blur_past_filter_region() {
+    fn content_bounds_clip_replayed_blur_to_filter_region() {
         let source = BLUR_SVG
             .replace("-50%", "0%")
             .replace("200%", "100%")
             .replace("stdDeviation=\"3\"", "stdDeviation=\"10\"");
-        assert_eq!(content_bounds(&source), Some([-20.0, -20.0, 120.0, 120.0]));
+        assert_eq!(content_bounds(&source), Some([20.0, 20.0, 80.0, 80.0]));
     }
 
     /// An enclosing clip also bounds Flutter blur and flattened strokes. / 祖先裁剪同时限制 Flutter 模糊与展平描边。
