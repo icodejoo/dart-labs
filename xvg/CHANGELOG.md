@@ -1,5 +1,6 @@
 ## Unreleased
 
+- Match browser SVG image rendering for transformed strokes, line caps and joins, dash patterns, affine linear gradients, visibility, blend modes and isolation, Gaussian blur filter regions, and bounding-box pattern tiles.
 - Clip static and animated SVGs to the fitted SVG viewport intersected with the widget bounds. Root `overflow` is ignored, matching SVG loaded via browser `<img>` and the default `flutter_svg` hard-edge clip.
 - Automatically cache complex static SVGs as bitmaps fixed in image coordinates and transformed by Flutter. Once zoom settles, regenerate at the new resolution. Visible textures support unknown content bounds and `ColorFilter` and share a 32 MiB budget.
 - Rust emits scoped clip commands for static SVGs, sharing inherited clip geometry across paths and images.

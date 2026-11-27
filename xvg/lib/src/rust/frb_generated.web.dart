@@ -52,6 +52,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   SvgPattern dco_decode_box_autoadd_svg_pattern(dynamic raw);
 
   @protected
+  SvgStrokeGeometry dco_decode_box_autoadd_svg_stroke_geometry(dynamic raw);
+
+  @protected
+  SvgStrokeStyle dco_decode_box_autoadd_svg_stroke_style(dynamic raw);
+
+  @protected
   int dco_decode_box_autoadd_u_32(dynamic raw);
 
   @protected
@@ -101,6 +107,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SvgPattern? dco_decode_opt_box_autoadd_svg_pattern(dynamic raw);
+
+  @protected
+  SvgStrokeGeometry? dco_decode_opt_box_autoadd_svg_stroke_geometry(
+    dynamic raw,
+  );
+
+  @protected
+  SvgStrokeStyle? dco_decode_opt_box_autoadd_svg_stroke_style(dynamic raw);
 
   @protected
   int? dco_decode_opt_box_autoadd_u_32(dynamic raw);
@@ -154,6 +168,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   SvgScene dco_decode_svg_scene(dynamic raw);
 
   @protected
+  SvgStrokeGeometry dco_decode_svg_stroke_geometry(dynamic raw);
+
+  @protected
+  SvgStrokeStyle dco_decode_svg_stroke_style(dynamic raw);
+
+  @protected
   int dco_decode_u_32(dynamic raw);
 
   @protected
@@ -192,6 +212,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SvgPattern sse_decode_box_autoadd_svg_pattern(SseDeserializer deserializer);
+
+  @protected
+  SvgStrokeGeometry sse_decode_box_autoadd_svg_stroke_geometry(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  SvgStrokeStyle sse_decode_box_autoadd_svg_stroke_style(
+    SseDeserializer deserializer,
+  );
 
   @protected
   int sse_decode_box_autoadd_u_32(SseDeserializer deserializer);
@@ -257,6 +287,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  SvgStrokeGeometry? sse_decode_opt_box_autoadd_svg_stroke_geometry(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  SvgStrokeStyle? sse_decode_opt_box_autoadd_svg_stroke_style(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   int? sse_decode_opt_box_autoadd_u_32(SseDeserializer deserializer);
 
   @protected
@@ -310,6 +350,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   SvgScene sse_decode_svg_scene(SseDeserializer deserializer);
 
   @protected
+  SvgStrokeGeometry sse_decode_svg_stroke_geometry(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  SvgStrokeStyle sse_decode_svg_stroke_style(SseDeserializer deserializer);
+
+  @protected
   int sse_decode_u_32(SseDeserializer deserializer);
 
   @protected
@@ -357,6 +405,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_box_autoadd_svg_pattern(
     SvgPattern self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_svg_stroke_geometry(
+    SvgStrokeGeometry self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_svg_stroke_style(
+    SvgStrokeStyle self,
     SseSerializer serializer,
   );
 
@@ -445,6 +505,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_opt_box_autoadd_svg_stroke_geometry(
+    SvgStrokeGeometry? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_svg_stroke_style(
+    SvgStrokeStyle? self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_box_autoadd_u_32(int? self, SseSerializer serializer);
 
   @protected
@@ -512,6 +584,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_svg_scene(SvgScene self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_svg_stroke_geometry(
+    SvgStrokeGeometry self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_svg_stroke_style(
+    SvgStrokeStyle self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_u_32(int self, SseSerializer serializer);

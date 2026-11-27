@@ -317,6 +317,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  SvgStrokeGeometry dco_decode_box_autoadd_svg_stroke_geometry(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_svg_stroke_geometry(raw);
+  }
+
+  @protected
+  SvgStrokeStyle dco_decode_box_autoadd_svg_stroke_style(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_svg_stroke_style(raw);
+  }
+
+  @protected
   int dco_decode_box_autoadd_u_32(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as int;
@@ -419,6 +431,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  SvgStrokeGeometry? dco_decode_opt_box_autoadd_svg_stroke_geometry(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_svg_stroke_geometry(raw);
+  }
+
+  @protected
+  SvgStrokeStyle? dco_decode_opt_box_autoadd_svg_stroke_style(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_svg_stroke_style(raw);
+  }
+
+  @protected
   int? dco_decode_opt_box_autoadd_u_32(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_box_autoadd_u_32(raw);
@@ -440,11 +466,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   SvgBlur dco_decode_svg_blur(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 2)
-      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
     return SvgBlur(
       stdDevX: dco_decode_f_32(arr[0]),
       stdDevY: dco_decode_f_32(arr[1]),
+      region: dco_decode_opt_list_prim_f_32_strict(arr[2]),
     );
   }
 
@@ -591,8 +618,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   SvgPath dco_decode_svg_path(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 12)
-      throw Exception('unexpected arr length: expect 12 but see ${arr.length}');
+    if (arr.length != 13)
+      throw Exception('unexpected arr length: expect 13 but see ${arr.length}');
     return SvgPath(
       verbs: dco_decode_list_prim_u_8_strict(arr[0]),
       points: dco_decode_list_prim_f_32_strict(arr[1]),
@@ -602,10 +629,11 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       hasStroke: dco_decode_bool(arr[5]),
       strokeArgb: dco_decode_u_32(arr[6]),
       strokeWidth: dco_decode_f_32(arr[7]),
-      strokeFirst: dco_decode_bool(arr[8]),
-      fillGradient: dco_decode_opt_box_autoadd_svg_gradient(arr[9]),
-      strokeGradient: dco_decode_opt_box_autoadd_svg_gradient(arr[10]),
-      effects: dco_decode_opt_box_autoadd_svg_effects(arr[11]),
+      strokeStyle: dco_decode_opt_box_autoadd_svg_stroke_style(arr[8]),
+      strokeFirst: dco_decode_bool(arr[9]),
+      fillGradient: dco_decode_opt_box_autoadd_svg_gradient(arr[10]),
+      strokeGradient: dco_decode_opt_box_autoadd_svg_gradient(arr[11]),
+      effects: dco_decode_opt_box_autoadd_svg_effects(arr[12]),
     );
   }
 
@@ -640,6 +668,32 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       displayList: dco_decode_opt_box_autoadd_svg_display_list(arr[3]),
       images: dco_decode_list_svg_image(arr[4]),
       contentBounds: dco_decode_opt_box_autoadd_svg_content_bounds(arr[5]),
+    );
+  }
+
+  @protected
+  SvgStrokeGeometry dco_decode_svg_stroke_geometry(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return SvgStrokeGeometry(
+      verbs: dco_decode_list_prim_u_8_strict(arr[0]),
+      points: dco_decode_list_prim_f_32_strict(arr[1]),
+    );
+  }
+
+  @protected
+  SvgStrokeStyle dco_decode_svg_stroke_style(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return SvgStrokeStyle(
+      flags: dco_decode_u_8(arr[0]),
+      miterLimit: dco_decode_f_32(arr[1]),
+      matrix: dco_decode_opt_list_prim_f_32_strict(arr[2]),
+      geometry: dco_decode_opt_box_autoadd_svg_stroke_geometry(arr[3]),
     );
   }
 
@@ -720,6 +774,22 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   SvgPattern sse_decode_box_autoadd_svg_pattern(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_svg_pattern(deserializer));
+  }
+
+  @protected
+  SvgStrokeGeometry sse_decode_box_autoadd_svg_stroke_geometry(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_svg_stroke_geometry(deserializer));
+  }
+
+  @protected
+  SvgStrokeStyle sse_decode_box_autoadd_svg_stroke_style(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_svg_stroke_style(deserializer));
   }
 
   @protected
@@ -904,6 +974,32 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  SvgStrokeGeometry? sse_decode_opt_box_autoadd_svg_stroke_geometry(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_svg_stroke_geometry(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  SvgStrokeStyle? sse_decode_opt_box_autoadd_svg_stroke_style(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_svg_stroke_style(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
   int? sse_decode_opt_box_autoadd_u_32(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -943,7 +1039,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_stdDevX = sse_decode_f_32(deserializer);
     var var_stdDevY = sse_decode_f_32(deserializer);
-    return SvgBlur(stdDevX: var_stdDevX, stdDevY: var_stdDevY);
+    var var_region = sse_decode_opt_list_prim_f_32_strict(deserializer);
+    return SvgBlur(
+      stdDevX: var_stdDevX,
+      stdDevY: var_stdDevY,
+      region: var_region,
+    );
   }
 
   @protected
@@ -1101,6 +1202,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_hasStroke = sse_decode_bool(deserializer);
     var var_strokeArgb = sse_decode_u_32(deserializer);
     var var_strokeWidth = sse_decode_f_32(deserializer);
+    var var_strokeStyle = sse_decode_opt_box_autoadd_svg_stroke_style(
+      deserializer,
+    );
     var var_strokeFirst = sse_decode_bool(deserializer);
     var var_fillGradient = sse_decode_opt_box_autoadd_svg_gradient(
       deserializer,
@@ -1118,6 +1222,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       hasStroke: var_hasStroke,
       strokeArgb: var_strokeArgb,
       strokeWidth: var_strokeWidth,
+      strokeStyle: var_strokeStyle,
       strokeFirst: var_strokeFirst,
       fillGradient: var_fillGradient,
       strokeGradient: var_strokeGradient,
@@ -1168,6 +1273,33 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       displayList: var_displayList,
       images: var_images,
       contentBounds: var_contentBounds,
+    );
+  }
+
+  @protected
+  SvgStrokeGeometry sse_decode_svg_stroke_geometry(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_verbs = sse_decode_list_prim_u_8_strict(deserializer);
+    var var_points = sse_decode_list_prim_f_32_strict(deserializer);
+    return SvgStrokeGeometry(verbs: var_verbs, points: var_points);
+  }
+
+  @protected
+  SvgStrokeStyle sse_decode_svg_stroke_style(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_flags = sse_decode_u_8(deserializer);
+    var var_miterLimit = sse_decode_f_32(deserializer);
+    var var_matrix = sse_decode_opt_list_prim_f_32_strict(deserializer);
+    var var_geometry = sse_decode_opt_box_autoadd_svg_stroke_geometry(
+      deserializer,
+    );
+    return SvgStrokeStyle(
+      flags: var_flags,
+      miterLimit: var_miterLimit,
+      matrix: var_matrix,
+      geometry: var_geometry,
     );
   }
 
@@ -1255,6 +1387,24 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_svg_pattern(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_svg_stroke_geometry(
+    SvgStrokeGeometry self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_svg_stroke_geometry(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_svg_stroke_style(
+    SvgStrokeStyle self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_svg_stroke_style(self, serializer);
   }
 
   @protected
@@ -1441,6 +1591,32 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_opt_box_autoadd_svg_stroke_geometry(
+    SvgStrokeGeometry? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_svg_stroke_geometry(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_svg_stroke_style(
+    SvgStrokeStyle? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_svg_stroke_style(self, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_opt_box_autoadd_u_32(int? self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -1481,6 +1657,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_f_32(self.stdDevX, serializer);
     sse_encode_f_32(self.stdDevY, serializer);
+    sse_encode_opt_list_prim_f_32_strict(self.region, serializer);
   }
 
   @protected
@@ -1600,6 +1777,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_bool(self.hasStroke, serializer);
     sse_encode_u_32(self.strokeArgb, serializer);
     sse_encode_f_32(self.strokeWidth, serializer);
+    sse_encode_opt_box_autoadd_svg_stroke_style(self.strokeStyle, serializer);
     sse_encode_bool(self.strokeFirst, serializer);
     sse_encode_opt_box_autoadd_svg_gradient(self.fillGradient, serializer);
     sse_encode_opt_box_autoadd_svg_gradient(self.strokeGradient, serializer);
@@ -1631,6 +1809,28 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       self.contentBounds,
       serializer,
     );
+  }
+
+  @protected
+  void sse_encode_svg_stroke_geometry(
+    SvgStrokeGeometry self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_list_prim_u_8_strict(self.verbs, serializer);
+    sse_encode_list_prim_f_32_strict(self.points, serializer);
+  }
+
+  @protected
+  void sse_encode_svg_stroke_style(
+    SvgStrokeStyle self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_8(self.flags, serializer);
+    sse_encode_f_32(self.miterLimit, serializer);
+    sse_encode_opt_list_prim_f_32_strict(self.matrix, serializer);
+    sse_encode_opt_box_autoadd_svg_stroke_geometry(self.geometry, serializer);
   }
 
   @protected

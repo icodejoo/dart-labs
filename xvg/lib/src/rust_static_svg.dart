@@ -41,6 +41,30 @@ const _drawPath = 0,
     _pushClip = 4,
     _popClip = 5;
 
+/// Compositing modes in Rust wire order. / 按 Rust 传输顺序排列的合成模式。
+const _layerBlendModes = [
+  BlendMode.srcOver,
+  BlendMode.multiply,
+  BlendMode.screen,
+  BlendMode.overlay,
+  BlendMode.darken,
+  BlendMode.lighten,
+  BlendMode.colorDodge,
+  BlendMode.colorBurn,
+  BlendMode.hardLight,
+  BlendMode.softLight,
+  BlendMode.difference,
+  BlendMode.exclusion,
+  BlendMode.hue,
+  BlendMode.saturation,
+  BlendMode.color,
+  BlendMode.luminosity,
+  BlendMode.plus,
+];
+
+/// Marks pre-stroked geometry drawn as a fill. / 标记应以填充方式绘制的描边轮廓。
+const _strokeOutline = 1 << 4;
+
 /// Web demo 的 wasm 构建不使用共享内存，无法依赖 FRB 的异步 worker。
 bool _shouldParseAsync(String source) =>
     !kIsWeb &&
@@ -579,7 +603,11 @@ class RustXvgPictureCache {
           case _pushOpacity:
             canvas.saveLayer(
               null,
-              Paint()..color = Color.fromRGBO(0, 0, 0, command.opacity),
+              Paint()
+                ..color = Color.fromRGBO(0, 0, 0, command.opacity)
+                ..blendMode =
+                    _layerBlendModes.elementAtOrNull(index) ??
+                    BlendMode.srcOver,
             );
             scopes.add(command);
           case _pushClip:
@@ -625,16 +653,7 @@ class RustXvgPictureCache {
         ..clipRect(maskRect!)
         ..saveLayer(maskRect, Paint());
     }
-    if (blur != null) {
-      canvas.saveLayer(
-        null,
-        Paint()
-          ..imageFilter = ui.ImageFilter.blur(
-            sigmaX: blur.stdDevX,
-            sigmaY: blur.stdDevY,
-          ),
-      );
-    }
+    if (blur != null) _beginBlur(canvas, blur);
     canvas.save();
     canvas.transform(affineToMatrix4(image.matrix));
     canvas.drawImageRect(
@@ -644,7 +663,7 @@ class RustXvgPictureCache {
       Paint(),
     );
     canvas.restore();
-    if (blur != null) canvas.restore();
+    if (blur != null) _endBlur(canvas, blur);
     if (mask != null) {
       canvas.saveLayer(maskRect, _maskCoveragePaint(mask.kind));
       // 黑底让非预乘 RGB 包含内容 alpha，供亮度矩阵取覆盖度。
@@ -690,6 +709,42 @@ class RustXvgPictureCache {
   /// 兜住 `toImageSync` 的内存分配。
   static const int _maxPatternTilePx = 1024;
 
+  /// Clips the composited blur to its filter region. / 将合成后的模糊输出裁到滤镜区域。
+  void _beginBlur(Canvas canvas, SvgBlur blur) {
+    final region = blur.region;
+    if (region != null) {
+      canvas.save();
+      if (region.length == 4) {
+        canvas.clipRect(
+          Rect.fromLTRB(region[0], region[1], region[2], region[3]),
+        );
+      } else {
+        canvas.clipPath(
+          ui.Path()
+            ..moveTo(region[0], region[1])
+            ..lineTo(region[2], region[3])
+            ..lineTo(region[4], region[5])
+            ..lineTo(region[6], region[7])
+            ..close(),
+        );
+      }
+    }
+    canvas.saveLayer(
+      null,
+      Paint()
+        ..imageFilter = ui.ImageFilter.blur(
+          sigmaX: blur.stdDevX,
+          sigmaY: blur.stdDevY,
+        ),
+    );
+  }
+
+  /// Composites the filtered content and restores its region clip. / 合成滤镜内容并还原区域裁剪。
+  void _endBlur(Canvas canvas, SvgBlur blur) {
+    canvas.restore();
+    if (blur.region != null) canvas.restore();
+  }
+
   /// Paints one [SvgPath], honoring its inherited mask and Gaussian blur.
   ///
   /// [nested] is set when painting mask content or pattern-tile content: those
@@ -731,15 +786,13 @@ class RustXvgPictureCache {
         ..clipRect(maskRect!)
         ..saveLayer(maskRect, Paint());
     }
-    if (blur != null) {
-      canvas.saveLayer(
-        null,
-        Paint()
-          ..imageFilter = ui.ImageFilter.blur(
-            sigmaX: blur.stdDevX,
-            sigmaY: blur.stdDevY,
-          ),
-      );
+    if (blur != null) _beginBlur(canvas, blur);
+
+    final stroke = path.strokeStyle;
+    final pathMatrix = stroke?.matrix;
+    if (pathMatrix != null) {
+      canvas.save();
+      canvas.transform(affineToMatrix4(pathMatrix));
     }
 
     void paintFill() {
@@ -760,18 +813,29 @@ class RustXvgPictureCache {
     void paintStroke() {
       if (!path.hasStroke) return;
       final shader = _strokeShader(path);
-      canvas.drawPath(
-        uiPath,
-        shader != null
-            ? (Paint()
-                ..style = PaintingStyle.stroke
-                ..strokeWidth = path.strokeWidth
-                ..shader = shader)
-            : (Paint()
-                ..style = PaintingStyle.stroke
-                ..color = Color(path.strokeArgb)
-                ..strokeWidth = path.strokeWidth),
-      );
+      final flags = stroke?.flags ?? 0;
+      final paint = Paint();
+      if (shader != null) {
+        paint.shader = shader;
+      } else {
+        paint.color = Color(path.strokeArgb);
+      }
+      if (flags & _strokeOutline == 0) {
+        paint
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = path.strokeWidth;
+        if (stroke != null) {
+          paint
+            ..strokeCap = StrokeCap.values[flags & 3]
+            ..strokeJoin = StrokeJoin.values[(flags >> 2) & 3]
+            ..strokeMiterLimit = stroke.miterLimit;
+        }
+      }
+      final geometry = stroke?.geometry;
+      final strokePath = geometry == null
+          ? uiPath
+          : _replay(geometry.verbs, geometry.points);
+      canvas.drawPath(strokePath, paint);
     }
 
     if (path.strokeFirst) {
@@ -781,6 +845,7 @@ class RustXvgPictureCache {
       paintFill();
       paintStroke();
     }
+    if (pathMatrix != null) canvas.restore();
 
     // Closing the blur layer first composites the blurred content into the
     // mask-destination layer beneath it (or straight onto the canvas when
@@ -788,7 +853,7 @@ class RustXvgPictureCache {
     //
     // 先关闭模糊图层，会把模糊后的内容合成进下方的遮罩目标图层（无遮罩时
     // 则直接合成到画布上）——见上方图层嵌套的注释。
-    if (blur != null) canvas.restore();
+    if (blur != null) _endBlur(canvas, blur);
     if (mask != null) {
       // Composite the mask's own content as coverage: its luminance (or alpha)
       // becomes the destination layer's alpha via BlendMode.dstIn.
@@ -831,20 +896,30 @@ class RustXvgPictureCache {
   /// own pattern/gradient. / 图案/渐变二元组对应的 shader：有图案则优先图案，
   /// 否则用渐变，都没有则返回 null（纯色）。填充与描边一旦各自取出了自己的
   /// 图案/渐变，解析方式完全相同，故由 [_fillShader]/[_strokeShader] 共用。
-  ui.Shader? _paintShader(SvgPattern? pattern, SvgGradient? gradient) {
-    if (pattern != null) return _buildPatternShader(pattern);
+  ui.Shader? _paintShader(
+    SvgPattern? pattern,
+    SvgGradient? gradient,
+    List<double>? pathMatrix,
+  ) {
+    if (pattern != null) return _buildPatternShader(pattern, pathMatrix);
     return gradient == null ? null : _buildGradientShader(gradient);
   }
 
   /// Shader for [path]'s fill: its pattern if it has one, else its gradient,
   /// else null (flat color). / [path] 填充所用的 shader：优先图案，其次渐变，
   /// 都没有则返回 null（纯色）。
-  ui.Shader? _fillShader(SvgPath path) =>
-      _paintShader(path.effects?.fillPattern, path.fillGradient);
+  ui.Shader? _fillShader(SvgPath path) => _paintShader(
+    path.effects?.fillPattern,
+    path.fillGradient,
+    path.strokeStyle?.matrix,
+  );
 
   /// Shader for [path]'s stroke. / [path] 描边所用的 shader。
-  ui.Shader? _strokeShader(SvgPath path) =>
-      _paintShader(path.effects?.strokePattern, path.strokeGradient);
+  ui.Shader? _strokeShader(SvgPath path) => _paintShader(
+    path.effects?.strokePattern,
+    path.strokeGradient,
+    path.strokeStyle?.matrix,
+  );
 
   /// Rasterizes a [SvgPattern]'s tile into a [ui.Image] and wraps it in a
   /// repeating [ui.ImageShader].
@@ -859,10 +934,11 @@ class RustXvgPictureCache {
   ///
   /// 贴片按图案→绝对空间矩阵的缩放量决定分辨率（上限 [_maxPatternTilePx]），
   /// 以便在显示列表自身缩放下保持清晰；shader 矩阵再把图像像素映射回绝对空间。
-  ui.Shader _buildPatternShader(SvgPattern pattern) {
+  ui.Shader _buildPatternShader(SvgPattern pattern, List<double>? pathMatrix) {
     final m = pattern.matrix;
-    final scaleX = _hypot(m[0], m[1]);
-    final scaleY = _hypot(m[2], m[3]);
+    final absolute = pathMatrix == null ? m : concatAffine(pathMatrix, m);
+    final scaleX = _hypot(absolute[0], absolute[1]);
+    final scaleY = _hypot(absolute[2], absolute[3]);
     final pxW = (pattern.width * scaleX).ceil().clamp(1, _maxPatternTilePx);
     final pxH = (pattern.height * scaleY).ceil().clamp(1, _maxPatternTilePx);
 
@@ -871,8 +947,7 @@ class RustXvgPictureCache {
     if (image == null) {
       final recorder = ui.PictureRecorder();
       final tileCanvas = Canvas(recorder)
-        ..scale(pxW / pattern.width, pxH / pattern.height)
-        ..translate(-pattern.x, -pattern.y);
+        ..scale(pxW / pattern.width, pxH / pattern.height);
       _paintCommands(tileCanvas, pattern.paths, pattern.commands, nested: true);
       // The tile's display list exists only to be rasterized into `image`,
       // and nothing keeps it afterwards — but a dropped `ui.Picture` still
@@ -894,30 +969,21 @@ class RustXvgPictureCache {
       _patternTileCache?[tileKey] = image;
     }
 
-    // image pixels → tile-local → pattern-local → absolute.
-    // 图像像素 → 贴片局部 → 图案局部 → 绝对空间。
-    final toPatternLocal = concatAffine(
-      <double>[1, 0, 0, 1, pattern.x, pattern.y],
-      <double>[pattern.width / pxW, 0, 0, pattern.height / pxH, 0, 0],
-    );
-    final full = concatAffine(<double>[
-      m[0],
-      m[1],
-      m[2],
-      m[3],
-      m[4],
-      m[5],
-    ], toPatternLocal);
+    // Placement applies only when mapping tile pixels back to the path.
+    // 贴片的位置只在图像像素映射回路径时应用。
+    final full = concatAffine(m, <double>[
+      pattern.width / pxW,
+      0,
+      0,
+      pattern.height / pxH,
+      pattern.x,
+      pattern.y,
+    ]);
     return ui.ImageShader(
       image,
       TileMode.repeated,
       TileMode.repeated,
-      Float64List.fromList(<double>[
-        full[0], full[1], 0, 0, //
-        full[2], full[3], 0, 0, //
-        0, 0, 1, 0, //
-        full[4], full[5], 0, 1,
-      ]),
+      affineToMatrix4(full),
     );
   }
 
@@ -985,26 +1051,9 @@ class RustXvgPictureCache {
           ? const [Color(0xFF000000), Color(0xFF000000)]
           : [colors[0], colors[0]];
     }
+    final matrix = gradient.matrix;
+    final matrix4 = matrix.isEmpty ? null : affineToMatrix4(matrix);
     if (gradient.kind == 1) {
-      final m = gradient.matrix;
-      final matrix4 = Float64List.fromList(<double>[
-        m[0],
-        m[1],
-        0,
-        0,
-        m[2],
-        m[3],
-        0,
-        0,
-        0,
-        0,
-        1,
-        0,
-        m[4],
-        m[5],
-        0,
-        1,
-      ]);
       return ui.Gradient.radial(
         Offset(gradient.x2, gradient.y2),
         gradient.radius,
@@ -1021,6 +1070,7 @@ class RustXvgPictureCache {
       colors,
       stops.length >= 2 ? stops : null,
       tileMode,
+      matrix4,
     );
   }
 
