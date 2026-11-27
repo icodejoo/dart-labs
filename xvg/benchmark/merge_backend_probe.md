@@ -42,3 +42,28 @@ SM-A566B、DPR 2.8125、Flutter 3.50.1 profile。每个后端使用同一 APK，
 Windows 保留跳过探针。上一轮三轮均无探针事件，web-543、web-415 与 C1 `c78eda18` 逐像素一致。[Windows 像素对照](windows_merge_diff.md)
 
 `dart format lib test` 检查 190 个文件、0 改动。`dart analyze lib test` 仅有原有 8 条 `material.dart` 弃用 info。全量 `flutter test --concurrency=1` 优先加载 Windows release DLL，2,105 通过、7 跳过、0 失败。手机原 APK 哈希、刷新率、充电常亮、休眠、转发和临时目录均已验回。[逐轮原始数据与恢复记录](raster_cache_auto_merge_probe_raw.json)
+
+### 单像素跳变收口
+
+**Windows OpenGLESSDF**。最终版 DLL 启动 3 个进程，每个进程对稳定显示的 web-481 组件图层连续读回 10 次，尺寸 310×450，DPR 1，图层原点为 `(157,28)`。30 张预乘 RGBA 均与对应历史 C1 默认图层逐像素一致。目标 `(160,267)` 始终为 `[184,184,182,255]`，全图最大通道差为 0，62 级跳变 **0/30**。三轮均为 12,511 条路径，自检返回禁用且用时为 0，`xvg.pathMergeProbe` 系列事件为 0。
+
+**手机 Impeller Vulkan**。最终版先从 web-481 的冷解析触发自检，两个进程各通过一次，最大自检差为 0。清空 Picture 缓存后重新冷录制，两个进程的路径数均由 12,511 降至 5,942。每进程连续读回 10 次组件图层，尺寸 872×1266，DPR 2.8125。20 张图的全图 SHA-256 一致，彼此最大通道差为 0，目标坐标始终为 `[0,0,0,0]`，跳变 **0/20**。相比历史 Vulkan C1，目标坐标差为 0，每张图固定有 89 个像素变化且最大通道差为 1。
+
+| 平台 | 进程 | 采集数 | 目标 RGBA | 重复采集全图最大差 | 相对历史 C1 全图最大差 | 探针事件¹ |
+| --- | ---: | ---: | --- | ---: | ---: | ---: |
+| Windows SDF | 1 | 10 | 184/184/182/255 | 0 | 0 | 0 |
+| Windows SDF | 2 | 10 | 184/184/182/255 | 0 | 0 | 0 |
+| Windows SDF | 3 | 10 | 184/184/182/255 | 0 | 0 | 0 |
+| 手机 Vulkan | 1 | 10 | 0/0/0/0 | 0 | 1 | 1 |
+| 手机 Vulkan | 2 | 10 | 0/0/0/0 | 0 | 1 | 1 |
+
+¹ 计 `xvg.pathMergeProbe` 完成事件。Windows 三轮还核验原生快照事件和已加载 DLL。640×360 测试窗口以 `SW_SHOWNOACTIVATE` 在虚拟桌面右下角压底，仅桌面在其下方。窗口同时具有 `WS_EX_TOOLWINDOW` 和 `WS_EX_NOACTIVATE`，3 次进程启动共 319 次前台观测，违规 0 次。C1 沿用归档的三轮图层数据，本轮 Windows 只启动这三个 Final 进程。[历史 C1 与跳变记录](windows_merge_diff.md)
+
+| 产物 | SHA-256 |
+| --- | --- |
+| Windows Final DLL | `236f3590ad8e2ea038d36974588c78ebfcd730d7cdae6987aa1ea7ac753137c6` |
+| 历史 Windows C1 DLL | `66839565b62f4ad36e885a46865a2acba67c7f16b76a0f782190b15808dc7da3` |
+| 手机 Final ARM64 so | `bd035b9696710d160e8d33002411b6089e1dee26dc411bc826a2253325f837c6` |
+| web-481 输入 SVG | `f9b4aea786e262c813781f56bd689c71a0b36c7bc2f386b510330faee4df57df` |
+
+手机第二轮读回完成后，首次 `am force-stop` 返回退出码 1。随后的清理已确认进程退出，原 APK 和设置已恢复，设备临时文件已清除。[逐次图层读回、窗口和探针记录](raster_cache_auto_merge_probe_raw.json)
