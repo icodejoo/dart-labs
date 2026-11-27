@@ -7,13 +7,14 @@
 // 缓存的 ui.Picture，之后每帧重放。缓存思路参照 fvendor 的
 // static_svg_fast.dart，区别是解析这一步换成 Rust/FFI。
 
+import 'dart:async';
 import 'dart:collection';
 import 'dart:developer' as developer;
 import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show defaultTargetPlatform, kIsWeb;
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 

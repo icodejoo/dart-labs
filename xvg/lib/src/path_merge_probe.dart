@@ -10,11 +10,49 @@ typedef _PathMergeResult = ({
   Duration elapsed,
   double? dpr,
   int? maxDelta,
+  int? startedUs,
+  bool timedOut,
 });
 
-/// 供内部测试和基准读取已发起的自检，无需另跑一遍。
+/// Paths that share paints and a compound fill rule. / 共用画笔和复合填充规则的路径。
+typedef _PathMergeSample = (List<ui.Paint>, ui.PathFillType, List<ui.Path>);
+
+/// Logical side length of one full probe tile. / 一侧完整探针的逻辑边长。
+const _pathMergeTileEdge = 128;
+
+/// Required quiet time before starting the probe. / 启动探针前要求的静止时长。
+const _pathMergeQuietWindow = Duration(milliseconds: 200);
+
+/// Poll interval while the first probe is pending. / 首次探针等待期间的轮询间隔。
+const _pathMergePollInterval = Duration(milliseconds: 50);
+
+/// Maximum wait after the first frame submission. / 首帧提交后的最长等待时间。
+const _pathMergeWaitLimit = Duration(seconds: 3);
+
+/// Largest channel difference accepted by the probe. / 探针允许的最大通道差。
+const _pathMergeMaxDelta = 1;
+
+/// Byte count of one premultiplied RGBA pixel. / 一个预乘 RGBA 像素的字节数。
+const _rgbaPixelBytes = 4;
+
+/// Bit width and mask of one RGBA channel. / 单个 RGBA 通道的位宽和掩码。
+const _rgbaChannelBits = 8, _rgbaChannelMask = 0xff;
+
+/// Number of horizontally adjacent RGBA tiles. / 横向并排的 RGBA 图块数量。
+const _pathMergeTileCount = 2;
+
+/// Returns the probe already started in this isolate. / 返回当前 isolate 已发起的探针。
 @visibleForTesting
-Future<({bool allowed, Duration elapsed, double? dpr, int? maxDelta})>?
+Future<
+  ({
+    bool allowed,
+    Duration elapsed,
+    double? dpr,
+    int? maxDelta,
+    int? startedUs,
+    bool timedOut,
+  })
+>?
 get debugPathMergeProbeResult => _pathMergeProbe;
 
 /// 进程 UI isolate 中唯一一次自检，期间继续使用独立绘制。
@@ -31,27 +69,98 @@ bool _reachesPathThreshold(RustSvgPictureInfo info) =>
     info.pathCount >= xvgRasterMinPaths ||
     info.pointCount >= xvgRasterMinPoints;
 
-/// 预判渲染器，等当前帧提交后用空闲任务自检并记录耗时。
+/// Checks whether GPU self-testing is useful on the current platform. / 预判当前平台是否需要 GPU 自检。
+@visibleForTesting
+bool debugShouldProbePathMerge({required bool shaderFilterSupported}) =>
+    !kIsWeb &&
+    // Windows Impeller defaults to SDFs, where ExpandRectToPixelMinimum changes single-rect coverage; opting out only forfeits merging. / Windows Impeller 默认启用 SDF，ExpandRectToPixelMinimum 会改变单矩形覆盖，手动关闭 SDF 也只会少用合并优化。
+    defaultTargetPlatform != TargetPlatform.windows &&
+    shaderFilterSupported;
+
+/// Runs the probe from an idle event after a quiet window or the deadline. / 静止窗口或截止时间到达后，从帧外事件启动探针。
+@visibleForTesting
+Future<T> debugRunPathMergeWhenIdle<T>(
+  SchedulerBinding scheduler,
+  Future<T> Function(bool timedOut) probe, {
+  Duration Function()? now,
+}) async {
+  await scheduler.endOfFrame;
+  final readTime =
+      now ?? (() => Duration(microseconds: developer.Timeline.now));
+  final deadline = readTime() + _pathMergeWaitLimit;
+  var lastFrame = scheduler.currentSystemFrameTimeStamp;
+  Duration? quietSince;
+  final result = Completer<T>();
+
+  /// Observes activity without registering frame callbacks. / 观察帧活动，无需注册逐帧回调。
+  void poll() {
+    final time = readTime();
+    final frame = scheduler.currentSystemFrameTimeStamp;
+    if (frame != lastFrame) {
+      quietSince = null;
+      lastFrame = frame;
+    }
+    if (scheduler.hasScheduledFrame || scheduler.transientCallbackCount != 0) {
+      quietSince = null;
+    } else {
+      quietSince ??= time;
+    }
+    final quiet = quietSince;
+    final isQuiet = quiet != null && time - quiet >= _pathMergeQuietWindow;
+    if (isQuiet || time >= deadline) {
+      result.complete(Future.sync(() => probe(!isQuiet)));
+      return;
+    }
+    final remaining = deadline - time;
+    Timer(
+      remaining < _pathMergePollInterval ? remaining : _pathMergePollInterval,
+      poll,
+    );
+  }
+
+  // A timer runs between frames even with a live ticker that starves Priority.idle. / Timer 在帧外执行，常驻 ticker 阻塞 Priority.idle 时也能兜底。
+  Timer.run(poll);
+  return result.future;
+}
+
+/// Checks the renderer and times one device-scale comparison. / 预判渲染器并记录一次设备像素自检的耗时。
 Future<_PathMergeResult> _probePathMergeAfterFrame() async {
-  if (kIsWeb || !ui.ImageFilter.isShaderFilterSupported) {
-    return (allowed: false, elapsed: Duration.zero, dpr: null, maxDelta: null);
+  if (!debugShouldProbePathMerge(
+    shaderFilterSupported: !kIsWeb && ui.ImageFilter.isShaderFilterSupported,
+  )) {
+    return (
+      allowed: false,
+      elapsed: Duration.zero,
+      dpr: null,
+      maxDelta: null,
+      startedUs: null,
+      timedOut: false,
+    );
   }
   final stopwatch = Stopwatch();
   double? dpr;
   int? maxDelta;
+  int? startedUs;
+  var timedOut = false;
   try {
-    final scheduler = SchedulerBinding.instance;
-    await scheduler.endOfFrame;
-    await scheduler.scheduleTask(() async {
-      stopwatch.start();
+    maxDelta = await debugRunPathMergeWhenIdle(SchedulerBinding.instance, (
+      fallback,
+    ) async {
       final dispatcher = ui.PlatformDispatcher.instance;
       final view = dispatcher.implicitView ?? dispatcher.views.firstOrNull;
-      if (view == null) return;
+      if (view == null) return null;
       final deviceScale = view.devicePixelRatio;
       dpr = deviceScale;
-      maxDelta = await _measurePathMerge(deviceScale);
-      _pathMergePassed = maxDelta! <= 1;
-    }, Priority.idle);
+      timedOut = fallback;
+      startedUs = developer.Timeline.now;
+      stopwatch.start();
+      developer.Timeline.instantSync(
+        'xvg.pathMergeProbe.start',
+        arguments: {'timedOut': timedOut},
+      );
+      return _measurePathMerge(deviceScale);
+    });
+    _pathMergePassed = maxDelta != null && maxDelta <= _pathMergeMaxDelta;
   } catch (_) {
     // A failed readback leaves merging disabled. / 读回失败时保持关闭。
   } finally {
@@ -63,6 +172,7 @@ Future<_PathMergeResult> _probePathMergeAfterFrame() async {
         'elapsedUs': stopwatch.elapsedMicroseconds,
         'dpr': ?dpr,
         'maxDelta': ?maxDelta,
+        'timedOut': timedOut,
       },
     );
   }
@@ -71,12 +181,27 @@ Future<_PathMergeResult> _probePathMergeAfterFrame() async {
     elapsed: stopwatch.elapsed,
     dpr: dpr,
     maxDelta: maxDelta,
+    startedUs: startedUs,
+    timedOut: timedOut,
   );
 }
 
-/// 将相离路径分别录制为独立绘制和同画笔复合绘制，对比预乘 RGBA。
-Future<int> _measurePathMerge(double dpr) async {
-  final thinHeight = 4 + 0.7 / dpr;
+/// Captures all geometry at the original device pixel phase. / 按原设备像素相位一次性快照全部图形。
+Future<int> _measurePathMerge(double dpr) {
+  final (groups, clippedStroke) = developer.Timeline.timeSync(
+    'xvg.pathMergeProbe.recordPaths',
+    () => _buildPathMergeSamples(dpr),
+  );
+  final edge = (_pathMergeTileEdge * dpr).ceil();
+  return _captureMergeProbe(groups, clippedStroke, dpr, edge);
+}
+
+/// Builds the geometry, including the standalone off-viewport stroke. / 构造探针图形，包括保持独立的视口外描边。
+(List<_PathMergeSample>, (ui.Paint, ui.Path)) _buildPathMergeSamples(
+  double dpr,
+) {
+  const thinTop = 4;
+  final thinBottom = thinTop + 0.7 / dpr;
   final fill = ui.Paint();
   final stroke = ui.Paint()
     ..style = ui.PaintingStyle.stroke
@@ -94,8 +219,8 @@ Future<int> _measurePathMerge(double dpr) async {
       [fill],
       ui.PathFillType.nonZero,
       [
-        'M4.17 4H22.17V${thinHeight}H4.17Z',
-        'M28.17 4H46.17V${thinHeight}H28.17Z',
+        'M4.17 ${thinTop}H22.17V${thinBottom}H4.17Z',
+        'M28.17 ${thinTop}H46.17V${thinBottom}H28.17Z',
         'M54.19 4.31H78.61V12.78H54.19Z',
         'M88.19 5.33H112.61V13.78H88.19Z',
       ],
@@ -157,45 +282,73 @@ Future<int> _measurePathMerge(double dpr) async {
         [for (final d in paths) parseSvgPathData(d)..fillType = rule],
       ),
   ];
-  final edge = (128 * dpr).ceil();
-  final separate = await _captureMergeProbe(
-    groups,
-    clippedStroke,
-    dpr,
-    edge,
-    merged: false,
-  );
-  final merged = await _captureMergeProbe(
-    groups,
-    clippedStroke,
-    dpr,
-    edge,
-    merged: true,
-  );
-  var maxDelta = 0;
-  for (var i = 0; i < separate.length; i++) {
-    maxDelta = math.max(maxDelta, (separate[i] - merged[i]).abs());
-  }
-  return maxDelta;
+  return (groups, clippedStroke);
 }
 
-/// 在设备像素大小的离屏画布上绘制探针，读回后释放图像和 Picture。
-Future<Uint8List> _captureMergeProbe(
-  List<(List<ui.Paint>, ui.PathFillType, List<ui.Path>)> groups,
+/// Draws both tiles with independent clips and reads them back together. / 两侧独立裁剪绘制，共用一次读回。
+Future<int> _captureMergeProbe(
+  List<_PathMergeSample> groups,
   (ui.Paint, ui.Path) clippedStroke,
   double dpr,
-  int edge, {
+  int edge,
+) async {
+  final picture = developer.Timeline.timeSync(
+    'xvg.pathMergeProbe.recordPicture',
+    () {
+      final recorder = ui.PictureRecorder();
+      final canvas = ui.Canvas(recorder);
+      final tile = ui.Rect.fromLTWH(0, 0, edge.toDouble(), edge.toDouble());
+      // Both clips use the same integer-pixel origin phase. / 两侧裁剪保持相同的整数像素相位。
+      canvas.save();
+      canvas.clipRect(tile, doAntiAlias: false);
+      canvas.scale(dpr);
+      _drawMergeProbeTile(canvas, groups, clippedStroke, merged: false);
+      canvas.restore();
+      canvas.translate(edge.toDouble(), 0);
+      canvas.clipRect(tile, doAntiAlias: false);
+      canvas.scale(dpr);
+      _drawMergeProbeTile(canvas, groups, clippedStroke, merged: true);
+      return recorder.endRecording();
+    },
+  );
+  final task = developer.TimelineTask();
+  try {
+    task.start('xvg.pathMergeProbe.toImage');
+    final ui.Image image;
+    try {
+      image = await picture.toImage(edge * _pathMergeTileCount, edge);
+    } finally {
+      task.finish();
+    }
+    try {
+      task.start('xvg.pathMergeProbe.toByteData');
+      final ByteData data;
+      try {
+        data = (await image.toByteData(format: ui.ImageByteFormat.rawRgba))!;
+      } finally {
+        task.finish();
+      }
+      return developer.Timeline.timeSync<int>(
+        'xvg.pathMergeProbe.compare',
+        () => debugComparePathMergeTiles(data, edge, edge),
+      );
+    } finally {
+      image.dispose();
+    }
+  } finally {
+    picture.dispose();
+  }
+}
+
+/// Draws one tile using the requested path policy. / 按指定路径策略绘制一侧探针。
+void _drawMergeProbeTile(
+  ui.Canvas canvas,
+  List<_PathMergeSample> groups,
+  (ui.Paint, ui.Path) clippedStroke, {
   required bool merged,
-}) async {
-  final recorder = ui.PictureRecorder();
-  final canvas = ui.Canvas(recorder)
-    ..clipRect(
-      ui.Rect.fromLTWH(0, 0, edge.toDouble(), edge.toDouble()),
-      doAntiAlias: false,
-    )
-    ..scale(dpr);
-  final (strokePaint, strokePath) = clippedStroke;
-  canvas.drawPath(strokePath, strokePaint);
+}) {
+  final (stroke, path) = clippedStroke;
+  canvas.drawPath(path, stroke);
   for (final (paints, rule, paths) in groups) {
     if (merged) {
       final compound = ui.Path()..fillType = rule;
@@ -213,18 +366,29 @@ Future<Uint8List> _captureMergeProbe(
       }
     }
   }
-  final picture = recorder.endRecording();
-  try {
-    final image = await picture.toImage(edge, edge);
-    try {
-      final data = (await image.toByteData(
-        format: ui.ImageByteFormat.rawRgba,
-      ))!;
-      return data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
-    } finally {
-      image.dispose();
+}
+
+/// Returns the largest channel delta between two side-by-side RGBA tiles. / 返回并排预乘 RGBA 两侧的最大通道差。
+@visibleForTesting
+int debugComparePathMergeTiles(ByteData rgba, int width, int height) {
+  final tileRowBytes = width * _rgbaPixelBytes;
+  final atlasRowBytes = tileRowBytes * _pathMergeTileCount;
+  var maxDelta = 0;
+  for (var row = 0; row < height; row++) {
+    final rowStart = row * atlasRowBytes;
+    final tileEnd = rowStart + tileRowBytes;
+    for (var left = rowStart; left < tileEnd; left += _rgbaPixelBytes) {
+      final a = rgba.getUint32(left, Endian.host);
+      final b = rgba.getUint32(left + tileRowBytes, Endian.host);
+      if (a == b) continue;
+      for (var channel = 0; channel < _rgbaPixelBytes; channel++) {
+        final shift = channel * _rgbaChannelBits;
+        final delta =
+            ((a >> shift & _rgbaChannelMask) - (b >> shift & _rgbaChannelMask))
+                .abs();
+        maxDelta = math.max(maxDelta, delta);
+      }
     }
-  } finally {
-    picture.dispose();
   }
+  return maxDelta;
 }

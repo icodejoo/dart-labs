@@ -1,6 +1,9 @@
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart'
+    show TargetPlatform, debugDefaultTargetPlatformOverride;
+import 'package:flutter/scheduler.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:xvg/src/rust/api/svg.dart';
 import 'package:xvg/src/rust_static_svg.dart';
@@ -49,6 +52,84 @@ void main() {
     cache.clear();
   });
 
+  test('compares corresponding RGBA channels across every tile row', () {
+    const edge = 2;
+    const top = [3, 5, 7, 99, 11, 13, 17, 80];
+    const bottom = [23, 29, 31, 76, 37, 41, 43, 84];
+    final atlas = ByteData.sublistView(
+      Uint8List.fromList([0, ...top, ...top, ...bottom, ...bottom]),
+      1,
+    );
+    expect(debugComparePathMergeTiles(atlas, edge, edge), 0);
+    atlas.setUint8(8, 4);
+    expect(debugComparePathMergeTiles(atlas, edge, edge), 1);
+    atlas
+      ..setUint8(7, 84)
+      ..setUint8(29, 10);
+    expect(debugComparePathMergeTiles(atlas, edge, edge), 31);
+    atlas.setUint8(31, 196);
+    expect(debugComparePathMergeTiles(atlas, edge, edge), 112);
+  });
+
+  test('Windows skips even with shader filters supported', () {
+    addTearDown(() => debugDefaultTargetPlatformOverride = null);
+    debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+    expect(debugShouldProbePathMerge(shaderFilterSupported: true), isFalse);
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    expect(debugShouldProbePathMerge(shaderFilterSupported: true), isTrue);
+    expect(debugShouldProbePathMerge(shaderFilterSupported: false), isFalse);
+  });
+
+  testWidgets('waits for a fresh 200 ms of quiet after a frame', (
+    tester,
+  ) async {
+    final binding = tester.binding;
+    final origin = binding.clock.now();
+    final calls = <(bool, SchedulerPhase)>[];
+    final result = debugRunPathMergeWhenIdle(binding, (timedOut) async {
+      calls.add((timedOut, binding.schedulerPhase));
+      return 7;
+    }, now: () => binding.clock.now().difference(origin));
+    await tester.idle();
+    expect(calls, isEmpty);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 123));
+    binding.scheduleFrame();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 226));
+    expect(calls, isEmpty);
+    await tester.pump(const Duration(milliseconds: 1));
+    expect(await result, 7);
+    await tester.pump(const Duration(seconds: 3));
+    expect(calls, [(false, SchedulerPhase.idle)]);
+    expect(binding.hasScheduledFrame, isFalse);
+  });
+
+  testWidgets('starts once at the deadline despite a live ticker', (
+    tester,
+  ) async {
+    final binding = tester.binding;
+    final origin = binding.clock.now();
+    final calls = <(bool, SchedulerPhase, int)>[];
+    final ticker = Ticker((_) {})..start();
+    addTearDown(ticker.dispose);
+    final result = debugRunPathMergeWhenIdle(binding, (timedOut) async {
+      calls.add((
+        timedOut,
+        binding.schedulerPhase,
+        binding.transientCallbackCount,
+      ));
+    }, now: () => binding.clock.now().difference(origin));
+    await tester.pump();
+    for (var i = 0; i < 150; i++) {
+      await tester.pump(const Duration(milliseconds: 20));
+      if (i < 149) expect(calls, isEmpty);
+    }
+    await result;
+    await tester.pump(const Duration(seconds: 1));
+    expect(calls, [(true, SchedulerPhase.idle, 1)]);
+  });
+
   test(
     'flutter_tester uses independent draws and skips GPU readback',
     () async {
@@ -56,9 +137,17 @@ void main() {
       final picture = cache.getOrRender(source);
       addTearDown(picture.picture.dispose);
       expect(picture.pathCount, xvgRasterMinPaths);
-      final probe = await debugPathMergeProbeResult;
+      final firstProbe = debugPathMergeProbeResult;
+      final probe = await firstProbe;
       expect(probe?.allowed, isFalse);
+      expect(probe?.elapsed, Duration.zero);
       expect(probe?.maxDelta, isNull);
+      expect(probe?.startedUs, isNull);
+      cache.clear();
+      final next = await cache.getOrRenderAsync(_mergeFixture(separate: true));
+      addTearDown(next.picture.dispose);
+      expect(next.pathCount, xvgRasterMinPaths);
+      expect(debugPathMergeProbeResult, same(firstProbe));
     },
   );
 

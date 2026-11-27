@@ -2837,3 +2837,5 @@ Windows Impeller GLES+SDF 和 Skia CPU 的解析式抗锯齿对独立路径与�
 Web 和 Skia 保持独立绘制。其余后端在第一张达到 100 条路径或 15,000 个主几何点的 Picture 录完后，等提交帧结束，再在空闲优先级执行一次离屏自检。两张图在设备 DPR 下分别绘制各路径和同画笔复合路径。预乘 RGBA 的最大通道差至多为 1 时，后续冷解析才启用 A 档合并，并保留完全在固有视口外的描边。缓存继续使用源串和 `currentColor`，已有 Picture 和在途解析保持原结果。探针记录实际绘制与读回时间，待判定和失败时走无合并 Rust 分派。[逐项结果](../benchmark/merge_backend_probe.md)
 
 Windows GLES+SDF 三轮均关闭，探针差 97 级、耗时 254–260 ms，五图与 C1 逐像素一致。SM-A566B Vulkan 两轮均开启，探针差 0、耗时 41–51 ms，五图与 C1 的最大通道差为 1。web-481 的冷录制从 56.18 降至 36.29 ms，首次原生快照从 62.29 降至 39.04 ms。同机强制 OpenGLES 两次均通过，探针差 0、耗时 31–33 ms，五图相对强制关闭的最大通道差为 1。1,000 图标的 SSE 输出与 C1 逐字节一致，冷滚动第三轮掉帧偏高，三轮数据不足以确认无退化。[性能、逐像素和冷滚动数据](../benchmark/merge_backend_probe.md)
+
+**调度收尾（同日）。** Windows Impeller 默认启用 SDF（引擎 `flutter_windows_engine.cc` 自动追加 `--impeller-use-sdfs=true`），探针恒判否，改为直接跳过、不合并，省掉 32–117 ms 的 raster 快照。其余后端改为单次快照、单次读回，并等界面连续静止 200 ms 再执行，持续动画 3 s 后兜底一次。SM-A566B Vulkan 与强制 OpenGLES 各三轮，探针均落在静止段，动画段无新增缺口；常驻动画兜底只新增 1 个 raster 完成缺口。此前"探针后 raster 变重"经 Perfetto 对齐，峰值来自 `waitForBufferRelease` 交换链等待，关闭探针同条件下同样复现。分三批快照的尝试因每批读回 7–21 ms、缺口反增而撤销。详见 [探针报告](../benchmark/merge_backend_probe.md)。
