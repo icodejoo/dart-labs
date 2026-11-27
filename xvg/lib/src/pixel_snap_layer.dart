@@ -5,12 +5,12 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
 /// Aligns the painted SVG viewport to physical pixels during composition.
-/// Defaults to [auto], which aligns mask/clip documents and cached static art.
+/// Defaults to [auto], which aligns viewports with mask/clip risk.
 /// Only translation and positive axis-aligned scaling are supported. Visual
 /// edges move by less than one physical pixel; layout, hits and semantics keep
 /// their original coordinates. Use [never] for independent subtree captures.
 ///
-/// 合成时将 SVG 绘制视口对齐物理像素；默认 [auto] 对遮罩/裁剪文档和已进入位图缓存的静态插画启用。
+/// 合成时将 SVG 绘制视口对齐物理像素；默认 [auto] 对有遮罩/裁剪风险的视口启用。
 /// 仅支持平移与轴对齐正缩放；边缘视觉修正小于一个物理像素，布局、点击及语义
 /// 仍使用原坐标。独立子树截图可使用 [never]。
 ///
@@ -18,7 +18,7 @@ import 'package:flutter/widgets.dart';
 /// Xvg.string(source, pixelSnap: XvgPixelSnap.never)
 /// ```
 enum XvgPixelSnap {
-  /// Enable for mask/clip risk or cached static art. / 有遮罩、裁剪风险或静态位图分块就绪时启用。
+  /// Enable for mask/clip risk. / 有遮罩或裁剪风险时启用。
   auto,
 
   /// Enable for every document under supported transforms. / 支持的变换下始终启用。

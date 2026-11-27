@@ -89,6 +89,8 @@ Windows Flutter 3.50.1 测试引擎加载当前 Rust DLL。全分辨率和向量
 
 ## 复现
 
+屏幕坐标、半分辨率和异步快照数据需要历史版本复现。当前版本的真机入口与参数见[图片坐标基准](raster_cache_image_space.md#最终实现)。
+
 按[原生库复现参数](async_threshold_results.md#复现)编译 arm64。构建时暂时将 `android/build.gradle` 的 JNI 来源指向该库所在的 `arm64-v8a` 目录，构建后恢复原配置。用 Flutter 3.50.1 从 `benchmark/bench_app` 运行。
 
 ```powershell

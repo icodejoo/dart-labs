@@ -154,6 +154,7 @@ class _AutoBenchState extends State<_AutoBench> {
   Future<void> _unmountArtwork() async {
     _showArtwork(null);
     await SchedulerBinding.instance.endOfFrame;
+    // ignore: invalid_use_of_visible_for_testing_member
     if (XvgRasterCache.bytesUsed != 0 || debugXvgRasterTilesReady) {
       throw StateError('A previous cache is still attached');
     }
@@ -218,6 +219,7 @@ class _AutoBenchState extends State<_AutoBench> {
       if (!first.isCompleted) first.complete(now);
       if (!tracking) return;
       if (automatic) submissions.add((now, XvgRasterCache.tileCount));
+      // ignore: invalid_use_of_visible_for_testing_member
       final hasTiles = debugXvgRasterTilesReady;
       if (hasTiles && !ready.isCompleted) {
         beforeReady = previousSubmit == 0 ? requested : previousSubmit;

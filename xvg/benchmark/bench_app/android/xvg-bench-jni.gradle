@@ -1,7 +1,15 @@
 // 只替换本次基准的 :xvg JNI 输入，AGP 继续走正常打包流程。
 def jniDir = file(providers.environmentVariable('XVG_BENCH_JNI_DIR').get())
+if (new File(jniDir, 'libxvg.so').isFile()) {
+    def staged = layout.projectDirectory.dir('../build/xvg-bench-jni').asFile
+    copy {
+        from new File(jniDir, 'libxvg.so')
+        into new File(staged, 'arm64-v8a')
+    }
+    jniDir = staged
+}
 if (!new File(jniDir, 'arm64-v8a/libxvg.so').isFile()) {
-    throw new GradleException('XVG_BENCH_JNI_DIR must contain arm64-v8a/libxvg.so')
+    throw new GradleException('XVG_BENCH_JNI_DIR must contain libxvg.so or arm64-v8a/libxvg.so')
 }
 def xvg = project(':xvg')
 xvg.plugins.withId('com.android.library') {

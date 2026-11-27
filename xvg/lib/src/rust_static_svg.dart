@@ -1322,31 +1322,24 @@ class StaticXvg extends StatelessWidget {
     // 移除、同一套理由——见 `animation/animated_svg_widget.dart`，其
     // `test/animation/widget_tree_depth_test.dart` 钉住了各约束状态下的尺寸等价性。
     final policy = xvgRasterCacheOverride;
-    final forced =
-        policy == XvgRasterCacheOverride.enabled ||
-        policy == XvgRasterCacheOverride.halfResolution;
     final candidate =
-        policy == null &&
-        (info.pointCount >= xvgRasterMinPoints ||
+        policy != XvgRasterCacheOverride.disabled &&
+        (policy == XvgRasterCacheOverride.enabled ||
+            info.pointCount >= xvgRasterMinPoints ||
             info.pathCount >= xvgRasterMinPaths);
     final filter = colorFilter;
     // A filter can color transparent pixels anywhere in the clipped viewport.
     // 滤镜可能给裁剪后视口内的任意透明像素着色。
     final Widget child;
-    if (forced || candidate) {
+    if (candidate) {
       child = XvgRasterPaint(
         preferredSize: preferredSize,
         intrinsicSize: info.size,
-        contentBounds: filter == null ? info.contentBounds : null,
+        contentBounds: info.contentBounds,
         colorFilter: filter,
         fit: fit,
         alignment: resolved,
         painter: painter,
-        cacheOverride: policy,
-        snapWhenCached:
-            candidate &&
-            pixelSnap == XvgPixelSnap.auto &&
-            !info.hasPixelSnapRisk,
       );
     } else {
       final paint = CustomPaint(size: preferredSize, painter: painter);
@@ -1362,9 +1355,7 @@ class StaticXvg extends StatelessWidget {
     }
     return pixelSnapBoundary(
       child: child,
-      mode: forced && pixelSnap == XvgPixelSnap.auto
-          ? XvgPixelSnap.always
-          : pixelSnap,
+      mode: pixelSnap,
       hasRisk: info.hasPixelSnapRisk,
       intrinsicSize: info.size,
       fit: fit,

@@ -275,7 +275,7 @@ class _RemoteStringIconState extends State<RemoteStringIcon> {
 | `alignment` | `Alignment.center` | Where the picture sits in the box when `fit` leaves empty space. Takes `Alignment`, not `AlignmentGeometry`. |
 | `colorFilter` | `null` | Flutter `ColorFilter` applied on both paths. Animated sources add a `ColorFiltered` layer only when a filter is supplied. |
 | `theme` | `null` | `XvgTheme(currentColor: …)`; resolves the SVG `currentColor` keyword (default opaque black). |
-| `pixelSnap` | `XvgPixelSnap.auto` | Composition-time alignment of the viewport to physical pixels. `auto` enables alignment for mask/clip risk or when bitmap tiles are ready. `always` and `never` override it. |
+| `pixelSnap` | `XvgPixelSnap.auto` | Composition-time alignment of the viewport to physical pixels. `auto` enables alignment for mask/clip risk. `always` and `never` override it. |
 | `quality` | `null` (uses `XvgAnimationQuality.defaultQuality`) | Animation throughput/fidelity trade-off. Ignored on the Rust path. |
 | `controller` | `null` | Shared `XvgAnimationController`. Mutually exclusive with `animation`; leave `playbackRate` at 1.0 and set the controller's rate instead. |
 | `animation` | `null` | Flutter `Animation<double>` drives document time (`value × animationSpan`). |
@@ -571,21 +571,22 @@ and the widget bounds, like SVG loaded in a browser `<img>`. Root `overflow`
 is ignored. Artwork in the root `viewBox` letterboxing remains visible within
 the SVG viewport.
 
-Static SVGs automatically get bitmap tiles after 32 consecutive replays with a
-stable viewport. Eligible artwork has nonempty visible content and at least
-15,000 points (including curve controls) or 100 paths. Tile selection uses the
-content bounds intersected with the fitted viewport. Unknown bounds or a
-`ColorFilter` use the entire clipped viewport. The 512-physical-pixel grid
-uses native resolution and a 64-pixel prefetch margin. The per-artwork estimate,
-including tile padding, is capped at 12 MiB. All artwork shares
+Complex static SVGs automatically cache visible artwork as bitmaps at the
+first eligible composition. Eligibility starts at 15,000 points (including
+curve controls) or 100 paths. Bitmaps stay in image coordinates and Flutter
+transforms them during scrolling and animation. The cache regenerates at a new
+resolution after zoom settles. Small artwork uses one texture. Larger artwork
+uses tiles intersecting the visible content, with vectors or an older
+bitmap filling gaps. Unknown content bounds use the fitted viewport.
+`ColorFilter` is applied during composition. All artwork shares
 `XvgRasterCache.byteBudget`, which defaults to 32 MiB.
-[Threshold benchmark](benchmark/raster_cache_auto_threshold_r2.md#异常修复与重拟合)
+[Device benchmark](benchmark/raster_cache_image_space.md#最终实现)
 
-`pixelSnap: XvgPixelSnap.auto` aligns viewports with mask/clip risk and static
-artwork using bitmap tiles during composition. `always` and `never` override
-it on all SVG widget entries. Alignment supports translation and positive
-axis-aligned scaling. Edges move less than one physical pixel, while layout,
-hits and semantics retain their original positions.
+`pixelSnap: XvgPixelSnap.auto` aligns viewports with mask/clip risk during
+composition. `always` and `never` override it on all SVG widget entries.
+Alignment supports translation and positive axis-aligned scaling. Edges move
+less than one physical pixel, while layout, hits and semantics retain their
+original positions.
 
 ## Animation playback
 

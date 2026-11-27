@@ -44,7 +44,6 @@ Future<void> main() async {
       .split(' ');
   final source = await File('$_data/$_name-input.svg').readAsString();
   await RustLib.init();
-  debugXvgRasterizeTilesAsync = run[1] == 'async';
   runApp(
     MaterialApp(
       home: _TileRasterBench(run: run, source: source),
@@ -108,8 +107,7 @@ class _TileRasterBenchState extends State<_TileRasterBench> {
 
   /// 本轮使用的静态缓存参数。
   XvgRasterCacheOverride? get _cache => switch (widget.run[1]) {
-    'full' || 'async' || _neverMode => XvgRasterCacheOverride.enabled,
-    'half' => XvgRasterCacheOverride.halfResolution,
+    'full' || _neverMode => XvgRasterCacheOverride.enabled,
     _ => null,
   };
 
@@ -130,6 +128,7 @@ class _TileRasterBenchState extends State<_TileRasterBench> {
   void _sample() {
     if (!mounted || _done) return;
     final now = developer.Timeline.now;
+    // ignore: invalid_use_of_visible_for_testing_member
     final tilesReady = _cache != null && debugXvgRasterTilesReady;
     final bytes = XvgRasterCache.bytesUsed;
     if (_first == 0) _first = now;

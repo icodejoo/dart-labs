@@ -47,29 +47,8 @@ const _smallExtent = 400.0;
 /// Color for the second owner and the source update. / 用于第二个缓存所有者及源更新的颜色。
 const _secondColor = Color(0xff24507c);
 
-/// Interior tile texture extent with two sampling pixels on each side.
-/// 每边两像素采样边的内块纹理长度。
-const _interiorExtent = XvgRasterCache.tileSize + 4;
-
-/// Outer tile texture extent with two extra pixels at the artwork edge.
-/// 插画边缘额外覆盖两像素的边缘块纹理长度。
-const _edgeExtent = _interiorExtent + 2;
-
 /// Number of bytes per raw RGBA8 pixel. / 每个原始 RGBA8 像素的字节数。
 const _rgbaBytesPerPixel = 4;
-
-/// Largest texture in the first test viewport. / 首屏测试视口中最大的纹理。
-const _topTileBytes = _edgeExtent * _edgeExtent * _rgbaBytesPerPixel;
-
-/// Texture spanning an edge in one direction. / 仅一个方向碰到插画边缘的纹理。
-const _sideTileBytes = _edgeExtent * _interiorExtent * _rgbaBytesPerPixel;
-
-/// Four textures in the first or last test viewport. / 测试首屏或末屏的四张纹理。
-const _fourTileBytes = 2 * (_topTileBytes + _sideTileBytes);
-
-/// Two half-resolution edge textures for the 512 × 1024 fitted artwork.
-/// 512 × 1024 适配插画的两张半分辨率边缘纹理。
-const _twoHalfTiles = 2 * (_edgeExtent + 2) * _edgeExtent;
 
 /// Default full visible test width in physical pixels. / 测试使用的物理显示宽度。
 const _width = 1024;
@@ -80,17 +59,8 @@ const double _logicalWidth = _width * 1.0;
 /// The default viewport and capture height at DPR 1. / DPR 为 1 时默认视口及截图的高度。
 const _defaultViewportHeight = 900;
 
-/// Viewport tall enough to prefetch a third tile row. / 高度足以预取第三行分块的视口。
-const _prefetchViewportHeight = 1000.0;
-
-/// Byte stride of a captured image row. / 截图中每行的字节数。
-const _rowBytes = _width * _rgbaBytesPerPixel;
-
 /// Cache settings at native resolution. / 原分辨率缓存配置。
 const _fullResolutionCache = XvgRasterCacheOverride.enabled;
-
-/// Cache settings at half resolution. / 半分辨率缓存配置。
-const _halfResolutionCache = XvgRasterCacheOverride.halfResolution;
 
 /// White background for comparing composited output. / 用于对照合成结果的白色背景。
 const _white = Color(0xffffffff);
@@ -100,9 +70,6 @@ const _tint = Color(0xff507c24);
 
 /// Time between test animation frames. / 测试动画的帧间隔。
 const _frameInterval = Duration(milliseconds: 16);
-
-/// Expected admission threshold. / 自动缓存的预期重放门槛。
-const _automaticFrames = 32;
 
 /// Advances real composition frames. / 推进真实合成帧。
 Future<void> _replay(WidgetTester tester, int frames) async {
@@ -118,6 +85,12 @@ String _complexArt({bool overflow = false}) =>
     '${List.filled(100, '<path fill="#507c24" d="M0 0 H100 V100 H0 Z"/>').join()}'
     '${overflow ? '<rect x="95" y="30" width="25" height="10"/>' : ''}</svg>';
 
+/// High-contrast translucent curve over opaque artwork. / 不透明插画上的高对比半透明曲线。
+final _phaseArt = _complexArt().replaceFirst(
+  '</svg>',
+  '<path d="M4.4 40 Q24 15 93 87 L7 96Z" fill="#ee9" opacity=".6"/></svg>',
+);
+
 /// Places the same art under a stable or moving transform. / 在稳定或移动的变换下放置同一幅插画。
 Widget _automaticArt(
   String source, {
@@ -126,23 +99,27 @@ Widget _automaticArt(
   Offset offset = Offset.zero,
   ColorFilter? filter,
   XvgPixelSnap snap = XvgPixelSnap.auto,
+  double opacity = 1,
 }) => Align(
   alignment: Alignment.topLeft,
   child: Transform(
     transform: Matrix4.translationValues(offset.dx, offset.dy, 0)
       ..scaleByDouble(scale, scale, 1, 1),
-    child: StaticXvg(
-      source,
-      width: extent,
-      height: extent,
-      colorFilter: filter,
-      pixelSnap: snap,
+    child: Opacity(
+      opacity: opacity,
+      child: StaticXvg(
+        source,
+        width: extent,
+        height: extent,
+        colorFilter: filter,
+        pixelSnap: snap,
+      ),
     ),
   ),
 );
 
 /// Time needed for a new raster grid to settle. / 新栅格停稳所需的时间。
-const _gridSettleTime = Duration(milliseconds: 80);
+const _gridSettleTime = Duration(milliseconds: 150);
 
 /// Successive fractional scroll positions that stay in the same tile rows.
 /// 保持在同一分块行内的连续小数滚动位置。
@@ -244,42 +221,13 @@ void _screen(WidgetTester tester) {
   addTearDown(tester.view.reset);
 }
 
-/// Advances frames while allowing the engine's async image Future to complete.
-/// 推进帧并等待引擎的异步图像 Future 完成。
+/// Waits for a known number of tiles to be submitted. / 等待指定数量的纹理提交。
 Future<void> _waitTiles(WidgetTester tester, int count) async {
   for (var frame = 0; frame < 90; frame++) {
-    await tester.runAsync(
-      () => Future<void>.delayed(const Duration(milliseconds: 8)),
-    );
     await tester.pump(_frameInterval);
     if (XvgRasterCache.tileCount == count && frame >= count) return;
   }
   expect(XvgRasterCache.tileCount, count);
-}
-
-/// Records one composition's canvas commands for inspection. / 录下单次合成的画布指令供检查。
-class _RasterTestBinding extends AutomatedTestWidgetsFlutterBinding {
-  /// When set, records commands separately from the engine canvas. / 设置后将命令单独录到测试画布上。
-  TestRecordingCanvas? recording;
-
-  /// Records the commands submitted by the cache layer. / 记录缓存图层提交的合成指令。
-  TestRecordingCanvas recordComposition() {
-    final canvas = TestRecordingCanvas();
-    recording = canvas;
-    try {
-      renderViews.single.debugLayer!.buildScene(ui.SceneBuilder()).dispose();
-    } finally {
-      recording = null;
-    }
-    return canvas;
-  }
-
-  /// Opens the engine recorder even when collecting test commands. / 采集测试命令时仍开启引擎录制器。
-  @override
-  ui.Canvas createCanvas(ui.PictureRecorder recorder) {
-    final canvas = super.createCanvas(recorder);
-    return recording ?? canvas;
-  }
 }
 
 /// Draws visible geometry without reporting bounds to the cache layer. / 绘制可见图形但不提供内容边界。
@@ -335,60 +283,21 @@ int _pixel(Uint8List bytes, int x, int y) {
   return bytes[i + 3] << 24 | bytes[i] << 16 | bytes[i + 1] << 8 | bytes[i + 2];
 }
 
-/// Separates one-step compositing rounding from antialiasing at real edges.
-/// 区分一色阶合成舍入和实际边缘上的抗锯齿覆盖差。
-void _expectRoundingOrEdges(Uint8List raster, Uint8List vector) {
-  var peak = 0;
-  var changedEdges = 0;
-  var changedInterior = 0;
-  (int, int)? badPixel;
-  for (var i = 0; i < raster.length; i += _rgbaBytesPerPixel) {
-    var delta = 0;
-    for (var channel = 0; channel < _rgbaBytesPerPixel; channel++) {
-      final difference = (raster[i + channel] - vector[i + channel]).abs();
-      if (difference > delta) delta = difference;
-    }
-    if (delta <= 1) continue;
-    if (delta > peak) peak = delta;
-    final pixel = i ~/ _rgbaBytesPerPixel;
-    final x = pixel % _width;
-    final y = pixel ~/ _width;
-    final edge =
-        [
-          if (x > 0) i - _rgbaBytesPerPixel,
-          if (x < _width - 1) i + _rgbaBytesPerPixel,
-          if (y > 0) i - _rowBytes,
-          if (i + _rowBytes < raster.length) i + _rowBytes,
-        ].any(
-          (neighbor) => Iterable<int>.generate(3).any(
-            (channel) =>
-                (vector[i + channel] - vector[neighbor + channel]).abs() > 8,
-          ),
-        );
-    if (edge) {
-      changedEdges++;
-    } else {
-      changedInterior++;
-      badPixel = (x, y);
+/// Checks every interior pixel for missing coverage or a seam. / 逐像素检查内部有无空洞或拼缝。
+void _expectSolid(Uint8List frame, Rect interior) {
+  final color = _tint.toARGB32();
+  var missing = 0;
+  for (var y = interior.top.toInt(); y < interior.bottom; y++) {
+    for (var x = interior.left.toInt(); x < interior.right; x++) {
+      if (_pixel(frame, x, y) != color) missing++;
     }
   }
-  debugPrint(
-    'Pixel comparison: peak=$peak, edges=$changedEdges, interior=$changedInterior at $badPixel',
-  );
-  // A local jump of more than 8 8-bit levels marks a geometric edge. On the
-  // chosen translucent fixture an AA coverage change can move up to 24
-  // levels (about 9% of the full channel range). Interior pixels allow one
-  // step of premultiplied compositing rounding.
-  // 局部跳变超过 8 色阶视为图元边缘。半透明夹具允许边缘覆盖变化 24 色阶
-  // （全通道约 9%），内部只允许预乘合成的一个舍入色阶。
-  expect(changedInterior, 0, reason: 'last interior difference at $badPixel');
-  expect(changedEdges, lessThan(raster.length ~/ _rgbaBytesPerPixel ~/ 200));
-  expect(peak, lessThanOrEqualTo(24));
+  expect(missing, 0);
 }
 
 /// Registers renderer and cache behavior tests. / 注册渲染器和缓存行为用例。
 void main() {
-  final binding = _RasterTestBinding();
+  final binding = TestWidgetsFlutterBinding.ensureInitialized();
   setUpAll(() async {
     await RustLib.init();
   });
@@ -398,6 +307,236 @@ void main() {
     debugXvgRasterCacheOverride = _fullResolutionCache;
   });
   tearDown(() => debugXvgRasterCacheOverride = null);
+
+  group('image-space raster cache', () {
+    late List<(int, int)> requests;
+
+    setUp(() {
+      debugXvgRasterCacheOverride = null;
+      requests = [];
+      debugXvgRasterRequest = (started, width, height) {
+        if (started) requests.add((width, height));
+      };
+    });
+    tearDown(() => debugXvgRasterRequest = null);
+
+    testWidgets('aligned 1:1 matches vector RGBA', (tester) async {
+      _screen(tester);
+      debugXvgRasterCacheOverride = XvgRasterCacheOverride.disabled;
+      await tester.pumpWidget(_automaticArt(_phaseArt));
+      final vector = await _capture(tester);
+
+      debugXvgRasterCacheOverride = null;
+      await tester.pumpWidget(_automaticArt(_phaseArt));
+      expect(requests, [(100, 100)]);
+      expect(XvgRasterCache.tileCount, 1);
+      expect(await _capture(tester), vector);
+    });
+
+    testWidgets('settled fractional phase matches vector pixels', (
+      tester,
+    ) async {
+      _screen(tester);
+      const offset = Offset(0.25, 0.375);
+      const zoom = 4.0;
+      const zoomOffset = Offset(0.375, 0.25);
+      debugXvgRasterCacheOverride = XvgRasterCacheOverride.disabled;
+      await tester.pumpWidget(_automaticArt(_phaseArt, offset: offset));
+      final vector1 = await _capture(tester);
+      await tester.pumpWidget(
+        _automaticArt(_phaseArt, offset: zoomOffset, scale: zoom),
+      );
+      final vector4 = await _capture(tester);
+
+      debugXvgRasterCacheOverride = null;
+      await tester.pumpWidget(_automaticArt(_phaseArt, offset: offset));
+      expect(requests, [(101, 101)]);
+      expect(await _capture(tester), vector1);
+      await tester.pumpWidget(
+        _automaticArt(_phaseArt, offset: zoomOffset, scale: zoom),
+      );
+      expect(requests, hasLength(1));
+      await tester.pump(_gridSettleTime);
+      expect(requests, [(101, 101), (401, 401)]);
+      expect(await _capture(tester), vector4);
+    });
+
+    testWidgets('fractional translation and opacity reuse the same image', (
+      tester,
+    ) async {
+      _screen(tester);
+      final source = _complexArt();
+      await tester.pumpWidget(_automaticArt(source));
+      final disposed = XvgRasterCache.disposedTileCount;
+      for (final dx in _fractionalScrollOffsets) {
+        await tester.pumpWidget(
+          _automaticArt(source, offset: Offset(dx, 10), opacity: 0.5 + dx / 20),
+          duration: _frameInterval,
+        );
+      }
+      expect(requests, [(100, 100)]);
+      expect(XvgRasterCache.disposedTileCount, disposed);
+      expect(_pixel(await _capture(tester), 40, 40) >>> 24, greaterThan(190));
+    });
+
+    testWidgets('retains old pixels until both zoom directions settle', (
+      tester,
+    ) async {
+      _screen(tester);
+      tester.view.devicePixelRatio = 2;
+      final source = _complexArt();
+      await tester.pumpWidget(_automaticArt(source));
+      await tester.pumpWidget(_automaticArt(source, scale: 1.25));
+      await tester.pump(const Duration(milliseconds: 160));
+      expect(requests, [(200, 200)]);
+
+      await tester.pumpWidget(_automaticArt(source, scale: 1.6));
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pumpWidget(_automaticArt(source, scale: 2));
+      await tester.pump(const Duration(milliseconds: 149));
+      expect(requests, [(200, 200)]);
+      expect(XvgRasterCache.bytesUsed, 200 * 200 * 4);
+      expect(_pixel(await _capture(tester), 320, 320), _tint.toARGB32());
+      await tester.pump(const Duration(milliseconds: 1));
+      expect(requests, [(200, 200), (400, 400)]);
+      expect(XvgRasterCache.bytesUsed, 400 * 400 * 4);
+
+      await tester.pumpWidget(_automaticArt(source, scale: 1.6));
+      await tester.pump(const Duration(milliseconds: 160));
+      expect(requests, hasLength(2));
+      await tester.pumpWidget(_automaticArt(source));
+      expect(XvgRasterCache.bytesUsed, 400 * 400 * 4);
+      await tester.pump(const Duration(milliseconds: 150));
+      expect(requests, [(200, 200), (400, 400), (200, 200)]);
+      expect(XvgRasterCache.bytesUsed, 200 * 200 * 4);
+    });
+
+    testWidgets('layout and DPR changes keep a preview then replace it', (
+      tester,
+    ) async {
+      _screen(tester);
+      final source = _complexArt();
+      await tester.pumpWidget(_automaticArt(source));
+      await tester.pumpWidget(_automaticArt(source, extent: 150));
+      expect(requests, [(100, 100)]);
+      expect(_pixel(await _capture(tester), 130, 130), _tint.toARGB32());
+      await tester.pump(const Duration(milliseconds: 150));
+      expect(requests.last, (150, 150));
+      tester.view.devicePixelRatio = 2;
+      await tester.pump();
+      expect(XvgRasterCache.bytesUsed, 150 * 150 * 4);
+      await tester.pump(const Duration(milliseconds: 150));
+      expect(requests, [(100, 100), (150, 150), (300, 300)]);
+    });
+
+    testWidgets('keeps an existing image under an unsupported matrix', (
+      tester,
+    ) async {
+      _screen(tester);
+      final artwork = _automaticArt(_complexArt());
+      await tester.pumpWidget(Transform.rotate(angle: 0, child: artwork));
+      await tester.pumpWidget(Transform.rotate(angle: .2, child: artwork));
+      await tester.pump(const Duration(seconds: 1));
+      expect(requests, [(100, 100)]);
+      expect(XvgRasterCache.tileCount, 1);
+    });
+
+    testWidgets('large images retain tiles across fractional scroll and back', (
+      tester,
+    ) async {
+      _screen(tester);
+      final controller = ScrollController();
+      addTearDown(controller.dispose);
+      final source = _complexArt().replaceFirst(
+        'width="100" height="100"',
+        'width="100" height="5000" viewBox="0 0 100 100" preserveAspectRatio="none"',
+      );
+      await tester.pumpWidget(
+        _scene(
+          cache: null,
+          scroll: controller,
+          source: source,
+          imageHeight: 5000,
+        ),
+      );
+      expect(requests, hasLength(1));
+      await tester.pumpAndSettle();
+      final initial = requests.length;
+      expect(initial, 4);
+      controller.jumpTo(14.25);
+      await tester.pumpAndSettle();
+      expect(requests, hasLength(initial));
+      controller.jumpTo(1100.25);
+      await tester.pumpAndSettle();
+      final afterScroll = requests.length;
+      expect(afterScroll, greaterThan(initial));
+      controller.jumpTo(0);
+      await tester.pumpAndSettle();
+      expect(requests, hasLength(afterScroll));
+    });
+
+    testWidgets('visible-only tiles leave no holes during zoom and scroll', (
+      tester,
+    ) async {
+      _screen(tester);
+      final source = _complexArt();
+      Widget viewport(double scale, Offset offset) => Align(
+        alignment: Alignment.topLeft,
+        child: SizedBox(
+          width: 360,
+          height: 300,
+          child: ClipRect(
+            child: _automaticArt(
+              source,
+              extent: 300,
+              scale: scale,
+              offset: offset,
+            ),
+          ),
+        ),
+      );
+
+      await tester.pumpWidget(viewport(1, Offset.zero));
+      expect(requests, [(300, 300)]);
+      const initialPan = Offset(-15.25, -28.5);
+      await tester.pumpWidget(viewport(4, initialPan));
+      const interior = Rect.fromLTWH(2, 2, 356, 296);
+      _expectSolid(await _capture(tester), interior);
+      await tester.pump(_gridSettleTime);
+      expect(requests, hasLength(2));
+      _expectSolid(await _capture(tester), interior);
+      await tester.pumpAndSettle();
+      expect(requests, hasLength(5));
+
+      const distantPan = Offset(-560.375, -624.25);
+      await tester.pumpWidget(viewport(4, distantPan));
+      _expectSolid(await _capture(tester), interior);
+      await tester.pumpAndSettle();
+
+      // Discard the overview and offscreen tiles, then expose uncached content.
+      // 清掉预览及屏外块，再露出尚未缓存的区域。
+      await _sendMemoryPressure(tester);
+      await tester.pumpWidget(viewport(4, initialPan));
+      expect(debugXvgRasterTilesReady, isFalse);
+      _expectSolid(await _capture(tester), interior);
+      await tester.pumpAndSettle();
+      expect(debugXvgRasterTilesReady, isTrue);
+    });
+
+    testWidgets('icons and unaffordable visible tiles stay vector', (
+      tester,
+    ) async {
+      _screen(tester);
+      await tester.pumpWidget(_automaticArt(_flat));
+      expect(find.byType(XvgRasterPaint), findsNothing);
+      XvgRasterCache.byteBudget = 4096;
+      await tester.pumpWidget(_automaticArt(_complexArt()));
+      await tester.pumpAndSettle();
+      expect(requests, isEmpty);
+      expect(XvgRasterCache.tileCount, 0);
+      expect(_pixel(await _capture(tester), 20, 20), _tint.toARGB32());
+    });
+  });
 
   testWidgets('kept-alive artwork repaints when scrolled back into view', (
     tester,
@@ -440,7 +579,7 @@ void main() {
     scroll.jumpTo(scroll.position.maxScrollExtent);
     await tester.pump();
     expect(tester.element(artwork), same(original));
-    expect(XvgRasterCache.tileCount, 0);
+    expect(debugXvgRasterTilesReady, isFalse);
     expect(_pixel(await _capture(tester), 100, 100), _white.toARGB32());
 
     scroll.jumpTo(0);
@@ -448,60 +587,6 @@ void main() {
     expect(tester.element(artwork), same(original));
     expect(_pixel(await _capture(tester), 100, 100), _tint.toARGB32());
   });
-
-  testWidgets('brief scale change falls back and reuses the original grid', (
-    tester,
-  ) async {
-    _screen(tester);
-    final artwork = _small(color: _tint);
-    final images = <ui.Image>[];
-    final previousOnCreate = ui.Image.onCreate;
-    ui.Image.onCreate = (image) {
-      previousOnCreate?.call(image);
-      if (image.width != _width) images.add(image);
-    };
-    addTearDown(() => ui.Image.onCreate = previousOnCreate);
-    await tester.pumpWidget(_zoomed(artwork, 1));
-    await _waitTiles(tester, 1);
-    final tile = images.single;
-    final disposed = XvgRasterCache.disposedTileCount;
-
-    await tester.pumpWidget(_zoomed(artwork, 0.98), duration: _frameInterval);
-    expect(debugXvgRasterTilesReady, isFalse);
-    expect(XvgRasterCache.tileCount, 1);
-    expect(XvgRasterCache.disposedTileCount, disposed);
-    expect(_pixel(await _capture(tester), 100, 100), _tint.toARGB32());
-
-    await tester.pumpWidget(_zoomed(artwork, 1), duration: _frameInterval);
-    expect(debugXvgRasterTilesReady, isTrue);
-    await tester.pump(_gridSettleTime);
-    expect(images, [tile]);
-    expect(tile.debugDisposed, isFalse);
-    expect(XvgRasterCache.disposedTileCount, disposed);
-  });
-
-  testWidgets(
-    'tiles evicted during scale motion can be regenerated on return',
-    (tester) async {
-      _screen(tester);
-      final artwork = _small(color: _tint);
-      await tester.pumpWidget(_zoomed(artwork, 1));
-      await _waitTiles(tester, 1);
-      final disposed = XvgRasterCache.disposedTileCount;
-
-      await tester.pumpWidget(_zoomed(artwork, 0.98), duration: _frameInterval);
-      expect(XvgRasterCache.tileCount, 1);
-      await _sendMemoryPressure(tester);
-      expect(XvgRasterCache.tileCount, 0);
-      expect(XvgRasterCache.disposedTileCount, disposed + 1);
-
-      await tester.pumpWidget(_zoomed(artwork, 1), duration: _frameInterval);
-      expect(_pixel(await _capture(tester), 100, 100), _tint.toARGB32());
-      await _waitTiles(tester, 1);
-      expect(debugXvgRasterTilesReady, isTrue);
-      expect(XvgRasterCache.disposedTileCount, disposed + 1);
-    },
-  );
 
   testWidgets(
     'infinite preferred width matches CustomPaint in IntrinsicWidth',
@@ -536,35 +621,32 @@ void main() {
     tester,
   ) async {
     _screen(tester);
-    await tester.pumpWidget(_zoomed(_small(color: _tint), 1));
-    await _waitTiles(tester, 1);
-    final root = binding.renderViews.single.debugLayer!;
     final pictures = <ui.Picture>[];
-    final previousOnCreate = ui.Picture.onCreate;
+    final previous = ui.Picture.onCreate;
     ui.Picture.onCreate = (picture) {
-      previousOnCreate?.call(picture);
+      previous?.call(picture);
       pictures.add(picture);
     };
-    addTearDown(() => ui.Picture.onCreate = previousOnCreate);
-
+    addTearDown(() => ui.Picture.onCreate = previous);
+    await tester.pumpWidget(_automaticArt(_complexArt()));
+    final first = pictures.last;
+    final root = binding.renderViews.single.debugLayer!;
     final scene = root.buildScene(ui.SceneBuilder());
     addTearDown(scene.dispose);
-    final first = pictures.single;
     expect(first.debugDisposed, isFalse);
+    final creations = pictures.length;
 
     root.buildScene(ui.SceneBuilder()).dispose();
-    expect(pictures, hasLength(2));
-    final second = pictures.last;
-    expect(first.debugDisposed, isTrue);
-    expect(second.debugDisposed, isFalse);
+    expect(pictures, hasLength(creations));
+    expect(first.debugDisposed, isFalse);
 
     await tester.pumpWidget(const SizedBox.shrink());
-    expect(second.debugDisposed, isTrue);
+    expect(first.debugDisposed, isTrue);
     final bytes = (await tester.runAsync(() => _readScene(scene)))!;
-    expect(_pixel(bytes, 100, 100), _tint.toARGB32());
+    expect(_pixel(bytes, 30, 30), _tint.toARGB32());
   });
 
-  testWidgets('complete small artwork composes tiles without vector replay', (
+  testWidgets('complete small artwork composes a whole texture', (
     tester,
   ) async {
     _screen(tester);
@@ -572,15 +654,9 @@ void main() {
     await _waitTiles(tester, 1);
     expect(debugXvgRasterTilesReady, isTrue);
     expect(_pixel(await _capture(tester), 100, 100), _tint.toARGB32());
-
-    final draws = binding.recordComposition().invocations.map(
-      (draw) => draw.invocation.memberName,
-    );
-    expect(draws, contains(#drawImageRect));
-    expect(draws, isNot(contains(#drawPicture)));
   });
 
-  testWidgets('tile padding covers subpixel overflow without vector replay', (
+  testWidgets('a whole texture preserves subpixel overflow clipping', (
     tester,
   ) async {
     _screen(tester);
@@ -608,12 +684,6 @@ void main() {
     await _waitTiles(tester, 1);
     expect(debugXvgRasterTilesReady, isTrue);
     expect(await _capture(tester), vector);
-
-    final draws = binding.recordComposition().invocations.map(
-      (draw) => draw.invocation.memberName,
-    );
-    expect(draws.where((draw) => draw == #drawImageRect), hasLength(1));
-    expect(draws, isNot(contains(#drawPicture)));
   });
 
   testWidgets('sparse artwork only generates tiles intersecting its content', (
@@ -650,26 +720,16 @@ void main() {
     expect(await _capture(tester), vector);
   });
 
-  testWidgets(
-    'unknown bounds compose the full viewport without vector replay',
-    (tester) async {
-      _screen(tester);
-      const source =
-          '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400"/>';
-      await tester.pumpWidget(_zoomed(const StaticXvg(source), 1));
-      await _waitTiles(tester, 1);
-      expect(debugXvgRasterTilesReady, isTrue);
-      final draws = binding.recordComposition().invocations.map(
-        (draw) => draw.invocation.memberName,
-      );
-      expect(draws, contains(#drawImageRect));
-      expect(draws, isNot(contains(#drawPicture)));
-    },
-  );
+  testWidgets('unknown bounds use the full viewport', (tester) async {
+    _screen(tester);
+    const source =
+        '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400"/>';
+    await tester.pumpWidget(_zoomed(const StaticXvg(source), 1));
+    await _waitTiles(tester, 1);
+    expect(debugXvgRasterTilesReady, isTrue);
+  });
 
-  testWidgets('complete small artwork clips overflow without vector replay', (
-    tester,
-  ) async {
+  testWidgets('a whole texture preserves viewport clipping', (tester) async {
     _screen(tester);
     const source = '''
 <svg xmlns="http://www.w3.org/2000/svg" width="600" height="400">
@@ -689,16 +749,9 @@ void main() {
     expect(_pixel(vector, 620, 100), 0);
 
     await tester.pumpWidget(app(_fullResolutionCache));
-    await _waitTiles(tester, 2);
+    await _waitTiles(tester, 1);
     expect(debugXvgRasterTilesReady, isTrue);
     expect(await _capture(tester), vector);
-
-    final differenceClips = binding.recordComposition().invocations.where(
-      (draw) =>
-          draw.invocation.memberName == #clipRect &&
-          draw.invocation.namedArguments[#clipOp] == ui.ClipOp.difference,
-    );
-    expect(differenceClips, isEmpty);
   });
 
   testWidgets('the SVG viewport clips Flutter blur expansion', (tester) async {
@@ -744,13 +797,13 @@ void main() {
     await tester.pumpWidget(
       _scene(source: source, filter: filter, cache: _fullResolutionCache),
     );
-    await _waitTiles(tester, 4);
+    await _waitTiles(tester, 1);
     final cached = await _capture(tester);
     expect(_pixel(vector, 250, 200), isNot(0xff14ab3e));
     expect(cached, vector);
   });
 
-  testWidgets('automatic whole-viewport tiles match filtered vector pixels', (
+  testWidgets('automatic sparse texture matches filtered vector pixels', (
     tester,
   ) async {
     _screen(tester);
@@ -802,8 +855,7 @@ void main() {
       await tester.pumpWidget(artwork(XvgRasterCacheOverride.disabled, filter));
       final vector = await _capture(tester);
       await tester.pumpWidget(artwork(null, filter));
-      await _replay(tester, _automaticFrames);
-      await _waitTiles(tester, 4);
+      await _waitTiles(tester, 1);
       expect(debugXvgRasterTilesReady, isTrue);
       final cached = await _capture(tester);
       expect(_pixel(vector, 515, 60), isNot(0));
@@ -847,49 +899,21 @@ void main() {
       released = XvgRasterCache.disposedTileCount;
       tester.view.devicePixelRatio = 2;
       await tester.pump();
-      expect(debugXvgRasterTilesReady, isFalse);
+      expect(debugXvgRasterTilesReady, isTrue);
       expect(XvgRasterCache.tileCount, 1);
       expect(XvgRasterCache.disposedTileCount, released);
       await tester.pump(_gridSettleTime);
       expect(XvgRasterCache.disposedTileCount, released + 1);
-      await _waitTiles(tester, 4);
+      await _waitTiles(tester, 1);
       expect(_pixel(await _capture(tester), 650, 650), _secondColor.toARGB32());
     },
   );
-
-  testWidgets('a settled scale replaces the original grid', (tester) async {
-    _screen(tester);
-    final artwork = _small(color: _tint);
-    Widget zoomed(double scale) => _zoomed(artwork, scale);
-
-    await tester.pumpWidget(zoomed(1));
-    await _waitTiles(tester, 1);
-    final bytes = XvgRasterCache.bytesUsed;
-    final disposed = XvgRasterCache.disposedTileCount;
-
-    for (final scale in [1.04, 1.08, 1.12, 1.16, 1.20, 1.24]) {
-      await tester.pumpWidget(zoomed(scale), duration: _frameInterval);
-      expect(debugXvgRasterTilesReady, isFalse, reason: 'scale $scale');
-      expect(XvgRasterCache.tileCount, 1);
-      expect(XvgRasterCache.bytesUsed, bytes);
-      expect(XvgRasterCache.disposedTileCount, disposed);
-    }
-
-    await tester.pump(_frameInterval * 3);
-    expect(XvgRasterCache.disposedTileCount, disposed);
-    await tester.pump(_gridSettleTime - _frameInterval * 3);
-    expect(XvgRasterCache.disposedTileCount, disposed + 1);
-    await _waitTiles(tester, 1);
-    expect(debugXvgRasterTilesReady, isTrue);
-    expect(XvgRasterCache.bytesUsed, greaterThan(bytes));
-    expect(XvgRasterCache.disposedTileCount, disposed + 1);
-  });
 
   testWidgets(
     'the shared budget reclaims an offstage owner before allocating',
     (tester) async {
       _screen(tester);
-      const textureExtent = _smallExtent + 8;
+      const textureExtent = _smallExtent;
       final pixels = textureExtent.toInt();
       final bytes = pixels * pixels * _rgbaBytesPerPixel;
       XvgRasterCache.byteBudget = bytes;
@@ -929,12 +953,12 @@ void main() {
     await tester.pumpWidget(_scene(source: _blur));
     final vector = await _capture(tester);
     await tester.pumpWidget(_scene(source: _blur, cache: _fullResolutionCache));
-    await _waitTiles(tester, 4);
+    await _waitTiles(tester, 16);
     final full = await _capture(tester);
     // A blur is continuous inside this fixture. The two seams allow one
     // 8-bit rounding step. / 模糊连续穿过两条拼缝，只容许一色阶的舍入。
     var worst = 0;
-    const seam = XvgRasterCache.tileSize;
+    const seam = XvgRasterCache.tileSize * 2;
     for (var p = 375; p < 645; p++) {
       for (var offset = -2; offset <= 2; offset++) {
         for (final (x, y) in [(seam + offset, p), (p, seam + offset)]) {
@@ -963,7 +987,7 @@ void main() {
       ),
       findsOneWidget,
     );
-    await _replay(tester, _automaticFrames * 2);
+    await _replay(tester, 2);
     expect(XvgRasterCache.tileCount, 0);
     expect(XvgRasterCache.bytesUsed, 0);
   });
@@ -971,32 +995,22 @@ void main() {
   group('automatic cache', () {
     setUp(() => debugXvgRasterCacheOverride = null);
 
-    testWidgets('admits a contained illustration on its 32nd stable replay', (
+    testWidgets('admits a complex illustration in its first composition', (
       tester,
     ) async {
       _screen(tester);
-      final source = _complexArt();
-      final info = RustXvgPictureCache.instance.getOrRender(source);
-      expect(info.pathCount, 100);
-      expect(info.pointCount, lessThan(15000));
-      await tester.pumpWidget(_automaticArt(source));
-      await _replay(tester, _automaticFrames - 2);
-      expect(XvgRasterCache.tileCount, 0);
-      expect(XvgRasterCache.bytesUsed, 0);
-      // Independent scene captures must not advance the replay counter.
-      // 独立场景截图不能增加重放次数。
-      binding.recordComposition();
-      binding.recordComposition();
-      expect(XvgRasterCache.tileCount, 0);
-      await _replay(tester, 1);
-      await tester.idle();
-      expect(XvgRasterCache.tileCount, 1);
-      expect(
-        binding.recordComposition().invocations.map(
-          (draw) => draw.invocation.memberName,
-        ),
-        contains(#drawImageRect),
+      await tester.pumpWidget(
+        _automaticArt(_complexArt(), offset: const Offset(.25, .375)),
       );
+      expect(XvgRasterCache.tileCount, 1);
+      expect(debugXvgRasterTilesReady, isTrue);
+      expect(find.byType(PixelSnapBoundary), findsNothing);
+      final bytes = XvgRasterCache.bytesUsed;
+      await tester.pumpWidget(
+        _automaticArt(_complexArt(), offset: const Offset(5.375, 9.25)),
+      );
+      expect(XvgRasterCache.bytesUsed, bytes);
+      expect(find.byType(PixelSnapBoundary), findsNothing);
     });
 
     testWidgets('counts curve controls on the asynchronous picture cache path', (
@@ -1015,7 +1029,6 @@ void main() {
       expect(info.pathCount, 1);
       expect(info.pointCount, 15001);
       await tester.pumpWidget(_automaticArt(source));
-      await _replay(tester, _automaticFrames);
       expect(XvgRasterCache.tileCount, 1);
     });
 
@@ -1040,8 +1053,7 @@ void main() {
       await tester.pumpWidget(
         _automaticArt(source, extent: extent, snap: XvgPixelSnap.never),
       );
-      await _replay(tester, _automaticFrames);
-      await _waitTiles(tester, 4);
+      await _waitTiles(tester, 1);
       expect(debugXvgRasterTilesReady, isTrue);
       expect(_pixel(vector, 590, 210), 0xff000000);
       expect(_pixel(vector, 610, 210), 0);
@@ -1061,385 +1073,129 @@ void main() {
               fit: BoxFit.contain,
               alignment: Alignment.center,
               painter: _UnknownBoundsPainter(),
-              cacheOverride: null,
-              snapWhenCached: true,
             ),
           ),
         );
-        await _replay(tester, _automaticFrames * 2);
+        await _replay(tester, 2);
         expect(XvgRasterCache.tileCount, 1);
         expect(debugXvgRasterTilesReady, isTrue);
         expect(_pixel(await _capture(tester), 10, 10), _tint.toARGB32());
       },
     );
 
-    testWidgets('releases tiles when scaled beyond 12 MiB or scrolled out', (
-      tester,
-    ) async {
-      tester.view.devicePixelRatio = 1;
-      tester.view.physicalSize = const Size.square(2400);
-      addTearDown(tester.view.reset);
-      final source = _complexArt();
-      await tester.pumpWidget(_automaticArt(source));
-      await _replay(tester, _automaticFrames);
-      expect(XvgRasterCache.tileCount, 1);
-      final disposed = XvgRasterCache.disposedTileCount;
-      await tester.pumpWidget(_automaticArt(source, scale: 21.12));
-      expect(XvgRasterCache.tileCount, 0);
-      expect(XvgRasterCache.disposedTileCount, disposed + 1);
-      await _replay(tester, _automaticFrames * 2);
-      expect(XvgRasterCache.tileCount, 0);
-      expect(XvgRasterCache.bytesUsed, 0);
-      await tester.pumpWidget(_automaticArt(source));
-      await _replay(tester, _automaticFrames);
-      expect(XvgRasterCache.tileCount, 1);
-      await tester.pumpWidget(
-        _automaticArt(source, offset: const Offset(0, -150)),
-      );
-      expect(XvgRasterCache.tileCount, 0);
-      expect(XvgRasterCache.disposedTileCount, disposed + 2);
-    });
-
     testWidgets(
       'releases the composite when mounted artwork leaves the scene',
       (tester) async {
         _screen(tester);
-        final source = _complexArt();
-        Widget artwork({required bool offstage}) =>
-            Offstage(offstage: offstage, child: _automaticArt(source));
-        await tester.pumpWidget(artwork(offstage: false));
-        await _replay(tester, _automaticFrames);
-        expect(XvgRasterCache.tileCount, 1);
-
         final pictures = <ui.Picture>[];
         final previous = ui.Picture.onCreate;
         ui.Picture.onCreate = (picture) {
           previous?.call(picture);
           pictures.add(picture);
         };
-        try {
-          binding.renderViews.single.debugLayer!
-              .buildScene(ui.SceneBuilder())
-              .dispose();
-        } finally {
-          ui.Picture.onCreate = previous;
-        }
-        final composite = pictures.single;
+        addTearDown(() => ui.Picture.onCreate = previous);
+        final source = _complexArt();
+        Widget artwork({required bool offstage}) =>
+            Offstage(offstage: offstage, child: _automaticArt(source));
+        await tester.pumpWidget(artwork(offstage: false));
+        expect(XvgRasterCache.tileCount, 1);
+
+        final composite = pictures.last;
         expect(composite.debugDisposed, isFalse);
         await tester.pumpWidget(artwork(offstage: true));
         expect(find.byType(StaticXvg, skipOffstage: false), findsOneWidget);
         expect(composite.debugDisposed, isTrue);
-        expect(XvgRasterCache.tileCount, 0);
+        expect(debugXvgRasterTilesReady, isFalse);
+        expect(XvgRasterCache.tileCount, 1);
 
         await tester.pumpWidget(artwork(offstage: false));
-        await _replay(tester, _automaticFrames - 2);
-        expect(XvgRasterCache.tileCount, 0);
-        await _replay(tester, 1);
         expect(XvgRasterCache.tileCount, 1);
+        expect(debugXvgRasterTilesReady, isTrue);
       },
     );
-
-    testWidgets('does not generate tiles during continuous translation', (
-      tester,
-    ) async {
-      _screen(tester);
-      final source = _complexArt();
-      final disposed = XvgRasterCache.disposedTileCount;
-      for (var frame = 0; frame < _automaticFrames * 2; frame++) {
-        await tester.pumpWidget(
-          _automaticArt(source, offset: Offset(0, frame * 0.25)),
-          duration: _frameInterval,
-        );
-        expect(XvgRasterCache.tileCount, 0);
-      }
-      expect(XvgRasterCache.disposedTileCount, disposed);
-      await _replay(tester, _automaticFrames);
-      expect(XvgRasterCache.tileCount, 1);
-    });
-
-    testWidgets('keeps pixelSnap auto vector pixels until a grid is admitted', (
-      tester,
-    ) async {
-      _screen(tester);
-      const origin = Offset(0.35, 0.4);
-      final source = _complexArt();
-      final overflow = _complexArt(overflow: true);
-      for (final art in [source, overflow]) {
-        debugXvgRasterCacheOverride = XvgRasterCacheOverride.disabled;
-        await tester.pumpWidget(_automaticArt(art, offset: origin));
-        final vector = await _capture(tester);
-        await tester.pumpWidget(
-          _automaticArt(art, offset: origin, snap: XvgPixelSnap.always),
-        );
-        final snapped = await _capture(tester);
-        expect(snapped, isNot(equals(vector)));
-        debugXvgRasterCacheOverride = null;
-        await tester.pumpWidget(_automaticArt(art, offset: origin));
-        expect(await _capture(tester), vector);
-        await _replay(tester, _automaticFrames * 2);
-        final automatic = await _capture(tester);
-        expect(debugXvgRasterTilesReady, isTrue);
-        if (art == source) {
-          final alpha = _pixel(automatic, 0, 0) >>> 24;
-          expect(alpha, closeTo(_pixel(snapped, 0, 0) >>> 24, 1));
-          expect(alpha, greaterThan(_pixel(vector, 0, 0) >>> 24));
-        } else {
-          expect(_pixel(automatic, 99, 35), _pixel(snapped, 99, 35));
-          expect(_pixel(automatic, 105, 35), 0);
-        }
-      }
-    });
   });
 
-  testWidgets('clipped scroll keeps nearby tiles and disposes distant rows', (
-    tester,
-  ) async {
+  testWidgets('memory pressure evicts visited offscreen tiles', (tester) async {
     _screen(tester);
     final scroll = ScrollController();
     addTearDown(scroll.dispose);
-    final images = <ui.Image>[];
-    final previousOnCreate = ui.Image.onCreate;
-    ui.Image.onCreate = (image) {
-      previousOnCreate?.call(image);
-      if (image.width <= _edgeExtent && image.height <= _edgeExtent) {
-        images.add(image);
-      }
-    };
-    addTearDown(() => ui.Image.onCreate = previousOnCreate);
     await tester.pumpWidget(
       _scene(cache: _fullResolutionCache, scroll: scroll),
     );
+    await _waitTiles(tester, 16);
+    scroll.jumpTo(1024);
+    await tester.pumpAndSettle();
+    expect(XvgRasterCache.tileCount, 32);
+    final before = XvgRasterCache.disposedTileCount;
 
-    expect(XvgRasterCache.tileCount, lessThanOrEqualTo(1));
-    final first = await _capture(tester);
-    expect(_pixel(first, 80, 80), isNot(_white.toARGB32()));
-
-    await _waitTiles(tester, 4);
-    expect(images.length, 4);
-    expect(XvgRasterCache.bytesUsed, _fourTileBytes);
-    final disposed = XvgRasterCache.disposedTileCount;
-
-    scroll.jumpTo(160);
-    await tester.pump();
-    await _waitTiles(tester, 6);
-    expect(images.length, 6);
-    expect(images.any((image) => image.debugDisposed), isFalse);
-
-    scroll.jumpTo(scroll.position.maxScrollExtent);
-    await tester.pump();
-    await _waitTiles(tester, 4);
-    expect(images.length, 8);
-    expect(images.where((image) => image.debugDisposed).length, 4);
-    expect(XvgRasterCache.disposedTileCount - disposed, 4);
-    expect(XvgRasterCache.bytesUsed, _fourTileBytes);
-
-    final beforeUnmount = XvgRasterCache.disposedTileCount;
-    await tester.pumpWidget(const SizedBox.shrink());
-    expect(XvgRasterCache.bytesUsed, 0);
-    expect(XvgRasterCache.disposedTileCount - beforeUnmount, 4);
-    expect(images.every((image) => image.debugDisposed), isTrue);
+    await _sendMemoryPressure(tester);
+    expect(XvgRasterCache.tileCount, 16);
+    expect(XvgRasterCache.disposedTileCount - before, 16);
+    expect(debugXvgRasterTilesReady, isTrue);
   });
 
-  testWidgets(
-    'cached auto snaps filter artwork and reuses tiles during scroll',
-    (tester) async {
-      _screen(tester);
-      final scroll = ScrollController();
-      addTearDown(scroll.dispose);
-      expect(
-        RustXvgPictureCache.instance.getOrRender(_blur).hasPixelSnapRisk,
-        isFalse,
-      );
-      await tester.pumpWidget(
-        _scene(source: _blur, scroll: scroll, cache: _fullResolutionCache),
-      );
-      await _waitTiles(tester, 4);
-      expect(find.byType(PixelSnapBoundary), findsOneWidget);
-      final snap = tester.binding.renderViews.single.debugLayer!
-          .depthFirstIterateChildren()
-          .whereType<PixelSnapLayer>()
-          .single;
-      final disposed = XvgRasterCache.disposedTileCount;
-
-      for (final offset in _fractionalScrollOffsets) {
-        scroll.jumpTo(offset);
-        await tester.pump(_frameInterval);
-        expect(snap.debugDidSnap, isTrue);
-        expect(debugXvgRasterTilesReady, isTrue, reason: 'offset $offset');
-        expect(XvgRasterCache.tileCount, 4);
-        expect(XvgRasterCache.disposedTileCount, disposed);
-      }
-    },
-  );
-
-  testWidgets('cached never skips snapping and waits out fractional scroll', (
+  testWidgets('lower budget evicts offscreen first and falls back to vectors', (
     tester,
   ) async {
     _screen(tester);
     final scroll = ScrollController();
     addTearDown(scroll.dispose);
+    await tester.pumpWidget(_scene(source: _flat, scroll: scroll));
+    scroll.jumpTo(1024);
+    await tester.pump();
+    final vector = await _capture(tester);
     await tester.pumpWidget(
-      _scene(
-        source: _blur,
-        scroll: scroll,
-        cache: _fullResolutionCache,
-        pixelSnap: XvgPixelSnap.never,
-      ),
+      _scene(source: _flat, cache: _fullResolutionCache, scroll: scroll),
     );
-    await _waitTiles(tester, 4);
-    expect(find.byType(PixelSnapBoundary), findsNothing);
-    expect(
-      tester.binding.renderViews.single.debugLayer!
-          .depthFirstIterateChildren()
-          .whereType<PixelSnapLayer>(),
-      isEmpty,
-    );
-    expect(debugXvgRasterTilesReady, isTrue);
-    final disposed = XvgRasterCache.disposedTileCount;
+    await _waitTiles(tester, 16);
+    final visibleBytes = XvgRasterCache.bytesUsed;
+    scroll.jumpTo(0);
+    await tester.pumpAndSettle();
+    scroll.jumpTo(1024);
+    await tester.pumpAndSettle();
+    expect(XvgRasterCache.tileCount, 32);
 
-    for (final offset in _fractionalScrollOffsets) {
-      scroll.jumpTo(offset);
-      await tester.pump(_frameInterval);
-      expect(debugXvgRasterTilesReady, isFalse, reason: 'offset $offset');
-      expect(XvgRasterCache.tileCount, 4);
-      expect(XvgRasterCache.disposedTileCount, disposed);
-    }
-
-    await tester.pump(_gridSettleTime);
-    await _waitTiles(tester, 4);
+    XvgRasterCache.byteBudget = visibleBytes;
+    await tester.pump();
+    expect(XvgRasterCache.tileCount, 16);
     expect(debugXvgRasterTilesReady, isTrue);
-    expect(XvgRasterCache.disposedTileCount, disposed + 4);
+    expect(await _capture(tester), vector);
+
+    XvgRasterCache.byteBudget = visibleBytes ~/ 4;
+    await tester.pump();
+    expect(debugXvgRasterTilesReady, isFalse);
+    expect(await _capture(tester), vector);
+    XvgRasterCache.byteBudget = 0;
+    await tester.pump();
+    expect(XvgRasterCache.bytesUsed, 0);
   });
 
-  testWidgets(
-    'memory pressure evicts adjacent tiles while keeping visible ones',
-    (tester) async {
-      _screen(tester);
-      await tester.pumpWidget(
-        _scene(
-          cache: _fullResolutionCache,
-          viewportHeight: _prefetchViewportHeight,
-        ),
-      );
-      await _waitTiles(tester, 6);
-      final before = XvgRasterCache.disposedTileCount;
-
-      await _sendMemoryPressure(tester);
-      await tester.pump();
-      expect(XvgRasterCache.tileCount, 4);
-      expect(XvgRasterCache.disposedTileCount - before, 2);
-    },
-  );
-
-  testWidgets(
-    'lower budget evicts offscreen first and paints missing tiles with vectors',
-    (tester) async {
-      _screen(tester);
-      await tester.pumpWidget(_scene(viewportHeight: _prefetchViewportHeight));
-      final vector = await _capture(tester);
-      await tester.pumpWidget(
-        _scene(
-          cache: _fullResolutionCache,
-          viewportHeight: _prefetchViewportHeight,
-        ),
-      );
-      await _waitTiles(tester, 6);
-
-      XvgRasterCache.byteBudget = _fourTileBytes;
-      expect(XvgRasterCache.tileCount, 4);
-      await tester.pump();
-
-      XvgRasterCache.byteBudget = _topTileBytes;
-      await tester.pump();
-      await _waitTiles(tester, 1);
-      expect(
-        XvgRasterCache.bytesUsed,
-        inInclusiveRange(_sideTileBytes, _topTileBytes),
-      );
-      _expectRoundingOrEdges(await _capture(tester), vector);
-
-      XvgRasterCache.byteBudget = 0;
-      await tester.pump();
-      expect(XvgRasterCache.bytesUsed, 0);
-      expect(await _capture(tester), vector);
-    },
-  );
-
-  testWidgets('theme, size and resolution changes replace the static grid', (
+  testWidgets('theme replaces textures and changing ColorFilter reuses them', (
     tester,
   ) async {
     _screen(tester);
-    await tester.pumpWidget(
-      _scene(source: _flat, cache: _fullResolutionCache, dispatch: true),
+    Widget artwork(Color color, ColorFilter? filter) => _scene(
+      source: _flat,
+      cache: _fullResolutionCache,
+      dispatch: true,
+      imageHeight: 1024,
+      theme: XvgTheme(currentColor: color),
+      filter: filter,
     );
-    await _waitTiles(tester, 4);
+    await tester.pumpWidget(artwork(_secondColor, null));
+    await _waitTiles(tester, 1);
     final disposed = XvgRasterCache.disposedTileCount;
-
-    await tester.pumpWidget(
-      _scene(
-        source: _flat,
-        cache: _halfResolutionCache,
-        dispatch: true,
-        imageHeight: 1024,
-        theme: const XvgTheme(currentColor: _tint),
-        alignment: Alignment.topCenter,
-      ),
-    );
-    expect(XvgRasterCache.disposedTileCount - disposed, 4);
-    await _waitTiles(tester, 2);
-    expect(XvgRasterCache.bytesUsed, _twoHalfTiles);
+    await tester.pumpWidget(artwork(_tint, null));
+    expect(XvgRasterCache.disposedTileCount - disposed, 1);
+    await _waitTiles(tester, 1);
     expect(_pixel(await _capture(tester), 300, 100), _tint.toARGB32());
 
     final beforeFilter = XvgRasterCache.disposedTileCount;
     await tester.pumpWidget(
-      _scene(
-        source: _flat,
-        cache: _halfResolutionCache,
-        dispatch: true,
-        imageHeight: 1024,
-        theme: const XvgTheme(currentColor: _tint),
-        alignment: Alignment.topCenter,
-        filter: const ColorFilter.mode(_white, BlendMode.srcIn),
-      ),
+      artwork(_tint, const ColorFilter.mode(_white, BlendMode.srcIn)),
     );
     expect(XvgRasterCache.disposedTileCount, beforeFilter);
-    expect(XvgRasterCache.tileCount, 2);
+    expect(XvgRasterCache.tileCount, 1);
     expect(_pixel(await _capture(tester), 300, 100), _white.toARGB32());
   });
-
-  testWidgets(
-    'scale 1 preserves snapped vector coverage and scale 0.5 has no tile seam',
-    (tester) async {
-      _screen(tester);
-      Widget shifted([XvgRasterCacheOverride? cache]) => Transform.translate(
-        offset: const Offset(0.25, 0.375),
-        child: _scene(cache: cache),
-      );
-      await tester.pumpWidget(shifted());
-      final vector = await _capture(tester);
-      await tester.pumpWidget(shifted(_fullResolutionCache));
-      await _waitTiles(tester, 4);
-      final full = await _capture(tester);
-      final fullBytes = XvgRasterCache.bytesUsed;
-      _expectRoundingOrEdges(full, vector);
-
-      await tester.pumpWidget(shifted(_halfResolutionCache));
-      await _waitTiles(tester, 4);
-      expect(XvgRasterCache.bytesUsed * 4, fullBytes);
-      final half = await _capture(tester);
-      // A smooth opaque gradient crosses both seam axes here. Bilinear sampling
-      // must not create a transparent line or a color jump beyond one 8-bit step
-      // over the neighboring vector gradient.
-      // 两条拼缝穿过不透明平滑渐变，采样不应产生透明线或超过一色阶的偏差。
-      for (final (x, y) in [
-        for (var i = 506; i < 518; i++) (i, 50),
-        for (var i = 506; i < 518; i++) (100, i),
-      ]) {
-        final start = (y * _width + x) * _rgbaBytesPerPixel;
-        for (var i = start; i < start + _rgbaBytesPerPixel; i++) {
-          expect((half[i] - vector[i]).abs(), lessThanOrEqualTo(1));
-        }
-      }
-    },
-  );
 }

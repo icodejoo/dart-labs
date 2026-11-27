@@ -265,7 +265,7 @@ class _RemoteStringIconState extends State<RemoteStringIcon> {
 | `alignment` | `Alignment.center` | `fit` 留出空白时 picture 在盒子里的位置。类型是 `Alignment`，不是 `AlignmentGeometry`。 |
 | `colorFilter` | `null` | Flutter `ColorFilter`，两条路径都生效。动画源仅在传入滤镜时才多加一层 `ColorFiltered`。 |
 | `theme` | `null` | `XvgTheme(currentColor: …)`，解析 SVG 里的 `currentColor` 关键字（默认不透明黑色）。 |
-| `pixelSnap` | `XvgPixelSnap.auto` | 合成阶段把视口对齐到物理像素。`auto` 在有遮罩/裁剪风险或位图分块就绪时启用，`always` / `never` 强制覆盖。 |
+| `pixelSnap` | `XvgPixelSnap.auto` | 合成阶段把视口对齐到物理像素。`auto` 在有遮罩/裁剪风险时启用，`always` / `never` 强制覆盖。 |
 | `quality` | `null`（使用 `XvgAnimationQuality.defaultQuality`） | 动画吞吐与保真的取舍。Rust 路径忽略。 |
 | `controller` | `null` | 共享的 `XvgAnimationController`。与 `animation` 互斥；`playbackRate` 保持 1.0，改用控制器自己的速率。 |
 | `animation` | `null` | 由 Flutter `Animation<double>` 驱动文档时间（`value × animationSpan`）。 |
@@ -535,13 +535,15 @@ List<Widget> recolor() => const [
 静态和动画 SVG 都裁剪到适配后的 SVG 视口与组件边界的交集，行为与浏览器
 `<img>` 一致。根元素的 `overflow` 属性会被忽略。根 `viewBox` 留边内的内容仍可见。
 
-复杂的静态 SVG 会在网格连续稳定重放 32 帧后自动生成位图分块。可见内容须非空，
-解析结果须有至少 15,000 点（含曲线控制点）或 100 条路径。分块取内容边界与
-视口的交集。边界未知或应用 `ColorFilter` 时，按完整裁剪视口处理。分块在原物理
-分辨率下使用 512 像素网格，预取 64 像素并计入采样边，单图估算上限为 12 MiB。
-全局共享 `XvgRasterCache.byteBudget`，默认 32 MiB。[阈值基准](benchmark/raster_cache_auto_threshold_r2.md#异常修复与重拟合)
+复杂的静态 SVG 会在首个满足条件的合成帧自动缓存可见内容。准入门槛为
+15,000 点（含曲线控制点）或 100 条路径。位图固定在图片坐标中，滚动和动画时由
+Flutter 变换，缩放停稳后按新分辨率重生成。较小的插画使用整图纹理，较大的插画
+只生成与可见内容相交的分块，缺块时用旧位图或向量补齐。边界未知时按
+适配后的视口处理。`ColorFilter` 在合成时应用。全局共享
+`XvgRasterCache.byteBudget`，默认 32 MiB。
+[真机基准](benchmark/raster_cache_image_space.md#最终实现)
 
-`pixelSnap: XvgPixelSnap.auto` 在合成阶段对齐有遮罩/裁剪风险的视口和正在使用位图分块的静态插画。
+`pixelSnap: XvgPixelSnap.auto` 在合成阶段对齐有遮罩/裁剪风险的视口。
 `always` 和 `never` 可在所有 SVG 组件入口覆盖该行为。对齐支持平移和轴对齐正缩放，
 视觉修正小于 1 个物理像素，布局、点击与语义保留原位置。
 

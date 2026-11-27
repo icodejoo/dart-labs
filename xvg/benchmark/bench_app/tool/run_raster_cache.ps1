@@ -1,7 +1,7 @@
 param(
     [string]$InputSvg = "$PSScriptRoot/../assets/raster_cache_aurora.svg",
     [double]$AspectRatio = 0.25,
-    [string[]]$Cases = @('vector:still', 'full:still', 'half:still'),
+    [string[]]$Cases = @('vector:still', 'full:still'),
     [string]$Device = 'R5CY2359S7D',
     [ValidateRange(1, 100)][int]$Repetitions = 3,
     [string]$OutputDirectory = "$PSScriptRoot/../.dart_tool/raster_cache_runs",

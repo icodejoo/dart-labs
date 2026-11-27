@@ -138,11 +138,8 @@ void main() {
         child: StaticXvg(source, pixelSnap: XvgPixelSnap.never),
       ),
     );
-    for (var frame = 0; frame < 48; frame++) {
-      tester.binding.scheduleFrame();
-      await tester.pump(const Duration(milliseconds: 16));
-    }
-    expect(XvgRasterCache.tileCount, 2);
+    expect(XvgRasterCache.tileCount, 1);
+    expect(XvgRasterCache.bytesUsed, 700 * 120 * Uint32List.bytesPerElement);
     expect(debugXvgRasterTilesReady, isTrue);
   });
 
