@@ -1810,23 +1810,23 @@ pub(crate) fn scene_from_tree(tree: &usvg::Tree) -> SvgScene {
 
 /// Collects the display list and its paint bounds. / 收集显示列表及其绘制边界。
 fn try_scene_from_tree(tree: &usvg::Tree) -> Result<SvgScene, String> {
-    let merge =
-        qualifies_for_merge(tree.root(), 0, &mut (0, 0)).then(|| SceneMerge::new(tree.size()));
-    collect_scene(tree, merge)
+    if qualifies_for_merge(tree.root(), 0, &mut (0, 0)) {
+        if let Some(merge) = SceneMerge::for_tree(tree) {
+            return collect_scene(tree, merge);
+        }
+    }
+    collect_scene(tree, ())
 }
 
 /// Flattens the tree with an optional draw run. / 展平 SVG 树，并按需合并连续绘制。
-fn collect_scene(tree: &usvg::Tree, merge: Option<SceneMerge>) -> Result<SvgScene, String> {
+fn collect_scene(tree: &usvg::Tree, mut merge: impl MergePaths) -> Result<SvgScene, String> {
     let size = tree.size();
     let mut paths = Vec::new();
     let mut images = Vec::new();
     let mut display_list = SvgDisplayList::empty();
     let mut image_budget = MAX_IMAGE_BYTES;
     let mut expansion_budget = ExpansionBudget::default();
-    let mut bounds = SceneBounds {
-        merge,
-        ..SceneBounds::default()
-    };
+    let mut bounds = SceneBounds::default();
     collect(
         tree.root(),
         &Inherited::default(),
@@ -1837,6 +1837,7 @@ fn collect_scene(tree: &usvg::Tree, merge: Option<SceneMerge>) -> Result<SvgScen
         &mut image_budget,
         &mut expansion_budget,
         &mut bounds,
+        &mut merge,
     )?;
     finish_commands(&mut display_list.commands);
     // An SVG image has its own backdrop, even when the Picture is drawn over other content.
@@ -1871,14 +1872,31 @@ fn collect_scene(tree: &usvg::Tree, merge: Option<SceneMerge>) -> Result<SvgScen
 #[flutter_rust_bridge::frb(ignore)]
 #[derive(Default)]
 struct SceneBounds {
-    /// Draw-run state, only allocated for complex SVGs. / 仅复杂 SVG 持有的合并状态。
-    merge: Option<SceneMerge>,
     /// Bound of an active replay clip, if available. / 当前回放裁剪的可用边界。
     clip: Option<Rect>,
     /// Additional coverage required by the Flutter replay. / Flutter 回放需要额外覆盖的区域。
     extra: Option<Rect>,
     /// Whether any bounds could not be represented. / 是否存在无法表示的边界。
     unknown: bool,
+}
+
+/// Defines collection-time path merging for the chosen scene. / 为当前场景指定收集阶段的路径合并行为。
+trait MergePaths {
+    /// Ends the current run at a draw boundary. / 在绘制边界结束当前合并段。
+    fn end_run(&mut self);
+
+    /// Returns whether the incoming draw was appended to a previous path. / 返回当前绘制是否已追加到前序路径。
+    fn append(&mut self, out: &mut [SvgPath], path: &mut SvgPath) -> bool;
+}
+
+impl MergePaths for () {
+    #[inline(always)]
+    fn end_run(&mut self) {}
+
+    #[inline(always)]
+    fn append(&mut self, _out: &mut [SvgPath], _path: &mut SvgPath) -> bool {
+        false
+    }
 }
 
 /// Holds the spatial index and limits for an eligible scene. / 保存达标场景的空间索引和合并限制。
@@ -1901,6 +1919,11 @@ struct MergeRunLimits {
 }
 
 impl SceneMerge {
+    /// Applies the original drawable-geometry threshold after the raw gate. / 通过原始计数门槛后，沿用基于可绘制几何的合并门槛。
+    fn for_tree(tree: &usvg::Tree) -> Option<Self> {
+        reaches_drawable_threshold(tree.root(), 0, &mut (0, 0)).then(|| Self::new(tree.size()))
+    }
+
     /// Scales normalized limits to Picture coordinates. / 将归一化限制换算成 Picture 坐标。
     fn new(size: usvg::Size) -> Self {
         let edge = f64::from(size.width().max(size.height()));
@@ -1915,14 +1938,17 @@ impl SceneMerge {
     }
 }
 
-impl SceneBounds {
-    /// Ends an active run at a draw boundary. / 在绘制边界结束活动合并段。
-    fn end_merge_run(&mut self) {
-        if let Some(merge) = &mut self.merge {
-            merge.run.reset();
-        }
+impl MergePaths for SceneMerge {
+    fn end_run(&mut self) {
+        self.run.reset();
     }
 
+    fn append(&mut self, out: &mut [SvgPath], path: &mut SvgPath) -> bool {
+        self.run.append(out, path, self.limits)
+    }
+}
+
+impl SceneBounds {
     /// Includes extra paint within the active clip. / 纳入当前裁剪以内的额外绘制区域。
     fn include(&mut self, bbox: Option<Rect>) {
         let added = match (self.clip, bbox) {
@@ -2171,6 +2197,7 @@ fn collect(
     image_budget: &mut usize,
     expansion_budget: &mut ExpansionBudget,
     bounds: &mut SceneBounds,
+    merge: &mut impl MergePaths,
 ) -> Result<(), String> {
     if depth >= MAX_DEPTH {
         return Ok(());
@@ -2234,7 +2261,7 @@ fn collect(
     for node in group.children() {
         match node {
             usvg::Node::Group(g) => {
-                bounds.end_merge_run();
+                merge.end_run();
                 collect(
                     g,
                     ctx,
@@ -2245,8 +2272,9 @@ fn collect(
                     image_budget,
                     expansion_budget,
                     bounds,
+                    merge,
                 )?;
-                bounds.end_merge_run();
+                merge.end_run();
             }
             usvg::Node::Path(p) => {
                 if let Some(mut sp) = convert_path(p, transform) {
@@ -2280,11 +2308,7 @@ fn collect(
                         ctx.mask.clone(),
                         ctx.blur.clone(),
                     );
-                    if bounds
-                        .merge
-                        .as_mut()
-                        .is_some_and(|merge| merge.run.append(out, &mut sp, merge.limits))
-                    {
+                    if merge.append(out, &mut sp) {
                         continue;
                     }
                     display_list
@@ -2294,7 +2318,7 @@ fn collect(
                 }
             }
             usvg::Node::Image(img) => {
-                bounds.end_merge_run();
+                merge.end_run();
                 if let Some(si) = convert_image(
                     img,
                     &group.abs_transform(),
@@ -2319,7 +2343,7 @@ fn collect(
             // usvg 展平字形所需的 `text` feature 已关闭，这里没有字形几何可
             // 收集。不 panic、不报错——对应形状只是不出现在显示列表里。动画
             // 路径的 `<text>` 支持（基于 Flutter `TextPainter`）不受影响。
-            usvg::Node::Text(_) => bounds.end_merge_run(),
+            usvg::Node::Text(_) => merge.end_run(),
         }
     }
     if needs_layer {
@@ -2351,14 +2375,34 @@ const MERGE_MIN_PATHS: usize = 100;
 /// Point threshold shared with Dart's xvgRasterMinPoints in lib/src/xvg_raster_cache.dart. / 与 lib/src/xvg_raster_cache.dart 的 xvgRasterMinPoints 共用的点数门槛。
 const MERGE_MIN_POINTS: usize = 15_000;
 
-/// Counts the original top-level path payload, stopping at either threshold. / 统计原始顶层路径主几何，达到任一门槛即停止。
+/// Counts visible paths and their raw points, stopping at either threshold. / 统计可见路径及其原始点数，达到任一门槛即停止。
 fn qualifies_for_merge(group: &usvg::Group, depth: usize, counts: &mut (usize, usize)) -> bool {
+    if depth >= MAX_DEPTH || group.opacity().get() == 0.0 {
+        return false;
+    }
+    group.children().iter().any(|node| match node {
+        usvg::Node::Group(child) => qualifies_for_merge(child, depth + 1, counts),
+        usvg::Node::Path(path) if path.is_visible() => {
+            counts.0 += 1;
+            counts.1 += path.data().points().len();
+            counts.0 >= MERGE_MIN_PATHS || counts.1 >= MERGE_MIN_POINTS
+        }
+        _ => false,
+    })
+}
+
+/// Counts drawable wire geometry for candidate scenes, preserving their original merge eligibility. / 对候选场景统计可绘制的跨 FFI 几何，沿用原有合并条件。
+fn reaches_drawable_threshold(
+    group: &usvg::Group,
+    depth: usize,
+    counts: &mut (usize, usize),
+) -> bool {
     if depth >= MAX_DEPTH || group.opacity().get() == 0.0 {
         return false;
     }
     let transform = group.abs_transform();
     group.children().iter().any(|node| match node {
-        usvg::Node::Group(child) => qualifies_for_merge(child, depth + 1, counts),
+        usvg::Node::Group(child) => reaches_drawable_threshold(child, depth + 1, counts),
         usvg::Node::Path(path) => {
             let Some(geometry) = prepare_path_geometry(path, transform) else {
                 return false;
@@ -3898,7 +3942,7 @@ mod tests {
     /// Parses merge fixtures without moving their Picture coordinates. / 解析合并夹具且保持 Picture 坐标原样。
     fn merge_scene(content: &str) -> SvgScene {
         let tree = merge_fixture_tree(content);
-        collect_scene(&tree, Some(SceneMerge::new(tree.size()))).unwrap()
+        collect_scene(&tree, SceneMerge::new(tree.size())).unwrap()
     }
 
     /// Provides a fixed viewport for the merge tests. / 为合并测试提供固定视口。
@@ -3939,9 +3983,7 @@ mod tests {
         let source = "<svg xmlns='http://www.w3.org/2000/svg' width='256' height='256'><rect width='4' height='4'/><rect x='15' width='4' height='4'/></svg>";
         let tree = usvg::Tree::from_str(source, usvg_options()).unwrap();
         let mut expected = flutter_rust_bridge::for_generated::SseSerializer::new();
-        collect_scene(&tree, None)
-            .unwrap()
-            .sse_encode(&mut expected);
+        collect_scene(&tree, ()).unwrap().sse_encode(&mut expected);
         MERGE_APPEND_CALLS.with(|calls| calls.set(0));
         assert_eq!(wire_bytes(source), expected.cursor.into_inner());
         MERGE_APPEND_CALLS.with(|calls| assert_eq!(calls.get(), 0));
@@ -3953,7 +3995,7 @@ mod tests {
         );
     }
 
-    /// Checks both inclusive thresholds against the original wire geometry. / 按原始跨 FFI 几何验证两项门槛均包含等号。
+    /// Checks both inclusive thresholds against visible paths and raw control points. / 验证可见路径数和原始控制点数两项门槛均包含等号。
     #[test]
     fn merge_gate_counts_paths_and_curve_control_points() {
         let rect = "<rect width='4' height='4'/>";
@@ -3965,20 +4007,42 @@ mod tests {
             (format!("<path d='M1 1{curves}Q9 1 1 1Z'/>"), true),
         ] {
             let tree = merge_fixture_tree(&body);
-            let original = collect_scene(&tree, None).unwrap();
-            let points = original
-                .paths
-                .iter()
-                .map(|path| path.points.len() / 2)
-                .sum::<usize>();
-            assert_eq!(
-                qualifies,
-                original.paths.len() == MERGE_MIN_PATHS || points == MERGE_MIN_POINTS
-            );
+            assert_eq!(qualifies_for_merge(tree.root(), 0, &mut (0, 0)), qualifies);
             MERGE_APPEND_CALLS.with(|calls| calls.set(0));
             try_scene_from_tree(&tree).unwrap();
             MERGE_APPEND_CALLS.with(|calls| assert_eq!(calls.get() > 0, qualifies));
         }
+    }
+
+    /// Confirms hidden and transparent paths do not contribute to the raw gate. / 验证隐藏路径和零透明度分组不计入原始门槛。
+    #[test]
+    fn merge_gate_ignores_invisible_paths() {
+        let visible = "<rect width='4' height='4'/>";
+        let hidden = "<rect width='4' height='4' visibility='hidden'/>";
+        let tree = merge_fixture_tree(&format!(
+            "{visible}{}<g opacity='0'>{}</g>",
+            hidden.repeat(MERGE_MIN_PATHS),
+            visible.repeat(MERGE_MIN_PATHS)
+        ));
+        let mut counts = (0, 0);
+        assert!(!qualifies_for_merge(tree.root(), 0, &mut counts));
+        assert_eq!(counts, (1, 4));
+    }
+
+    /// Keeps geometry expanded only by dashing out of the raw point count. / 验证仅由虚线展开产生的点不计入原始门槛。
+    #[test]
+    fn merge_gate_does_not_count_expanded_dash_points() {
+        let tree = merge_fixture_tree(
+            "<path d='M0 0H20000' fill='none' stroke='black' stroke-dasharray='1 1'/>",
+        );
+        let mut counts = (0, 0);
+        assert!(!qualifies_for_merge(tree.root(), 0, &mut counts));
+        assert_eq!(counts, (1, 2));
+        assert!(reaches_drawable_threshold(tree.root(), 0, &mut (0, 0)));
+        MERGE_APPEND_CALLS.with(|calls| calls.set(0));
+        let scene = try_scene_from_tree(&tree).unwrap();
+        assert!(scene.paths[0].points.len() / 2 >= MERGE_MIN_POINTS);
+        MERGE_APPEND_CALLS.with(|calls| assert_eq!(calls.get(), 0));
     }
 
     /// Checks that unlimited runs can extend beyond the viewport and still reject overlap there. / 验证不限跨度的合并段可跨出视口，且仍拒绝视口外重叠。
@@ -4278,6 +4342,7 @@ mod tests {
             &mut 0,
             &mut ExpansionBudget::default(),
             &mut SceneBounds::default(),
+            &mut (),
         )
         .unwrap();
         assert!(paths.is_empty());
@@ -6208,6 +6273,7 @@ mod tests {
                 &mut (64 * 1024 * 1024),
                 &mut ExpansionBudget::default(),
                 &mut SceneBounds::default(),
+                &mut (),
             )
             .unwrap();
             assert_eq!(paths.len(), usize::from(depth < MAX_DEPTH));
@@ -6914,6 +6980,7 @@ mod tests {
             &mut 0,
             &mut budget,
             &mut SceneBounds::default(),
+            &mut (),
         )
         .unwrap();
         assert!(paths.is_empty());
