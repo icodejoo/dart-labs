@@ -8,19 +8,24 @@
 // static_svg_fast.dart，区别是解析这一步换成 Rust/FFI。
 
 import 'dart:collection';
+import 'dart:developer' as developer;
 import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 
+import 'animation/svg_path_data.dart' show parseSvgPathData;
 import 'animation/svg_theme.dart';
 import 'cold_mount_budget.dart';
 import 'pixel_snap_layer.dart';
 import 'rust/api/svg.dart';
 import 'svg_affine.dart';
 import 'xvg_raster_cache.dart';
+
+part 'path_merge_probe.dart';
 
 /// 原生端大 SVG 冷未命中阈值，按 `String.length` 的 UTF-16 码元数计。
 /// SM-A566B 四轮 120 Hz 实测，16 KiB 是同步解析加录制 p50 首次超过
@@ -320,9 +325,18 @@ class RustXvgPictureCache {
     int? currentColorArgb,
   ) async {
     final stopwatch = _startParseMissStopwatch();
+    final allowPathMerge = _allowPathMerge;
     final scene = _shouldParseAsync(source)
-        ? await parseSvgAsync(data: source, currentColor: currentColorArgb)
-        : parseSvg(data: source, currentColor: currentColorArgb);
+        ? await parseSvgAsync(
+            data: source,
+            currentColor: currentColorArgb,
+            allowPathMerge: allowPathMerge,
+          )
+        : parseSvg(
+            data: source,
+            currentColor: currentColorArgb,
+            allowPathMerge: allowPathMerge,
+          );
     final RustSvgPictureInfo info;
     if (scene.images.isEmpty) {
       info = _recordScene(scene, const []);
@@ -400,6 +414,12 @@ class RustXvgPictureCache {
     while (_entries.isNotEmpty && _entries.length > maximumSize) {
       _entries.remove(_entries.keys.first);
     }
+    // Keep both cached and in-flight pictures stable across probe completion. / 探针完成前后的缓存与在途 Picture 沿用同一份结果。
+    if (_pathMergeProbe == null &&
+        debugPathMergeOverride == null &&
+        _reachesPathThreshold(info)) {
+      _pathMergeProbe = _probePathMergeAfterFrame();
+    }
   }
 
   /// Clears the cache (used by tests / low-memory handlers).
@@ -450,7 +470,11 @@ class RustXvgPictureCache {
   /// 遵循每个路径的 [SvgPath.strokeFirst]：为 true 时先描边后填充
   /// （`paint-order="stroke fill"`），否则按 SVG 默认的先填充后描边。
   RustSvgPictureInfo _render(String source, int? currentColorArgb) {
-    final scene = parseSvg(data: source, currentColor: currentColorArgb);
+    final scene = parseSvg(
+      data: source,
+      currentColor: currentColorArgb,
+      allowPathMerge: _allowPathMerge,
+    );
     // scene.images is expected empty on this sync path — callers that know a
     // source may embed <image> should use getOrRenderAsync instead. If it's
     // non-empty anyway (sync path hit unexpectedly), images are simply
@@ -1375,8 +1399,7 @@ class StaticXvg extends StatelessWidget {
     final candidate =
         policy != XvgRasterCacheOverride.disabled &&
         (policy == XvgRasterCacheOverride.enabled ||
-            info.pointCount >= xvgRasterMinPoints ||
-            info.pathCount >= xvgRasterMinPaths);
+            _reachesPathThreshold(info));
     final filter = colorFilter;
     // A filter can color transparent pixels anywhere in the clipped viewport.
     // 滤镜可能给裁剪后视口内的任意透明像素着色。

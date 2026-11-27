@@ -24,7 +24,7 @@ use std::alloc::{GlobalAlloc, Layout, System};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::time::Instant;
 
-use crate::api::svg::{parse_svg, scene_from_tree};
+use crate::api::svg::{parse_svg_with_merge_policy as parse_svg, scene_from_tree};
 
 /// Wraps the system allocator to count allocations while [COUNTING] is on.
 ///
@@ -236,7 +236,7 @@ fn stats(mut samples: Vec<f64>) -> Stats {
 fn time_corpus(corpus: &[String], current_color: Option<u32>) -> Stats {
     for _ in 0..WARMUP {
         for s in corpus {
-            let _ = std::hint::black_box(parse_svg(s.clone(), current_color).map(|s| s.paths.len()));
+            let _ = std::hint::black_box(parse_svg(s.clone(), current_color, true).map(|s| s.paths.len()));
         }
     }
     let mut samples = Vec::with_capacity(corpus.len() * PASSES);
@@ -250,7 +250,7 @@ fn time_corpus(corpus: &[String], current_color: Option<u32>) -> Stats {
             // String；克隆放在计时窗口之外，只测解析本身。
             let owned = s.clone();
             let t = Instant::now();
-            let out = parse_svg(owned, current_color);
+            let out = parse_svg(owned, current_color, true);
             let dt = t.elapsed();
             let _ = std::hint::black_box(out.map(|s| s.paths.len()));
             samples.push(dt.as_nanos() as f64 / 1000.0);
@@ -307,7 +307,7 @@ fn alloc_corpus(corpus: &[String], current_color: Option<u32>) -> (f64, f64) {
     ALLOC_BYTES.store(0, Ordering::Relaxed);
     COUNTING.store(true, Ordering::Relaxed);
     for s in &owned {
-        let scene = parse_svg(s.clone(), current_color);
+        let scene = parse_svg(s.clone(), current_color, true);
         let _ = std::hint::black_box(scene.map(|s| s.paths.len()));
     }
     COUNTING.store(false, Ordering::Relaxed);
@@ -502,7 +502,7 @@ fn fingerprint(corpus: &[String], current_color: Option<u32>) -> u64 {
         }
     };
     for s in corpus {
-        let scene = parse_svg(s.clone(), current_color).expect("corpus must parse");
+        let scene = parse_svg(s.clone(), current_color, true).expect("corpus must parse");
         eat_f32(scene.width, &mut eat);
         eat_f32(scene.height, &mut eat);
         walk(&scene.paths, &mut eat);

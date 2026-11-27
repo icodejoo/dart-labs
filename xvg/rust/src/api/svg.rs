@@ -3,6 +3,7 @@
 // SVG 解析核心：usvg → 扁平显示列表，交给 Dart 重放为 ui.Picture。
 
 use super::svg_gjk;
+use crate::path_merge::MergePaths;
 use usvg::tiny_skia_path::{Path, PathStroker, Point, Rect, Transform};
 
 /// A parsed SVG reduced to a flat list of paths with resolved paints.
@@ -502,13 +503,18 @@ pub struct SvgGradient {
 /// `color` 属性级联解析，缺省时回退黑色），所以设置该参数时会在解析前给根
 /// `<svg>` 元素注入 `color="#RRGGBB"` 属性，借用 usvg 已有的级联机制解析；
 /// 若根节点已显式声明 `color`，则保留不覆盖。
+/// [allow_path_merge] 仅在当前渲染器已通过像素自检时开启合并。
 ///
 /// Example:
 /// ```dart
 /// final scene = parseSvg(data: '<svg .../>', currentColor: 0xFFFF7A00);
 /// ```
-#[flutter_rust_bridge::frb(sync)]
-pub fn parse_svg(data: String, current_color: Option<u32>) -> Result<SvgScene, String> {
+#[flutter_rust_bridge::frb(sync, name = "parseSvg")]
+pub fn parse_svg_with_merge_policy(
+    data: String,
+    current_color: Option<u32>,
+    #[frb(default = false)] allow_path_merge: bool,
+) -> Result<SvgScene, String> {
     const MAX_INPUT_BYTES: usize = 32 * 1024 * 1024;
     if data.len() > MAX_INPUT_BYTES {
         return Err("SVG input exceeds the 32 MiB limit".into());
@@ -524,7 +530,7 @@ pub fn parse_svg(data: String, current_color: Option<u32>) -> Result<SvgScene, S
             std::thread::Builder::new()
                 .stack_size(STYLESHEET_STACK_BYTES)
                 .spawn_scoped(scope, || {
-                    let scene = parse_svg_document(&data, &doc, current_color)?;
+                    let scene = parse_svg_document(&data, &doc, current_color, allow_path_merge)?;
                     limit_scene_reference_depth(&scene)?;
                     Ok(scene)
                 })
@@ -536,17 +542,22 @@ pub fn parse_svg(data: String, current_color: Option<u32>) -> Result<SvgScene, S
     // wasm 没有大栈 worker，仍须在 SSE 编码前检查 CSS 解析后的引用深度。
     #[cfg(target_family = "wasm")]
     if _stylesheet_needs_stack {
-        let scene = parse_svg_document(&data, &doc, current_color)?;
+        let scene = parse_svg_document(&data, &doc, current_color, allow_path_merge)?;
         limit_scene_reference_depth(&scene)?;
         return Ok(scene);
     }
     // wasm and targets without native threads retain direct execution.
-    parse_svg_document(&data, &doc, current_color)
+    parse_svg_document(&data, &doc, current_color, allow_path_merge)
 }
 
-/// 在 FRB worker 上解析 SVG，参数、返回值和错误语义与 `parse_svg` 相同。
-pub fn parse_svg_async(data: String, current_color: Option<u32>) -> Result<SvgScene, String> {
-    parse_svg(data, current_color)
+/// 在 FRB worker 上解析 SVG，参数、返回值和错误语义与 `parseSvg` 相同。
+#[flutter_rust_bridge::frb(name = "parseSvgAsync")]
+pub fn parse_svg_async_with_merge_policy(
+    data: String,
+    current_color: Option<u32>,
+    #[frb(default = false)] allow_path_merge: bool,
+) -> Result<SvgScene, String> {
+    parse_svg_with_merge_policy(data, current_color, allow_path_merge)
 }
 
 // CSS references are resolved only by usvg. Check the resulting recursive
@@ -603,6 +614,7 @@ fn parse_svg_document(
     data: &str,
     doc: &usvg::roxmltree::Document<'_>,
     current_color: Option<u32>,
+    allow_path_merge: bool,
 ) -> Result<SvgScene, String> {
     #[cfg(test)]
     USVG_ENTRIES.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
@@ -628,7 +640,7 @@ fn parse_svg_document(
     } else {
         usvg::Tree::from_xmltree(doc, usvg_options()).map_err(|e| e.to_string())?
     };
-    let mut scene = try_scene_from_tree(&tree)?;
+    let mut scene = try_scene_from_tree(&tree, allow_path_merge)?;
     if observes_attributes {
         (scene.width, scene.height) = (DEFAULT_VIEWPORT_WIDTH, DEFAULT_VIEWPORT_HEIGHT);
     }
@@ -1794,23 +1806,23 @@ fn usvg_options() -> &'static usvg::Options<'static> {
 
 /// Flattens an already-parsed usvg tree into the wire [SvgScene].
 ///
-/// Split out of [parse_svg] so the benchmark harness can time this conversion
+/// Split out of [parse_svg_with_merge_policy] so the benchmark harness can time this conversion
 /// on its own, separately from usvg's XML parse — the two have very different
 /// cost profiles and only this half is ours to optimize.
 ///
 /// 把已解析的 usvg 树展平为跨 FFI 的 [SvgScene]。
 ///
-/// 从 [parse_svg] 拆出来，便于基准 harness 单独给这段转换计时，与 usvg 的 XML
+/// 从 [parse_svg_with_merge_policy] 拆出来，便于基准 harness 单独给这段转换计时，与 usvg 的 XML
 /// 解析分开——两者成本画像差别很大，而只有这一半是我们能优化的。
 #[flutter_rust_bridge::frb(ignore)]
 #[cfg(test)]
 pub(crate) fn scene_from_tree(tree: &usvg::Tree) -> SvgScene {
-    try_scene_from_tree(tree).expect("benchmark fixture exceeds SVG complexity budget")
+    try_scene_from_tree(tree, true).expect("benchmark fixture exceeds SVG complexity budget")
 }
 
 /// Collects the display list and its paint bounds. / 收集显示列表及其绘制边界。
-fn try_scene_from_tree(tree: &usvg::Tree) -> Result<SvgScene, String> {
-    if qualifies_for_merge(tree.root(), 0, &mut (0, 0)) {
+fn try_scene_from_tree(tree: &usvg::Tree, allow_path_merge: bool) -> Result<SvgScene, String> {
+    if allow_path_merge && qualifies_for_merge(tree.root(), 0, &mut (0, 0)) {
         if let Some(merge) = SceneMerge::for_tree(tree) {
             return collect_scene(tree, merge);
         }
@@ -1880,26 +1892,8 @@ struct SceneBounds {
     unknown: bool,
 }
 
-/// Defines collection-time path merging for the chosen scene. / 为当前场景指定收集阶段的路径合并行为。
-trait MergePaths {
-    /// Ends the current run at a draw boundary. / 在绘制边界结束当前合并段。
-    fn end_run(&mut self);
-
-    /// Returns whether the incoming draw was appended to a previous path. / 返回当前绘制是否已追加到前序路径。
-    fn append(&mut self, out: &mut [SvgPath], path: &mut SvgPath) -> bool;
-}
-
-impl MergePaths for () {
-    #[inline(always)]
-    fn end_run(&mut self) {}
-
-    #[inline(always)]
-    fn append(&mut self, _out: &mut [SvgPath], _path: &mut SvgPath) -> bool {
-        false
-    }
-}
-
 /// Holds the spatial index and limits for an eligible scene. / 保存达标场景的空间索引和合并限制。
+#[flutter_rust_bridge::frb(ignore)]
 struct SceneMerge {
     /// Limits shared by every run in the scene. / 场景内所有合并段共用的限制。
     limits: MergeRunLimits,
@@ -1916,6 +1910,8 @@ struct MergeRunLimits {
     small_rect_edge: f32,
     /// Viewport long edge used to scale the spatial index. / 用于缩放空间索引的视口长边。
     viewport_edge: f64,
+    /// 固有视口，用于保留视口外描边的独立裁剪。
+    viewport: MergeBox,
 }
 
 impl SceneMerge {
@@ -1932,12 +1928,20 @@ impl SceneMerge {
                 gap: edge * (2.0 / 512.0),
                 small_rect_edge: (edge * (MERGE_SMALL_RECT_EDGE / MERGE_REFERENCE_EDGE)) as f32,
                 viewport_edge: edge,
+                viewport: MergeBox {
+                    min: MergePoint { x: 0.0, y: 0.0 },
+                    max: MergePoint {
+                        x: f64::from(size.width()),
+                        y: f64::from(size.height()),
+                    },
+                },
             },
             run: DrawRun::default(),
         }
     }
 }
 
+#[flutter_rust_bridge::frb(ignore)]
 impl MergePaths for SceneMerge {
     fn end_run(&mut self) {
         self.run.reset();
@@ -2276,47 +2280,15 @@ fn collect(
                 )?;
                 merge.end_run();
             }
-            usvg::Node::Path(p) => {
-                if let Some(mut sp) = convert_path(p, transform) {
-                    if p.stroke().is_some_and(|s| {
-                        s.dasharray().is_some() || s.linejoin() == usvg::LineJoin::MiterClip
-                    }) {
-                        let extra = sp
-                            .stroke_style
-                            .as_ref()
-                            .and_then(|style| style.geometry.as_ref());
-                        expansion_budget.points = expansion_budget.points.saturating_add(
-                            extra.map_or(sp.points.len(), |geometry| geometry.points.len()) / 2,
-                        );
-                        expansion_budget.check()?;
-                    }
-                    // Fold the inherited mask/blur into whatever pattern
-                    // fields `convert_path` already produced.
-                    // 把继承来的遮罩/模糊，并入 `convert_path` 已经产出的
-                    // 图案字段。
-                    let (fill_pattern, stroke_pattern) = match sp.effects.take() {
-                        Some(e) => (e.fill_pattern, e.stroke_pattern),
-                        None => (None, None),
-                    };
-                    expansion_budget.charge(ctx)?;
-                    for pattern in [&fill_pattern, &stroke_pattern].into_iter().flatten() {
-                        expansion_budget.charge_subtree(&pattern.paths, &pattern.commands)?;
-                    }
-                    sp.effects = SvgEffects::some_if_present(
-                        fill_pattern,
-                        stroke_pattern,
-                        ctx.mask.clone(),
-                        ctx.blur.clone(),
-                    );
-                    if merge.append(out, &mut sp) {
-                        continue;
-                    }
-                    display_list
-                        .commands
-                        .push(indexed_command(DRAW_PATH, out.len()));
-                    out.push(sp);
-                }
-            }
+            usvg::Node::Path(path) => collect_draw_path(
+                path,
+                transform,
+                ctx,
+                out,
+                &mut display_list.commands,
+                expansion_budget,
+                merge,
+            )?,
             usvg::Node::Image(img) => {
                 merge.end_run();
                 if let Some(si) = convert_image(
@@ -2361,6 +2333,58 @@ fn collect(
     }
     expansion_budget.active_clips = active_clips;
     bounds.clip = parent_clip;
+    Ok(())
+}
+
+/// 将绘制路径的临时缓冲区留在叶子调用的栈帧内。
+#[inline(never)]
+fn collect_draw_path(
+    path: &usvg::Path,
+    transform: Transform,
+    ctx: &Inherited,
+    out: &mut Vec<SvgPath>,
+    commands: &mut Vec<SvgCommand>,
+    expansion_budget: &mut ExpansionBudget,
+    merge: &mut impl MergePaths,
+) -> Result<(), String> {
+    if let Some(mut sp) = convert_path(path, transform) {
+        if path
+            .stroke()
+            .is_some_and(|s| s.dasharray().is_some() || s.linejoin() == usvg::LineJoin::MiterClip)
+        {
+            let extra = sp
+                .stroke_style
+                .as_ref()
+                .and_then(|style| style.geometry.as_ref());
+            expansion_budget.points = expansion_budget.points.saturating_add(
+                extra.map_or(sp.points.len(), |geometry| geometry.points.len()) / 2,
+            );
+            expansion_budget.check()?;
+        }
+        // Fold the inherited mask/blur into whatever pattern
+        // fields `convert_path` already produced.
+        // 把继承来的遮罩/模糊，并入 `convert_path` 已经产出的
+        // 图案字段。
+        let (fill_pattern, stroke_pattern) = match sp.effects.take() {
+            Some(e) => (e.fill_pattern, e.stroke_pattern),
+            None => (None, None),
+        };
+        expansion_budget.charge(ctx)?;
+        for pattern in [&fill_pattern, &stroke_pattern].into_iter().flatten() {
+            expansion_budget.charge_subtree(&pattern.paths, &pattern.commands)?;
+        }
+        sp.effects = SvgEffects::some_if_present(
+            fill_pattern,
+            stroke_pattern,
+            ctx.mask.clone(),
+            ctx.blur.clone(),
+        );
+        if merge.append(out, &mut sp) {
+            return Ok(());
+        }
+        commands.push(indexed_command(DRAW_PATH, out.len()));
+        out.push(sp);
+    }
     Ok(())
 }
 
@@ -2481,7 +2505,7 @@ struct MergeShape {
 
 impl MergeShape {
     /// Bounds all endpoints and controls before allocating a convex hull. / 分配凸包前先框住全部端点和控制点。
-    fn new(path: &SvgPath, gap: f64) -> Option<Self> {
+    fn new(path: &SvgPath, limits: MergeRunLimits) -> Option<Self> {
         let points = 0..path.points.len();
         let stroke_points = 0..extra_stroke_points(path).len();
         let mut all = merge_points(path, points.clone(), stroke_points.clone());
@@ -2493,6 +2517,22 @@ impl MergeShape {
             },
             |bbox, p| bbox.union(MergeBox { min: p, max: p }),
         );
+        let stroke_radius = stroke_outset(path);
+        // Keep completely clipped strokes independent. / 保留完全在视口外的描边。
+        if path.has_stroke
+            && !limits.viewport.overlaps(MergeBox {
+                min: MergePoint {
+                    x: bbox.min.x - stroke_radius,
+                    y: bbox.min.y - stroke_radius,
+                },
+                max: MergePoint {
+                    x: bbox.max.x + stroke_radius,
+                    y: bbox.max.y + stroke_radius,
+                },
+            })
+        {
+            return None;
+        }
         let magnitude = bbox
             .min
             .x
@@ -2501,7 +2541,7 @@ impl MergeShape {
             .max(bbox.max.x.abs())
             .max(bbox.max.y.abs());
         // A square margin includes the radius in every direction and rounds outwards. / 正方形余量在所有方向都覆盖该半径，并向外留舍入余量。
-        let radius = gap * 0.5 + stroke_outset(path) + magnitude * (32.0 * f64::EPSILON);
+        let radius = limits.gap * 0.5 + stroke_radius + magnitude * (32.0 * f64::EPSILON);
         bbox.min.x -= radius;
         bbox.min.y -= radius;
         bbox.max.x += radius;
@@ -2587,6 +2627,7 @@ fn stroke_outset(path: &SvgPath) -> f64 {
 }
 
 /// Tracks a consecutive run with an index local to its first path. / 用相对首条路径的空间索引跟踪连续绘制段。
+#[flutter_rust_bridge::frb(ignore)]
 #[derive(Default)]
 struct DrawRun {
     /// Output index of the only path eligible for appending. / 唯一允许追加的输出路径下标。
@@ -2626,7 +2667,7 @@ impl DrawRun {
             let previous = &mut out[index];
             if self.shapes.len() < MERGE_MAX_PATHS
                 && same_merge_paint(previous, path)
-                && self.try_append(previous, path, limits.gap, limits.viewport_edge)
+                && self.try_append(previous, path, limits)
             {
                 return true;
             }
@@ -2641,26 +2682,25 @@ impl DrawRun {
         &mut self,
         previous: &mut SvgPath,
         path: &mut SvgPath,
-        gap: f64,
-        viewport_edge: f64,
+        limits: MergeRunLimits,
     ) -> bool {
-        let Some(mut next) = MergeShape::new(path, gap) else {
+        let Some(mut next) = MergeShape::new(path, limits) else {
             return false;
         };
         let origin = if let Some(origin) = self.origin {
             origin
         } else {
-            let Some(first) = MergeShape::new(previous, gap) else {
+            let Some(first) = MergeShape::new(previous, limits) else {
                 return false;
             };
             let origin = first.bbox.min;
-            self.insert_cells(first.bbox, origin, viewport_edge, 0);
+            self.insert_cells(first.bbox, origin, limits.viewport_edge, 0);
             self.origin = Some(origin);
             self.shapes.push(first);
             origin
         };
         let mut seen = [false; MERGE_MAX_PATHS];
-        for key in merge_cells(next.bbox, origin, viewport_edge) {
+        for key in merge_cells(next.bbox, origin, limits.viewport_edge) {
             for &index in self.grid.get(&key).into_iter().flatten() {
                 if std::mem::replace(&mut seen[index], true) {
                     continue;
@@ -2674,7 +2714,7 @@ impl DrawRun {
                 }
             }
         }
-        self.insert_cells(next.bbox, origin, viewport_edge, self.shapes.len());
+        self.insert_cells(next.bbox, origin, limits.viewport_edge, self.shapes.len());
         let main_start = previous.points.len();
         let stroke_start = extra_stroke_points(previous).len();
         next.points = main_start..main_start + path.points.len();
@@ -3816,6 +3856,11 @@ fn concat(a: svgtypes::Transform, b: svgtypes::Transform) -> svgtypes::Transform
 mod tests {
     use super::*;
 
+    /// 为既有解析回归测试保留启用合并的解析路径。
+    fn parse_svg(data: String, current_color: Option<u32>) -> Result<SvgScene, String> {
+        super::parse_svg_with_merge_policy(data, current_color, true)
+    }
+
     /// Keeps the standalone SVG viewport independent of painted extent. / 独立 SVG 固有视口不随绘制范围改变。
     #[test]
     fn static_svg_without_dimensions_uses_default_viewport() {
@@ -3985,7 +4030,10 @@ mod tests {
         let mut expected = flutter_rust_bridge::for_generated::SseSerializer::new();
         collect_scene(&tree, ()).unwrap().sse_encode(&mut expected);
         MERGE_APPEND_CALLS.with(|calls| calls.set(0));
-        assert_eq!(wire_bytes(source), expected.cursor.into_inner());
+        let expected = expected.cursor.into_inner();
+        for allow in [false, true] {
+            assert_eq!(merge_wire_bytes(source, allow), expected);
+        }
         MERGE_APPEND_CALLS.with(|calls| assert_eq!(calls.get(), 0));
         assert_eq!(
             merge_scene("<rect width='4' height='4'/><rect x='15' width='4' height='4'/>")
@@ -3993,6 +4041,42 @@ mod tests {
                 .len(),
             1
         );
+    }
+
+    /// 检查 FFI 入口关闭时逐字节保留独立绘制，开启时合并达标场景。
+    #[test]
+    fn parse_merge_switch_controls_eligible_scenes() {
+        use crate::frb_generated::SseEncode;
+        let body = "<rect width='4' height='4'/><rect x='15' width='4' height='4'/>";
+        let tree = merge_fixture_tree(&body.repeat(MERGE_MIN_PATHS / 2));
+        let source = format!(
+            "<svg xmlns='http://www.w3.org/2000/svg' width='256' height='256'>{}</svg>",
+            body.repeat(MERGE_MIN_PATHS / 2)
+        );
+        let mut expected = flutter_rust_bridge::for_generated::SseSerializer::new();
+        collect_scene(&tree, ()).unwrap().sse_encode(&mut expected);
+        MERGE_APPEND_CALLS.with(|calls| calls.set(0));
+        assert_eq!(
+            merge_wire_bytes(&source, false),
+            expected.cursor.into_inner()
+        );
+        MERGE_APPEND_CALLS.with(|calls| assert_eq!(calls.get(), 0));
+
+        let merged = super::parse_svg_with_merge_policy(source, None, true).unwrap();
+        assert_eq!(merged.paths.len(), MERGE_MIN_PATHS / 2);
+        MERGE_APPEND_CALLS.with(|calls| assert_eq!(calls.get(), MERGE_MIN_PATHS));
+    }
+
+    /// 验证完全在视口外的描边保留原绘制，跨入视口的相离描边仍可合并。
+    #[test]
+    fn preserves_fully_clipped_strokes() {
+        const PAINT: &str = "fill='none' stroke='black' stroke-linejoin='bevel'";
+        for (x, expected) in [(-2.0, 2), (-0.1, 1)] {
+            let scene = merge_scene(&format!(
+                "<path d='M{x} 4l-.1 4l.1 -4' {PAINT}/><path d='M24 4l2 4l2 -4' {PAINT}/>"
+            ));
+            assert_eq!(scene.paths.len(), expected, "{x}");
+        }
     }
 
     /// Checks both inclusive thresholds against visible paths and raw control points. / 验证可见路径数和原始控制点数两项门槛均包含等号。
@@ -4009,7 +4093,7 @@ mod tests {
             let tree = merge_fixture_tree(&body);
             assert_eq!(qualifies_for_merge(tree.root(), 0, &mut (0, 0)), qualifies);
             MERGE_APPEND_CALLS.with(|calls| calls.set(0));
-            try_scene_from_tree(&tree).unwrap();
+            try_scene_from_tree(&tree, true).unwrap();
             MERGE_APPEND_CALLS.with(|calls| assert_eq!(calls.get() > 0, qualifies));
         }
     }
@@ -4040,7 +4124,7 @@ mod tests {
         assert_eq!(counts, (1, 2));
         assert!(reaches_drawable_threshold(tree.root(), 0, &mut (0, 0)));
         MERGE_APPEND_CALLS.with(|calls| calls.set(0));
-        let scene = try_scene_from_tree(&tree).unwrap();
+        let scene = try_scene_from_tree(&tree, true).unwrap();
         assert!(scene.paths[0].points.len() / 2 >= MERGE_MIN_POINTS);
         MERGE_APPEND_CALLS.with(|calls| assert_eq!(calls.get(), 0));
     }
@@ -4139,7 +4223,7 @@ mod tests {
                 2,
             ),
         ] {
-            let scene = merge_scene(&format!("<defs><linearGradient id='g' gradientUnits='userSpaceOnUse'><stop stop-color='red'/><stop offset='1' stop-color='blue'/></linearGradient><pattern id='p' patternUnits='userSpaceOnUse' width='4' height='4'><rect width='2' height='2'/></pattern></defs><rect width='4' height='4' {paint}/><rect x='12' width='4' height='4' {paint}/>"));
+            let scene = merge_scene(&format!("<defs><linearGradient id='g' gradientUnits='userSpaceOnUse'><stop stop-color='red'/><stop offset='1' stop-color='blue'/></linearGradient><pattern id='p' patternUnits='userSpaceOnUse' width='4' height='4'><rect width='2' height='2'/></pattern></defs><path d='M0 0h4l-4 4Z' {paint}/><path d='M12 0h4l-4 4Z' {paint}/>"));
             assert_eq!(scene.paths.len(), expected, "{paint}");
         }
     }
@@ -5523,10 +5607,18 @@ mod tests {
             .unwrap();
     }
 
+    /// 编码既有回归用例的合并版场景。
     fn wire_bytes(source: &str) -> Vec<u8> {
+        merge_wire_bytes(source, true)
+    }
+
+    /// 用显式合并策略编码场景，供 FFI 逐字节对照。
+    fn merge_wire_bytes(source: &str, allow_path_merge: bool) -> Vec<u8> {
         use crate::frb_generated::SseEncode;
         let mut ser = flutter_rust_bridge::for_generated::SseSerializer::new();
-        parse_svg(source.into(), None).unwrap().sse_encode(&mut ser);
+        super::parse_svg_with_merge_policy(source.into(), None, allow_path_merge)
+            .unwrap()
+            .sse_encode(&mut ser);
         ser.cursor.into_inner()
     }
 
@@ -5808,8 +5900,23 @@ mod tests {
                     std::thread::Builder::new()
                         .stack_size(1 << 20)
                         .spawn(|| {
-                            assert!(parse_svg(rework_nested_groups(127), None).is_ok());
-                            assert!(parse_svg(rework_nested_groups(128), None).is_err());
+                            const RECT: &str = "<rect width='1' height='1'/>";
+                            let qualified = rework_nested_groups(127)
+                                .replace(RECT, &RECT.repeat(MERGE_MIN_PATHS));
+                            for allow in [false, true] {
+                                assert!(super::parse_svg_with_merge_policy(
+                                    qualified.clone(),
+                                    None,
+                                    allow
+                                )
+                                .is_ok());
+                                assert!(super::parse_svg_with_merge_policy(
+                                    rework_nested_groups(128),
+                                    None,
+                                    allow
+                                )
+                                .is_err());
+                            }
                         })
                         .unwrap()
                         .join()
@@ -7286,7 +7393,7 @@ mod final_corpus_audit {
                         }
                     }
                     for cc in [None, Some(0xffff7a00)] {
-                        let (status, bytes) = match parse_svg(source.clone(), cc) {
+                        let (status, bytes) = match parse_svg_with_merge_policy(source.clone(), cc, true) {
                             Ok(scene) => {
                                 let mut ser =
                                     flutter_rust_bridge::for_generated::SseSerializer::new();

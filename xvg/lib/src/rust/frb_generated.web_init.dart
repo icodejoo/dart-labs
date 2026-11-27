@@ -70,7 +70,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => 1773762583;
+  int get rustContentHash => -1086216844;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -88,11 +88,16 @@ abstract class RustLibApi extends BaseApi {
 
   Uint8List? crateApiSvgParseColor({required String s});
 
-  SvgScene crateApiSvgParseSvg({required String data, int? currentColor});
-
-  Future<SvgScene> crateApiSvgParseSvgAsync({
+  Future<SvgScene> crateApiSvgParseSvgAsyncWithMergePolicy({
     required String data,
     int? currentColor,
+    bool allowPathMerge = false,
+  });
+
+  SvgScene crateApiSvgParseSvgWithMergePolicy({
+    required String data,
+    int? currentColor,
+    bool allowPathMerge = false,
   });
 
   Float32List? crateApiSvgParseTransform({required String s});
@@ -175,35 +180,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "parse_color", argNames: ["s"]);
 
   @override
-  SvgScene crateApiSvgParseSvg({required String data, int? currentColor}) {
-    return handler.executeSync(
-      SyncTask(
-        callFfi: () {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(data, serializer);
-          sse_encode_opt_box_autoadd_u_32(currentColor, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 4)!;
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_svg_scene,
-          decodeErrorData: sse_decode_String,
-        ),
-        constMeta: kCrateApiSvgParseSvgConstMeta,
-        argValues: [data, currentColor],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiSvgParseSvgConstMeta => const TaskConstMeta(
-    debugName: "parse_svg",
-    argNames: ["data", "currentColor"],
-  );
-
-  @override
-  Future<SvgScene> crateApiSvgParseSvgAsync({
+  Future<SvgScene> crateApiSvgParseSvgAsyncWithMergePolicy({
     required String data,
     int? currentColor,
+    bool allowPathMerge = false,
   }) {
     return handler.executeNormal(
       NormalTask(
@@ -211,10 +191,11 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_String(data, serializer);
           sse_encode_opt_box_autoadd_u_32(currentColor, serializer);
+          sse_encode_bool(allowPathMerge, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 5,
+            funcId: 4,
             port: port_,
           );
         },
@@ -222,17 +203,51 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: sse_decode_svg_scene,
           decodeErrorData: sse_decode_String,
         ),
-        constMeta: kCrateApiSvgParseSvgAsyncConstMeta,
-        argValues: [data, currentColor],
+        constMeta: kCrateApiSvgParseSvgAsyncWithMergePolicyConstMeta,
+        argValues: [data, currentColor, allowPathMerge],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiSvgParseSvgAsyncConstMeta => const TaskConstMeta(
-    debugName: "parse_svg_async",
-    argNames: ["data", "currentColor"],
-  );
+  TaskConstMeta get kCrateApiSvgParseSvgAsyncWithMergePolicyConstMeta =>
+      const TaskConstMeta(
+        debugName:
+            "parse_svg_async_with_merge_policy(dart_style=parseSvgAsync)",
+        argNames: ["data", "currentColor", "allowPathMerge"],
+      );
+
+  @override
+  SvgScene crateApiSvgParseSvgWithMergePolicy({
+    required String data,
+    int? currentColor,
+    bool allowPathMerge = false,
+  }) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(data, serializer);
+          sse_encode_opt_box_autoadd_u_32(currentColor, serializer);
+          sse_encode_bool(allowPathMerge, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 5)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_svg_scene,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiSvgParseSvgWithMergePolicyConstMeta,
+        argValues: [data, currentColor, allowPathMerge],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSvgParseSvgWithMergePolicyConstMeta =>
+      const TaskConstMeta(
+        debugName: "parse_svg_with_merge_policy(dart_style=parseSvg)",
+        argNames: ["data", "currentColor", "allowPathMerge"],
+      );
 
   @override
   Float32List? crateApiSvgParseTransform({required String s}) {

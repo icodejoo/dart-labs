@@ -38,7 +38,10 @@ class _ParseHandler extends BaseHandler {
   /// 转发同步调用并计数。
   @override
   S executeSync<S, E extends Object, W>(SyncTask<S, E, W> task) {
-    if (task.constMeta.debugName == 'parse_svg') syncCalls++;
+    if (task.constMeta.debugName ==
+        'parse_svg_with_merge_policy(dart_style=parseSvg)') {
+      syncCalls++;
+    }
     return super.executeSync(task);
   }
 
@@ -46,7 +49,8 @@ class _ParseHandler extends BaseHandler {
   @override
   Future<S> executeNormal<S, E extends Object>(NormalTask<S, E> task) {
     final future = super.executeNormal(task);
-    if (task.constMeta.debugName == 'parse_svg_async') {
+    if (task.constMeta.debugName ==
+        'parse_svg_async_with_merge_policy(dart_style=parseSvgAsync)') {
       asyncCalls++;
       lastAsync = future;
     }

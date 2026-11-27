@@ -1,4 +1,5 @@
 pub mod api;
+mod path_merge;
 #[cfg_attr(target_family = "wasm", path = "frb_generated_web.rs")]
 mod frb_generated;
 

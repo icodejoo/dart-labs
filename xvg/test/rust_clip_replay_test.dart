@@ -18,8 +18,11 @@ class _SceneApi implements RustLibApi {
 
   /// 返回测试组装的场景。
   @override
-  SvgScene crateApiSvgParseSvg({required String data, int? currentColor}) =>
-      scene;
+  SvgScene crateApiSvgParseSvgWithMergePolicy({
+    required String data,
+    int? currentColor,
+    bool allowPathMerge = false,
+  }) => scene;
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);

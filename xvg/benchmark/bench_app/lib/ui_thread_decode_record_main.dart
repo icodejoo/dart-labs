@@ -118,7 +118,9 @@ class _MeasuredHandler extends BaseHandler {
   @override
   Future<S> executeNormal<S, E extends Object>(NormalTask<S, E> task) {
     final trace = active;
-    if (trace == null || task.constMeta.debugName != 'parse_svg_async') {
+    if (trace == null ||
+        task.constMeta.debugName !=
+            'parse_svg_async_with_merge_policy(dart_style=parseSvgAsync)') {
       return super.executeNormal(task);
     }
     trace.dispatch = 'worker';
@@ -141,7 +143,9 @@ class _MeasuredHandler extends BaseHandler {
   @override
   S executeSync<S, E extends Object, W>(SyncTask<S, E, W> task) {
     final trace = active;
-    if (trace == null || task.constMeta.debugName != 'parse_svg') {
+    if (trace == null ||
+        task.constMeta.debugName !=
+            'parse_svg_with_merge_policy(dart_style=parseSvg)') {
       return super.executeSync(task);
     }
     trace.dispatch = 'sync';

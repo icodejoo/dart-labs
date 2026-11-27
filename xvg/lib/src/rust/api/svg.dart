@@ -7,10 +7,11 @@ import '../frb_generated.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `append_clip_geometry`, `append_mapped_points`, `append_segments`, `append_subtree_commands`, `argb`, `blend_index`, `build_clips_at_depth`, `build_clips`, `build_gradient`, `build_mask_at_depth`, `build_mask`, `build_pattern`, `charge_clips`, `charge_subtree`, `charge`, `check_xml_depth`, `check`, `checked_styles`, `children_blend`, `close_opacity_layer`, `collect`, `concat`, `convert_gradient_stops`, `convert_image`, `convert_path`, `css_compound_certain`, `css_compound_matches`, `css_declarations_certain`, `css_ident`, `css_parts_match`, `css_selector_parts`, `css_space`, `css_string_end`, `current_color_insertion`, `empty`, `extend_inherited`, `finish_commands`, `finish`, `flutter_blur_bounds`, `gaussian_blur_of`, `include`, `indexed_command`, `limit_scene_reference_depth`, `limit_source_depth`, `local_urls`, `map`, `paint_argb`, `parse_svg_document`, `parse_xml`, `resolve_paint`, `scan_css`, `some_if_present`, `source_reference_graph`, `spread_to_u8`, `stop_rgb`, `stroke_flags`, `stroke_scale`, `token_matrix`, `transform_to_vec6`, `try_scene_from_tree`, `usvg_options`
-// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `ClipCost`, `ExpansionBudget`, `GuardCss`, `Inherited`, `SceneBounds`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`
-// These functions are ignored (category: IgnoreBecauseOwnerTyShouldIgnore): `default`, `default`, `default`, `default`, `default`
+// These functions are ignored because they are not marked as `pub`: `append_clip_geometry`, `append_mapped_points`, `append_segments`, `append_subtree_commands`, `append`, `argb`, `blend_index`, `build_clips_at_depth`, `build_clips`, `build_gradient`, `build_mask_at_depth`, `build_mask`, `build_pattern`, `charge_clips`, `charge_subtree`, `charge`, `check_xml_depth`, `check`, `checked_styles`, `children_blend`, `close_opacity_layer`, `collect_draw_path`, `collect_scene`, `collect`, `concat`, `convert_gradient_stops`, `convert_image`, `convert_path`, `css_compound_certain`, `css_compound_matches`, `css_declarations_certain`, `css_ident`, `css_parts_match`, `css_selector_parts`, `css_space`, `css_string_end`, `current_color_insertion`, `empty`, `extend_inherited`, `extra_stroke_points`, `finish_commands`, `finish`, `flutter_blur_bounds`, `for_tree`, `gaussian_blur_of`, `hull`, `include`, `indexed_command`, `insert_cells`, `is_small_fill_rect`, `limit_scene_reference_depth`, `limit_source_depth`, `local_urls`, `map`, `mapped_points_are_finite`, `merge_cells`, `merge_eligible`, `merge_points`, `new`, `new`, `overlaps`, `paint_argb`, `parse_default_viewport`, `parse_svg_document`, `parse_xml`, `prepare_path_geometry`, `primary`, `qualifies_for_merge`, `reaches_drawable_threshold`, `reset`, `resolve_paint`, `same_merge_paint`, `scan_css`, `some_if_present`, `source_reference_graph`, `spread_to_u8`, `stop_rgb`, `stroke_flags`, `stroke_outset`, `stroke_scale`, `svg_start_tag_insert`, `token_matrix`, `transform_to_vec6`, `try_append`, `try_scene_from_tree`, `union`, `usvg_options`
+// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `ClipCost`, `DrawRun`, `ExpansionBudget`, `GuardCss`, `Inherited`, `MergeBox`, `MergeRunLimits`, `MergeShape`, `PathGeometry`, `SceneBounds`, `SceneMerge`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`
+// These functions are ignored (category: IgnoreBecauseExplicitAttribute): `append`, `end_run`
+// These functions are ignored (category: IgnoreBecauseOwnerTyShouldIgnore): `default`, `default`, `default`, `default`, `default`, `default`
 
 /// Parses [data] (SVG markup) into an [SvgScene]. Errors return a message.
 ///
@@ -31,22 +32,32 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 /// `color` 属性级联解析，缺省时回退黑色），所以设置该参数时会在解析前给根
 /// `<svg>` 元素注入 `color="#RRGGBB"` 属性，借用 usvg 已有的级联机制解析；
 /// 若根节点已显式声明 `color`，则保留不覆盖。
+/// [allow_path_merge] 仅在当前渲染器已通过像素自检时开启合并。
 ///
 /// Example:
 /// ```dart
 /// final scene = parseSvg(data: '<svg .../>', currentColor: 0xFFFF7A00);
 /// ```
-SvgScene parseSvg({required String data, int? currentColor}) => RustLib
-    .instance
-    .api
-    .crateApiSvgParseSvg(data: data, currentColor: currentColor);
+SvgScene parseSvg({
+  required String data,
+  int? currentColor,
+  bool allowPathMerge = false,
+}) => RustLib.instance.api.crateApiSvgParseSvgWithMergePolicy(
+  data: data,
+  currentColor: currentColor,
+  allowPathMerge: allowPathMerge,
+);
 
-/// 在 FRB worker 上解析 SVG，参数、返回值和错误语义与 `parse_svg` 相同。
-Future<SvgScene> parseSvgAsync({required String data, int? currentColor}) =>
-    RustLib.instance.api.crateApiSvgParseSvgAsync(
-      data: data,
-      currentColor: currentColor,
-    );
+/// 在 FRB worker 上解析 SVG，参数、返回值和错误语义与 `parseSvg` 相同。
+Future<SvgScene> parseSvgAsync({
+  required String data,
+  int? currentColor,
+  bool allowPathMerge = false,
+}) => RustLib.instance.api.crateApiSvgParseSvgAsyncWithMergePolicy(
+  data: data,
+  currentColor: currentColor,
+  allowPathMerge: allowPathMerge,
+);
 
 /// Parses any CSS3/SVG colour string (`red`, `cornflowerblue`, `#RGB`,
 /// `#RRGGBB`, `rgb()`, `rgba()`, `hsl()`, ...) into RGBA bytes, or returns

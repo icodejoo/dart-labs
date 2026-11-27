@@ -34,7 +34,8 @@ const _record = 'record_us';
 const _asyncWork = 'ui_work_us';
 const _raster = 'to_raster_us';
 const _placeholders = 'placeholder_frames';
-const _asyncParseName = 'parse_svg_async';
+const _asyncParseName =
+    'parse_svg_async_with_merge_policy(dart_style=parseSvgAsync)';
 
 /// 拼接平铺的 MDI 图形，最后只补齐放不下一整图的尾部空白。
 String makeAsyncThresholdSvg(int sizeKiB, int seed) {
