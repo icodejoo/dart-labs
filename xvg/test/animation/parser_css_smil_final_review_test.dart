@@ -144,7 +144,7 @@ void main() {
       ),
     );
   }
-  for (final raw in ['5 -3', '5% 3', '5px bad', 'NaN 2']) {
+  for (final raw in ['5 -3', '5px bad', 'NaN 2']) {
     test(
       '03 invalid dash is none $raw',
       () => expect(
@@ -251,10 +251,11 @@ void main() {
         'g{fill:#ff0000;transform:rotate(1deg)}g{fill:$value;transform:$value}',
       );
       final c = computeCssStyle(CssRuleIndex(sheet), Element(null), []);
-      expect(
-        c.attributes['fill'],
-        value.startsWith('calc(') ? '#ff0000' : isNull,
-      );
+      expect(c.attributes['fill'], switch (value) {
+        'inherit' => value,
+        _ when value.startsWith('calc(') => '#ff0000',
+        _ => isNull,
+      });
       expect(
         c.properties['transform'],
         value.startsWith('calc(') ? 'rotate(1deg)' : isNull,
@@ -375,9 +376,10 @@ void main() {
     final g = doc(
       '<linearGradient id="g"><stop offset=".8" stop-color="#ff0000"/><stop stop-color="invalid"/><stop offset=".2" stop-color="#0000ff"><animate attributeName="stop-opacity" values="0;1" dur="1s"/></stop></linearGradient>',
     ).gradients['g']!;
-    expect(g.stops.map((s) => s.offset), [.8, .8]);
+    expect(g.stops.map((s) => s.offset), [.8, .8, .8]);
+    expect(g.stops[1].color, const Color(0xff000000));
     expect(g.stops.first.color, const Color(0xffff0000));
-    expect(g.stopNodes, hasLength(2));
+    expect(g.stopNodes, hasLength(3));
     expect(g.stopNodes.last.animations, hasLength(1));
   });
   test('12 use expansion has a global budget and finishes within two seconds', () {

@@ -83,7 +83,7 @@ void main() {
     (
       '<style>#r{fill:inherit;stroke-width:initial}</style>',
       '<rect id="r" fill="#abc"/>',
-      '#abc',
+      'inherit',
     ),
   ];
   for (var i = 0; i < cases.length; i++) {

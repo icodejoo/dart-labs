@@ -311,7 +311,7 @@ const _cssOnly = {
 };
 
 /// 暂不支持的全局值。
-const _globalValues = {'initial', 'unset', 'revert', 'revert-layer', 'inherit'};
+const _globalValues = {'initial', 'unset', 'revert', 'revert-layer'};
 
 /// 不支持的值函数。
 final _unsupportedFunction = RegExp(r'(var|env)\(', caseSensitive: false);
@@ -345,8 +345,9 @@ const _animationPrefix = 'animation-';
 CssComputed computeCssStyle(
   CssRuleIndex index,
   CssElement element,
-  List<CssDeclaration> inline,
-) {
+  List<CssDeclaration> inline, {
+  String? Function(String property, String value)? normalizePresentation,
+}) {
   final declarations = index.cascade(element, inline: inline);
   if (declarations.isEmpty) return CssComputed.empty;
   Map<String, String>? attributes, properties;
@@ -354,12 +355,15 @@ CssComputed computeCssStyle(
   for (final declaration in declarations) {
     final property = declaration.property;
     final value = declaration.value;
+    final inherit = value.toLowerCase() == 'inherit';
     if (_calcFunction.hasMatch(value) || _varWithFallback.hasMatch(value)) {
       continue;
     }
     if (property.startsWith('transition') ||
         property.startsWith('--') ||
         _globalValues.contains(value.toLowerCase()) ||
+        (inherit &&
+            (_cssOnly.contains(property) || property.startsWith(_animation))) ||
         _unsupportedFunction.hasMatch(value)) {
       attributes?.remove(property);
       properties?.remove(property);
@@ -376,8 +380,12 @@ CssComputed computeCssStyle(
     } else if (_cssOnly.contains(property)) {
       (properties ??= {})[property] = value;
     } else {
+      final normalized = normalizePresentation == null
+          ? value
+          : normalizePresentation(property, value);
+      if (normalized == null) continue;
       (attributes ??= {})[property] =
-          _pixels.firstMatch(value)?.group(1) ?? value;
+          _pixels.firstMatch(normalized)?.group(1) ?? normalized;
     }
   }
   if (attributes == null && properties == null && animations == null) {

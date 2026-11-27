@@ -198,10 +198,11 @@ void main() {
         '*{fill:#abc;fill:$value;animation:$value;transform:$value}',
         rect,
       );
-      expect(
-        result.attributes,
-        value.startsWith('calc(') ? {'fill': '#abc'} : isEmpty,
-      );
+      expect(result.attributes, switch (value) {
+        'InHerit' => {'fill': value},
+        _ when value.startsWith('calc(') => {'fill': '#abc'},
+        _ => isEmpty,
+      });
       expect(result.properties, isEmpty);
       expect(result.animations, isEmpty);
     });

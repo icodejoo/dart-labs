@@ -263,7 +263,7 @@ void main() {
       final c = parse(
         anim('0;0.75s;2s', attrs: 'min="1.5s" restart="whenNotActive"'),
       ).single;
-      expect(c.sample(sec(1.25)), 10);
+      expect(c.sample(sec(1.25)), isNull);
       expect(c.sample(sec(2.5)), 5);
     },
   );

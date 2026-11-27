@@ -354,16 +354,25 @@ void main() {
     },
   );
 
-  test('by-only and from/by stay unsupported', () {
-    final document = parsePixelDoc('''
+  test(
+    'by-only contributes a delta and from-by contributes an absolute value',
+    () {
+      final document = parsePixelDoc('''
       <circle r="8">
         <animate attributeName="r" by="2" dur="1s"/>
         <animate attributeName="r" from="1" by="2" dur="1s"/>
         <animateTransform type="translate" by="2 3" dur="1s"/>
       </circle>
     ''');
-    expect(document.timelines, isEmpty);
-  });
+      final node = document.root.children.single;
+      const midpoint = Duration(milliseconds: 500);
+      expect(node.animations.first.additiveBase, 8);
+      expect(node.animations.first.sample(midpoint), 1);
+      expect(node.animations.last.additiveBase, isNull);
+      expect(node.animations.last.sample(midpoint), 2);
+      expect(node.transformAnimations.single.sample(midpoint), [1, 1.5, 0]);
+    },
+  );
 
   for (final freeze in [true, false]) {
     test(

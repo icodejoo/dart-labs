@@ -143,12 +143,11 @@ void main() {
       BoxFit.contain,
       Alignment.center,
     ),
-    // The 24x24 geometry also gives usvg the same missing-size fallback bounds.
-    // 24x24 几何同时为 usvg 提供与 Dart 缺省尺寸一致的边界。
+    // Match the CSS default object size with usvg's geometry bounds. / 让 usvg 的几何边界恰好等于 CSS 默认对象尺寸。
     (
-      'no dimensions',
+      'no dimensions, geometry matches default object size',
       '',
-      '<rect width="24" height="24" fill="#e03010"/>',
+      '<rect width="300" height="150" fill="#e03010"/>',
       _size,
       BoxFit.contain,
       Alignment.center,

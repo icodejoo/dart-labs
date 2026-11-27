@@ -56,7 +56,7 @@ void main() {
   ]) {
     test('invalid viewBox is absent: $value', () {
       final doc = _parse('viewBox="$value"');
-      expect((doc.width, doc.height), (24, 24));
+      expect((doc.width, doc.height), (300, 150));
       expect(doc.rootViewBoxTransform, isNull);
       expect(_parse('$_wide viewBox="$value"').rootViewBoxTransform, isNull);
     });
@@ -67,8 +67,8 @@ void main() {
     ('width=" +2e2px " height="100."', (200.0, 100.0)),
     ('width="200"', (200.0, 100.0)),
     ('height="200px"', (100.0, 200.0)),
-    ('width="50%" height="4em"', (100.0, 100.0)),
-    ('width="1cm" height="2pt"', (100.0, 100.0)),
+    ('width="50%" height="4em"', (100.0, 64.0)),
+    ('width="1cm" height="2pt"', (96 / 2.54, 2 * (96 / 72))),
     ('width="NaN" height="Infinity"', (100.0, 100.0)),
     ('width="1e999px" height="nope"', (100.0, 100.0)),
     ('width="0px" height="0"', (100.0, 100.0)),
@@ -81,7 +81,7 @@ void main() {
 
   test('axis fallback is independent and legacy negative sizes stay empty', () {
     final doc = _parse('width="200px" height="50%"');
-    expect((doc.width, doc.height), (200, 24));
+    expect((doc.width, doc.height), (200, 150));
     expect(_parse('width="-5"').width, -5);
     expect(_parse('').rootViewBoxTransform, isNull);
     expect(_parse(_squareBox).rootViewBoxTransform, isNull);

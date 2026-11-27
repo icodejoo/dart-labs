@@ -39,10 +39,10 @@ import 'css_keyframes_compiler.dart';
 import 'css_stylesheet.dart';
 import 'css_values.dart';
 import 'native_svg_values.dart';
-import 'number_syntax.dart';
 import 'smil_animation.dart';
 import 'svg_dom.dart';
 import 'svg_gradient.dart';
+import 'svg_lengths.dart';
 import 'svg_path_data.dart';
 import 'svg_path_morph.dart';
 import 'svg_style.dart';
@@ -211,16 +211,6 @@ SvgDocument parseAnimatedSvgDocument(String source) {
   final document = XmlDocument.parse(source);
   final svgElement = document.rootElement;
 
-  final viewBox = _parseRootViewBox(svgElement.getAttribute('viewBox'));
-  final width = _rootViewportLength(
-    svgElement.getAttribute('width'),
-    viewBox?[2],
-  );
-  final height = _rootViewportLength(
-    svgElement.getAttribute('height'),
-    viewBox?[3],
-  );
-
   final elementsById = <String, XmlElement>{};
   List<String>? styleBlocks;
   for (final element in document.descendants.whereType<XmlElement>()) {
@@ -247,6 +237,20 @@ SvgDocument parseAnimatedSvgDocument(String source) {
     cssIndex: sheet == null || sheet.rules.isEmpty ? null : CssRuleIndex(sheet),
   );
   final root = _parseElement(svgElement, SvgNodeKind.root, context);
+  final viewBox = root.viewportBox;
+  final fontSize = ResolvedStyle.initial
+      .inherit(root.attributes, const XvgTheme())
+      .fontSize;
+  final width = _rootViewportLength(
+    root.attributes['width'],
+    viewBox?[2] ?? svgDefaultWidth,
+    fontSize,
+  );
+  final height = _rootViewportLength(
+    root.attributes['height'],
+    viewBox?[3] ?? svgDefaultHeight,
+    fontSize,
+  );
   final clipPaths = _parseDefsByTag('clipPath', context);
   final masks = _parseDefsByTag('mask', context);
   final gradients = _parseGradients(context);
@@ -319,11 +323,11 @@ SvgDocument parseAnimatedSvgDocument(String source) {
     cssKeyframes: sheet?.keyframes ?? const {},
     width: width,
     height: height,
-    rootViewBoxTransform: _rootViewBoxTransform(
+    rootViewBoxTransform: svgViewportTransform(
       viewBox,
       width,
       height,
-      svgElement.getAttribute('preserveAspectRatio'),
+      root.attributes['preserveAspectRatio'],
     ),
     totalDuration: maxEnd,
     hasIndefiniteLoop: hasIndefiniteLoop,
@@ -338,71 +342,10 @@ SvgDocument parseAnimatedSvgDocument(String source) {
   );
 }
 
-/// A viewBox requires exactly four comma/whitespace-separated numbers.
-/// viewBox 必须恰好包含四个逗号或空白分隔的数。
-final _rootViewBoxPattern = RegExp(
-  '^\\s*($numberSyntax)'
-  '${List.filled(3, '(?:\\s*,\\s*|\\s+)($numberSyntax)').join()}'
-  r'\s*$',
-);
-
-/// Root lengths accept only unitless numbers and px.
-/// 根长度只接受无单位数字和 px。
-final _rootLengthPattern = RegExp('^($numberSyntax)(?:px)?\$');
-
-/// Reads a finite, positive-size viewBox or treats it as absent.
-/// 读取有限且宽高为正的 viewBox，否则视为缺失。
-List<double>? _parseRootViewBox(String? raw) {
-  final match = _rootViewBoxPattern.firstMatch(raw ?? '');
-  if (match == null) return null;
-  final values = [for (var i = 1; i <= 4; i++) double.parse(match[i]!)];
-  return values.every((value) => value.isFinite) &&
-          values[2] > 0 &&
-          values[3] > 0
-      ? values
-      : null;
-}
-
-/// Resolves one viewport axis, retaining the legacy zero/missing fallback.
-/// 解析视口单轴，保留零值或缺失时回退到 viewBox、再到 24 的旧行为。
-double _rootViewportLength(String? raw, double? fallback) {
-  final match = _rootLengthPattern.firstMatch(raw?.trim() ?? '');
-  final value = match == null ? null : double.tryParse(match[1]!);
-  return value != null && value.isFinite && value != 0 ? value : fallback ?? 24;
-}
-
-/// Valid alignment grammar, with optional SVG 1.1 defer and meet/slice.
-/// 有效对齐语法，兼容 SVG 1.1 的可选 defer 及 meet/slice。
-final _rootAspectRatioPattern = RegExp(
-  r'^(?:defer\s+)?(none|x(Min|Mid|Max)Y(Min|Mid|Max))(?:\s+(meet|slice))?$',
-);
-
-/// Computes SVG 2 §8.2's root transform; identity needs no canvas operation.
-/// 按 SVG 2 §8.2 计算根变换；恒等映射无需额外画布操作。
-List<double>? _rootViewBoxTransform(
-  List<double>? viewBox,
-  double width,
-  double height,
-  String? aspectRatio,
-) {
-  if (viewBox == null) return null;
-  final match = _rootAspectRatioPattern.firstMatch(aspectRatio?.trim() ?? '');
-  var sx = width / viewBox[2];
-  var sy = height / viewBox[3];
-  var ax = .5;
-  var ay = .5;
-  if (match?[1] == 'none') {
-    ax = ay = 0;
-  } else {
-    sx = sy = match?[4] == 'slice' ? math.max(sx, sy) : math.min(sx, sy);
-    const alignmentFactors = {'Min': 0.0, 'Mid': .5, 'Max': 1.0};
-    ax = alignmentFactors[match?[2]] ?? .5;
-    ay = alignmentFactors[match?[3]] ?? .5;
-  }
-  final tx = -viewBox[0] * sx + (width - viewBox[2] * sx) * ax;
-  final ty = -viewBox[1] * sy + (height - viewBox[3] * sy) * ay;
-  if (sx == 1 && sy == 1 && tx == 0 && ty == 0) return null;
-  return List.unmodifiable([sx, 0.0, 0.0, sy, tx, ty]);
+/// Resolves an intrinsic axis with the viewBox or default object size as fallback. / 以 viewBox 或默认对象尺寸补足固有尺寸。
+double _rootViewportLength(String? raw, double fallback, double fontSize) {
+  final value = resolveSvgLength(raw, fontSize: fontSize);
+  return value == null || value == 0 ? fallback : value;
 }
 
 /// Maximum accepted loop period, checked before integer multiplication.
@@ -772,6 +715,67 @@ SmilBeginSpec _parseElementBegin(XmlElement element) => configureSmilBegin(
   max: element.getAttribute('max'),
 );
 
+/// Resolves repeatDur and repeatCount to a common repeat limit. / 将 repeatDur 和 repeatCount 合并为重复上限。
+SmilRepeatCount _repeatLimit(XmlElement element, Duration duration) {
+  final rawCount = element.getAttribute('repeatCount');
+  final count = parseSmilRepeatCount(rawCount);
+  final rawDuration = element.getAttribute('repeatDur')?.trim();
+  if (rawDuration == 'indefinite') {
+    return rawCount == null ? const SmilRepeatCount.indefinite() : count;
+  }
+  final limit = parseSmilDuration(rawDuration);
+  if (limit <= Duration.zero || duration <= Duration.zero) return count;
+  final iterations = limit.inMicroseconds / duration.inMicroseconds;
+  return SmilRepeatCount.finite(
+    rawCount == null || count.indefinite
+        ? iterations
+        : math.min(count.count, iterations),
+  );
+}
+
+/// Matches an empty entry before or between timing values. / 匹配时间列表开头或中间的空项。
+final _emptyTimingEntry = RegExp(r'^\s*;|;\s*;');
+
+/// Validates authored SMIL timing lists before creating a track. / 创建时间线之前校验 SMIL 的时间列表。
+({SmilCalcMode mode, List<double>? times, List<CubicBezier>? splines})?
+_interpolation(
+  XmlElement element,
+  int count, {
+  SmilCalcMode defaultMode = SmilCalcMode.linear,
+}) {
+  final calcMode = element.getAttribute('calcMode');
+  final mode = calcMode == null ? defaultMode : parseSmilCalcMode(calcMode);
+  if (mode == SmilCalcMode.paced) {
+    return (mode: mode, times: null, splines: null);
+  }
+  final raw = element.getAttribute('keyTimes');
+  final times = parseSmilKeyTimes(raw);
+  if (raw != null) {
+    if (_emptyTimingEntry.hasMatch(raw) ||
+        times == null ||
+        times.length != count ||
+        times.first != 0 ||
+        (mode != SmilCalcMode.discrete && times.last != 1)) {
+      return null;
+    }
+    for (var i = 1; i < times.length; i++) {
+      if (times[i] < times[i - 1] || times[i] > 1) return null;
+    }
+  }
+  final rawSplines = element.getAttribute('keySplines');
+  final splines =
+      mode == SmilCalcMode.spline &&
+          rawSplines != null &&
+          !_emptyTimingEntry.hasMatch(rawSplines)
+      ? parseSmilKeySplines(rawSplines)
+      : null;
+  if (mode == SmilCalcMode.spline &&
+      (splines == null || splines.length != count - 1)) {
+    return null;
+  }
+  return (mode: mode, times: times, splines: splines);
+}
+
 /// Parses an `<animate attributeName="stop-color">` timeline: each keyframe
 /// token is a colour (any form `_normalizeColorAttributes` accepts) resolved
 /// to hex once, here, then packed into [SmilColorAnimation]'s `0xAARRGGBB`
@@ -814,6 +818,8 @@ SmilColorAnimation? _parseAnimateColor(
     packed.add(color.toARGB32());
   }
 
+  final interpolation = _interpolation(element, packed.length);
+  if (interpolation == null) return null;
   final beginSpec = _parseElementBegin(element);
   return SmilColorAnimation(
     values: packed,
@@ -823,10 +829,10 @@ SmilColorAnimation? _parseAnimateColor(
     beginSpec: beginSpec,
     begin: beginSpec.offset, // provisional, see _parseAnimate
     fillFreeze: element.getAttribute('fill') == 'freeze',
-    repeatCount: parseSmilRepeatCount(element.getAttribute('repeatCount')),
-    calcMode: parseSmilCalcMode(element.getAttribute('calcMode')),
-    keyTimes: parseSmilKeyTimes(element.getAttribute('keyTimes')),
-    keySplines: parseSmilKeySplines(element.getAttribute('keySplines')),
+    repeatCount: _repeatLimit(element, duration),
+    calcMode: interpolation.mode,
+    keyTimes: interpolation.times,
+    keySplines: interpolation.splines,
   );
 }
 
@@ -901,6 +907,10 @@ Future<ui.Image?> _decodeDataUriImage(String? href) async {
 
 const _tagToKind = {
   'g': SvgNodeKind.group,
+  'a': SvgNodeKind.group,
+  'switch': SvgNodeKind.group,
+  _svgTag: SvgNodeKind.group,
+  _tspanTag: SvgNodeKind.text,
   'path': SvgNodeKind.path,
   'circle': SvgNodeKind.circle,
   'rect': SvgNodeKind.rect,
@@ -996,14 +1006,25 @@ class _ParseContext {
   bool sawOffscreenLayer = false;
 }
 
+/// Parses a renderable element and its timelines. / 解析可绘制元素及其时间线。
 SvgNode _parseElement(
   XmlElement element,
   SvgNodeKind kind,
-  _ParseContext context,
-) {
+  _ParseContext context, {
+  Map<String, String>? useViewport,
+}) {
   if (context.useDepth > 0) context.instantiatedNodes++;
   final attributes = _attributesOf(element);
   final css = _cascadeAttributes(element, context, attributes);
+  final tag = element.name.local;
+  final establishesViewport =
+      kind != SvgNodeKind.root && (tag == _svgTag || tag == _symbolTag);
+  if (establishesViewport && useViewport != null) {
+    for (final axis in const ['width', 'height']) {
+      final override = useViewport[axis];
+      if (override != null && override != 'auto') attributes[axis] = override;
+    }
+  }
   _normalizeColorAttributes(attributes);
   context.smilBaseStack.add(attributes);
 
@@ -1024,8 +1045,31 @@ SvgNode _parseElement(
   final colorAnimations = <SmilColorAnimation>[];
   final listAnimations = <SmilListAnimation>[];
   final children = <SvgNode>[];
-  for (final child in element.childElements) {
+  final hasSpans = kind == SvgNodeKind.text && _hasTextSpans(element);
+  var selectedBranch = false;
+  for (final content in element.children) {
+    if (content is! XmlElement) {
+      if (hasSpans && (content is XmlText || content is XmlCDATA)) {
+        children.add(
+          SvgNode(
+            kind: SvgNodeKind.text,
+            attributes: const {},
+            textContent: _collapseText(content.value ?? ''),
+          ),
+        );
+        if (context.useDepth > 0) context.instantiatedExtraUnits++;
+      }
+      continue;
+    }
+    final child = content;
     final localName = child.name.local;
+    final renderable =
+        localName == _useTag || _tagToKind.containsKey(localName);
+    if (renderable &&
+        (selectedBranch || !_matchesConditionalProcessing(child))) {
+      continue;
+    }
+    if (renderable && tag == 'switch') selectedBranch = true;
     if (context.useDepth > 0 &&
         localName != _useTag &&
         !_tagToKind.containsKey(localName)) {
@@ -1033,13 +1077,21 @@ SvgNode _parseElement(
     }
     if (localName == 'animate' || localName == 'set') {
       final isSet = localName == 'set';
-      final isPath = child.getAttribute('attributeName') == _pathAttribute;
+      final attribute = child.getAttribute('attributeName');
+      final isPath = attribute == _pathAttribute;
       if (!isSet &&
           _colorAttributes.contains(child.getAttribute('attributeName'))) {
         final anim = _parseAnimateColor(child, context);
         if (anim != null) {
           colorAnimations.add(anim);
           context.animations.add(anim);
+        }
+      } else if (!isSet &&
+          (attribute == _pointsAttribute || attribute == _dasharrayAttribute)) {
+        final animation = _parseAnimateList(child, attribute!, attributes);
+        if (animation != null) {
+          listAnimations.add(animation);
+          context.animations.add(animation);
         }
       } else if (isPath) {
         final anim = isSet ? _parseSetPath(child) : _parseAnimatePath(child);
@@ -1129,12 +1181,53 @@ SvgNode _parseElement(
     clipPathId: parseUrlId(attributes['clip-path']),
     maskId: maskId,
     blurSigma: blurSigma,
-    // Only <text> ever gets a non-null [XmlNode.innerText] read here — no
-    // <tspan> support, so the whole subtree's text is taken flat.
-    // 只有 <text> 才会读取 [XmlNode.innerText]——不支持 <tspan>，直接取整个
-    // 子树的纯文本。
-    textContent: kind == SvgNodeKind.text ? element.innerText.trim() : null,
+    isViewport: establishesViewport,
+    viewportBox: establishesViewport || kind == SvgNodeKind.root
+        ? parseSvgViewBox(attributes['viewBox'])
+        : null,
+    textContent: kind != SvgNodeKind.text || hasSpans
+        ? null
+        : tag == _tspanTag
+        ? _collapseText(element.innerText)
+        : _collapseText(element.innerText).trim(),
   );
+}
+
+/// The inline text span tag. / 行内文本分段标签。
+const _tspanTag = 'tspan';
+
+/// Checks whether this text element needs multiple styled runs. / 判断文字元素是否需要多个带样式的分段。
+bool _hasTextSpans(XmlElement element) =>
+    element.childElements.any((child) => child.name.local == _tspanTag);
+
+/// XML whitespace collapsed by default SVG text layout. / SVG 默认文本布局折叠的 XML 空白。
+final _textWhitespace = RegExp(r'[\t\n\r ]+');
+
+/// Collapses whitespace within a text run. / 折叠文本段内部的空白。
+String _collapseText(String value) => value.replaceAll(_textWhitespace, ' ');
+
+/// SVG image conditional extension supported by Edge. / Edge 在 SVG 图片中支持的条件扩展。
+const _xhtmlExtension = 'http://www.w3.org/1999/xhtml';
+
+/// Evaluates the SVG image conditional processing attributes. / 求值 SVG 图片的条件处理属性。
+bool _matchesConditionalProcessing(XmlElement element) {
+  final extensions = element.getAttribute('requiredExtensions');
+  if (extensions != null && extensions.trim() != _xhtmlExtension) return false;
+  final raw = element.getAttribute('systemLanguage');
+  if (raw == null) return true;
+  final locales = ui.PlatformDispatcher.instance.locales;
+  final languages = locales.isEmpty
+      ? const ['en']
+      : locales.map((locale) => locale.toLanguageTag().toLowerCase());
+  return raw
+      .toLowerCase()
+      .split(',')
+      .map((value) => value.trim())
+      .any(
+        (value) => languages.any(
+          (language) => language == value || language.startsWith('$value-'),
+        ),
+      );
 }
 
 final _cssBlurPattern = RegExp(r'^blur\(\s*([\d.]+)(px)?\s*\)$');
@@ -1340,6 +1433,18 @@ SmilMotionAnimation? _parseAnimateMotion(
   );
   if (samples == null) return null;
 
+  final rawPoints = element.getAttribute('keyPoints');
+  final points = _parseKeyPoints(rawPoints);
+  if (rawPoints != null &&
+      (points == null || points.any((point) => point < 0 || point > 1))) {
+    return null;
+  }
+  final interpolation = _interpolation(
+    element,
+    points?.length ?? 2,
+    defaultMode: points == null ? SmilCalcMode.paced : SmilCalcMode.linear,
+  );
+  if (interpolation == null) return null;
   final beginSpec = _parseElementBegin(element);
   return SmilMotionAnimation(
     samples: samples,
@@ -1348,11 +1453,11 @@ SmilMotionAnimation? _parseAnimateMotion(
     beginSpec: beginSpec,
     begin: beginSpec.offset, // provisional, see _parseAnimate
     fillFreeze: element.getAttribute('fill') == 'freeze',
-    repeatCount: parseSmilRepeatCount(element.getAttribute('repeatCount')),
-    keyPoints: _parseKeyPoints(element.getAttribute('keyPoints')),
-    keyTimes: parseSmilKeyTimes(element.getAttribute('keyTimes')),
-    keySplines: parseSmilKeySplines(element.getAttribute('keySplines')),
-    calcMode: parseSmilCalcMode(element.getAttribute('calcMode')),
+    repeatCount: _repeatLimit(element, duration),
+    keyPoints: points,
+    keyTimes: interpolation.times,
+    keySplines: interpolation.splines,
+    calcMode: interpolation.mode,
   );
 }
 
@@ -1440,37 +1545,59 @@ List<SmilMotionSample>? _sampleMotionPath(
 /// 逐帧样式解析器（`svg_style.dart`）唯一需要认识的形式。
 const _colorAttributes = ['fill', 'stroke', 'stop-color', 'color'];
 
-/// Rewrites [attributes]' colour values in place: anything that isn't already
-/// hex, `none`, `currentColor`, `inherit` or a `url(...)` paint reference is
-/// handed to the Rust colour parser once and replaced with its hex form.
-///
-/// A value the Rust parser rejects (or that can't be resolved because the
-/// native library isn't loaded) is left untouched, so it degrades exactly as
-/// it did before this normalization existed.
-///
-/// 原地重写 [attributes] 中的颜色取值：凡是不属于十六进制、`none`、
-/// `currentColor`、`inherit`、`url(...)` 涂料引用的值，都交给 Rust 颜色解析器
-/// 解析一次，并替换为其十六进制形式。
-///
-/// Rust 解析器拒绝的值（或因原生库未加载而无法解析的值）保持原样，行为与本
-/// 归一化不存在时完全一致。
+/// Normalizes presentation paint before frame sampling. / 在逐帧采样前归一化表现属性中的涂料。
 void _normalizeColorAttributes(Map<String, String> attributes) {
   for (final key in _colorAttributes) {
     final raw = attributes[key];
     if (raw == null) continue;
-    final value = raw.trim();
-    final keyword = value.toLowerCase();
-    if (value.isEmpty ||
-        value.startsWith('#') ||
-        value.startsWith('url(') ||
-        keyword == 'none' ||
-        keyword == 'currentcolor' ||
-        keyword == 'inherit') {
-      continue;
+    final value = _normalizePaintDeclaration(key, raw);
+    if (value == null) {
+      attributes.remove(key);
+    } else {
+      attributes[key] = value;
     }
-    final hex = resolveColorToHex(value);
-    if (hex != null) attributes[key] = hex;
   }
+}
+
+/// Parses and validates a paint declaration with its optional fallback. / 验证涂料声明及其可选回退色。
+String? _normalizePaintDeclaration(String property, String raw) {
+  if (!_colorAttributes.contains(property)) return raw;
+  final value = raw.trim();
+  final paint = property == _smilFill || property == _smilStroke;
+  final reference = paint ? svgPaintReference(value) : null;
+  if (reference == null) {
+    return _normalizePaintColor(value, allowNone: paint, allowInherit: true);
+  }
+  if (reference.fallback.isEmpty) return reference.url;
+  final fallback = _normalizePaintColor(
+    reference.fallback,
+    allowNone: true,
+    allowInherit: false,
+  );
+  return fallback == null ? null : '${reference.url} $fallback';
+}
+
+/// Normalizes a color token to a keyword or hex. / 将颜色词元归一化成关键字或十六进制色。
+String? _normalizePaintColor(
+  String value, {
+  required bool allowNone,
+  required bool allowInherit,
+}) {
+  final keyword = value.toLowerCase();
+  if (keyword == 'currentcolor' ||
+      (allowInherit && keyword == 'inherit') ||
+      (allowNone && keyword == 'none')) {
+    return value;
+  }
+  if (value.startsWith('#')) {
+    return parseSvgHexColor(value) == null ? null : value;
+  }
+  final argb = parseCssColor(value);
+  if (argb != null) {
+    final rgba = ((argb & 0xffffff) << 8) | (argb >>> 24);
+    return '#${rgba.toRadixString(16).padLeft(8, '0')}';
+  }
+  return resolveColorToHex(value);
 }
 
 /// Attributes that belong to the `<use>` element's own placement, not to the
@@ -1496,7 +1623,7 @@ const _svgTag = 'svg';
 /// SVG `<use>` 元素的标签名。 / Tag name of the SVG `<use>` element.
 const _useTag = 'use';
 
-/// 预估与实际展开共享目标标签规则；symbol/svg 暂按普通分组处理。
+/// Shares target tag rules between budgeting and expansion. / 预估与实际展开共享目标标签规则。
 SvgNodeKind? _useTargetKind(XmlElement target) {
   final tag = target.name.local;
   return tag == _symbolTag || tag == _svgTag || tag == _useTag
@@ -1559,6 +1686,13 @@ int _estimateElementNodes(
     return _estimateUseNodes(element, context, depth, resolving, limit);
   }
   var count = 1;
+  if (_tagToKind[element.name.local] == SvgNodeKind.text &&
+      _hasTextSpans(element)) {
+    for (final child in element.children) {
+      if (child is XmlText || child is XmlCDATA) count++;
+      if (count > limit) return count;
+    }
+  }
   if (count > limit) return count;
   final id = _attributesOf(element)['id'];
   final marked = id != null && resolving.add(id);
@@ -1650,13 +1784,13 @@ SvgNode? _resolveUse(XmlElement useElement, _ParseContext context) {
 
   final target = context.elementsById[id];
   if (target == null) return null; // dangling reference: render nothing
-  // <symbol>/<svg> targets are treated as plain groups: their own
-  // width/height/viewBox scaling is NOT applied (documented simplification).
-  //
-  // <symbol>/<svg> 目标按普通分组处理：不应用其自身的
-  // width/height/viewBox 缩放（明确记录的简化）。
   final targetKind = _useTargetKind(target);
-  if (targetKind == null) return null;
+  if (targetKind == null || !_matchesConditionalProcessing(target)) return null;
+  final targetTag = target.name.local;
+  final dynamicPlacement = ['x', 'y'].any((axis) {
+    final value = attributes[axis];
+    return value != null && double.tryParse(value) == null;
+  });
 
   // 包装分组与被引用目标都计入预算。
   // Reserve the <use> wrapper as well as its target.
@@ -1667,24 +1801,37 @@ SvgNode? _resolveUse(XmlElement useElement, _ParseContext context) {
   context.smilBaseStack.add(attributes);
   final instance = target.name.local == _useTag
       ? _resolveUse(target, context)
-      : _parseElement(target, targetKind, context);
+      : _parseElement(
+          target,
+          targetKind,
+          context,
+          useViewport: targetTag == _svgTag || targetTag == _symbolTag
+              ? attributes
+              : null,
+        );
   if (instance == null) context.instantiatedExtraUnits++;
   context.smilBaseStack.removeLast();
   context.useDepth--;
   context.resolvingUseTargets.remove(id);
 
-  _normalizeColorAttributes(attributes);
+  final rawTransform = attributes['transform'];
   return SvgNode(
     kind: SvgNodeKind.group,
     attributes: {
       for (final entry in attributes.entries)
-        if (!_usePlacementAttributes.contains(entry.key))
+        if (!_usePlacementAttributes.contains(entry.key) ||
+            (dynamicPlacement && (entry.key == 'x' || entry.key == 'y')))
           entry.key: entry.value,
     },
     children: [?instance],
     cssAnimations: css.animations,
     cssProperties: css.properties,
-    transform: _usePlacementTransform(attributes),
+    transform: dynamicPlacement
+        ? (rawTransform == null ? null : parseTransformMatrix(rawTransform))
+        : _usePlacementTransform(attributes),
+    dynamicUsePlacement: dynamicPlacement,
+    clipPathId: parseUrlId(attributes['clip-path']),
+    maskId: parseUrlId(attributes['mask']),
   );
 }
 
@@ -1842,6 +1989,16 @@ String? _smilUnderlyingValue(
 
 /// Parses numeric timelines; invalid duration/keyframes are ignored.
 /// 解析数值动画；缺少正时长或有效关键帧时忽略。
+/// Tests whether from-by or a declared sum adds to an underlying value. / 判断动画是否叠加在底值上。
+bool _isAdditive(XmlElement element) {
+  if (_isToAnimation(element)) return false;
+  return element.getAttribute('additive') == 'sum' ||
+      (element.getAttribute('by') != null &&
+          element.getAttribute('from') == null &&
+          element.getAttribute('to') == null &&
+          element.getAttribute('values') == null);
+}
+
 SmilAnimation? _parseAnimate(
   XmlElement element,
   _ParseContext context, {
@@ -1856,6 +2013,7 @@ SmilAnimation? _parseAnimate(
     values: element.getAttribute('values'),
     from: element.getAttribute('from'),
     to: element.getAttribute('to'),
+    by: element.getAttribute('by'),
     underlying: _isToAnimation(element)
         ? _smilUnderlyingValue(
             element,
@@ -1866,10 +2024,25 @@ SmilAnimation? _parseAnimate(
   );
   if (values == null) return null;
 
+  final interpolation = _interpolation(element, values.length);
+  if (interpolation == null) return null;
   final beginSpec = _parseElementBegin(element);
   return SmilAnimation(
     attributeName: attributeName,
     values: values,
+    additiveBase: _isAdditive(element)
+        ? double.tryParse(
+                _smilUnderlyingValue(
+                      element,
+                      context,
+                      underlyingAttributes: underlyingAttributes,
+                    ) ??
+                    '',
+              ) ??
+              0
+        : null,
+    accumulate:
+        !_isToAnimation(element) && element.getAttribute('accumulate') == 'sum',
     duration: duration,
     elementId: element.getAttribute('id'),
     beginSpec: beginSpec,
@@ -1877,10 +2050,104 @@ SmilAnimation? _parseAnimate(
     // 暂定值：同步基准引用会被 resolveSmilBeginTimes 覆盖。
     begin: beginSpec.offset,
     fillFreeze: element.getAttribute('fill') == 'freeze',
-    repeatCount: parseSmilRepeatCount(element.getAttribute('repeatCount')),
-    calcMode: parseSmilCalcMode(element.getAttribute('calcMode')),
-    keyTimes: parseSmilKeyTimes(element.getAttribute('keyTimes')),
-    keySplines: parseSmilKeySplines(element.getAttribute('keySplines')),
+    repeatCount: _repeatLimit(element, duration),
+    calcMode: interpolation.mode,
+    keyTimes: interpolation.times,
+    keySplines: interpolation.splines,
+  );
+}
+
+/// SMIL list targets backed by geometry or style. / 由几何或样式消费的 SMIL 列表目标。
+const _pointsAttribute = 'points', _dasharrayAttribute = 'stroke-dasharray';
+
+/// Separators allowed between list components. / 列表分量间允许的分隔符。
+final _listSeparator = RegExp(r'[\s,]+');
+
+/// Parses a list track, using discrete transitions between incompatible lists. / 解析列表时间线，不兼容列表之间用离散过渡。
+SmilListAnimation? _parseAnimateList(
+  XmlElement element,
+  String attribute,
+  Map<String, String> underlying,
+) {
+  final duration = parseSmilDuration(element.getAttribute('dur'));
+  if (duration <= Duration.zero) return null;
+  final to = element.getAttribute('to');
+  final from = element.getAttribute('from') ?? underlying[attribute];
+  final raw =
+      element.getAttribute('values') ??
+      (to != null && from != null ? '$from;$to' : null);
+  if (raw == null) return null;
+  final sourceFrames = raw.split(';').map((frame) => frame.trim()).toList();
+  if (sourceFrames.length < 2) return null;
+  final points = attribute == _pointsAttribute;
+  final frames = <List<double>>[];
+  final units = <List<String>>[];
+  for (final frame in sourceFrames) {
+    if (!points && frame == 'none') {
+      frames.add(const []);
+      units.add(const []);
+      continue;
+    }
+    final numbers = <double>[];
+    final suffixes = <String>[];
+    for (final token in frame.split(_listSeparator)) {
+      final lower = token.toLowerCase();
+      final suffix = points
+          ? ''
+          : lower.endsWith('%')
+          ? '%'
+          : lower.endsWith('em') || lower.endsWith('ex')
+          ? lower.substring(lower.length - 2)
+          : '';
+      final number = points
+          ? double.tryParse(token)
+          : suffix.isEmpty
+          ? resolveSvgLength(token)
+          : double.tryParse(token.substring(0, token.length - suffix.length));
+      if (number == null || !number.isFinite || (!points && number < 0)) {
+        return null;
+      }
+      numbers.add(number);
+      suffixes.add(suffix);
+    }
+    if (points && (numbers.length < 2 || numbers.length.isOdd)) return null;
+    frames.add(numbers);
+    units.add(suffixes);
+  }
+  final width = frames.first.length;
+  final sameWidth = frames.every((frame) => frame.length == width);
+  var sameUnits = true;
+  if (sameWidth) {
+    for (final frameUnits in units.skip(1)) {
+      for (var i = 0; i < width; i++) {
+        if (frameUnits[i] != units.first[i]) sameUnits = false;
+      }
+    }
+  }
+  final compatible = width > 0 && sameWidth && sameUnits;
+  final interpolation = _interpolation(element, frames.length);
+  if (interpolation == null) return null;
+  final beginSpec = _parseElementBegin(element);
+  return SmilListAnimation(
+    attributeName: attribute,
+    values: compatible
+        ? frames
+        : [
+            for (var i = 0; i < frames.length; i++) [i.toDouble()],
+          ],
+    unitSuffixes: compatible && units.first.any((suffix) => suffix.isNotEmpty)
+        ? units.first
+        : null,
+    serializedFrames: compatible ? null : sourceFrames,
+    duration: duration,
+    begin: beginSpec.offset,
+    beginSpec: beginSpec,
+    elementId: element.getAttribute('id'),
+    fillFreeze: element.getAttribute('fill') == 'freeze',
+    repeatCount: _repeatLimit(element, duration),
+    calcMode: interpolation.mode,
+    keyTimes: interpolation.times,
+    keySplines: interpolation.splines,
   );
 }
 
@@ -1900,6 +2167,8 @@ SmilPathAnimation? _parseAnimatePath(XmlElement element) {
     underlying: (element.parent as XmlElement?)?.getAttribute(_pathAttribute),
   );
   if (frames == null) return null;
+  final interpolation = _interpolation(element, frames.length);
+  if (interpolation == null) return null;
   final beginSpec = _parseElementBegin(element);
   return SmilPathAnimation(
     frames: frames,
@@ -1909,10 +2178,10 @@ SmilPathAnimation? _parseAnimatePath(XmlElement element) {
     beginSpec: beginSpec,
     begin: beginSpec.offset,
     fillFreeze: element.getAttribute('fill') == 'freeze',
-    repeatCount: parseSmilRepeatCount(element.getAttribute('repeatCount')),
-    calcMode: parseSmilCalcMode(element.getAttribute('calcMode')),
-    keyTimes: parseSmilKeyTimes(element.getAttribute('keyTimes')),
-    keySplines: parseSmilKeySplines(element.getAttribute('keySplines')),
+    repeatCount: _repeatLimit(element, duration),
+    calcMode: interpolation.mode,
+    keyTimes: interpolation.times,
+    keySplines: interpolation.splines,
   );
 }
 
@@ -1962,7 +2231,7 @@ SmilAnimation? _parseSetNumeric(XmlElement element) {
 SmilRepeatCount _setRepeatCount(XmlElement element, Duration duration) =>
     duration <= Duration.zero
     ? SmilRepeatCount.once
-    : parseSmilRepeatCount(element.getAttribute('repeatCount'));
+    : _repeatLimit(element, duration);
 
 const _transformTypes = {
   'translate': SmilTransformType.translate,
@@ -1989,25 +2258,42 @@ SmilTransformAnimation? _parseAnimateTransform(XmlElement element) {
             ? (type == SmilTransformType.scale ? '1 1' : '0')
             : null),
     to: element.getAttribute('to'),
+    by: element.getAttribute('by'),
   );
   if (rawFrames == null) return null;
 
+  final interpolation = _interpolation(element, rawFrames.length);
+  if (interpolation == null) return null;
+  final frames = [
+    for (final frame in rawFrames) _normalizeTransformComponents(type, frame),
+  ];
+  if (element.getAttribute('values') == null &&
+      element.getAttribute('to') == null &&
+      element.getAttribute('by') != null) {
+    if (element.getAttribute('from') == null) {
+      frames[0] = List.filled(frames[1].length, 0);
+    }
+    frames[1] = [
+      for (var i = 0; i < frames[1].length; i++) frames[0][i] + frames[1][i],
+    ];
+  }
   final beginSpec = _parseElementBegin(element);
   return SmilTransformAnimation(
     type: type,
-    values: [
-      for (final frame in rawFrames) _normalizeTransformComponents(type, frame),
-    ],
+    values: frames,
+    replacesTransformStack: !_isAdditive(element),
+    accumulate:
+        !_isToAnimation(element) && element.getAttribute('accumulate') == 'sum',
     duration: duration,
     elementId: element.getAttribute('id'),
     beginSpec: beginSpec,
     begin: beginSpec.offset, // provisional, see _parseAnimate
 
     fillFreeze: element.getAttribute('fill') == 'freeze',
-    repeatCount: parseSmilRepeatCount(element.getAttribute('repeatCount')),
-    calcMode: parseSmilCalcMode(element.getAttribute('calcMode')),
-    keyTimes: parseSmilKeyTimes(element.getAttribute('keyTimes')),
-    keySplines: parseSmilKeySplines(element.getAttribute('keySplines')),
+    repeatCount: _repeatLimit(element, duration),
+    calcMode: interpolation.mode,
+    keyTimes: interpolation.times,
+    keySplines: interpolation.splines,
   );
 }
 
@@ -2104,6 +2390,7 @@ CssComputed _applyElementCss(
     index ?? _inlineCssIndex,
     context.cssElement(element),
     inline,
+    normalizePresentation: _normalizePaintDeclaration,
   );
   if (css.attributes.isNotEmpty) attributes.addAll(css.attributes);
   return css;

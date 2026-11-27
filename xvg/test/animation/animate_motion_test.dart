@@ -221,9 +221,7 @@ void main() {
         '<animateMotion path="M0 0 L100 0" keyPoints="1" dur="1s" fill="freeze"/>'
         '</circle>',
       );
-      final motion = document.root.children.single.motionAnimations.single;
-
-      expect(motion.keyPoints, isNull);
+      expect(document.root.children.single.motionAnimations, isEmpty);
     });
 
     test(

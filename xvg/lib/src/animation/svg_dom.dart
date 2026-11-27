@@ -105,13 +105,7 @@ enum SvgNodeKind {
   /// `svg_document_parser.dart` 的 `resolveImageNodes`）。
   image,
 
-  /// `<text>` with its plain text content, `x`/`y`, and basic font attributes
-  /// (`font-size`/`font-family`/`text-anchor`). No `<tspan>`, no textPath, and
-  /// the text content itself cannot be animated (documented scope limit).
-  ///
-  /// `<text>`，含其纯文本内容、`x`/`y`，及基础字体属性
-  /// （`font-size`/`font-family`/`text-anchor`）。不支持 `<tspan>`、textPath，
-  /// 也不支持对文本内容本身做动画（明确的范围限制）。
+  /// A text container or inline span. / 文字容器或行内文字分段。
   text,
 }
 
@@ -144,6 +138,9 @@ class SvgNode {
     this.clipPathId,
     this.maskId,
     this.textContent,
+    this.viewportBox,
+    this.isViewport = false,
+    this.dynamicUsePlacement = false,
     this.blurSigma,
   });
 
@@ -184,7 +181,7 @@ class SvgNode {
   /// `resampleGradientAtTime` 消费且只认 `stop-color`。
   final List<SmilColorAnimation> colorAnimations;
 
-  /// 直接挂载在本节点上的列表值时间线（目前是 `stroke-dasharray`），与
+  /// 直接挂载在本节点上的列表值时间线（`points` 或 `stroke-dasharray`），与
   /// [animations] 分开存放，因为每帧产出的是一组数而不是单个数。
   /// `_effectiveAttributes` 每帧把采样结果以空格连接后覆盖进属性表。
   final List<SmilListAnimation> listAnimations;
@@ -207,12 +204,26 @@ class SvgNode {
   /// [clipPathId] 相同，只是查表对象是 `SvgDocument.masks`。
   final String? maskId;
 
-  /// Plain text content for a [SvgNodeKind.text] node (no `<tspan>` support);
-  /// always null for every other kind.
-  ///
-  /// [SvgNodeKind.text] 节点的纯文本内容（不支持 `<tspan>`）；其它种类始终为
-  /// null。
+  /// Content of a text run. / 单段文字的内容。
   final String? textContent;
+
+  /// User-space box of an SVG viewport. / SVG 视口的用户坐标盒。
+  final List<double>? viewportBox;
+
+  /// Whether this group establishes a nested viewport. / 此分组是否建立嵌套视口。
+  final bool isViewport;
+
+  /// Whether use placement depends on viewport or font units. / use 的位置是否依赖视口或字体单位。
+  final bool dynamicUsePlacement;
+
+  /// Viewport key for geometry resolution. / 几何解析所用的视口键。
+  (double, double, double)? geometryLengthKey;
+
+  /// Viewport size for cached presentation attributes. / 表现属性缓存所用的视口尺寸。
+  ui.Size? styleViewportKey;
+
+  /// Bounds used by viewport-dependent mask clip caches. / 遮罩裁剪缓存所用视口尺寸。
+  ui.Size? maskClipViewportKey;
 
   /// `<animateMotion>` timelines attached directly to this node.
   ///
@@ -230,16 +241,7 @@ class SvgNode {
   /// Rust `parse_transform`, see `native_svg_values.dart`). Null when the
   /// element has no `transform`, or it failed to parse.
   ///
-  /// Applied around this node's own paint (and its subtree, for groups),
-  /// *outside* any [transformAnimations] — matching SVG, where an
-  /// `<animateTransform>` composes on top of the element's static transform.
-  ///
-  /// 元素的静态 `transform="..."` 属性，已在文档解析阶段合成为单个仿射矩阵
-  /// `[a, b, c, d, e, f]`（经 Rust 的 `parse_transform`，见
-  /// `native_svg_values.dart`）。元素无 `transform` 或解析失败时为 null。
-  ///
-  /// 应用在本节点自身绘制（分组则含其子树）外围，且在 [transformAnimations]
-  /// *之外*——与 SVG 一致：`<animateTransform>` 叠加在元素静态变换之上。
+  /// Supplies the base transform for its own paint and descendants. / 提供本节点及其子树的底层变换。
   final List<double>? transform;
 
   /// The node's tag kind. / 节点的标签种类。
@@ -258,15 +260,21 @@ class SvgNode {
   /// `width`/`height`/`viewBox` 等几何属性）。
   final Map<String, String> attributes;
 
-  /// Child nodes (only [SvgNodeKind.root]/[SvgNodeKind.group] have any).
-  ///
-  /// 子节点（只有 [SvgNodeKind.root]/[SvgNodeKind.group] 才有）。
+  /// Child geometry, groups or text runs. / 子几何、分组或文字段。
   final List<SvgNode> children;
 
   /// `<animate>` timelines attached directly to this node.
   ///
   /// 直接挂载在本节点上的 `<animate>` 时间线。
   final List<SmilAnimation> animations;
+
+  /// Whether the sampled attributes depend on a numeric underlying value. / 采样属性是否依赖数值底值。
+  late final bool hasAdditiveNumericAnimation = animations.any(
+    (a) => a.additiveBase != null,
+  );
+
+  /// Percentage basis of cached additive attributes. / 已缓存可加属性的百分比基准。
+  ui.Size? additiveViewportKey;
 
   /// 直接挂载在本节点上、作用于 `d` 的路径时间线（`<animate attributeName="d">`
   /// 与 `<set attributeName="d">`）。与 [animations] 分开存放，因为它的采样值是
@@ -286,11 +294,15 @@ class SvgNode {
   ///
   /// 直接挂载在本节点上的 `<animateTransform>` 时间线。
   ///
-  /// 按文档顺序应用在本节点自身绘制（分组则含其子树）外围——见
-  /// `animated_svg_painter.dart`。
+  /// 采样后依据替换或叠加规则绘制本节点与子树。
   final List<SmilTransformAnimation> transformAnimations;
 
   /// 是否含替换静态 transform 的槽位；构造后槽位固定，首次使用时计算并缓存。
+  /// Whether an authored SMIL track can replace the transform stack. / 是否有 SMIL 轨道能替换变换栈。
+  late final bool hasSmilTransformReplacement = transformAnimations.any(
+    (a) => a.replacesTransformStack,
+  );
+
   late final bool replacesStaticTransform = transformAnimations.any(
     (a) => a.replacesStaticTransform,
   );
@@ -580,6 +592,9 @@ class SvgNode {
   /// 它被 `<animate>` 驱动。
   double? dashedPathOffsetKey;
 
+  /// Author pathLength used by the current dash cache. / 当前虚线缓存使用的作者 pathLength。
+  double? dashedPathLengthKey;
+
   /// Paint-time cache of this `<text>` node's laid-out `TextPainter`
   /// (untyped here to keep this file free of `package:flutter/painting.dart`
   /// — cast by `animated_svg_painter.dart`'s `_paintText`, the only reader).
@@ -599,11 +614,8 @@ class SvgNode {
   /// 匹配，`_paintText` 就能直接跳到 `paint()`。
   Object? cachedTextPainter;
 
-  /// Identity of the attribute map [cachedTextPainter] was built from — see
-  /// that field.
-  ///
-  /// 构建 [cachedTextPainter] 时所用属性表的身份——见该字段。
-  Object? textPainterAttributesKey;
+  /// Opacity folded into the cached paragraph paint. / 已合入段落缓存画笔的不透明度。
+  double? textPainterOpacityKey;
 
   /// Identity of the resolved style [cachedTextPainter]'s fill color was
   /// built from — see that field.

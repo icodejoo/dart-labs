@@ -9,6 +9,7 @@
 import 'package:flutter/painting.dart';
 
 import 'svg_dom.dart';
+import 'svg_lengths.dart';
 import 'svg_theme.dart';
 
 /// A fully-resolved set of presentation attributes for one element, after
@@ -29,6 +30,13 @@ class ResolvedStyle {
     this.fillOpacity = 1,
     this.strokeOpacity = 1,
     this.fillRule = PathFillType.nonZero,
+    this.fontSize = svgInitialFontSize,
+    this.fontFamily,
+    this.textAnchor,
+    this.color,
+    this.fillIsCurrentColor = false,
+    this.strokeIsCurrentColor = false,
+    this.strokeFirst = false,
     this.fillGradientId,
     this.strokeGradientId,
   });
@@ -68,6 +76,27 @@ class ResolvedStyle {
   /// Stroke width in user units. / 描边宽度（用户单位）。
   final double strokeWidth;
 
+  /// Computed font size in user units. / 计算后的字号（用户单位）。
+  final double fontSize;
+
+  /// Inherited font family. / 继承的字体系列。
+  final String? fontFamily;
+
+  /// Inherited text anchoring mode. / 继承的文本锚定方式。
+  final String? textAnchor;
+
+  /// Computed color for currentColor. / currentColor 使用的计算颜色。
+  final Color? color;
+
+  /// Whether the fill retains the currentColor keyword. / 填充是否保留 currentColor 关键字。
+  final bool fillIsCurrentColor;
+
+  /// Whether the stroke retains the currentColor keyword. / 描边是否保留 currentColor 关键字。
+  final bool strokeIsCurrentColor;
+
+  /// Whether to paint stroke before fill. / 是否在填充前绘制描边。
+  final bool strokeFirst;
+
   /// Stroke cap style. / 描边端点样式。
   final StrokeCap strokeLinecap;
 
@@ -106,6 +135,13 @@ class ResolvedStyle {
     fill: fill,
     stroke: stroke,
     strokeWidth: strokeWidth,
+    fontSize: fontSize,
+    fontFamily: fontFamily,
+    textAnchor: textAnchor,
+    color: color,
+    fillIsCurrentColor: fillIsCurrentColor,
+    strokeIsCurrentColor: strokeIsCurrentColor,
+    strokeFirst: strokeFirst,
     strokeLinecap: strokeLinecap,
     strokeLinejoin: strokeLinejoin,
     strokeDasharray: strokeDasharray,
@@ -123,28 +159,63 @@ class ResolvedStyle {
   ///
   /// 返回一份拷贝，用 [attributes] 中存在的属性覆盖 `this` 继承来的值，并按
   /// [theme] 解析 `currentColor`。
-  ResolvedStyle inherit(Map<String, String> attributes, XvgTheme theme) {
-    Color? parseColor(String raw) {
-      final v = raw.trim().toLowerCase();
-      if (v == 'none') return null;
-      if (v == 'currentcolor') return theme.currentColor;
-      return parseSvgHexColor(v);
-    }
-
+  ResolvedStyle inherit(
+    Map<String, String> attributes,
+    XvgTheme theme, {
+    Size viewport = Size.zero,
+  }) {
+    final size = resolveSvgLength(
+      attributes['font-size'],
+      percentageBase: fontSize,
+      fontSize: fontSize,
+    );
+    final computedFont = size != null && size >= 0 ? size : fontSize;
+    final width = attributes['stroke-width'];
+    final offset = attributes['stroke-dashoffset'];
+    final diagonal =
+        width == null &&
+            offset == null &&
+            attributes['stroke-dasharray'] == null
+        ? 0.0
+        : svgNormalizedDiagonal(viewport.width, viewport.height);
+    final computedWidth = resolveSvgLength(
+      width,
+      percentageBase: diagonal,
+      fontSize: computedFont,
+    );
+    final computedColor =
+        parseSvgHexColor(attributes['color'] ?? '') ??
+        color ??
+        theme.currentColor;
+    final fillPaint = _resolvePaint(attributes['fill']);
+    final strokePaint = _resolvePaint(attributes['stroke']);
+    final fillCurrent = fillPaint?.current ?? fillIsCurrentColor;
+    final strokeCurrent = strokePaint?.current ?? strokeIsCurrentColor;
     return ResolvedStyle(
-      fill: attributes.containsKey('fill')
-          ? parseColor(attributes['fill']!)
-          : fill,
-      stroke: attributes.containsKey('stroke')
-          ? parseColor(attributes['stroke']!)
-          : stroke,
-      fillGradientId: attributes.containsKey('fill')
-          ? parseUrlId(attributes['fill'])
-          : fillGradientId,
-      strokeGradientId: attributes.containsKey('stroke')
-          ? parseUrlId(attributes['stroke'])
-          : strokeGradientId,
-      strokeWidth: _parsePixels(attributes['stroke-width']) ?? strokeWidth,
+      color: computedColor,
+      fillIsCurrentColor: fillCurrent,
+      strokeIsCurrentColor: strokeCurrent,
+      fill: fillCurrent
+          ? computedColor
+          : fillPaint == null
+          ? fill
+          : fillPaint.color,
+      stroke: strokeCurrent
+          ? computedColor
+          : strokePaint == null
+          ? stroke
+          : strokePaint.color,
+      fillGradientId: fillPaint == null ? fillGradientId : fillPaint.gradient,
+      strokeGradientId: strokePaint == null
+          ? strokeGradientId
+          : strokePaint.gradient,
+      strokeFirst: _strokeFirst(attributes['paint-order']) ?? strokeFirst,
+      strokeWidth: computedWidth != null && computedWidth >= 0
+          ? computedWidth
+          : strokeWidth,
+      fontSize: computedFont,
+      fontFamily: _inheritedString(attributes['font-family'], fontFamily),
+      textAnchor: _inheritedString(attributes['text-anchor'], textAnchor),
       strokeLinecap: switch (attributes['stroke-linecap']) {
         'round' => StrokeCap.round,
         'square' => StrokeCap.square,
@@ -158,11 +229,23 @@ class ResolvedStyle {
         _ => strokeLinejoin,
       },
       strokeDasharray: attributes.containsKey('stroke-dasharray')
-          ? _parseDasharray(attributes['stroke-dasharray']!)
+          ? _parseDasharray(
+                  attributes['stroke-dasharray']!,
+                  diagonal,
+                  computedFont,
+                ) ??
+                strokeDasharray
           : strokeDasharray,
       strokeDashoffset:
-          _parsePixels(attributes['stroke-dashoffset']) ?? strokeDashoffset,
-      opacity: _parseUnitOpacity(attributes['opacity'], 1),
+          resolveSvgLength(
+            offset,
+            percentageBase: diagonal,
+            fontSize: computedFont,
+          ) ??
+          strokeDashoffset,
+      opacity: attributes['opacity']?.trim().toLowerCase() == 'inherit'
+          ? opacity
+          : _parseUnitOpacity(attributes['opacity'], 1),
       fillOpacity: _parseUnitOpacity(attributes['fill-opacity'], fillOpacity),
       strokeOpacity: _parseUnitOpacity(
         attributes['stroke-opacity'],
@@ -172,6 +255,53 @@ class ResolvedStyle {
     );
   }
 }
+
+/// Extracts the URL and optional fallback from a paint value. / 从涂料值提取 URL 及可选回退值。
+({String url, String fallback})? svgPaintReference(String value) {
+  if (!value.startsWith('url(')) return null;
+  final end = value.indexOf(')', 4);
+  if (end < 0 || value.substring(4, end).trim().isEmpty) return null;
+  return (
+    url: value.substring(0, end + 1),
+    fallback: value.substring(end + 1).trim(),
+  );
+}
+
+/// Resolves normalized paint tokens, preserving currentColor through inheritance. / 解析归一化涂料并通过继承保留 currentColor。
+({Color? color, String? gradient, bool current})? _resolvePaint(String? raw) {
+  if (raw == null) return null;
+  final value = raw.trim();
+  final reference = svgPaintReference(value);
+  final colorToken = (reference?.fallback ?? value).toLowerCase();
+  final gradient = parseUrlId(reference?.url);
+  final current = colorToken == 'currentcolor';
+  final color = parseSvgHexColor(colorToken);
+  if (reference == null && colorToken != 'none' && !current && color == null) {
+    return null;
+  }
+  return (color: color, gradient: gradient, current: current);
+}
+
+/// Returns the relative stroke/fill order, or null for invalid or inherited values. / 返回描边相对填充的顺序，无效或继承值返回空。
+bool? _strokeFirst(String? raw) {
+  if (raw == null) return null;
+  final value = raw.trim().toLowerCase();
+  if (value == 'normal') return false;
+  final parts = value.split(RegExp(r'\s+'));
+  if (parts.toSet().length != parts.length ||
+      parts.any(
+        (part) => part != 'fill' && part != 'stroke' && part != 'markers',
+      )) {
+    return null;
+  }
+  final stroke = parts.indexOf('stroke');
+  final fill = parts.indexOf('fill');
+  return stroke >= 0 && (fill < 0 || stroke < fill);
+}
+
+/// Resolves a raw inherited string. / 解析字符串形式的继承属性。
+String? _inheritedString(String? raw, String? inherited) =>
+    raw == null || raw.trim().toLowerCase() == 'inherit' ? inherited : raw;
 
 /// `fill-rule` 属性名。
 const String kFillRuleAttribute = 'fill-rule';
@@ -225,7 +355,7 @@ double _parseUnitOpacity(String? raw, double inherited) =>
 /// 低基数是这么做安全的前提：一批文档只会用到少数几种虚线图案，实践中根本触
 /// 不到 [_dasharrayMemoLimit]。超限时整表丢弃重建（分代式清空，读路径上不做
 /// LRU 记账）。
-final Map<String, List<double>> _dasharrayMemo = <String, List<double>>{};
+final _dasharrayMemo = <Object, List<double>>{};
 
 /// Entry cap for [_dasharrayMemo] — see that field.
 ///
@@ -237,12 +367,20 @@ const int _dasharrayMemoLimit = 256;
 ///
 /// 把 `stroke-dasharray` 属性值解析为各段长度；`none`/空值返回空列表。结果会被
 /// 记忆——见 [_dasharrayMemo]。
-List<double> _parseDasharray(String raw) {
-  final memoized = _dasharrayMemo[raw];
+List<double>? _parseDasharray(String raw, double diagonal, double fontSize) {
+  final Object key =
+      raw.contains('%') ||
+          raw.contains('em') ||
+          raw.contains('ex') ||
+          raw.contains('EM') ||
+          raw.contains('EX')
+      ? (raw, diagonal, fontSize)
+      : raw;
+  final memoized = _dasharrayMemo[key];
   if (memoized != null) return memoized;
-  final parsed = _parseDasharrayUncached(raw);
+  final parsed = _parseDasharrayUncached(raw, diagonal, fontSize);
   if (_dasharrayMemo.length >= _dasharrayMemoLimit) _dasharrayMemo.clear();
-  _dasharrayMemo[raw] = parsed;
+  if (parsed != null) _dasharrayMemo[key] = parsed;
   return parsed;
 }
 
@@ -258,7 +396,11 @@ List<double> _parseDasharray(String raw) {
 /// 用手写扫描按空白/逗号连续段切分，而不是 `String.split(RegExp(...))`：正则写法
 /// 要为一个通常只有一两个数字的值分配匹配迭代器、中间 `List<String>` 和三层惰性
 /// 可迭代包装。
-List<double> _parseDasharrayUncached(String raw) {
+List<double>? _parseDasharrayUncached(
+  String raw,
+  double diagonal,
+  double fontSize,
+) {
   final v = raw.trim();
   if (v.isEmpty || v == 'none') return const [];
   final values = <double>[];
@@ -272,8 +414,12 @@ List<double> _parseDasharrayUncached(String raw) {
         };
     if (isSeparator) {
       if (start >= 0) {
-        final value = _parsePixels(v.substring(start, i));
-        if (value == null || !value.isFinite || value < 0) return const [];
+        final value = resolveSvgLength(
+          v.substring(start, i),
+          percentageBase: diagonal,
+          fontSize: fontSize,
+        );
+        if (value == null || value < 0) return null;
         values.add(value);
         start = -1;
       }
@@ -374,14 +520,4 @@ int _hexByte(String v, int start, int byteCount) {
     value = (value << 4) | digit;
   }
   return value;
-}
-
-/// 表现属性长度接受无单位值或 px，列表词元也使用相同规则。
-/// Presentation lengths accept unitless user units or px, including list tokens.
-double? _parsePixels(String? raw) {
-  if (raw == null) return null;
-  final text = raw.trim().toLowerCase();
-  return double.tryParse(
-    text.endsWith('px') ? text.substring(0, text.length - 2) : text,
-  );
 }
