@@ -56,6 +56,7 @@ class AnimatedXvg extends StatefulWidget {
     this.fit = BoxFit.contain,
     this.alignment = Alignment.center,
     this.theme,
+    this.colorFilter,
     this.quality,
     this.fps,
     this.playbackRate = _normalPlaybackRate,
@@ -113,6 +114,9 @@ class AnimatedXvg extends StatefulWidget {
 
   /// Alignment within the box. / 在盒子内的对齐方式。
   final Alignment alignment;
+
+  /// Recolors the SVG within its visible viewport. / 在可见视口内为 SVG 重着色。
+  final ColorFilter? colorFilter;
 
   /// Theme controlling `currentColor`; defaults to opaque black.
   ///
@@ -682,11 +686,12 @@ class _XvgAnimatedState extends State<AnimatedXvg> {
     if (!_imagesReady || document == null) return SizedBox(width: w, height: h);
     // CustomPaint supplies its own preferred size; no redundant SizedBox.
     // CustomPaint 已提供首选尺寸，不额外包装 SizedBox。
+    final intrinsicSize = Size(document.width, document.height);
     final child = CustomPaint(
       size: Size(w!, h!),
       painter: AnimatedSvgPainter(
         root: document.root,
-        intrinsicSize: Size(document.width, document.height),
+        intrinsicSize: intrinsicSize,
         rootViewBoxTransform: document.rootViewBoxTransform,
         clock: _controller.time,
         theme: widget.theme ?? const XvgTheme(),
@@ -702,11 +707,20 @@ class _XvgAnimatedState extends State<AnimatedXvg> {
     );
     // Isolate timeline repainting from otherwise static ancestors.
     // 将时间线重绘与其余静态祖先隔离。
+    final filter = widget.colorFilter;
     return pixelSnapBoundary(
-      child: child,
+      child: filter == null
+          ? child
+          : svgViewportColorFiltered(
+              child: child,
+              filter: filter,
+              intrinsicSize: intrinsicSize,
+              fit: widget.fit,
+              alignment: widget.alignment,
+            ),
       mode: widget.pixelSnap,
       hasRisk: document.hasPixelSnapRisk,
-      intrinsicSize: Size(document.width, document.height),
+      intrinsicSize: intrinsicSize,
       fit: widget.fit,
       alignment: widget.alignment,
     );

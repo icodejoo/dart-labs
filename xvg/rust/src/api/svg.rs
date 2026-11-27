@@ -2,7 +2,7 @@
 //
 // SVG 解析核心：usvg → 扁平显示列表，交给 Dart 重放为 ui.Picture。
 
-use usvg::tiny_skia_path::{Point, Transform};
+use usvg::tiny_skia_path::{Point, Rect, Transform};
 
 /// A parsed SVG reduced to a flat list of paths with resolved paints.
 ///
@@ -19,6 +19,21 @@ pub struct SvgScene {
     pub display_list: Option<SvgDisplayList>,
     /// 内嵌位图，按文档顺序排列；无透明度层时先于路径绘制。
     pub images: Vec<SvgImage>,
+    /// Conservative paint bounds in picture coordinates. / Picture 坐标中的保守绘制边界。
+    pub content_bounds: Option<SvgContentBounds>,
+}
+
+/// Content bounds in the same coordinates as the scene paths. / 内容边界与场景路径使用同一坐标系。
+#[cfg_attr(test, derive(Clone))]
+pub struct SvgContentBounds {
+    /// Left edge. / 左边界。
+    pub left: f32,
+    /// Top edge. / 上边界。
+    pub top: f32,
+    /// Right edge. / 右边界。
+    pub right: f32,
+    /// Bottom edge. / 下边界。
+    pub bottom: f32,
 }
 
 /// 含状态边界的静态场景显示列表。
@@ -1695,6 +1710,7 @@ pub(crate) fn scene_from_tree(tree: &usvg::Tree) -> SvgScene {
     try_scene_from_tree(tree).expect("benchmark fixture exceeds SVG complexity budget")
 }
 
+/// Collects the display list and its paint bounds. / 收集显示列表及其绘制边界。
 fn try_scene_from_tree(tree: &usvg::Tree) -> Result<SvgScene, String> {
     let size = tree.size();
     let mut paths = Vec::new();
@@ -1702,6 +1718,7 @@ fn try_scene_from_tree(tree: &usvg::Tree) -> Result<SvgScene, String> {
     let mut display_list = SvgDisplayList::empty();
     let mut image_budget = MAX_IMAGE_BYTES;
     let mut expansion_budget = ExpansionBudget::default();
+    let mut bounds = SceneBounds::default();
     collect(
         tree.root(),
         &Inherited::default(),
@@ -1711,15 +1728,89 @@ fn try_scene_from_tree(tree: &usvg::Tree) -> Result<SvgScene, String> {
         0,
         &mut image_budget,
         &mut expansion_budget,
+        &mut bounds,
     )?;
     finish_commands(&mut display_list.commands);
+    let content_bounds = if paths.is_empty() && images.is_empty() {
+        None
+    } else {
+        bounds.finish(tree.root())
+    };
     Ok(SvgScene {
         width: size.width(),
         height: size.height(),
         paths,
         display_list: (!display_list.commands.is_empty()).then_some(display_list),
         images,
+        content_bounds,
     })
+}
+
+/// Tracks paint that may extend past usvg's SVG layer bounds. / 跟踪可能超出 usvg 图层边界的绘制。
+#[flutter_rust_bridge::frb(ignore)]
+#[derive(Default)]
+struct SceneBounds {
+    /// Bound of an active replay clip, if available. / 当前回放裁剪的可用边界。
+    clip: Option<Rect>,
+    /// Additional coverage required by the Flutter replay. / Flutter 回放需要额外覆盖的区域。
+    extra: Option<Rect>,
+    /// Whether any bounds could not be represented. / 是否存在无法表示的边界。
+    unknown: bool,
+}
+
+impl SceneBounds {
+    /// Includes paint restricted by the current clip or the supplied bound. / 纳入当前裁剪或给定边界限制的绘制。
+    fn include(&mut self, compute: impl FnOnce() -> Option<Rect>) {
+        let added = self.clip.or_else(compute);
+        self.extra = match (self.extra, added) {
+            (Some(a), Some(b)) => a.join(&b),
+            (_, bound) => bound,
+        };
+        self.unknown |= self.extra.is_none();
+    }
+
+    /// Combines the SVG layer box with any extra replay coverage. / 合并 SVG 图层与回放的额外覆盖区域。
+    fn finish(self, root: &usvg::Group) -> Option<SvgContentBounds> {
+        if self.unknown {
+            return None;
+        }
+        let layer = root.abs_layer_bounding_box().map(|bbox| bbox.to_rect());
+        let bbox = match (layer, self.extra) {
+            (Some(a), Some(b)) => a.join(&b),
+            (a, b) => a.or(b),
+        }?;
+        Some(SvgContentBounds {
+            left: bbox.left(),
+            top: bbox.top(),
+            right: bbox.right(),
+            bottom: bbox.bottom(),
+        })
+    }
+}
+
+/// Includes the Flutter blur kernel even when the SVG filter region is narrower. / SVG 滤镜区域较窄时仍覆盖 Flutter 模糊核。
+fn flutter_blur_bounds(bbox: Rect, blur: Option<&SvgBlur>) -> Option<Rect> {
+    // Four sigma conservatively covers the Flutter blur kernel. / 四倍 sigma 保守覆盖 Flutter 模糊核。
+    const BLUR_MARGIN_SIGMA: f32 = 4.0;
+    match blur {
+        Some(blur) => bbox.outset(
+            BLUR_MARGIN_SIGMA * blur.std_dev_x,
+            BLUR_MARGIN_SIGMA * blur.std_dev_y,
+        ),
+        None => Some(bbox),
+    }
+}
+
+/// Whether the SVG stroke box covers the flattened Flutter stroke. / SVG 描边边界是否覆盖展平后的 Flutter 描边。
+fn stroke_bounds_match(stroke: &usvg::Stroke, transform: Transform) -> bool {
+    const FLUTTER_MITER_LIMIT: f32 = 4.0;
+    !transform.has_skew()
+        && transform.sx.abs() == transform.sy.abs()
+        && transform.sx.abs() >= 1.0
+        && stroke.dasharray().is_none()
+        && stroke.linecap() == usvg::LineCap::Butt
+        && stroke.linejoin() == usvg::LineJoin::Miter
+        && stroke.miterlimit().get() >= FLUTTER_MITER_LIMIT
 }
 
 /// Injects a `color="#RRGGBB"` attribute into the root `<svg>` tag, unless it
@@ -1897,6 +1988,7 @@ fn collect(
     depth: usize,
     image_budget: &mut usize,
     expansion_budget: &mut ExpansionBudget,
+    bounds: &mut SceneBounds,
 ) -> Result<(), String> {
     if depth >= MAX_DEPTH {
         return Ok(());
@@ -1907,8 +1999,22 @@ fn collect(
     }
     let clip_start = display_list.clips.len();
     let active_clips = expansion_budget.active_clips;
+    let parent_clip = bounds.clip;
+    let transform = group.abs_transform();
     if let Some(clip) = group.clip_path() {
-        build_clips(clip, &group.abs_transform(), &mut display_list.clips);
+        if build_clips(clip, &transform, &mut display_list.clips) {
+            let clip_bounds = clip
+                .root()
+                .abs_stroke_bounding_box()
+                .and_then(|bbox| bbox.transform(transform.pre_concat(clip.transform())));
+            bounds.clip = match (parent_clip, clip_bounds) {
+                (Some(a), Some(b)) => a.intersect(&b).or(Some(a)),
+                (a, b) => a.or(b),
+            };
+        } else {
+            // The usvg layer box may assume a clip that replay skipped. / usvg 可能计入了回放时跳过的裁剪。
+            bounds.unknown = true;
+        }
         expansion_budget.charge_clips(&display_list.clips[clip_start..])?;
     }
     let clip_end = display_list.clips.len();
@@ -1928,6 +2034,9 @@ fn collect(
     }
     let local_ctx = extend_inherited(ctx, group, expansion_budget)?;
     let ctx = local_ctx.as_ref().unwrap_or(ctx);
+    if !group.filters().is_empty() && group.has_children() {
+        bounds.include(|| flutter_blur_bounds(group.abs_stroke_bounding_box()?, ctx.blur.as_ref()));
+    }
     for node in group.children() {
         match node {
             usvg::Node::Group(g) => collect(
@@ -1939,10 +2048,23 @@ fn collect(
                 depth + 1,
                 image_budget,
                 expansion_budget,
+                bounds,
             )?,
             usvg::Node::Path(p) => {
-                if let Some(mut sp) = convert_path(p, &Transform::default(), &group.abs_transform())
-                {
+                if let Some(mut sp) = convert_path(p, &Transform::default(), &transform) {
+                    if let Some(stroke) = p.stroke().filter(|s| !stroke_bounds_match(s, transform))
+                    {
+                        // Flutter's miter can reach two stroke widths from the centerline. / Flutter 斜接最远可达中心线外两倍线宽。
+                        const STROKE_MARGIN_WIDTHS: f32 = 2.0;
+                        bounds.include(|| {
+                            let margin = stroke.width().get() * STROKE_MARGIN_WIDTHS;
+                            let bbox = p
+                                .bounding_box()?
+                                .transform(transform)?
+                                .outset(margin, margin)?;
+                            flutter_blur_bounds(bbox, ctx.blur.as_ref())
+                        });
+                    }
                     // Fold the inherited mask/blur into whatever pattern
                     // fields `convert_path` already produced.
                     // 把继承来的遮罩/模糊，并入 `convert_path` 已经产出的
@@ -2009,6 +2131,7 @@ fn collect(
         }
     }
     expansion_budget.active_clips = active_clips;
+    bounds.clip = parent_clip;
     Ok(())
 }
 
@@ -2080,18 +2203,19 @@ fn gaussian_blur_of(g: &usvg::Group) -> Option<SvgBlur> {
 ///
 /// 给定引用元素的 [base] 变换，把 [clip]（以及链在其上的 `clip-path`）作为
 /// 绝对空间区域追加进 [out]。
-fn build_clips(clip: &usvg::ClipPath, base: &Transform, out: &mut Vec<SvgClip>) {
-    build_clips_at_depth(clip, base, out, 0);
+fn build_clips(clip: &usvg::ClipPath, base: &Transform, out: &mut Vec<SvgClip>) -> bool {
+    build_clips_at_depth(clip, base, out, 0)
 }
 
+/// Reports whether the primary clip was emitted. / 返回主裁剪是否已写入。
 fn build_clips_at_depth(
     clip: &usvg::ClipPath,
     base: &Transform,
     out: &mut Vec<SvgClip>,
     depth: usize,
-) {
+) -> bool {
     if depth >= MAX_DEPTH {
-        return;
+        return false;
     }
     if let Some(nested) = clip.clip_path() {
         build_clips_at_depth(nested, base, out, depth + 1);
@@ -2133,7 +2257,9 @@ fn build_clips_at_depth(
     region.even_odd = saw_evenodd && !saw_nonzero;
     if !region.verbs.is_empty() && region.points.iter().all(|v| v.is_finite()) {
         out.push(region);
+        return true;
     }
+    false
 }
 
 /// Flattens every shape under [group] into [region] as one union path,
@@ -3069,6 +3195,7 @@ mod tests {
             MAX_DEPTH - 1,
             &mut 0,
             &mut ExpansionBudget::default(),
+            &mut SceneBounds::default(),
         )
         .unwrap();
         assert!(paths.is_empty());
@@ -4638,10 +4765,10 @@ mod tests {
                 hash = (hash ^ b as u64).wrapping_mul(0x100000001b3);
             }
         }
-        assert_eq!(hash, 0x761f43c0a72ee4ee, "full SSE wire bytes changed");
+        assert_eq!(hash, 0x3bb2fcc9726aff66, "full SSE wire bytes changed");
     }
 
-    /// 普通图标只为显示列表传一个 SSE 空值标记。
+    /// Verifies the existing empty fields and the fixed-size bound. / 验证已有空字段和定长边界。
     #[test]
     fn ordinary_icon_has_no_display_list_payload() {
         use crate::frb_generated::SseEncode;
@@ -4652,9 +4779,25 @@ mod tests {
         scene.height.sse_encode(&mut prefix);
         scene.paths.sse_encode(&mut prefix);
         let wire = wire_bytes(CIRCLE_SVG);
-        assert!(wire.starts_with(prefix.cursor.get_ref()));
         // 一个空值标记，接一个四字节的空图片列表长度。
-        assert_eq!(&wire[prefix.cursor.get_ref().len()..], &[0; 5]);
+        [0u8; 5]
+            .into_iter()
+            .for_each(|byte| byte.sse_encode(&mut prefix));
+        assert!(wire.starts_with(prefix.cursor.get_ref()));
+        let bounds = scene
+            .content_bounds
+            .as_ref()
+            .expect("icon has content bounds");
+        let suffix = &wire[prefix.cursor.get_ref().len()..];
+        assert_eq!(suffix.len(), 1 + 4 * std::mem::size_of::<f32>());
+        assert_eq!(suffix[0], 1);
+        for (bytes, edge) in
+            suffix[1..]
+                .chunks_exact(4)
+                .zip([bounds.left, bounds.top, bounds.right, bounds.bottom])
+        {
+            assert_eq!(bytes, edge.to_ne_bytes());
+        }
     }
 
     fn expansion_source(shapes: usize, outputs: usize, effect: &str) -> String {
@@ -4981,6 +5124,7 @@ mod tests {
                 depth,
                 &mut (64 * 1024 * 1024),
                 &mut ExpansionBudget::default(),
+                &mut SceneBounds::default(),
             )
             .unwrap();
             assert_eq!(paths.len(), usize::from(depth < MAX_DEPTH));
@@ -5686,6 +5830,7 @@ mod tests {
             MAX_DEPTH - 1,
             &mut 0,
             &mut budget,
+            &mut SceneBounds::default(),
         )
         .unwrap();
         assert!(paths.is_empty());
@@ -5859,6 +6004,78 @@ mod tests {
         </defs>
         <rect x="20" y="20" width="60" height="60" fill="#0000FF" filter="url(#b)"/>
     </svg>"##;
+
+    /// Reads a fixture's LTRB bounds for assertions. / 读取测试 SVG 的 LTRB 边界。
+    fn content_bounds(source: &str) -> Option<[f32; 4]> {
+        parse_svg(source.to_owned(), None)
+            .unwrap()
+            .content_bounds
+            .map(|bbox| [bbox.left, bbox.top, bbox.right, bbox.bottom])
+    }
+
+    /// Filled geometry follows the viewBox mapping. / 填充图形边界随 viewBox 变换。
+    #[test]
+    fn content_bounds_are_in_picture_coordinates() {
+        let source = "<svg xmlns='http://www.w3.org/2000/svg' width='200' height='100' viewBox='10 20 100 50'><rect x='20' y='25' width='30' height='15'/></svg>";
+        assert_eq!(content_bounds(source), Some([20.0, 10.0, 80.0, 40.0]));
+    }
+
+    /// The bounds include a thick stroke beyond the viewport. / 边界包含超出视口的粗描边。
+    #[test]
+    fn content_bounds_include_stroke_outside_viewbox() {
+        let source = "<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'><rect x='5' y='5' width='90' height='90' fill='none' stroke='black' stroke-width='20'/></svg>";
+        assert_eq!(content_bounds(source), Some([-5.0, -5.0, 105.0, 105.0]));
+    }
+
+    /// The declared Gaussian filter region expands the bounds. / 高斯模糊的滤镜区域扩大内容边界。
+    #[test]
+    fn content_bounds_include_gaussian_filter_region() {
+        assert_eq!(content_bounds(BLUR_SVG), Some([-10.0, -10.0, 110.0, 110.0]));
+    }
+
+    /// A tight filter region cannot underbound the Flutter replay. / 过窄的滤镜区域不会低估 Flutter 回放边界。
+    #[test]
+    fn content_bounds_cover_replayed_blur_past_filter_region() {
+        let source = BLUR_SVG
+            .replace("-50%", "0%")
+            .replace("200%", "100%")
+            .replace("stdDeviation=\"3\"", "stdDeviation=\"10\"");
+        assert_eq!(content_bounds(&source), Some([-20.0, -20.0, 120.0, 120.0]));
+    }
+
+    /// An enclosing clip also bounds Flutter blur and flattened strokes. / 祖先裁剪同时限制 Flutter 模糊与展平描边。
+    #[test]
+    fn content_bounds_respect_ancestor_clip() {
+        let source = r#"<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100">
+  <defs>
+    <clipPath id="clip"><rect x="10" y="20" width="60" height="50"/></clipPath>
+    <filter id="blur" x="-100%" y="-100%" width="300%" height="300%">
+      <feGaussianBlur stdDeviation="15"/>
+    </filter>
+  </defs>
+  <g clip-path="url(#clip)">
+    <rect width="150" height="130" transform="scale(.8 .6)"
+      stroke="black" stroke-width="12" filter="url(#blur)"/>
+  </g>
+</svg>"#;
+        assert_eq!(content_bounds(source), Some([10.0, 20.0, 70.0, 70.0]));
+    }
+
+    /// Root viewBox does not clip geometry. / 根 viewBox 不裁剪图形边界。
+    #[test]
+    fn content_bounds_keep_geometry_outside_viewbox() {
+        let source = "<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'><rect x='110' y='-20' width='30' height='10'/></svg>";
+        assert_eq!(content_bounds(source), Some([110.0, -20.0, 140.0, -10.0]));
+    }
+
+    /// An empty scene has no bound. / 空场景没有内容边界。
+    #[test]
+    fn content_bounds_are_absent_for_empty_scene() {
+        assert_eq!(
+            content_bounds("<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100'/>"),
+            None
+        );
+    }
 
     #[test]
     fn gaussian_blur_filter_is_carried_as_sigma() {

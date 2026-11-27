@@ -281,6 +281,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  SvgContentBounds dco_decode_box_autoadd_svg_content_bounds(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_svg_content_bounds(raw);
+  }
+
+  @protected
   SvgDisplayList dco_decode_box_autoadd_svg_display_list(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_svg_display_list(raw);
@@ -377,6 +383,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  SvgContentBounds? dco_decode_opt_box_autoadd_svg_content_bounds(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_svg_content_bounds(raw);
+  }
+
+  @protected
   SvgDisplayList? dco_decode_opt_box_autoadd_svg_display_list(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_box_autoadd_svg_display_list(raw);
@@ -459,6 +471,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       kind: dco_decode_u_8(arr[0]),
       index: dco_decode_u_32(arr[1]),
       opacity: dco_decode_f_32(arr[2]),
+    );
+  }
+
+  @protected
+  SvgContentBounds dco_decode_svg_content_bounds(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return SvgContentBounds(
+      left: dco_decode_f_32(arr[0]),
+      top: dco_decode_f_32(arr[1]),
+      right: dco_decode_f_32(arr[2]),
+      bottom: dco_decode_f_32(arr[3]),
     );
   }
 
@@ -605,14 +631,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   SvgScene dco_decode_svg_scene(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 5)
-      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    if (arr.length != 6)
+      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
     return SvgScene(
       width: dco_decode_f_32(arr[0]),
       height: dco_decode_f_32(arr[1]),
       paths: dco_decode_list_svg_path(arr[2]),
       displayList: dco_decode_opt_box_autoadd_svg_display_list(arr[3]),
       images: dco_decode_list_svg_image(arr[4]),
+      contentBounds: dco_decode_opt_box_autoadd_svg_content_bounds(arr[5]),
     );
   }
 
@@ -651,6 +678,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   SvgBlur sse_decode_box_autoadd_svg_blur(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_svg_blur(deserializer));
+  }
+
+  @protected
+  SvgContentBounds sse_decode_box_autoadd_svg_content_bounds(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_svg_content_bounds(deserializer));
   }
 
   @protected
@@ -793,6 +828,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  SvgContentBounds? sse_decode_opt_box_autoadd_svg_content_bounds(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_svg_content_bounds(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
   SvgDisplayList? sse_decode_opt_box_autoadd_svg_display_list(
     SseDeserializer deserializer,
   ) {
@@ -914,6 +962,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_index = sse_decode_u_32(deserializer);
     var var_opacity = sse_decode_f_32(deserializer);
     return SvgCommand(kind: var_kind, index: var_index, opacity: var_opacity);
+  }
+
+  @protected
+  SvgContentBounds sse_decode_svg_content_bounds(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_left = sse_decode_f_32(deserializer);
+    var var_top = sse_decode_f_32(deserializer);
+    var var_right = sse_decode_f_32(deserializer);
+    var var_bottom = sse_decode_f_32(deserializer);
+    return SvgContentBounds(
+      left: var_left,
+      top: var_top,
+      right: var_right,
+      bottom: var_bottom,
+    );
   }
 
   @protected
@@ -1095,12 +1158,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       deserializer,
     );
     var var_images = sse_decode_list_svg_image(deserializer);
+    var var_contentBounds = sse_decode_opt_box_autoadd_svg_content_bounds(
+      deserializer,
+    );
     return SvgScene(
       width: var_width,
       height: var_height,
       paths: var_paths,
       displayList: var_displayList,
       images: var_images,
+      contentBounds: var_contentBounds,
     );
   }
 
@@ -1137,6 +1204,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   void sse_encode_box_autoadd_svg_blur(SvgBlur self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_svg_blur(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_svg_content_bounds(
+    SvgContentBounds self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_svg_content_bounds(self, serializer);
   }
 
   @protected
@@ -1287,6 +1363,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_opt_box_autoadd_svg_content_bounds(
+    SvgContentBounds? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_svg_content_bounds(self, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_opt_box_autoadd_svg_display_list(
     SvgDisplayList? self,
     SseSerializer serializer,
@@ -1411,6 +1500,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_svg_content_bounds(
+    SvgContentBounds self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_f_32(self.left, serializer);
+    sse_encode_f_32(self.top, serializer);
+    sse_encode_f_32(self.right, serializer);
+    sse_encode_f_32(self.bottom, serializer);
+  }
+
+  @protected
   void sse_encode_svg_display_list(
     SvgDisplayList self,
     SseSerializer serializer,
@@ -1526,6 +1627,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_list_svg_path(self.paths, serializer);
     sse_encode_opt_box_autoadd_svg_display_list(self.displayList, serializer);
     sse_encode_list_svg_image(self.images, serializer);
+    sse_encode_opt_box_autoadd_svg_content_bounds(
+      self.contentBounds,
+      serializer,
+    );
   }
 
   @protected

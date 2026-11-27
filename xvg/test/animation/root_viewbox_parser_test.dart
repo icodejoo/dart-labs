@@ -181,12 +181,13 @@ void main() {
           fit: BoxFit.fill,
           alignment: Alignment.center,
         );
-        painter.paint(canvas, const Size(200, 100));
+        const widgetSize = Size(200, 100);
+        painter.paint(canvas, widgetSize);
         expect(
           canvas.operations,
           doc.rootViewBoxTransform == null ? ['clip'] : ['clip', 'transform'],
         );
-        expect(canvas.clip, Rect.fromLTWH(0, 0, doc.width, doc.height));
+        expect(canvas.clip, Offset.zero & widgetSize);
         clock.dispose();
       }
     },

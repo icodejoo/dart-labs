@@ -17,6 +17,7 @@ import 'animation/animation_detector.dart';
 import 'animation/svg_document_cache.dart';
 import 'animation/svg_document_parser.dart';
 import 'animation/svg_theme.dart';
+import 'pixel_snap_layer.dart';
 import 'rust_static_svg.dart';
 import 'platform_file.dart'
     if (dart.library.js_interop) 'platform_file_web.dart';
@@ -1121,7 +1122,7 @@ debugSvgRasterize;
 /// [ui.Picture] 做同样的事）在动画路径上的对应版本；单独一份是因为这条路径每次
 /// 调用都要从 [AnimatedSvgPainter] 现画一帧，而不是重放一份固定的 picture。
 Future<ui.Image> _rasterizePainter(
-  CustomPainter painter,
+  AnimatedSvgPainter painter,
   int width,
   int height,
   ColorFilter? colorFilter,
@@ -1130,15 +1131,19 @@ Future<ui.Image> _rasterizePainter(
   if (override != null) return override(painter, width, height, colorFilter);
   final recorder = ui.PictureRecorder();
   final canvas = Canvas(recorder);
-  final w = width.toDouble();
-  final h = height.toDouble();
+  final size = Size(width.toDouble(), height.toDouble());
   if (colorFilter != null) {
-    canvas.saveLayer(
-      Rect.fromLTWH(0, 0, w, h),
-      Paint()..colorFilter = colorFilter,
-    );
+    final clip = svgPaintViewport(
+      painter.intrinsicSize,
+      size,
+      painter.fit,
+      painter.alignment,
+    ).intersect(Offset.zero & size);
+    canvas
+      ..clipRect(clip, doAntiAlias: false)
+      ..saveLayer(clip, Paint()..colorFilter = colorFilter);
   }
-  painter.paint(canvas, Size(w, h));
+  painter.paint(canvas, size);
   if (colorFilter != null) canvas.restore();
   final framePicture = recorder.endRecording();
   try {

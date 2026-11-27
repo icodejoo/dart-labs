@@ -58,7 +58,19 @@ class RustSvgPictureInfo {
     this.picture,
     this.size, {
     this.hasPixelSnapRisk = false,
+    this.contentBounds,
+    this.pathCount = 0,
+    this.pointCount = 0,
   });
+
+  /// Conservative paint bounds in picture coordinates. / Picture 坐标中的保守绘制边界。
+  final Rect? contentBounds;
+
+  /// Number of paths in the parsed scene. / 解析场景的路径数。
+  final int pathCount;
+
+  /// Number of coordinate pairs, including curve controls. / 坐标点数，含曲线控制点。
+  final int pointCount;
 
   /// Parsed mask/clip risk, retained with the picture. / 与 picture 一起缓存的解析风险。
   final bool hasPixelSnapRisk;
@@ -467,12 +479,30 @@ class RustXvgPictureCache {
         decodedImages: imagesFirst ? const [] : decodedImages,
       );
       final picture = recorder.endRecording();
+      final bounds = scene.contentBounds;
+      var pointCount = 0;
+      var hasPixelSnapRisk = clips.isNotEmpty;
+      // Same as autoR2Features in raster_cache_auto_r2_features.dart: every
+      // x/y pair in scene.paths counts, including curve control points.
+      // 沿用第二轮基准口径，主路径列表每个 x/y 坐标对计一点，包含曲线控制点。
+      for (final path in scene.paths) {
+        pointCount += path.points.length ~/ 2;
+        hasPixelSnapRisk |= path.effects?.mask != null;
+      }
       return RustSvgPictureInfo(
         picture,
         Size(scene.width, scene.height),
-        hasPixelSnapRisk:
-            clips.isNotEmpty ||
-            scene.paths.any((path) => path.effects?.mask != null),
+        contentBounds: bounds == null
+            ? null
+            : Rect.fromLTRB(
+                bounds.left,
+                bounds.top,
+                bounds.right,
+                bounds.bottom,
+              ),
+        hasPixelSnapRisk: hasPixelSnapRisk,
+        pathCount: scene.paths.length,
+        pointCount: pointCount,
       );
     } finally {
       // Each cached tile image was recorded into an `ImageShader`, which the
@@ -1085,7 +1115,6 @@ class StaticXvg extends StatelessWidget {
     this.fit = BoxFit.contain,
     this.alignment = Alignment.center,
     this.colorFilter,
-    this.rasterCache,
     this.theme,
     this.errorBuilder,
   });
@@ -1115,14 +1144,6 @@ class StaticXvg extends StatelessWidget {
 
   /// Optional recolor filter. / 可选的重着色滤镜。
   final ColorFilter? colorFilter;
-
-  /// Visible bitmap tiles; null keeps vector painting.
-  /// With caching enabled, [XvgPixelSnap.auto] enables pixel alignment.
-  /// [XvgPixelSnap.never] keeps fractional offsets and falls back to vectors
-  /// during fractional scrolling until the grid settles.
-  /// 可见位图分块，null 保持向量绘制。启用缓存时，[XvgPixelSnap.auto] 开启像素对齐。
-  /// [XvgPixelSnap.never] 保留小数偏移，亚像素滚动期间回退到向量，直到网格停稳。
-  final XvgRasterCache? rasterCache;
 
   /// Theme controlling `currentColor`; defaults to opaque black. Mirrors
   /// [AnimatedXvg]'s `theme` param for API consistency across the animated
@@ -1276,6 +1297,7 @@ class StaticXvg extends StatelessWidget {
     final painter = _RustPicturePainter(
       picture: info.picture,
       pictureSize: info.size,
+      contentBounds: info.contentBounds,
       fit: fit,
       alignment: resolved,
     );
@@ -1299,28 +1321,48 @@ class StaticXvg extends StatelessWidget {
     // 网格里每格每次出现都要 inflate、attach、布局、遍历一遍。与动画路径是同一处
     // 移除、同一套理由——见 `animation/animated_svg_widget.dart`，其
     // `test/animation/widget_tree_depth_test.dart` 钉住了各约束状态下的尺寸等价性。
-    final cache = rasterCache;
+    final policy = xvgRasterCacheOverride;
+    final forced =
+        policy == XvgRasterCacheOverride.enabled ||
+        policy == XvgRasterCacheOverride.halfResolution;
+    final candidate =
+        policy == null &&
+        (info.pointCount >= xvgRasterMinPoints ||
+            info.pathCount >= xvgRasterMinPaths);
     final filter = colorFilter;
+    // A filter can color transparent pixels anywhere in the clipped viewport.
+    // 滤镜可能给裁剪后视口内的任意透明像素着色。
     final Widget child;
-    if (cache == null) {
-      final paint = CustomPaint(size: preferredSize, painter: painter);
-      child = filter == null
-          ? paint
-          : ColorFiltered(colorFilter: filter, child: paint);
-    } else {
+    if (forced || candidate) {
       child = XvgRasterPaint(
         preferredSize: preferredSize,
         intrinsicSize: info.size,
+        contentBounds: filter == null ? info.contentBounds : null,
+        colorFilter: filter,
         fit: fit,
         alignment: resolved,
         painter: painter,
-        colorFilter: filter,
-        resolutionScale: cache.resolutionScale,
+        cacheOverride: policy,
+        snapWhenCached:
+            candidate &&
+            pixelSnap == XvgPixelSnap.auto &&
+            !info.hasPixelSnapRisk,
       );
+    } else {
+      final paint = CustomPaint(size: preferredSize, painter: painter);
+      child = filter == null
+          ? paint
+          : svgViewportColorFiltered(
+              child: paint,
+              filter: filter,
+              intrinsicSize: info.size,
+              fit: fit,
+              alignment: resolved,
+            );
     }
     return pixelSnapBoundary(
       child: child,
-      mode: cache != null && pixelSnap == XvgPixelSnap.auto
+      mode: forced && pixelSnap == XvgPixelSnap.auto
           ? XvgPixelSnap.always
           : pixelSnap,
       hasRisk: info.hasPixelSnapRisk,
@@ -1336,38 +1378,58 @@ class StaticXvg extends StatelessWidget {
 ///
 /// 绘制录制好的 [ui.Picture]，按 [fit]/[alignment] 从 [pictureSize] 缩放到绘制盒。
 class _RustPicturePainter extends CustomPainter {
+  /// Precomputes whether the picture is confined to its intrinsic viewport. / 预先判断内容是否位于固有视口内。
   _RustPicturePainter({
     required this.picture,
     required this.pictureSize,
+    required Rect? contentBounds,
     required this.fit,
     required this.alignment,
-  });
+  }) : _withinViewport =
+           contentBounds != null &&
+           contentBounds.isFinite &&
+           svgRectEncloses(Offset.zero & pictureSize, contentBounds);
 
+  /// Recorded SVG vector. / 录制好的 SVG 向量。
   final ui.Picture picture;
+
+  /// Intrinsic viewport size. / 固有视口尺寸。
   final Size pictureSize;
+
+  /// Widget fit. / 组件适配方式。
   final BoxFit fit;
+
+  /// Placement of the fitted viewport. / 适配后视口的位置。
   final Alignment alignment;
 
+  /// Whether Rust bounds prove containment at the intrinsic size. / Rust 边界是否证明内容在固有视口内。
+  final bool _withinViewport;
+
+  /// Replays the picture inside the fitted viewport and layout box. / 在适配视口与布局盒的交集内重放。
   @override
   void paint(Canvas canvas, Size size) {
     if (size.isEmpty || pictureSize.isEmpty) return;
     final viewport = svgPaintViewport(pictureSize, size, fit, alignment);
     final sx = viewport.width / pictureSize.width;
     final sy = viewport.height / pictureSize.height;
-    final dx = viewport.left;
-    final dy = viewport.top;
+    canvas.save();
+    final box = Offset.zero & size;
+    if (!_withinViewport || !svgRectEncloses(box, viewport)) {
+      canvas.clipRect(viewport.intersect(box), doAntiAlias: false);
+    }
     canvas
-      ..save()
-      ..translate(dx, dy)
+      ..translate(viewport.left, viewport.top)
       ..scale(sx, sy)
       ..drawPicture(picture)
       ..restore();
   }
 
+  /// Compares replay inputs including the viewport proof. / 比较重放参数与视口包含判定。
   @override
   bool shouldRepaint(_RustPicturePainter old) =>
       old.picture != picture ||
       old.pictureSize != pictureSize ||
+      old._withinViewport != _withinViewport ||
       old.fit != fit ||
       old.alignment != alignment;
 }
@@ -1408,18 +1470,25 @@ Future<ui.Image> rasterizeSvgPicture(
   final canvas = Canvas(recorder);
   final w = width.toDouble();
   final h = height.toDouble();
+  final size = Size(w, h);
   if (colorFilter != null) {
-    canvas.saveLayer(
-      Rect.fromLTWH(0, 0, w, h),
-      Paint()..colorFilter = colorFilter,
-    );
+    final clip = svgPaintViewport(
+      info.size,
+      size,
+      fit,
+      alignment,
+    ).intersect(Offset.zero & size);
+    canvas
+      ..clipRect(clip, doAntiAlias: false)
+      ..saveLayer(clip, Paint()..colorFilter = colorFilter);
   }
   _RustPicturePainter(
     picture: info.picture,
     pictureSize: info.size,
+    contentBounds: info.contentBounds,
     fit: fit,
     alignment: alignment,
-  ).paint(canvas, Size(w, h));
+  ).paint(canvas, size);
   if (colorFilter != null) canvas.restore();
   final framePicture = recorder.endRecording();
   try {

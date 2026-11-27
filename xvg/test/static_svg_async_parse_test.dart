@@ -197,12 +197,14 @@ void main() {
       final [a, b] = await Future.wait([first, second]);
       expect(b, same(a));
       expect(cache.peek(source), same(a));
+      expect(a.contentBounds, Offset.zero & svgSize);
       expect(handler.asyncCalls, 1);
       expect(handler.syncCalls, 0);
       expect(reports, 1);
       cache.clear();
       final next = await cache.getOrRenderAsync(source);
       expect(next, isNot(same(a)));
+      expect(next.contentBounds, a.contentBounds);
       expect(handler.asyncCalls, 2);
       expect(reports, 2);
     },

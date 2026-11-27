@@ -529,9 +529,9 @@ void main() {
       if (body == '<g>$_overlap</g>') {
         expect(canvas.calls, [
           #save,
+          #clipRect,
           #translate,
           #scale,
-          #clipRect,
           #drawPath,
           #drawPath,
           #restore,

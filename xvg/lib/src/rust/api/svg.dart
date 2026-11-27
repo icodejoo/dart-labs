@@ -7,10 +7,10 @@ import '../frb_generated.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `append_clip_geometry`, `append_mapped_points`, `append_segments`, `append_subtree_commands`, `argb`, `build_clips_at_depth`, `build_clips`, `build_gradient`, `build_mask_at_depth`, `build_mask`, `build_pattern`, `charge_clips`, `charge_subtree`, `charge`, `check_xml_depth`, `check`, `checked_styles`, `close_opacity_layer`, `collect`, `concat`, `convert_gradient_stops`, `convert_image`, `convert_path`, `css_compound_certain`, `css_compound_matches`, `css_declarations_certain`, `css_ident`, `css_parts_match`, `css_selector_parts`, `css_space`, `css_string_end`, `current_color_insertion`, `empty`, `extend_inherited`, `finish_commands`, `gaussian_blur_of`, `limit_scene_reference_depth`, `limit_source_depth`, `local_urls`, `map`, `paint_argb`, `parse_svg_document`, `parse_xml`, `resolve_paint`, `scan_css`, `some_if_present`, `source_reference_graph`, `spread_to_u8`, `stop_rgb`, `token_matrix`, `transform_to_vec6`, `try_scene_from_tree`, `usvg_options`
-// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `ClipCost`, `ExpansionBudget`, `GuardCss`, `Inherited`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`
-// These functions are ignored (category: IgnoreBecauseOwnerTyShouldIgnore): `default`, `default`, `default`, `default`
+// These functions are ignored because they are not marked as `pub`: `append_clip_geometry`, `append_mapped_points`, `append_segments`, `append_subtree_commands`, `argb`, `build_clips_at_depth`, `build_clips`, `build_gradient`, `build_mask_at_depth`, `build_mask`, `build_pattern`, `charge_clips`, `charge_subtree`, `charge`, `check_xml_depth`, `check`, `checked_styles`, `close_opacity_layer`, `collect`, `concat`, `convert_gradient_stops`, `convert_image`, `convert_path`, `css_compound_certain`, `css_compound_matches`, `css_declarations_certain`, `css_ident`, `css_parts_match`, `css_selector_parts`, `css_space`, `css_string_end`, `current_color_insertion`, `empty`, `extend_inherited`, `finish_commands`, `finish`, `flutter_blur_bounds`, `gaussian_blur_of`, `include`, `indexed_command`, `limit_scene_reference_depth`, `limit_source_depth`, `local_urls`, `map`, `paint_argb`, `parse_svg_document`, `parse_xml`, `resolve_paint`, `scan_css`, `some_if_present`, `source_reference_graph`, `spread_to_u8`, `stop_rgb`, `stroke_bounds_match`, `token_matrix`, `transform_to_vec6`, `try_scene_from_tree`, `usvg_options`
+// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `ClipCost`, `ExpansionBudget`, `GuardCss`, `Inherited`, `SceneBounds`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`
+// These functions are ignored (category: IgnoreBecauseOwnerTyShouldIgnore): `default`, `default`, `default`, `default`, `default`
 
 /// Parses [data] (SVG markup) into an [SvgScene]. Errors return a message.
 ///
@@ -194,6 +194,42 @@ class SvgCommand {
           kind == other.kind &&
           index == other.index &&
           opacity == other.opacity;
+}
+
+/// Content bounds in the same coordinates as the scene paths. / 内容边界与场景路径使用同一坐标系。
+class SvgContentBounds {
+  /// Left edge. / 左边界。
+  final double left;
+
+  /// Top edge. / 上边界。
+  final double top;
+
+  /// Right edge. / 右边界。
+  final double right;
+
+  /// Bottom edge. / 下边界。
+  final double bottom;
+
+  const SvgContentBounds({
+    required this.left,
+    required this.top,
+    required this.right,
+    required this.bottom,
+  });
+
+  @override
+  int get hashCode =>
+      left.hashCode ^ top.hashCode ^ right.hashCode ^ bottom.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SvgContentBounds &&
+          runtimeType == other.runtimeType &&
+          left == other.left &&
+          top == other.top &&
+          right == other.right &&
+          bottom == other.bottom;
 }
 
 /// 含状态边界的静态场景显示列表。
@@ -770,12 +806,16 @@ class SvgScene {
   /// 内嵌位图，按文档顺序排列；无透明度层时先于路径绘制。
   final List<SvgImage> images;
 
+  /// Conservative paint bounds in picture coordinates. / Picture 坐标中的保守绘制边界。
+  final SvgContentBounds? contentBounds;
+
   const SvgScene({
     required this.width,
     required this.height,
     required this.paths,
     this.displayList,
     required this.images,
+    this.contentBounds,
   });
 
   @override
@@ -784,7 +824,8 @@ class SvgScene {
       height.hashCode ^
       paths.hashCode ^
       displayList.hashCode ^
-      images.hashCode;
+      images.hashCode ^
+      contentBounds.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -795,5 +836,6 @@ class SvgScene {
           height == other.height &&
           paths == other.paths &&
           displayList == other.displayList &&
-          images == other.images;
+          images == other.images &&
+          contentBounds == other.contentBounds;
 }

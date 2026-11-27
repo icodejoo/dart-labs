@@ -251,7 +251,7 @@ void main() {
   });
 
   testWidgets(
-    'root background fills widget box including viewBox letterboxing',
+    'root background fills internal viewBox letterboxing within the SVG viewport',
     (tester) async {
       final pixels = await _capture(
         tester,
@@ -263,13 +263,13 @@ void main() {
           pixelSnap: XvgPixelSnap.never,
         ),
       );
-      for (final (x, y) in [
-        (1, 1),
-        (_side - 1, _side - 1),
-        (1, _side ~/ 2),
-        (_side - 1, _side ~/ 2),
+      for (final (x, y, expected) in [
+        (1, 1, 0),
+        (_side - 1, _side - 1, 0),
+        (1, _side ~/ 2, 0xff0000ff),
+        (_side - 1, _side ~/ 2, 0xff0000ff),
       ]) {
-        expect(pixels.getUint32((y * _side + x) * 4, Endian.big), 0xff0000ff);
+        expect(pixels.getUint32((y * _side + x) * 4, Endian.big), expected);
       }
     },
   );

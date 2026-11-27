@@ -23,7 +23,6 @@ import 'rust_static_svg.dart';
 import 'platform_file.dart'
     if (dart.library.js_interop) 'platform_file_web.dart';
 import 'svg_source_loader.dart';
-import 'xvg_raster_cache.dart';
 
 /// Default implicit playback speed. / 默认隐式播放速率。
 const _normalPlaybackRate = 1.0;
@@ -114,7 +113,6 @@ class Xvg extends StatefulWidget {
     this.pixelSnap = XvgPixelSnap.auto,
     this.alignment = Alignment.center,
     this.colorFilter,
-    this.rasterCache,
     this.theme,
     this.quality,
     this.controller,
@@ -167,7 +165,6 @@ class Xvg extends StatefulWidget {
     XvgPixelSnap pixelSnap = XvgPixelSnap.auto,
     Alignment alignment = Alignment.center,
     ColorFilter? colorFilter,
-    XvgRasterCache? rasterCache,
     XvgTheme? theme,
     XvgAnimationQuality? quality,
     XvgAnimationController? controller,
@@ -194,7 +191,6 @@ class Xvg extends StatefulWidget {
     pixelSnap: pixelSnap,
     alignment: alignment,
     colorFilter: colorFilter,
-    rasterCache: rasterCache,
     theme: theme,
     quality: quality,
     controller: controller,
@@ -229,7 +225,6 @@ class Xvg extends StatefulWidget {
     XvgPixelSnap pixelSnap = XvgPixelSnap.auto,
     Alignment alignment = Alignment.center,
     ColorFilter? colorFilter,
-    XvgRasterCache? rasterCache,
     XvgTheme? theme,
     XvgAnimationQuality? quality,
     XvgAnimationController? controller,
@@ -255,7 +250,6 @@ class Xvg extends StatefulWidget {
     pixelSnap: pixelSnap,
     alignment: alignment,
     colorFilter: colorFilter,
-    rasterCache: rasterCache,
     theme: theme,
     quality: quality,
     controller: controller,
@@ -285,7 +279,6 @@ class Xvg extends StatefulWidget {
     XvgPixelSnap pixelSnap = XvgPixelSnap.auto,
     Alignment alignment = Alignment.center,
     ColorFilter? colorFilter,
-    XvgRasterCache? rasterCache,
     XvgTheme? theme,
     XvgAnimationQuality? quality,
     XvgAnimationController? controller,
@@ -311,7 +304,6 @@ class Xvg extends StatefulWidget {
     pixelSnap: pixelSnap,
     alignment: alignment,
     colorFilter: colorFilter,
-    rasterCache: rasterCache,
     theme: theme,
     quality: quality,
     controller: controller,
@@ -346,7 +338,6 @@ class Xvg extends StatefulWidget {
     XvgPixelSnap pixelSnap = XvgPixelSnap.auto,
     Alignment alignment = Alignment.center,
     ColorFilter? colorFilter,
-    XvgRasterCache? rasterCache,
     XvgTheme? theme,
     XvgAnimationQuality? quality,
     XvgAnimationController? controller,
@@ -371,7 +362,6 @@ class Xvg extends StatefulWidget {
     pixelSnap: pixelSnap,
     alignment: alignment,
     colorFilter: colorFilter,
-    rasterCache: rasterCache,
     theme: theme,
     quality: quality,
     controller: controller,
@@ -418,16 +408,6 @@ class Xvg extends StatefulWidget {
   ///
   /// 可选重着色滤镜；动画路径通过 ColorFiltered 应用，未设置时无额外层。
   final ColorFilter? colorFilter;
-
-  /// Opt-in bitmap tiles for Rust-rendered static sources. The Dart renderer
-  /// for animation and text ignores this setting.
-  /// With caching enabled, [XvgPixelSnap.auto] enables pixel alignment.
-  /// [XvgPixelSnap.never] keeps fractional offsets and falls back to vectors
-  /// during fractional scrolling until the grid settles.
-  /// Rust 静态路径的可选位图分块。动画和文字使用的 Dart 路径忽略此设置。
-  /// 启用缓存时，[XvgPixelSnap.auto] 开启像素对齐。
-  /// [XvgPixelSnap.never] 保留小数偏移，亚像素滚动期间回退到向量，直到网格停稳。
-  final XvgRasterCache? rasterCache;
 
   /// Theme controlling `currentColor`, honored by both the animated and
   /// static rendering paths.
@@ -560,7 +540,7 @@ class _XvgState extends State<Xvg> {
   @override
   Widget build(BuildContext context) {
     if (_needsDartEngine) {
-      final child = AnimatedXvg.string(
+      return AnimatedXvg.string(
         widget.source,
         width: widget.width,
         height: widget.height,
@@ -568,6 +548,7 @@ class _XvgState extends State<Xvg> {
         pixelSnap: widget.pixelSnap,
         alignment: widget.alignment,
         theme: widget.theme,
+        colorFilter: widget.colorFilter,
         quality: widget.quality,
         controller: widget.controller,
         animation: widget.animation,
@@ -583,9 +564,6 @@ class _XvgState extends State<Xvg> {
         onAnimationComplete: widget.onAnimationComplete,
         onAnimationLoop: widget.onAnimationLoop,
       );
-      return widget.colorFilter == null
-          ? child
-          : ColorFiltered(colorFilter: widget.colorFilter!, child: child);
     }
     return StaticXvg(
       widget.source,
@@ -595,7 +573,6 @@ class _XvgState extends State<Xvg> {
       pixelSnap: widget.pixelSnap,
       alignment: widget.alignment,
       colorFilter: widget.colorFilter,
-      rasterCache: widget.rasterCache,
       theme: widget.theme,
       errorBuilder: widget.onError != null || widget.errorBuilder != null
           ? _buildStaticError
@@ -641,7 +618,6 @@ class _AsyncXvg extends StatefulWidget {
     required this.pixelSnap,
     required this.alignment,
     this.colorFilter,
-    this.rasterCache,
     this.theme,
     this.quality,
     this.controller,
@@ -700,8 +676,6 @@ class _AsyncXvg extends StatefulWidget {
   final Alignment alignment;
   final ColorFilter? colorFilter;
 
-  /// Cache configuration to forward. / 向下转发的缓存配置。
-  final XvgRasterCache? rasterCache;
   final XvgTheme? theme;
   final XvgAnimationQuality? quality;
 
@@ -847,7 +821,6 @@ class _AsyncXvgState extends State<_AsyncXvg> {
       pixelSnap: widget.pixelSnap,
       alignment: widget.alignment,
       colorFilter: widget.colorFilter,
-      rasterCache: widget.rasterCache,
       theme: widget.theme,
       quality: widget.quality,
       controller: widget.controller,

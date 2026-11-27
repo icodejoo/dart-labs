@@ -105,7 +105,6 @@ const Xvg.string(
   XvgPixelSnap pixelSnap = XvgPixelSnap.auto,
   Alignment alignment = Alignment.center,
   ColorFilter? colorFilter,
-  XvgRasterCache? rasterCache,
   XvgTheme? theme,
   XvgAnimationQuality? quality,
   XvgAnimationController? controller,
@@ -266,8 +265,7 @@ class _RemoteStringIconState extends State<RemoteStringIcon> {
 | `alignment` | `Alignment.center` | `fit` 留出空白时 picture 在盒子里的位置。类型是 `Alignment`，不是 `AlignmentGeometry`。 |
 | `colorFilter` | `null` | Flutter `ColorFilter`，两条路径都生效。动画源仅在传入滤镜时才多加一层 `ColorFiltered`。 |
 | `theme` | `null` | `XvgTheme(currentColor: …)`，解析 SVG 里的 `currentColor` 关键字（默认不透明黑色）。 |
-| `pixelSnap` | `XvgPixelSnap.auto` | 合成阶段把视口对齐到物理像素。`auto` 仅对遮罩/裁剪文档启用，`always` / `never` 强制覆盖。 |
-| `rasterCache` | `null` | 静态（Rust 路径）源的可选位图分块缓存：只栅格化可见的 512 像素块，所有组件共用一个 LRU 字节预算（`XvgRasterCache.byteBudget`，默认 32 MiB）。`resolutionScale: 0.5` 让纹理字节降到四分之一，边缘更柔和。启用后 `pixelSnap: auto` 按 `always` 处理；设为 `never` 时小数像素滚动期间回落向量。动画路径忽略。适合在动画或滚动下反复重绘的重型静态插画。 |
+| `pixelSnap` | `XvgPixelSnap.auto` | 合成阶段把视口对齐到物理像素。`auto` 在有遮罩/裁剪风险或位图分块就绪时启用，`always` / `never` 强制覆盖。 |
 | `quality` | `null`（使用 `XvgAnimationQuality.defaultQuality`） | 动画吞吐与保真的取舍。Rust 路径忽略。 |
 | `controller` | `null` | 共享的 `XvgAnimationController`。与 `animation` 互斥；`playbackRate` 保持 1.0，改用控制器自己的速率。 |
 | `animation` | `null` | 由 Flutter `Animation<double>` 驱动文档时间（`value × animationSpan`）。 |
@@ -526,17 +524,26 @@ List<Widget> recolor() => const [
 ];
 ```
 
-`colorFilter` 对两条渲染路径都生效。动画 SVG 仅在传入滤镜时才多加一层
-`ColorFiltered`。取值相同的 `XvgTheme` 实例相等，所以重建它们不会破坏缓存复用。
+`colorFilter` 在两条渲染路径的适配后 SVG 视口内生效。取值相同的
+`XvgTheme` 实例相等，所以重建它们不会破坏缓存复用。
 源里的 `currentColor` 在两条路径上都通过 `XvgTheme` 控制。
 
 `Xvg.network` 按排序后的 header 值比较，`Xvg.file` 按路径比较。换源时，新内容
 加载完成前会一直显示旧 SVG。源加载会区分 assets、bundle、文件与 header 变体，
 并合并同一 key 的并发请求。HTTP 连接与响应头等待各有 30 秒超时。
 
-`pixelSnap: XvgPixelSnap.auto` 在合成阶段对齐遮罩/裁剪视口；`always`/`never`
-在所有 SVG 组件入口上覆盖该行为（仅平移与正缩放，视觉修正小于 1 个物理像素；
-布局、点击与语义保留原位置）。
+静态和动画 SVG 都裁剪到适配后的 SVG 视口与组件边界的交集，行为与浏览器
+`<img>` 一致。根元素的 `overflow` 属性会被忽略。根 `viewBox` 留边内的内容仍可见。
+
+复杂的静态 SVG 会在网格连续稳定重放 32 帧后自动生成位图分块。可见内容须非空，
+解析结果须有至少 15,000 点（含曲线控制点）或 100 条路径。分块取内容边界与
+视口的交集。边界未知或应用 `ColorFilter` 时，按完整裁剪视口处理。分块在原物理
+分辨率下使用 512 像素网格，预取 64 像素并计入采样边，单图估算上限为 12 MiB。
+全局共享 `XvgRasterCache.byteBudget`，默认 32 MiB。[阈值基准](benchmark/raster_cache_auto_threshold_r2.md#异常修复与重拟合)
+
+`pixelSnap: XvgPixelSnap.auto` 在合成阶段对齐有遮罩/裁剪风险的视口和正在使用位图分块的静态插画。
+`always` 和 `never` 可在所有 SVG 组件入口覆盖该行为。对齐支持平移和轴对齐正缩放，
+视觉修正小于 1 个物理像素，布局、点击与语义保留原位置。
 
 ## 动画播放
 
@@ -795,7 +802,7 @@ SVG 动画在没有监听者时暂停，遵循 `timeDilation`，有限文档停�
 | 符号 | 类别 | 用途 |
 | --- | --- | --- |
 | `Xvg` | 组件 | 入口组件，负责选渲染器。`Xvg.string` 构造函数；`Xvg.asset`、`Xvg.network`、`Xvg.file`、`Xvg.memory` 静态工厂；`Xvg.ensureInitialized()`。 |
-| `StaticXvg` | 组件 | Rust（`usvg`）静态渲染器。参数：`source`、`pixelSnap`、`width`、`height`、`fit`、`alignment`、`colorFilter`、`rasterCache`、`theme`、`errorBuilder`。 |
+| `StaticXvg` | 组件 | Rust（`usvg`）静态渲染器。参数：`source`、`pixelSnap`、`width`、`height`、`fit`、`alignment`、`colorFilter`、`theme`、`errorBuilder`。 |
 | `RustXvgPictureCache` | 类 | 进程级 LRU，缓存录制好的静态 picture。`instance`、`maximumSize`（200）、`onParseMiss`、`getOrRender`、`getOrRenderAsync`、`peek`、`clear`、`length`、`approximateBytesUsed`。 |
 | `AnimatedXvg` | 组件 | Dart 侧 SMIL / CSS `@keyframes` 渲染器。`AnimatedXvg.string`，动画、画质与回调参数同 `Xvg.string`。 |
 | `XvgDocumentCache` | 类 | 进程级缓存，缓存已解析的动画文档。`instance`、`maximumSize`（1000）、`getOrParse`、`getOrParseAsync`、`prewarm`、`clear`、`length`。 |
@@ -808,7 +815,7 @@ SVG 动画在没有监听者时暂停，遵循 `timeDilation`，有限文档停�
 | `XvgAnimationLoaded`、`XvgAnimationStarted`、`XvgAnimationCompleted`、`XvgAnimationLooped`、`XvgAnimationRangeLooped`、`XvgAnimationElementBegin`、`XvgAnimationElementEnd`、`XvgAnimationElementRepeat`、`XvgAnimationError` | final 类 | 播放与元素事件；按需携带 `info`、`natural`、`iteration`、`id` / `elementId`、`error` / `stack`。 |
 | `XvgAnimationQuality` | 类 | 保真/吞吐配置：`adaptiveFrameSkipping`、`frameSkipThreshold`、`maxFrameDivisor`、`offscreenLayerFrameDivisor`、`approximateSimpleMasksAsClip`；预设 `balanced`、`exact`；全局 `defaultQuality`。 |
 | `XvgPixelSnap` | 枚举 | `auto`、`always`、`never`：视口对齐物理像素的策略。 |
-| `XvgRasterCache` | 类 | 可选分块缓存配置：`resolutionScale`；静态成员 `byteBudget`、`bytesUsed`、`tileCount`。 |
+| `XvgRasterCache` | 类 | 自动分块位图缓存的静态预算和统计（`byteBudget`、`bytesUsed`、`tileCount`、`disposedTileCount`）。 |
 | `StringXvg`、`AssetXvg`、`NetworkXvg`、`FileXvg`、`MemoryXvg` | `ImageProvider` | 用于 `Image`、`DecorationImage`、`precacheImage`。共有参数 `width`、`height`、`colorFilter`、`theme`、`animationFrameRate`（默认 30）；另有 `source` / `assetName`+`bundle`+`package` / `url`+`headers` / `file` / `bytes`。 |
 | `RustLib` | 类 | flutter_rust_bridge 生成的入口，导出供测试使用 `RustLib.initMock()` / `RustLib.dispose()`。启动后端请优先用 `Xvg.ensureInitialized()`。 |
 

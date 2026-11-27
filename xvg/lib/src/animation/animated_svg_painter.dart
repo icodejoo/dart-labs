@@ -169,8 +169,7 @@ class AnimatedSvgPainter extends CustomPainter {
   /// Alignment within the paint box. / 在绘制盒内的对齐方式。
   final Alignment alignment;
 
-  /// Root background fills the paint box before viewport mapping.
-  /// 根背景在视口映射之前铺满绘制盒；为空则不画。
+  /// Root background fills the fitted viewport. / 根背景填满适配后的视口。
   final Color? backgroundColor;
 
   /// [backgroundColor] 对应的画笔，构造后只建一次，逐帧复用。
@@ -181,59 +180,20 @@ class AnimatedSvgPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     if (size.isEmpty || intrinsicSize.isEmpty) return;
-    final background = _backgroundPaint;
-    if (background != null) canvas.drawRect(Offset.zero & size, background);
     final viewport = svgPaintViewport(intrinsicSize, size, fit, alignment);
     final sx = viewport.width / intrinsicSize.width;
     final sy = viewport.height / intrinsicSize.height;
-    final dx = viewport.left;
-    final dy = viewport.top;
 
-    canvas.save();
-    canvas.translate(dx, dy);
-    canvas.scale(sx, sy);
-    // Clip to the SVG viewport before painting anything. Two reasons, the
-    // second one measured:
-    //
-    //  1. Correctness: keep root overflow hidden at the viewport boundary,
-    //     including content enlarged by preserveAspectRatio="slice".
-    //  2. Performance — this is why it matters at scale. `_paintNode` opens
-    //     `saveLayer` layers for `<mask>` and `feGaussianBlur` with a null
-    //     bounds. A null bounds means "unbounded", so the renderer sizes the offscreen
-    //     render target from the *current clip*, and `CustomPaint` does not
-    //     clip its canvas — the clip was therefore the whole window. Every
-    //     masked icon allocated two FULL-SCREEN offscreen textures and two
-    //     full-screen render passes per frame, no matter that the icon draws
-    //     into 32x32 logical pixels. Measured on a Huawei STG-AL00 (Android
-    //     12, Impeller GLES) with ~140 visible line-md icons of which ~23 use
-    //     `<mask>`: 56 `saveLayer`s became 57 `RenderPassGLES::
-    //     EncodeCommandsInReactor` passes at ~43ms each = ~2450ms per frame.
-    //     The screen never updated and the raster thread sat at 100% CPU —
-    //     which looked like a driver hang but was simply a frame that took
-    //     2.4 seconds. With this clip in place the same layers are sized to
-    //     the icon box instead of the window.
-    //
-    // 绘制任何内容前先裁剪到 SVG 视口。两个原因，第二个是实测得出的：
-    //
-    //  1. 正确性：根元素按 viewport 边界隐藏溢出，也裁掉
-    //     preserveAspectRatio="slice" 放大后超出视口的内容。
-    //  2. 性能——这才是规模化时的关键。`_paintNode` 会为 `<mask>` 与
-    //     `feGaussianBlur` 开 `saveLayer(null, ...)` 图层。bounds 传 null 意味
-    //     着"无界"，渲染器于是按*当前裁剪区*来决定离屏渲染目标的尺寸，而
-    //     `CustomPaint` 并不裁剪自己的画布——于是裁剪区就是整个窗口。每个带
-    //     mask 的图标每帧都要分配两张**全屏**离屏纹理、跑两个全屏渲染通道，
-    //     哪怕这个图标只画在 32x32 逻辑像素里。在华为 STG-AL00（Android 12，
-    //     Impeller GLES）上实测：约 140 个可见 line-md 图标中约 23 个用了
-    //     `<mask>`，56 次 `saveLayer` 变成 57 个
-    //     `RenderPassGLES::EncodeCommandsInReactor` 通道、每个约 43ms，
-    //     合计每帧约 2450ms。屏幕因此始终不更新、raster 线程 100% CPU——看着
-    //     像驱动挂死，实际只是一帧要画 2.4 秒。加上这个裁剪后，同样的图层会
-    //     按图标盒子而不是按窗口来分配尺寸。
-    canvas.clipRect(
-      Rect.fromLTWH(0, 0, intrinsicSize.width, intrinsicSize.height),
-    );
-    // Clip in viewport coordinates, then map every node from user space.
-    // 先在视口坐标中裁剪，再统一映射所有节点的用户坐标。
+    // The outer clip also bounds offscreen targets for masks and blur.
+    // 外层裁剪也限制遮罩和模糊的离屏目标尺寸。
+    canvas
+      ..save()
+      ..clipRect(viewport.intersect(Offset.zero & size), doAntiAlias: false);
+    final background = _backgroundPaint;
+    if (background != null) canvas.drawRect(viewport, background);
+    canvas
+      ..translate(viewport.left, viewport.top)
+      ..scale(sx, sy);
     final rootMatrix = _rootViewBoxMatrix;
     if (rootMatrix != null) canvas.transform(rootMatrix);
     _paintNode(canvas, root, ResolvedStyle.initial);

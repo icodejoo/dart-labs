@@ -2,8 +2,10 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/widgets.dart';
 import 'package:xvg/src/rust/api/svg.dart';
 import 'package:xvg/src/rust/frb_generated.native.dart' show RustLibApi;
+import 'package:xvg/src/xvg_raster_cache.dart';
 import 'package:xvg/xvg.dart';
 
 /// 返回加入畸形命令后的场景。
@@ -96,6 +98,53 @@ int _pixel(ByteData bytes, int x) =>
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  testWidgets('complex SVG with unknown bounds caches the full viewport', (
+    tester,
+  ) async {
+    await tester.runAsync(RustLib.init);
+    final original = parseSvg(
+      data:
+          '<svg xmlns="http://www.w3.org/2000/svg" width="700" height="120">'
+          '${List.filled(100, '<rect x="10" y="10" width="60" height="60" fill="red"/>').join()}'
+          '</svg>',
+    );
+    RustLib.dispose();
+    RustLib.initMock(
+      api: _SceneApi(
+        SvgScene(
+          width: original.width,
+          height: original.height,
+          paths: original.paths,
+          images: original.images,
+          displayList: original.displayList,
+        ),
+      ),
+    );
+    addTearDown(() {
+      RustXvgPictureCache.instance.clear();
+      RustLib.dispose();
+      tester.view.reset();
+    });
+    const source = 'mocked complex SVG with unknown bounds';
+    final info = RustXvgPictureCache.instance.getOrRender(source);
+    expect(info.pathCount, greaterThanOrEqualTo(xvgRasterMinPaths));
+    expect(info.contentBounds, isNull);
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(800, 160);
+    await tester.pumpWidget(
+      const Align(
+        alignment: Alignment.topLeft,
+        child: StaticXvg(source, pixelSnap: XvgPixelSnap.never),
+      ),
+    );
+    for (var frame = 0; frame < 48; frame++) {
+      tester.binding.scheduleFrame();
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    expect(XvgRasterCache.tileCount, 2);
+    expect(debugXvgRasterTilesReady, isTrue);
+  });
 
   test('malformed commands cannot unwind the caller canvas stack', () async {
     await RustLib.init();

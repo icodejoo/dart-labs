@@ -117,8 +117,7 @@ class SvgDocument {
   /// 是否有整个 `<use>` 实例因累计展开节点预算不足而被跳过。
   final bool useExpansionTruncated;
 
-  /// Root background fills the paint box before either viewport transform.
-  /// 根背景在两层视口变换之前铺满绘制盒，不随 viewBox 移动或缩放。
+  /// Root background fills the fitted SVG viewport. / 根背景覆盖适配后的 SVG 视口。
   final Color? backgroundColor;
 
   /// Root user-to-viewport affine `[a,b,c,d,e,f]`; null means identity.

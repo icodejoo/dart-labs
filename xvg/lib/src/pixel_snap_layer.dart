@@ -5,12 +5,12 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
 /// Aligns the painted SVG viewport to physical pixels during composition.
-/// Defaults to [auto], which enables alignment for mask/clip documents.
+/// Defaults to [auto], which aligns mask/clip documents and cached static art.
 /// Only translation and positive axis-aligned scaling are supported. Visual
 /// edges move by less than one physical pixel; layout, hits and semantics keep
 /// their original coordinates. Use [never] for independent subtree captures.
 ///
-/// 合成时将 SVG 绘制视口对齐物理像素；默认 [auto] 仅对遮罩/裁剪文档启用。
+/// 合成时将 SVG 绘制视口对齐物理像素；默认 [auto] 对遮罩/裁剪文档和已进入位图缓存的静态插画启用。
 /// 仅支持平移与轴对齐正缩放；边缘视觉修正小于一个物理像素，布局、点击及语义
 /// 仍使用原坐标。独立子树截图可使用 [never]。
 ///
@@ -18,7 +18,7 @@ import 'package:flutter/widgets.dart';
 /// Xvg.string(source, pixelSnap: XvgPixelSnap.never)
 /// ```
 enum XvgPixelSnap {
-  /// Enable for parsed mask/clip risk. / 解析结果有遮罩/裁剪风险时启用。
+  /// Enable for mask/clip risk or cached static art. / 有遮罩、裁剪风险或静态位图分块就绪时启用。
   auto,
 
   /// Enable for every document under supported transforms. / 支持的变换下始终启用。
@@ -36,10 +36,67 @@ Rect svgPaintViewport(
   Alignment alignment,
 ) {
   if (intrinsic.isEmpty || size.isEmpty) return Rect.zero;
-  return alignment.inscribe(
-    applyBoxFit(fit, intrinsic, size).destination,
-    Offset.zero & size,
-  );
+  final fitted = applyBoxFit(fit, intrinsic, size);
+  final destination = fitted.destination;
+  // Cropping fits describe a source subset; map the whole viewport at that scale.
+  // 裁剪型适配返回源子区域，按同一比例映射完整视口。
+  final viewport = fitted.source == intrinsic
+      ? destination
+      : Size(
+          intrinsic.width * (destination.width / fitted.source.width),
+          intrinsic.height * (destination.height / fitted.source.height),
+        );
+  return alignment.inscribe(viewport, Offset.zero & size);
+}
+
+/// Tests rectangle containment including shared edges. / 判断矩形包含关系，允许共用边界。
+bool svgRectEncloses(Rect outer, Rect inner) =>
+    outer.left <= inner.left &&
+    outer.top <= inner.top &&
+    outer.right >= inner.right &&
+    outer.bottom >= inner.bottom;
+
+/// Applies recoloring inside the fitted SVG viewport. / 在适配后的 SVG 视口内重着色。
+Widget svgViewportColorFiltered({
+  required Widget child,
+  required ColorFilter filter,
+  required Size intrinsicSize,
+  required BoxFit fit,
+  required Alignment alignment,
+}) => ClipRect(
+  clipper: _SvgViewportClipper(intrinsicSize, fit, alignment),
+  child: ColorFiltered(colorFilter: filter, child: child),
+);
+
+/// Bounds filters that can give transparent pixels alpha. / 限制可给透明像素着色的滤镜范围。
+class _SvgViewportClipper extends CustomClipper<Rect> {
+  /// Stores the viewport fitting inputs. / 保存视口适配参数。
+  const _SvgViewportClipper(this.intrinsicSize, this.fit, this.alignment);
+
+  /// Root viewport dimensions. / 根视口尺寸。
+  final Size intrinsicSize;
+
+  /// Viewport fitting mode. / 视口适配方式。
+  final BoxFit fit;
+
+  /// Placement within the layout box. / 视口在布局盒内的位置。
+  final Alignment alignment;
+
+  /// Clips the filtered output to the visible artwork. / 将滤镜输出裁到可见插画区域。
+  @override
+  Rect getClip(Size size) => svgPaintViewport(
+    intrinsicSize,
+    size,
+    fit,
+    alignment,
+  ).intersect(Offset.zero & size);
+
+  /// Recomputes the clip when fitting changes. / 适配参数变化时重新计算裁剪。
+  @override
+  bool shouldReclip(_SvgViewportClipper oldClipper) =>
+      oldClipper.intrinsicSize != intrinsicSize ||
+      oldClipper.fit != fit ||
+      oldClipper.alignment != alignment;
 }
 
 /// Replaces the existing boundary only when enabled. / 仅启用时替换原有边界。
@@ -120,7 +177,12 @@ class RenderPixelSnapBoundary extends RenderProxyBox {
   @override
   void performLayout() {
     super.performLayout();
-    final viewport = svgPaintViewport(_intrinsicSize, size, _fit, _alignment);
+    final viewport = svgPaintViewport(
+      _intrinsicSize,
+      size,
+      _fit,
+      _alignment,
+    ).intersect(Offset.zero & size);
     if (_viewport == viewport) return;
     _viewport = viewport;
     markNeedsCompositedLayerUpdate();
@@ -242,20 +304,36 @@ class PixelSnapLayer extends OffsetLayer {
     return null;
   }
 
+  /// Accumulates root-to-leaf transforms and returns the first unsupported layer with its reason. / 从根累乘变换并返回首个不支持的图层及原因。
+  static (Layer, bool isUnknown)? accumulateSceneTransform(
+    Layer? ancestor,
+    Matrix4 world, {
+    void Function(Layer, Matrix4)? onLayer,
+  }) {
+    if (ancestor == null) return null;
+    final failure = accumulateSceneTransform(
+      ancestor.parent,
+      world,
+      onLayer: onLayer,
+    );
+    if (failure != null) return failure;
+    final local = sceneTransform(ancestor);
+    if (local == null) return (ancestor, true);
+    if (!isPositiveScaleTranslation(local)) return (ancestor, false);
+    world.multiply(local);
+    onLayer?.call(ancestor, world);
+    return null;
+  }
+
+  /// Computes the local correction from the scene viewport. / 根据场景视口计算局部对齐修正。
   Matrix4 _correction() {
-    final ancestors = <Layer>[];
-    for (Layer? node = parent; node != null; node = node.parent) {
-      ancestors.add(node);
-    }
     final world = Matrix4.identity();
-    for (final ancestor in ancestors.reversed) {
-      final local = sceneTransform(ancestor);
-      if (local == null || !isPositiveScaleTranslation(local)) {
-        debugSkipReason =
-            '${local == null ? 'unknown' : 'non-axis'}:${ancestor.runtimeType}';
-        return Matrix4.identity();
-      }
-      world.multiply(local);
+    final failure = accumulateSceneTransform(parent, world);
+    if (failure != null) {
+      final (ancestor, isUnknown) = failure;
+      debugSkipReason =
+          '${isUnknown ? 'unknown' : 'non-axis'}:${ancestor.runtimeType}';
+      return Matrix4.identity();
     }
     world.translateByDouble(offset.dx, offset.dy, 0, 1);
     if (!isPositiveScaleTranslation(world) ||
@@ -264,19 +342,25 @@ class PixelSnapLayer extends OffsetLayer {
       debugSkipReason = 'invalid-viewport';
       return Matrix4.identity();
     }
+    final correction = viewportCorrection(world, viewport);
+    debugDidSnap = correction != null;
+    if (correction == null) debugSkipReason = 'degenerate-size';
+    return correction ?? Matrix4.identity();
+  }
+
+  /// Computes correction for an axis-aligned physical viewport. / 计算轴对齐物理视口的局部修正。
+  static Matrix4? viewportCorrection(Matrix4 world, Rect viewport) {
     final physical = MatrixUtils.transformRect(world, viewport);
     if (!physical.isFinite ||
         physical.width.round() <= 0 ||
         physical.height.round() <= 0) {
-      debugSkipReason = 'degenerate-size';
-      return Matrix4.identity();
+      return null;
     }
     final sx = physical.width.roundToDouble() / physical.width;
     final sy = physical.height.roundToDouble() / physical.height;
     final dx =
         (_roundedOrigin(physical.left) - physical.left) / world.storage[0];
     final dy = (_roundedOrigin(physical.top) - physical.top) / world.storage[5];
-    debugDidSnap = true;
     // Scale about the viewport origin, including letterbox/alignment offsets.
     // 围绕视口原点缩放，包含留白及 alignment 偏移。
     return Matrix4.translationValues(

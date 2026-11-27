@@ -131,29 +131,26 @@ void main() {
   setUpAll(() async => RustLib.init());
   tearDownAll(() => RustXvgPictureCache.instance.clear());
 
-  test(
-    'all effect layers composite under antialiased viewport and element clips',
-    () {
-      for (final (effects, layers) in [
-        ('', 2),
-        (_halfOpacity, 3),
-        (_blurFilter, 3),
-        ('$_halfOpacity $_blurFilter', 4),
-      ]) {
-        final recorder = ui.PictureRecorder();
-        final canvas = _ClipAuditCanvas(Canvas(recorder));
-        _paintAnimated(canvas, _source(effects: '$_elementClip $effects'));
-        recorder.endRecording().dispose();
-        expect(canvas.layers, hasLength(layers), reason: effects);
-        expect(
-          canvas.layers,
-          everyElement((viewportClip: true, elementClip: true)),
-          reason: effects,
-        );
-        expect(canvas.stack, isEmpty);
-      }
-    },
-  );
+  test('all effect layers composite under the hard viewport and antialiased element clips', () {
+    for (final (effects, layers) in [
+      ('', 2),
+      (_halfOpacity, 3),
+      (_blurFilter, 3),
+      ('$_halfOpacity $_blurFilter', 4),
+    ]) {
+      final recorder = ui.PictureRecorder();
+      final canvas = _ClipAuditCanvas(Canvas(recorder));
+      _paintAnimated(canvas, _source(effects: '$_elementClip $effects'));
+      recorder.endRecording().dispose();
+      expect(canvas.layers, hasLength(layers), reason: effects);
+      expect(
+        canvas.layers,
+        everyElement((viewportClip: true, elementClip: true)),
+        reason: effects,
+      );
+      expect(canvas.stack, isEmpty);
+    }
+  });
 
   test('binary mask approximation retains clips without offscreen layers', () {
     final recorder = ui.PictureRecorder();
@@ -340,13 +337,14 @@ class _ClipAuditCanvas implements Canvas {
     ui.ClipOp clipOp = ui.ClipOp.intersect,
     bool doAntiAlias = true,
   }) {
-    expect(doAntiAlias, isTrue);
+    expect(doAntiAlias, isFalse);
     state = (viewportClip: true, elementClip: state.elementClip);
     delegate.clipRect(rect, clipOp: clipOp, doAntiAlias: doAntiAlias);
   }
 
   @override
   void clipPath(ui.Path path, {bool doAntiAlias = true}) {
+    expect(doAntiAlias, isTrue);
     pathClips++;
     state = (viewportClip: state.viewportClip, elementClip: true);
     delegate.clipPath(path, doAntiAlias: doAntiAlias);

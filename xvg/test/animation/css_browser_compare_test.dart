@@ -215,97 +215,6 @@ Map<String, num> _compare(Uint8List reference, Uint8List actual) {
   };
 }
 
-/// 只忽略 painter 首次视口裁剪，其余操作完整转发；外层画布仍裁剪。
-class _ViewportCanvas implements ui.Canvas {
-  /// 包装一个真实画布。
-  _ViewportCanvas(this.canvas, this.origin);
-
-  /// 实际接收绘制命令的画布。
-  final ui.Canvas canvas;
-
-  /// 在 painter 完成适配变换后补偿 viewBox 原点。
-  final ui.Offset origin;
-
-  /// 首次 clipRect 是 painter 固定的 viewBox 裁剪。
-  bool _firstClip = true;
-
-  /// 跳过首次裁剪，其后保留原语义。
-  @override
-  void clipRect(
-    ui.Rect rect, {
-    ui.ClipOp clipOp = ui.ClipOp.intersect,
-    bool doAntiAlias = true,
-  }) {
-    if (_firstClip) {
-      _firstClip = false;
-      canvas.translate(-origin.dx, -origin.dy);
-      return;
-    }
-    canvas.clipRect(rect, clipOp: clipOp, doAntiAlias: doAntiAlias);
-  }
-
-  /// 转发路径裁剪。
-  @override
-  void clipPath(ui.Path path, {bool doAntiAlias = true}) =>
-      canvas.clipPath(path, doAntiAlias: doAntiAlias);
-
-  /// 转发矩形绘制（根背景色整面铺底用）。
-  @override
-  void drawRect(ui.Rect rect, ui.Paint paint) => canvas.drawRect(rect, paint);
-
-  /// 转发路径绘制。
-  @override
-  void drawPath(ui.Path path, ui.Paint paint) => canvas.drawPath(path, paint);
-
-  /// 转发 TextPainter 间接调用的文字绘制。
-  @override
-  void drawParagraph(ui.Paragraph paragraph, ui.Offset offset) =>
-      canvas.drawParagraph(paragraph, offset);
-
-  /// 转发图像绘制。
-  @override
-  void drawImageRect(
-    ui.Image image,
-    ui.Rect src,
-    ui.Rect dst,
-    ui.Paint paint,
-  ) => canvas.drawImageRect(image, src, dst, paint);
-
-  /// 转发状态保存。
-  @override
-  void save() => canvas.save();
-
-  /// 转发离屏图层。
-  @override
-  void saveLayer(ui.Rect? bounds, ui.Paint paint) =>
-      canvas.saveLayer(bounds, paint);
-
-  /// 转发状态恢复。
-  @override
-  void restore() => canvas.restore();
-
-  /// 转发平移。
-  @override
-  void translate(double dx, double dy) => canvas.translate(dx, dy);
-
-  /// 转发缩放。
-  @override
-  void scale(double sx, [double? sy]) => canvas.scale(sx, sy);
-
-  /// 转发旋转。
-  @override
-  void rotate(double radians) => canvas.rotate(radians);
-
-  /// 转发矩阵。
-  @override
-  void transform(Float64List matrix4) => canvas.transform(matrix4);
-
-  /// 新增绘图操作时明确报错，防止静默丢失命令。
-  @override
-  dynamic noSuchMethod(Invocation invocation) =>
-      throw UnsupportedError('未转发的 Canvas 操作：${invocation.memberName}');
-}
-
 /// 按 viewBox 优先的尺寸绘制，完整传递渐变、裁剪路径和遮罩。
 Future<Uint8List> _render(
   SvgDocument document,
@@ -327,6 +236,9 @@ Future<Uint8List> _render(
     AnimatedSvgPainter(
       root: document.root,
       intrinsicSize: intrinsic,
+      rootViewBoxTransform: origin == ui.Offset.zero
+          ? null
+          : [1, 0, 0, 1, -origin.dx, -origin.dy],
       clock: clock,
       theme: const XvgTheme(),
       fit: BoxFit.contain,
@@ -335,7 +247,7 @@ Future<Uint8List> _render(
       clipPaths: document.clipPaths,
       masks: document.masks,
       backgroundColor: document.backgroundColor,
-    ).paint(_ViewportCanvas(canvas, origin), bounds.size);
+    ).paint(canvas, bounds.size);
   } catch (_) {
     recorder.endRecording().dispose();
     rethrow;
@@ -472,9 +384,9 @@ void main() {
       '</svg>',
     );
     final pixels = await _render(document, intrinsic, 1, _white, origin);
-    // 可见矩形从 y≈38 开始，包含上方 letterbox 区域。
-    expect(pixels[(40 * _side + 128) * _channels], 0);
-    expect(pixels[(30 * _side + 128) * _channels], _opaque);
+    // 拟合视口从 y=64 起，裁掉上方布局留边内的图形。
+    expect(pixels[(40 * _side + 128) * _channels], _opaque);
+    expect(pixels[(65 * _side + 128) * _channels], 0);
     expect(pixels[(180 * _side + 128) * _channels], 0);
     expect(pixels[(200 * _side + 128) * _channels], _opaque);
   });

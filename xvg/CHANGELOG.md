@@ -1,6 +1,7 @@
 ## Unreleased
 
-- Add opt-in, viewport-tiled bitmap caching for static SVGs with a shared byte budget and adjustable raster resolution, with pixel snapping enabled for `pixelSnap: XvgPixelSnap.auto`.
+- Clip static and animated SVGs to the fitted SVG viewport intersected with the widget bounds. Root `overflow` is ignored, matching SVG loaded via browser `<img>` and the default `flutter_svg` hard-edge clip.
+- Automatically cache frequently replayed, complex static SVGs in viewport bitmap tiles when the visible artwork fits the texture budget. Tiles support unknown content bounds and `ColorFilter`, share a 32 MiB budget, and use physical pixel alignment with `XvgPixelSnap.auto`.
 - Rust emits scoped clip commands for static SVGs, sharing inherited clip geometry across paths and images.
 - Large static SVGs now parse on a background Rust worker on native platforms when their picture is uncached, reducing UI-thread work during the first render.
 

@@ -7,30 +7,10 @@ import 'package:flutter/widgets.dart';
 
 import 'pixel_snap_layer.dart';
 
-/// Opt-in bitmap tiles for a static SVG. / 静态 SVG 的可选分块位图缓存。
-///
-/// With caching enabled, [XvgPixelSnap.auto] enables pixel alignment for
-/// supported transforms. [XvgPixelSnap.never] preserves fractional offsets and
-/// uses vector painting during fractional scrolling until the grid settles.
-/// 启用缓存后，[XvgPixelSnap.auto] 在支持的变换下启用像素对齐。
-/// [XvgPixelSnap.never] 保留小数偏移，亚像素滚动期间回退到向量，直到网格停稳。
-@immutable
-class XvgRasterCache {
-  /// Creates a cache configuration. / 创建缓存配置。
-  ///
-  /// [resolutionScale] must be in (0, 1]. At 0.5 the textures use one quarter
-  /// of the bytes, with softer details and edges.
-  /// [resolutionScale] 必须在 (0, 1] 内。0.5 的纹理字节数为四分之一，边缘和细节更柔和。
-  ///
-  /// ```dart
-  /// StaticXvg(source, rasterCache: const XvgRasterCache(resolutionScale: 0.5))
-  /// ```
-  const XvgRasterCache({this.resolutionScale = 1})
-    : assert(resolutionScale > 0 && resolutionScale <= 1);
-
-  /// Fraction of physical resolution, floored to one texel per grid cell.
-  /// 分块采用的物理分辨率比例，每个网格内核至少对应一个纹素。
-  final double resolutionScale;
+/// Shared bitmap tile budget and statistics. / 静态 SVG 位图分块的共享预算和统计。
+abstract final class XvgRasterCache {
+  /// Prevents instantiation. / 禁止实例化。
+  XvgRasterCache._();
 
   /// Edge of a tile before downsampling, in physical pixels. / 降采样前的物理分块边长。
   static const tileSize = 512;
@@ -60,6 +40,44 @@ class XvgRasterCache {
   static int get disposedTileCount => _TileCache.instance.disposedCount;
 }
 
+/// Minimum parsed path count for automatic caching. / 自动缓存所需的最少路径数。
+const xvgRasterMinPaths = 100;
+
+/// Minimum parsed point count for automatic caching. / 自动缓存所需的最少坐标点数。
+const xvgRasterMinPoints = 15000;
+
+/// Consecutive stable replays before requesting tiles. / 请求分块前需连续稳定重放的帧数。
+const _stableReplayFrames = 32;
+
+/// Per-artwork RGBA8 limit, including prefetch and padding. / 单图 RGBA8 上限，含预取和采样边。
+const _maxArtworkBytes = 12 * 1024 * 1024;
+
+/// Full physical resolution for automatic tiles. / 自动缓存分块使用原物理分辨率。
+const _resolutionScale = 1.0;
+
+/// Cache modes used by tests and historical benchmarks. / 测试与历史基准使用的缓存模式。
+enum XvgRasterCacheOverride {
+  /// Paint vectors only. / 仅绘制向量。
+  disabled,
+
+  /// Generate tiles immediately at full resolution. / 立即生成原分辨率分块。
+  enabled,
+
+  /// Generate tiles immediately at half resolution. / 立即生成半分辨率分块。
+  halfResolution,
+}
+
+/// Stores the testing policy for the next widget build. / 保存下次构建使用的测试覆盖模式。
+XvgRasterCacheOverride? _cacheOverride;
+
+/// The policy for the next build. / 下次构建使用的策略。
+XvgRasterCacheOverride? get xvgRasterCacheOverride => _cacheOverride;
+
+/// Null runs automatic admission. / 为 null 时按库规则自动判断。
+@visibleForTesting
+set debugXvgRasterCacheOverride(XvgRasterCacheOverride? value) =>
+    _cacheOverride = value;
+
 /// Profile A/B switch for async rasterization. / 真机基准使用的异步生成对照开关。
 bool debugXvgRasterizeTilesAsync = false;
 
@@ -83,8 +101,10 @@ class XvgRasterPaint extends LeafRenderObjectWidget {
     required this.fit,
     required this.alignment,
     required this.painter,
-    required this.colorFilter,
-    required this.resolutionScale,
+    required this.cacheOverride,
+    required this.snapWhenCached,
+    this.contentBounds,
+    this.colorFilter,
   });
 
   /// Preferred size under loose constraints. / 松约束下的首选尺寸。
@@ -92,6 +112,12 @@ class XvgRasterPaint extends LeafRenderObjectWidget {
 
   /// Intrinsic picture size. / Picture 的固有尺寸。
   final Size intrinsicSize;
+
+  /// Conservative bounds, or null for full viewport coverage. / 保守绘制边界，null 表示覆盖完整视口。
+  final Rect? contentBounds;
+
+  /// Recoloring applied inside the visible viewport. / 在可见视口内应用的重着色滤镜。
+  final ColorFilter? colorFilter;
 
   /// How to fit the picture. / Picture 的适配方式。
   final BoxFit fit;
@@ -102,11 +128,11 @@ class XvgRasterPaint extends LeafRenderObjectWidget {
   /// Original vector painting logic. / 原有向量绘制逻辑。
   final CustomPainter painter;
 
-  /// Recoloring applied to the composited artwork. / 应用于合成插画的重着色滤镜。
-  final ColorFilter? colorFilter;
+  /// Optional benchmark policy. / 可选的基准覆盖模式。
+  final XvgRasterCacheOverride? cacheOverride;
 
-  /// Fraction of physical resolution. / 物理分辨率比例。
-  final double resolutionScale;
+  /// Whether ready tiles activate pixel alignment. / 分块就绪后是否启用像素对齐。
+  final bool snapWhenCached;
 
   /// Creates the paint box. / 创建绘制盒。
   @override
@@ -134,6 +160,9 @@ class _RenderRasterPaint extends RenderBox {
   /// Owned scene layer, reused across paints. / 跨 paint 复用的场景图层。
   final _handle = LayerHandle<_RasterTileLayer>(_RasterTileLayer());
 
+  /// Retains the optional filter layer across paints. / 跨绘制保留可选的滤镜图层。
+  final _filterLayer = LayerHandle<ColorFilterLayer>();
+
   /// Scene layer kept alive across parent repaints. / 跨父级重绘保留的场景图层。
   _RasterTileLayer get _layer => _handle.layer!;
 
@@ -150,13 +179,18 @@ class _RenderRasterPaint extends RenderBox {
         old.alignment != options.alignment;
     final contentChanged = options.painter.shouldRepaint(old.painter);
     final rasterChanged =
-        _view != view || old.resolutionScale != options.resolutionScale;
+        _view != view ||
+        old.cacheOverride != options.cacheOverride ||
+        old.snapWhenCached != options.snapWhenCached;
     final invalidate = geometryChanged || contentChanged || rasterChanged;
     _options = options;
     _view = view;
     if (old.preferredSize != options.preferredSize) markNeedsLayout();
     if (invalidate) _layer.clear();
-    if (invalidate || old.colorFilter != options.colorFilter) {
+    // Coverage changes only affect tile selection. / 覆盖范围变化只影响分块选择。
+    if (invalidate ||
+        old.contentBounds != options.contentBounds ||
+        old.colorFilter != options.colorFilter) {
       markNeedsPaint();
     }
   }
@@ -180,37 +214,64 @@ class _RenderRasterPaint extends RenderBox {
 
   /// Intrinsic width follows CustomPaint. / 固有宽度沿用 CustomPaint。
   @override
-  double computeMinIntrinsicWidth(double height) =>
-      _options.preferredSize.width;
+  double computeMinIntrinsicWidth(double height) {
+    final width = _options.preferredSize.width;
+    return width.isFinite ? width : 0;
+  }
 
   /// Intrinsic width follows CustomPaint. / 固有宽度沿用 CustomPaint。
   @override
   double computeMaxIntrinsicWidth(double height) =>
-      _options.preferredSize.width;
+      computeMinIntrinsicWidth(height);
 
   /// Intrinsic height follows CustomPaint. / 固有高度沿用 CustomPaint。
   @override
-  double computeMinIntrinsicHeight(double width) =>
-      _options.preferredSize.height;
+  double computeMinIntrinsicHeight(double width) {
+    final height = _options.preferredSize.height;
+    return height.isFinite ? height : 0;
+  }
 
   /// Intrinsic height follows CustomPaint. / 固有高度沿用 CustomPaint。
   @override
   double computeMaxIntrinsicHeight(double width) =>
-      _options.preferredSize.height;
+      computeMinIntrinsicHeight(width);
 
   /// Inserts the scene layer, which can re-evaluate visibility without repaint.
   /// 插入场景图层，使可见区域可在无需 repaint 时重新计算。
   @override
   void paint(PaintingContext context, Offset offset) {
     _layer.update(_options, _view, size, offset);
+    final filter = _options.colorFilter;
+    if (filter == null) {
+      layer = null;
+      _filterLayer.layer = null;
+      _paintArtwork(context, offset);
+      return;
+    }
+    layer = context.pushClipRect(needsCompositing, offset, _layer._viewport, (
+      context,
+      offset,
+    ) {
+      _filterLayer.layer = context.pushColorFilter(
+        offset,
+        filter,
+        _paintArtwork,
+        oldLayer: _filterLayer.layer,
+      );
+    }, oldLayer: layer as ClipRectLayer?);
+  }
+
+  /// Inserts the retained vector and tile compositor. / 插入保留的向量及分块合成层。
+  void _paintArtwork(PaintingContext context, Offset offset) {
     context.addLayer(_layer);
   }
 
-  /// Tracks only cache-enabled render objects for memory pressure. / 仅为启用缓存的渲染对象监听内存压力。
+  /// Repaints cleared layers and tracks memory pressure. / 重绘已清空的图层，并监听内存压力。
   @override
   void attach(PipelineOwner owner) {
     super.attach(owner);
     _TileCache.instance.attach(_layer);
+    markNeedsPaint();
   }
 
   /// Releases image handles on unmount. / 卸载时释放图像句柄。
@@ -226,16 +287,13 @@ class _RenderRasterPaint extends RenderBox {
   void dispose() {
     _layer.clear();
     _handle.layer = null;
+    _filterLayer.layer = null;
     super.dispose();
   }
 }
 
 /// Tile sampling border in physical pixels, including at half scale. / 物理像素采样边，半分辨率下仍覆盖相邻像素。
 const _tileBorder = 2;
-
-/// Smallest sampling rate covering one texel per nominal tile.
-/// 一个标准分块至少覆盖一个纹素的最小采样倍率。
-const _minResolution = 1 / XvgRasterCache.tileSize;
 
 /// RGBA8 channels per pixel. / 每个 RGBA8 像素的字节数。
 const _bytesPerPixel = 4;
@@ -334,14 +392,6 @@ double _edgeFloor(double value) =>
 double _edgeCeil(double value) =>
     (value / _tileBorder).ceilToDouble() * _tileBorder + _tileBorder;
 
-/// Whether all points of the viewport are covered by the cached core bounds.
-/// 视口是否完全被缓存内块覆盖。
-bool _encloses(Rect a, Rect b) =>
-    a.left <= b.left &&
-    a.top <= b.top &&
-    a.right >= b.right &&
-    a.bottom >= b.bottom;
-
 /// Tile coordinates overlapping a rectangle. / 与矩形相交的分块坐标。
 Iterable<(int, int)> _cells(Rect region) sync* {
   if (region.isEmpty) return;
@@ -355,9 +405,9 @@ Iterable<(int, int)> _cells(Rect region) sync* {
   }
 }
 
-/// Opt-in layer that sees the final transforms and viewport clips even when
+/// Tile layer that sees the final transforms and viewport clips even when
 /// a scrolling ancestor reuses an SVG repaint boundary.
-/// 即使滚动祖先复用 SVG 重绘边界，也能读取实际变换和视口裁剪的可选图层。
+/// 即使滚动祖先复用 SVG 重绘边界，分块图层也能读取实际变换和视口裁剪。
 class _RasterTileLayer extends Layer {
   /// Paint for tiles sampled at full resolution. / 原分辨率分块使用的画笔。
   static final _fullResolutionPaint = Paint()
@@ -372,23 +422,44 @@ class _RasterTileLayer extends Layer {
   /// Original vector drawing in logical box coordinates. / 逻辑绘制盒坐标中的原始向量图。
   ui.Picture? _vector;
 
+  /// Composite submitted by the last scene. / 上一次场景提交的合成图。
+  ui.Picture? _composite;
+
   /// Painting context offset within the parent layer. / 父图层内的绘制偏移。
   Offset _offset = Offset.zero;
 
   /// Logical paint viewport. / 逻辑绘制视口。
   Rect _viewport = Rect.zero;
 
+  /// Content mapped into the logical paint box. / 映射到逻辑绘制盒的内容边界。
+  Rect _content = Rect.zero;
+
   /// Current view's screen bounds and DPR. / 当前显示视图的屏幕边界与 DPR。
   ui.FlutterView? _view;
 
   /// Configured resolution. / 配置的分辨率。
-  double resolution = 1;
+  double resolution = _resolutionScale;
 
-  /// Color filter applied after composing vector and images. / 向量与位图合成之后应用的滤镜。
-  ColorFilter? _colorFilter;
+  /// Whether to use the library admission rule. / 是否按库规则自动判断。
+  bool _automatic = true;
 
-  /// Screen and ancestor clips mapped into the physical tile grid. / 映射到物理网格的屏幕和祖先裁剪。
+  /// Whether automatic tiles align the painted viewport. / 自动分块是否对齐绘制视口。
+  bool _snapWhenCached = false;
+
+  /// Last uncorrected viewport used to detect movement. / 用于检测移动的上次未修正视口。
+  Rect? _replayViewport;
+
+  /// Number of consecutive stable compositions. / 连续稳定合成次数。
+  int _replays = 0;
+
+  /// Last scheduler frame counted for this layer. / 本图层上次计入的调度帧。
+  int _lastReplayFrame = -1;
+
+  /// Accumulated physical clip, shifted to the tile grid for painting. / 累积的物理裁剪，绘制时平移到分块网格。
   Rect _clip = Rect.zero;
+
+  /// Reuses the clip visitor across scenes. / 跨场景复用裁剪回调。
+  late final void Function(Layer, Matrix4) _clipVisitor = _intersectClip;
 
   /// Full fitted artwork bounds in physical grid coordinates. / 物理网格坐标中的完整适配插画边界。
   Rect _artwork = Rect.zero;
@@ -416,6 +487,9 @@ class _RasterTileLayer extends Layer {
   /// 等待网格停稳时最近观测到的候选变换。
   Matrix4? _movingMatrix;
 
+  /// DPR of the candidate grid. / 候选网格的 DPR。
+  double? _movingDpr;
+
   /// Tracks composition through retained ancestors. / 通过保留祖先图层跟踪合成状态。
   @override
   bool get alwaysNeedsAddToScene => true;
@@ -429,15 +503,30 @@ class _RasterTileLayer extends Layer {
   ) {
     _view = view;
     _offset = offset;
-    final scale = options.resolutionScale;
-    resolution = scale > 0 && scale < _minResolution ? _minResolution : scale;
-    _colorFilter = options.colorFilter;
-    _viewport = svgPaintViewport(
+    _automatic = options.cacheOverride == null;
+    _snapWhenCached = options.snapWhenCached;
+    resolution = options.cacheOverride == XvgRasterCacheOverride.halfResolution
+        ? _resolutionScale / 2
+        : _resolutionScale;
+    final viewport = svgPaintViewport(
       options.intrinsicSize,
       size,
       options.fit,
       options.alignment,
     );
+    _viewport = viewport.intersect(Offset.zero & size);
+    final bounds = options.contentBounds;
+    _content = _viewport;
+    if (bounds != null && bounds.isFinite && !options.intrinsicSize.isEmpty) {
+      final sx = viewport.width / options.intrinsicSize.width;
+      final sy = viewport.height / options.intrinsicSize.height;
+      _content = Rect.fromLTRB(
+        viewport.left + bounds.left * sx,
+        viewport.top + bounds.top * sy,
+        viewport.left + bounds.right * sx,
+        viewport.top + bounds.bottom * sy,
+      ).intersect(_viewport);
+    }
     if (_vector != null) return;
     final recorder = ui.PictureRecorder();
     options.painter.paint(Canvas(recorder), size);
@@ -448,9 +537,44 @@ class _RasterTileLayer extends Layer {
   /// 清理旧绘制输入的 Picture 和分块记录。
   void clear() {
     _resetGridMotion();
-    _dropTiles();
+    _resetReplay();
+    engineLayer = null;
     _vector?.dispose();
     _vector = null;
+  }
+
+  /// Releases an ineligible grid and restarts its replay count. / 释放失效网格并重新计数。
+  void _resetReplay() {
+    _replayViewport = null;
+    _replays = 0;
+    _lastReplayFrame = -1;
+    _composite?.dispose();
+    _composite = null;
+    if (_snapWhenCached) engineLayer = null;
+    _dropTiles();
+  }
+
+  /// Counts stable rendered frames once, ignoring independent scene captures.
+  /// 每次渲染帧最多计一次，独立场景截图不计入。
+  bool _replayedEnough(Rect physical) {
+    if (_replays >= _stableReplayFrames) return true;
+    if (SchedulerBinding.instance.schedulerPhase !=
+        SchedulerPhase.persistentCallbacks) {
+      return false;
+    }
+    final frame = _TileCache.instance._frame;
+    if (_lastReplayFrame == frame) return false;
+    final last = _replayViewport;
+    final stable =
+        last != null &&
+        (last.left - physical.left).abs() < _gridTolerance &&
+        (last.top - physical.top).abs() < _gridTolerance &&
+        (last.right - physical.right).abs() < _gridTolerance &&
+        (last.bottom - physical.bottom).abs() < _gridTolerance;
+    _replays = stable && _lastReplayFrame == frame - 1 ? _replays + 1 : 1;
+    _replayViewport = physical;
+    _lastReplayFrame = frame;
+    return _replays >= _stableReplayFrames;
   }
 
   /// Cancels a pending grid change. / 取消等待中的网格切换。
@@ -458,6 +582,7 @@ class _RasterTileLayer extends Layer {
     _phaseTimer?.cancel();
     _phaseTimer = null;
     _movingMatrix = null;
+    _movingDpr = null;
   }
 
   /// Releases tiles and resets the visibility from the previous grid. / 释放分块并重置旧网格的可见信息。
@@ -471,36 +596,33 @@ class _RasterTileLayer extends Layer {
   }
 
   /// Traverses the existing snap layer transforms and composited clips. / 遍历现有像素对齐变换和合成裁剪。
-  (Matrix4, Rect)? _sceneGeometry() {
-    final ancestors = <Layer>[];
-    for (Layer? node = parent; node != null; node = node.parent) {
-      ancestors.add(node);
-    }
-    final view = _view!;
+  Matrix4? _sceneGeometry() {
+    _clip = Offset.zero & _view!.physicalSize;
     final world = Matrix4.identity();
-    var clip = Offset.zero & view.physicalSize;
-    for (var index = ancestors.length - 1; index >= 0; index--) {
-      final layer = ancestors[index];
-      final local = PixelSnapLayer.sceneTransform(layer);
-      if (local == null || !PixelSnapLayer.isPositiveScaleTranslation(local)) {
-        return null;
-      }
-      world.multiply(local);
-      final bounds = switch (layer) {
-        ClipRectLayer(:final clipRect) => clipRect,
-        ClipRRectLayer(:final clipRRect) => clipRRect?.outerRect,
-        ClipRSuperellipseLayer(:final clipRSuperellipse) =>
-          clipRSuperellipse?.outerRect,
-        ClipPathLayer(:final clipPath) => clipPath?.getBounds(),
-        OpacityLayer(alpha: 0) => Rect.zero,
-        _ => null,
-      };
-      if (bounds != null) {
-        clip = clip.intersect(MatrixUtils.transformRect(world, bounds));
-      }
-    }
+    final failure = PixelSnapLayer.accumulateSceneTransform(
+      parent,
+      world,
+      onLayer: _clipVisitor,
+    );
+    if (failure != null) return null;
     world.translateByDouble(_offset.dx, _offset.dy, 0, 1);
-    return (world, clip);
+    return world;
+  }
+
+  /// Intersects a layer's clip in physical scene coordinates. / 在物理场景坐标中累积该层裁剪。
+  void _intersectClip(Layer layer, Matrix4 world) {
+    final bounds = switch (layer) {
+      ClipRectLayer(:final clipRect) => clipRect,
+      ClipRRectLayer(:final clipRRect) => clipRRect?.outerRect,
+      ClipRSuperellipseLayer(:final clipRSuperellipse) =>
+        clipRSuperellipse?.outerRect,
+      ClipPathLayer(:final clipPath) => clipPath?.getBounds(),
+      OpacityLayer(alpha: 0) => Rect.zero,
+      _ => null,
+    };
+    if (bounds != null) {
+      _clip = _clip.intersect(MatrixUtils.transformRect(world, bounds));
+    }
   }
 
   /// Compares the scales of two raster transforms. / 比较两个栅格变换的缩放倍率。
@@ -519,19 +641,19 @@ class _RasterTileLayer extends Layer {
     final previous = _rasterMatrix;
     final dpr = _view!.devicePixelRatio;
     if (previous != null) {
-      final sameScale = _dpr == dpr && _sameScale(previous, next);
-      if (sameScale && _samePhase(previous, next)) {
+      if (_dpr == dpr &&
+          _sameScale(previous, next) &&
+          _samePhase(previous, next)) {
         _resetGridMotion();
         return true;
       }
-      if (!sameScale) _dropTiles();
-    }
-    final moving = _movingMatrix;
-    if (previous != null || moving != null) {
+      final moving = _movingMatrix;
       if (moving == null ||
+          _movingDpr != dpr ||
           !_sameScale(moving, next) ||
           !_samePhase(moving, next)) {
         _movingMatrix = next;
+        _movingDpr = dpr;
         _phaseTimer?.cancel();
         _phaseTimer = Timer(_phaseSettleTime, () {
           _phaseTimer = null;
@@ -539,9 +661,9 @@ class _RasterTileLayer extends Layer {
         });
       }
       if (_phaseTimer != null) return false;
+      _dropTiles();
+      _resetGridMotion();
     }
-    _dropTiles();
-    _resetGridMotion();
     _dpr = dpr;
     _rasterMatrix = next;
     return true;
@@ -553,56 +675,54 @@ class _RasterTileLayer extends Layer {
   void addToScene(ui.SceneBuilder builder) {
     final vector = _vector;
     if (vector == null) return;
-    final filter = _colorFilter;
-    if (filter == null) {
-      engineLayer = null;
+    final previous = _composite;
+    _composite = null;
+    try {
       _addArtwork(builder, vector);
-      return;
+    } finally {
+      previous?.dispose();
     }
-    engineLayer = builder.pushColorFilter(
-      filter,
-      oldLayer: engineLayer as ui.ColorFilterEngineLayer?,
-    );
-    _addArtwork(builder, vector);
-    builder.pop();
   }
 
   /// Adds the original vector and whichever tiles are ready. / 加入原始向量和已就绪块。
   void _addArtwork(ui.SceneBuilder builder, ui.Picture vector) {
-    final geometry = _sceneGeometry();
-    if (geometry == null ||
-        _viewport.isEmpty ||
-        !resolution.isFinite ||
-        resolution <= 0 ||
-        resolution > 1) {
-      _resetGridMotion();
-      _dropTiles();
+    /// Submits the original vector geometry. / 提交原始向量几何。
+    void addVector() {
+      if (_snapWhenCached) engineLayer = null;
       builder.addPicture(_offset, vector);
+    }
+
+    final axis = _sceneGeometry();
+    if (axis == null || !_viewport.isFinite || _viewport.isEmpty) {
+      _resetGridMotion();
+      _resetReplay();
+      addVector();
       return;
     }
-    final (matrix, deviceClip) = geometry;
-    final physical = MatrixUtils.transformRect(matrix, _viewport);
-    if (!physical.isFinite) {
+    final uncorrected = MatrixUtils.transformRect(axis, _viewport);
+    final correction = _snapWhenCached
+        ? PixelSnapLayer.viewportCorrection(axis, _viewport)
+        : null;
+    if (correction != null) axis.multiply(correction);
+    final physical = correction == null
+        ? uncorrected
+        : MatrixUtils.transformRect(axis, _viewport);
+    if (!physical.isFinite || physical.isEmpty) {
       _resetGridMotion();
-      _dropTiles();
-      builder.addPicture(_offset, vector);
+      _resetReplay();
+      addVector();
       return;
     }
     final origin = Offset(
       _pixelFloor(physical.left),
       _pixelFloor(physical.top),
     );
-    matrix.setTranslationRaw(
-      matrix.storage[12] - origin.dx,
-      matrix.storage[13] - origin.dy,
+    axis.setTranslationRaw(
+      axis.storage[12] - origin.dx,
+      axis.storage[13] - origin.dy,
       0,
     );
-    if (!_useGrid(matrix)) {
-      visible = Rect.zero;
-      builder.addPicture(_offset, vector);
-      return;
-    }
-    _clip = deviceClip.shift(-origin);
+    _clip = _clip.shift(-origin);
     final left = physical.left - origin.dx;
     final top = physical.top - origin.dy;
     _artwork = Rect.fromLTRB(
@@ -611,22 +731,48 @@ class _RasterTileLayer extends Layer {
       _stableEdge(physical.right - origin.dx),
       _stableEdge(physical.bottom - origin.dy),
     );
-    final nextVisible = _clip.intersect(_artwork);
+    final tileRegion = _artwork.intersect(
+      MatrixUtils.transformRect(axis, _content),
+    );
+    final nextVisible = _clip.intersect(tileRegion);
+    final near = _clip.inflate(_overscan).intersect(tileRegion);
+    if (_automatic) {
+      if (nextVisible.isEmpty || _estimatedBytes(near) > _maxArtworkBytes) {
+        _resetReplay();
+        addVector();
+        return;
+      }
+      _TileCache.instance.trackReplay(this);
+      final previous = _rasterMatrix;
+      final dpr = _view!.devicePixelRatio;
+      if (previous != null &&
+          (_dpr != dpr ||
+              !_sameScale(previous, axis) ||
+              !_samePhase(previous, axis))) {
+        _resetReplay();
+      }
+      if (!_replayedEnough(uncorrected)) {
+        addVector();
+        return;
+      }
+      _dpr = dpr;
+      _rasterMatrix = axis;
+    } else if (!_useGrid(axis)) {
+      visible = Rect.zero;
+      addVector();
+      return;
+    }
     if (nextVisible != visible) prefetch = true;
     visible = nextVisible;
-    _near = _clip.inflate(_overscan).intersect(_artwork);
+    _near = near;
     tiles.removeWhere((_, tile) {
       if (!visible.isEmpty && tile.core.overlaps(_near)) return false;
       _TileCache.instance.remove(tile);
       return true;
     });
-    if (visible.isEmpty) {
-      builder.addPicture(_offset, vector);
-      return;
-    }
+    if (visible.isEmpty) return;
     final cache = _TileCache.instance;
     List<_Tile>? ready;
-    Rect? covered;
     var hasMissingTiles = false;
     for (final cell in _cells(visible)) {
       final tile = tiles[cell];
@@ -636,20 +782,42 @@ class _RasterTileLayer extends Layer {
       }
       cache.touch(tile);
       (ready ??= []).add(tile);
-      covered = covered?.expandToInclude(tile.core) ?? tile.core;
     }
     cache.considerWork();
     if (ready == null) {
-      builder.addPicture(_offset, vector);
+      addVector();
       return;
     }
-    _addTiles(
-      builder,
-      vector,
-      matrix,
-      ready,
-      needsVector: hasMissingTiles || !_encloses(covered!, _clip),
-    );
+    if (correction != null) {
+      final local = Matrix4.translationValues(_offset.dx, _offset.dy, 0)
+        ..multiply(correction)
+        ..translateByDouble(-_offset.dx, -_offset.dy, 0, 1);
+      engineLayer = builder.pushTransform(
+        local.storage,
+        oldLayer: engineLayer as ui.TransformEngineLayer?,
+      );
+    }
+    _addTiles(builder, vector, axis, ready, hasMissingTiles);
+    if (correction != null) builder.pop();
+  }
+
+  /// Estimates ready tile bytes in constant time using the same padded grid as
+  /// rasterization and the R2 report. / 用与生成及第二轮报告相同的网格与采样边估算字节。
+  int _estimatedBytes(Rect region) =>
+      _bytesPerPixel *
+      _sampledAxis(region.left, region.right, _artwork.left, _artwork.right) *
+      _sampledAxis(region.top, region.bottom, _artwork.top, _artwork.bottom);
+
+  /// Counts core pixels and both sampling borders along one tile axis. / 统计单轴内块与两侧采样边像素。
+  int _sampledAxis(double start, double end, double artStart, double artEnd) {
+    const edge = XvgRasterCache.tileSize;
+    final first = (start / edge).floor();
+    final after = (end / edge).ceil();
+    final lo = first * edge;
+    final hi = after * edge;
+    final coreStart = lo <= artStart ? _edgeFloor(artStart).toInt() : lo;
+    final coreEnd = hi >= artEnd ? _edgeCeil(artEnd).toInt() : hi;
+    return coreEnd - coreStart + (after - first) * 2 * _tileBorder;
   }
 
   /// Draws padded textures via hard core clips and replays the vector once for holes.
@@ -658,13 +826,13 @@ class _RasterTileLayer extends Layer {
     ui.SceneBuilder builder,
     ui.Picture vector,
     Matrix4 matrix,
-    List<_Tile> ready, {
-    required bool needsVector,
-  }) {
+    List<_Tile> ready,
+    bool hasMissingTiles,
+  ) {
     final recorder = ui.PictureRecorder();
-    final canvas = Canvas(recorder);
+    final canvas = RendererBinding.instance.createCanvas(recorder);
     final inverse = Matrix4.inverted(matrix);
-    if (needsVector) {
+    if (hasMissingTiles) {
       canvas.save();
       canvas.transform(inverse.storage);
       canvas.clipRect(
@@ -683,8 +851,6 @@ class _RasterTileLayer extends Layer {
           doAntiAlias: false,
         );
       }
-      // Keep overflow semantics even when vector paint extends outside its box.
-      // 向量绘制超出盒子时继续保留溢出语义。
       canvas.transform(matrix.storage);
       canvas.drawPicture(vector);
       canvas.restore();
@@ -723,8 +889,8 @@ class _RasterTileLayer extends Layer {
       canvas.restore();
     }
     final composite = recorder.endRecording();
+    _composite = composite;
     builder.addPicture(_offset, composite);
-    composite.dispose();
   }
 
   /// Finds the next affordable tile for the current composition. / 找出当前合成可负担的下一块。
@@ -806,6 +972,42 @@ class _TileCache with WidgetsBindingObserver {
   /// Whether there is already a post-frame callback. / 是否已注册帧后回调。
   bool _scheduled = false;
 
+  /// Frame serial shared by all automatic layers. / 所有自动缓存图层共用的渲染帧序号。
+  int _frame = 0;
+
+  /// Automatic layers seen this frame or the frame before it. / 本帧或上一帧合成过的自动缓存图层。
+  final _replaying = <_RasterTileLayer, int>{};
+
+  /// Whether the next post-frame replay check is queued. / 是否已安排下一次帧后重放检查。
+  bool _checkingReplays = false;
+
+  /// Tracks replay without requesting animation frames of its own. / 记录重放，不主动请求动画帧。
+  void trackReplay(_RasterTileLayer layer) {
+    if (SchedulerBinding.instance.schedulerPhase !=
+        SchedulerPhase.persistentCallbacks) {
+      return;
+    }
+    _replaying[layer] = _frame;
+    if (_checkingReplays) return;
+    _checkingReplays = true;
+    SchedulerBinding.instance.addPostFrameCallback(_finishReplayFrame);
+  }
+
+  /// Releases grids omitted from the scene, even if kept alive by a parent.
+  /// 释放离开场景的网格，包括父节点保持挂载的情况。
+  void _finishReplayFrame(Duration _) {
+    _replaying.removeWhere((layer, frame) {
+      if (frame == _frame) return false;
+      layer._resetReplay();
+      return true;
+    });
+    _frame++;
+    _checkingReplays = _replaying.isNotEmpty;
+    if (_checkingReplays) {
+      SchedulerBinding.instance.addPostFrameCallback(_finishReplayFrame);
+    }
+  }
+
   /// Number of resident tiles. / 驻留分块数。
   int get tileCount => _lru.length;
 
@@ -817,6 +1019,7 @@ class _TileCache with WidgetsBindingObserver {
 
   /// Unsubscribes after the last enabled widget. / 最后一个启用的组件卸载后退订。
   void detach(_RasterTileLayer layer) {
+    _replaying.remove(layer);
     _layers.remove(layer);
     if (_layers.isEmpty) WidgetsBinding.instance.removeObserver(this);
   }

@@ -50,3 +50,6 @@ migrate_working_dir/
 # FVM Version Cache
 .fvm/
 /example/web/pkg/
+
+# Large raw benchmark dumps stay local (backup outside the repo).
+/benchmark/raster_cache_auto*_raw.json

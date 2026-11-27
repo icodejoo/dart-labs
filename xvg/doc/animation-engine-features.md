@@ -41,6 +41,7 @@
   - 自动分发后的源适用下文“动画路径”的全部边界：无 pattern/marker，filter 仅支持 blur 及限定的透明 Figma 前缀链，无 `<tspan>`/textPath、嵌入 `@font-face` 字体等。它不会将文字与其余 Rust 渲染内容混合。
   - `currentColor`/theme、colorFilter、width/height、fit/alignment/pixelSnap 继续传递；provider 使用同一尺寸与 scale 计算。文字源现在触发 Dart 路径的 `onLoaded`（零时长），默认隐式控制器短暂初始化后自动 settle；显式外部驱动仍由调用者管理。
   - **根视口映射**：Dart 固有宽高是 viewport 尺寸，接受无单位数字或 `px`，其它单位/百分比按缺失处理；每轴依次回退到有效 viewBox 的对应宽高、24。viewBox 必须是四个有限数字且宽高 >0，否则视为缺失。根 viewBox 原点、缩放及 preserveAspectRatio 已完整应用：支持 `none`、9 种对齐、`meet`/`slice`，缺省/非法值为 `xMidYMid meet`。先裁剪到 viewport，再变换用户坐标；外层 widget fit/alignment 在此基础上叠加。仅适用于根元素，`<use>`→symbol/嵌套 svg 的组简化不变。实现按 [SVG 2 §8.2](https://www.w3.org/TR/SVG2/coords.html#ComputingAViewportsTransform)；零宽高 viewBox 按本库约定视为缺失。
+  - **图片视口裁剪**：静态与动画都裁到按 `fit`/`alignment` 映射后的 SVG 视口与组件边界的交集。忽略根 `overflow`，保留 `meet` 留边内的内容。
   - `onError` 仍在帧后通知，配置的 errorBuilder 生效；未配置错误处理时沿用 Dart 路径的空盒子及 FlutterError 上报。小源同步解析，大源或内嵌图片就绪前显示 Dart 路径的尺寸占位；theme 变化重绘，不重新解析或重复报告同一解析错误。
 - **filter 只做 `feGaussianBlur`**:`feColorMatrix`/`feComposite`/`feOffset`/`feBlend`/`feDropShadow`/光照类图元等全部列为后续工作,当前一律不生效(不是画错,是不画)。多图元滤镜链同样整体忽略。
 - **mask/blur 是"最近祖先优先",不支持嵌套叠加**:真要嵌套需要完整的图层树,而扁平显示列表刻意不做这层结构。多层祖先都声明 mask/filter 时只有最内层生效。clip **不受此限**——多个祖先的裁剪会正确求交集。
@@ -363,7 +364,7 @@
 
 - `XvgPixelSnap.auto` 为所有 SVG widget 入口默认值：动画直接读取文档 masks/clipPaths 注册表，静态在 picture 缓存未命中的共用录制出口读取 paths.effects 的 clips/mask 并保存布尔值；不扫描 SVG 源文本、不新建正则。静态未引用的定义可被解析器消去，不视为风险。
 - `always` 对所有文档启用；`never` 关闭。auto 无风险及 never 直接保留原 RepaintBoundary，不增加渲染对象或图层。ImageProvider 输出整像素图像，不提供此参数。
-- 目标为 painter 实际绘制视口，不是 widget 外框：两条 painter 和 boundary 布局共享固有 viewport 尺寸、BoxFit、alignment 的计算。根 preserveAspectRatio 在 painter 内部应用；SVG 内部的 viewBox 内容留白不当作新的外层视口。painter 的 mask/clip 不另做逐路径像素取整，统一继承根矩阵和外层合成修正。
+- 两条 painter 和 boundary 布局共享可见视口的计算，使用固有 viewport 尺寸、BoxFit、alignment 和组件边界。根 preserveAspectRatio 在 painter 内部应用。painter 的 mask/clip 统一继承根矩阵和外层合成修正。
 - 仅在经审计的祖先层链上支持平移、轴对齐正缩放（含根 DPR）。物理原点、宽高取最近整数，半像素原点取下界、尺寸取上界；边缘视觉修正 <1 物理像素，布局、点击和语义仍按原位置。连续移动/缩放可能有像素栅格跳变；小于半物理像素、非有限几何回退。
 - 精确类型白名单：OffsetLayer、OpacityLayer、ImageFilterLayer、TransformLayer、PixelSnapLayer、ContainerLayer、ClipRectLayer、ClipRRectLayer、ClipRSuperellipseLayer、ClipPathLayer、ColorFilterLayer、ShaderMaskLayer、BackdropFilterLayer，以及 AnnotatedRegionLayer 的 SystemUiOverlayStyle、MouseCursor、Object、String、int、double、bool 泛型实例。Dart 没有任意泛型类的精确反射；其他实例类型保守回退，不按类型名猜测。已知类的未知子类同样回退。
 - 旋转、斜切、反射、透视、未知祖先及 Leader/Follower 祖先回退为普通 offset。后代链接可通过 applyTransform 读取本帧实际修正；图层注释查找使用同一矩阵的逆变换，嵌套对齐使用父层本帧矩阵。
