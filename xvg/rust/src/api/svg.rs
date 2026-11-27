@@ -2,6 +2,7 @@
 //
 // SVG 解析核心：usvg → 扁平显示列表，交给 Dart 重放为 ui.Picture。
 
+use super::svg_gjk;
 use usvg::tiny_skia_path::{Path, PathStroker, Point, Rect, Transform};
 
 /// A parsed SVG reduced to a flat list of paths with resolved paints.
@@ -56,7 +57,7 @@ impl SvgDisplayList {
 }
 
 /// 静态显示列表命令：0 路径、1 图片、2 合成入层、3 出层、4 入裁剪、5 出裁剪。
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub struct SvgCommand {
     /// 命令类型。
     pub kind: u8,
@@ -222,7 +223,7 @@ pub struct SvgClip {
 ///
 /// [paths] 是遮罩自身的形状（含已解析的 paint）——Dart 侧把它们光栅化，按
 /// [kind] 取其亮度或 alpha 作为被遮罩元素的覆盖度。
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub struct SvgMask {
     /// 0 = luminance (`mask-type="luminance"`, the default), 1 = alpha.
     /// 0 = 亮度（`mask-type="luminance"`，默认），1 = alpha。
@@ -253,7 +254,7 @@ pub struct SvgMask {
 /// [paths] 是贴片内容（图案自身局部空间）；[x]/[y]/[width]/[height] 是同一局部
 /// 空间内的贴片矩形；[matrix]（`[a, b, c, d, e, f]`）把图案局部空间映射到显示
 /// 列表其余部分所用的绝对空间。
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub struct SvgPattern {
     /// The `<pattern>` element's own `id` — always present, since a pattern is
     /// only ever reachable via `url(#id)` and usvg drops any pattern def with
@@ -284,7 +285,7 @@ pub struct SvgPattern {
 /// A resolved `feGaussianBlur`, in absolute-space sigma.
 ///
 /// 已解析的 `feGaussianBlur`，sigma 已换算到绝对坐标空间。
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub struct SvgBlur {
     /// Horizontal sigma. / 水平 sigma。
     pub std_dev_x: f32,
@@ -295,7 +296,7 @@ pub struct SvgBlur {
 }
 
 /// One path node: geometry and its fill and stroke. / 单个路径节点的几何、填充和描边。
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub struct SvgPath {
     /// Verbs: 0=move 1=line 2=quad 3=cubic 4=close. / 动词：0 移动 1 直线 2 二次 3 三次 4 闭合。
     pub verbs: Vec<u8>,
@@ -341,7 +342,7 @@ pub struct SvgPath {
 }
 
 /// Stroke information used only outside the default fast path. / 仅非默认描边携带的重放信息。
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub struct SvgStrokeStyle {
     /// Cap in bits 0–1, join in bits 2–3, filled outline in bit 4. / 低两位端点、接着两位连接、第 4 位标记轮廓填充。
     pub flags: u8,
@@ -354,7 +355,7 @@ pub struct SvgStrokeStyle {
 }
 
 /// A pre-cut dash or stroke outline. / 预切的虚线或描边轮廓。
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub struct SvgStrokeGeometry {
     /// Segment commands in SvgPath encoding. / 采用 SvgPath 编码的路径命令。
     pub verbs: Vec<u8>,
@@ -364,7 +365,7 @@ pub struct SvgStrokeGeometry {
 
 /// Bundles the clip/mask/blur/pattern fields that only apply to a minority of
 /// 打包路径的遮罩、模糊和图案；普通路径跨 FFI 时只序列化一个空值标记。
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub struct SvgEffects {
     /// Fill pattern, when the fill paint is a `<pattern>` (in which case
     /// [SvgPath::fill_argb] is only a grey fallback). / 填充图案，填充为
@@ -407,7 +408,7 @@ impl SvgEffects {
 }
 
 /// One gradient color stop. / 单个渐变色标。
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub struct SvgGradientStop {
     /// Position along the gradient in `[0, 1]`. / 沿渐变轴的位置，`[0, 1]`。
     pub offset: f32,
@@ -455,7 +456,7 @@ pub struct SvgGradientStop {
 /// `[a, b, c, d, e, f]`，对应 SVG `matrix(a,b,c,d,e,f)`）需由 Dart 侧应用
 /// （例如通过 `ui.Gradient.radial` 的 `matrix4`）——与线性不同，非均匀 bbox
 /// 缩放会把圆变成椭圆，仅凭两个点无法表达。
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub struct SvgGradient {
     /// 0 = linear, 1 = radial. / 0 = 线性，1 = 径向。
     pub kind: u8,
@@ -606,18 +607,54 @@ fn parse_svg_document(
     #[cfg(test)]
     USVG_ENTRIES.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     let injected = current_color.and_then(|argb| current_color_insertion(data, doc, argb));
-    let tree = if let Some(injected) = injected {
-        // 带 currentColor 需两遍,已知开销（额外 XML 文档分配）。
-        // Keep roxmltree's validated root/attribute lookup: replacing it with
-        // a partial scanner risks changing DTD, namespace and duplicate-color
-        // handling. Reuse the validation document when no injection is needed.
-        let colored_doc = parse_xml(&injected)?;
-        usvg::Tree::from_xmltree(&colored_doc, usvg_options())
+    let data = injected.as_deref().unwrap_or(data);
+    let colored_doc = injected.as_ref().map(|_| parse_xml(data)).transpose()?;
+    let doc = colored_doc.as_ref().unwrap_or(doc);
+    let root = doc.root_element();
+    let needs_default_viewport = root.has_tag_name(("http://www.w3.org/2000/svg", "svg"))
+        && !root.has_attribute("width")
+        && !root.has_attribute("height")
+        && !root.has_attribute("viewBox");
+    // Keep CSS attribute selector matching on the original document. / CSS 属性选择器继续匹配原始文档。
+    let observes_attributes = needs_default_viewport
+        && doc
+            .descendants()
+            .filter(|node| node.has_tag_name("style"))
+            .flat_map(|node| node.children())
+            .filter_map(|node| node.text())
+            .any(|text| text.contains('['));
+    let tree = if needs_default_viewport && !observes_attributes {
+        parse_default_viewport(data, root.range().start, doc)?
     } else {
-        usvg::Tree::from_xmltree(doc, usvg_options())
+        usvg::Tree::from_xmltree(doc, usvg_options()).map_err(|e| e.to_string())?
+    };
+    let mut scene = try_scene_from_tree(&tree)?;
+    if observes_attributes {
+        (scene.width, scene.height) = (DEFAULT_VIEWPORT_WIDTH, DEFAULT_VIEWPORT_HEIGHT);
     }
-    .map_err(|e| e.to_string())?;
-    try_scene_from_tree(&tree)
+    Ok(scene)
+}
+
+/// Default standalone object viewport in CSS pixels. / 独立 SVG 默认固有视口（CSS 像素）。
+const DEFAULT_VIEWPORT_WIDTH: f32 = 300.0;
+const DEFAULT_VIEWPORT_HEIGHT: f32 = 150.0;
+
+/// Gives percentage geometry its default browser viewport before usvg lowers it. / 在 usvg 转换前给百分比几何设定浏览器默认视口。
+fn parse_default_viewport(
+    data: &str,
+    root_start: usize,
+    doc: &usvg::roxmltree::Document<'_>,
+) -> Result<usvg::Tree, String> {
+    let Some(at) = svg_start_tag_insert(data, root_start) else {
+        return usvg::Tree::from_xmltree(doc, usvg_options()).map_err(|e| e.to_string());
+    };
+    let mut sized = data.to_owned();
+    sized.insert_str(
+        at,
+        &format!(" width=\"{DEFAULT_VIEWPORT_WIDTH}\" height=\"{DEFAULT_VIEWPORT_HEIGHT}\""),
+    );
+    let doc = parse_xml(&sized)?;
+    usvg::Tree::from_xmltree(&doc, usvg_options()).map_err(|e| e.to_string())
 }
 
 // Bound recursion BEFORE usvg constructs its recursive tree (including Drop).
@@ -1773,13 +1810,23 @@ pub(crate) fn scene_from_tree(tree: &usvg::Tree) -> SvgScene {
 
 /// Collects the display list and its paint bounds. / 收集显示列表及其绘制边界。
 fn try_scene_from_tree(tree: &usvg::Tree) -> Result<SvgScene, String> {
+    let merge =
+        qualifies_for_merge(tree.root(), 0, &mut (0, 0)).then(|| SceneMerge::new(tree.size()));
+    collect_scene(tree, merge)
+}
+
+/// Flattens the tree with an optional draw run. / 展平 SVG 树，并按需合并连续绘制。
+fn collect_scene(tree: &usvg::Tree, merge: Option<SceneMerge>) -> Result<SvgScene, String> {
     let size = tree.size();
     let mut paths = Vec::new();
     let mut images = Vec::new();
     let mut display_list = SvgDisplayList::empty();
     let mut image_budget = MAX_IMAGE_BYTES;
     let mut expansion_budget = ExpansionBudget::default();
-    let mut bounds = SceneBounds::default();
+    let mut bounds = SceneBounds {
+        merge,
+        ..SceneBounds::default()
+    };
     collect(
         tree.root(),
         &Inherited::default(),
@@ -1824,6 +1871,8 @@ fn try_scene_from_tree(tree: &usvg::Tree) -> Result<SvgScene, String> {
 #[flutter_rust_bridge::frb(ignore)]
 #[derive(Default)]
 struct SceneBounds {
+    /// Draw-run state, only allocated for complex SVGs. / 仅复杂 SVG 持有的合并状态。
+    merge: Option<SceneMerge>,
     /// Bound of an active replay clip, if available. / 当前回放裁剪的可用边界。
     clip: Option<Rect>,
     /// Additional coverage required by the Flutter replay. / Flutter 回放需要额外覆盖的区域。
@@ -1832,7 +1881,48 @@ struct SceneBounds {
     unknown: bool,
 }
 
+/// Holds the spatial index and limits for an eligible scene. / 保存达标场景的空间索引和合并限制。
+struct SceneMerge {
+    /// Limits shared by every run in the scene. / 场景内所有合并段共用的限制。
+    limits: MergeRunLimits,
+    /// Shared index reset at every group boundary. / 共享空间索引，每个分组边界重置。
+    run: DrawRun,
+}
+
+/// Merge limits in Picture coordinates. / Picture 坐标中的合并限制。
+#[derive(Clone, Copy)]
+struct MergeRunLimits {
+    /// Picture-space gap equivalent to two pixels at a 512px long side. / 长边为 512 物理像素时两像素对应的 Picture 间隙。
+    gap: f64,
+    /// Picture-space edge limit for preserving the tiny rectangle fast path. / 保留微型矩形快路径的 Picture 空间边长上限。
+    small_rect_edge: f32,
+    /// Viewport long edge used to scale the spatial index. / 用于缩放空间索引的视口长边。
+    viewport_edge: f64,
+}
+
+impl SceneMerge {
+    /// Scales normalized limits to Picture coordinates. / 将归一化限制换算成 Picture 坐标。
+    fn new(size: usvg::Size) -> Self {
+        let edge = f64::from(size.width().max(size.height()));
+        Self {
+            limits: MergeRunLimits {
+                gap: edge * (2.0 / 512.0),
+                small_rect_edge: (edge * (MERGE_SMALL_RECT_EDGE / MERGE_REFERENCE_EDGE)) as f32,
+                viewport_edge: edge,
+            },
+            run: DrawRun::default(),
+        }
+    }
+}
+
 impl SceneBounds {
+    /// Ends an active run at a draw boundary. / 在绘制边界结束活动合并段。
+    fn end_merge_run(&mut self) {
+        if let Some(merge) = &mut self.merge {
+            merge.run.reset();
+        }
+    }
+
     /// Includes extra paint within the active clip. / 纳入当前裁剪以内的额外绘制区域。
     fn include(&mut self, bbox: Option<Rect>) {
         let added = match (self.clip, bbox) {
@@ -1917,6 +2007,15 @@ fn inject_current_color(data: String, argb: u32) -> String {
     current_color_insertion(&data, &doc, argb).unwrap_or(data)
 }
 
+/// Finds where to insert attributes after the qualified root name. / 定位根标签限定名后的属性插入点。
+fn svg_start_tag_insert(data: &str, tag_start: usize) -> Option<usize> {
+    let start = tag_start + 1;
+    data.get(start..)?
+        .find(|c: char| c.is_ascii_whitespace() || c == '/' || c == '>')
+        .map(|len| start + len)
+}
+
+/// Injects a default current color into an SVG root that has no color. / 给未声明颜色的 SVG 根标签注入默认当前色。
 fn current_color_insertion(
     data: &str,
     doc: &usvg::roxmltree::Document<'_>,
@@ -1926,12 +2025,7 @@ fn current_color_insertion(
     if root.tag_name().name() != "svg" || root.attribute("color").is_some() {
         return None;
     }
-    let start = root.range().start + 1;
-    let Some(len) = data[start..].find(|c: char| c.is_ascii_whitespace() || c == '/' || c == '>')
-    else {
-        return None;
-    };
-    let insert_at = start + len;
+    let insert_at = svg_start_tag_insert(data, root.range().start)?;
     const ATTR: &str = " color=\"#RRGGBB\"";
     const HEX: &[u8; 16] = b"0123456789ABCDEF";
     let mut out = String::with_capacity(data.len() + ATTR.len());
@@ -2139,17 +2233,21 @@ fn collect(
     }
     for node in group.children() {
         match node {
-            usvg::Node::Group(g) => collect(
-                g,
-                ctx,
-                out,
-                images,
-                display_list,
-                depth + 1,
-                image_budget,
-                expansion_budget,
-                bounds,
-            )?,
+            usvg::Node::Group(g) => {
+                bounds.end_merge_run();
+                collect(
+                    g,
+                    ctx,
+                    out,
+                    images,
+                    display_list,
+                    depth + 1,
+                    image_budget,
+                    expansion_budget,
+                    bounds,
+                )?;
+                bounds.end_merge_run();
+            }
             usvg::Node::Path(p) => {
                 if let Some(mut sp) = convert_path(p, transform) {
                     if p.stroke().is_some_and(|s| {
@@ -2182,6 +2280,13 @@ fn collect(
                         ctx.mask.clone(),
                         ctx.blur.clone(),
                     );
+                    if bounds
+                        .merge
+                        .as_mut()
+                        .is_some_and(|merge| merge.run.append(out, &mut sp, merge.limits))
+                    {
+                        continue;
+                    }
                     display_list
                         .commands
                         .push(indexed_command(DRAW_PATH, out.len()));
@@ -2189,6 +2294,7 @@ fn collect(
                 }
             }
             usvg::Node::Image(img) => {
+                bounds.end_merge_run();
                 if let Some(si) = convert_image(
                     img,
                     &group.abs_transform(),
@@ -2213,7 +2319,7 @@ fn collect(
             // usvg 展平字形所需的 `text` feature 已关闭，这里没有字形几何可
             // 收集。不 panic、不报错——对应形状只是不出现在显示列表里。动画
             // 路径的 `<text>` 支持（基于 Flutter `TextPainter`）不受影响。
-            usvg::Node::Text(_) => {}
+            usvg::Node::Text(_) => bounds.end_merge_run(),
         }
     }
     if needs_layer {
@@ -2232,6 +2338,411 @@ fn collect(
     expansion_budget.active_clips = active_clips;
     bounds.clip = parent_clip;
     Ok(())
+}
+
+/// Long-edge reference for preserving the rectangle fast path. / 保留矩形快路径时使用的参照长边。
+const MERGE_REFERENCE_EDGE: f64 = 1024.0;
+/// Preserve filled rectangles up to eight pixels on the reference long edge. / 保留参照长边下最长边不超过八像素的填充矩形。
+const MERGE_SMALL_RECT_EDGE: f64 = 8.0;
+/// Maximum number of original draws in a compound path. / 一条合并路径可包含的原始绘制数上限。
+const MERGE_MAX_PATHS: usize = 1024;
+/// Path threshold shared with Dart's xvgRasterMinPaths in lib/src/xvg_raster_cache.dart. / 与 lib/src/xvg_raster_cache.dart 的 xvgRasterMinPaths 共用的路径门槛。
+const MERGE_MIN_PATHS: usize = 100;
+/// Point threshold shared with Dart's xvgRasterMinPoints in lib/src/xvg_raster_cache.dart. / 与 lib/src/xvg_raster_cache.dart 的 xvgRasterMinPoints 共用的点数门槛。
+const MERGE_MIN_POINTS: usize = 15_000;
+
+/// Counts the original top-level path payload, stopping at either threshold. / 统计原始顶层路径主几何，达到任一门槛即停止。
+fn qualifies_for_merge(group: &usvg::Group, depth: usize, counts: &mut (usize, usize)) -> bool {
+    if depth >= MAX_DEPTH || group.opacity().get() == 0.0 {
+        return false;
+    }
+    let transform = group.abs_transform();
+    group.children().iter().any(|node| match node {
+        usvg::Node::Group(child) => qualifies_for_merge(child, depth + 1, counts),
+        usvg::Node::Path(path) => {
+            let Some(geometry) = prepare_path_geometry(path, transform) else {
+                return false;
+            };
+            let primary = geometry.primary(path);
+            if !mapped_points_are_finite(primary, &geometry.transform)
+                || geometry.fill.is_some()
+                    && geometry
+                        .expanded
+                        .as_ref()
+                        .is_some_and(|path| !mapped_points_are_finite(path, &geometry.transform))
+            {
+                return false;
+            }
+            counts.0 += 1;
+            counts.1 += primary.points().len();
+            counts.0 >= MERGE_MIN_PATHS || counts.1 >= MERGE_MIN_POINTS
+        }
+        _ => false,
+    })
+}
+
+/// Number of index cells per viewport long edge on each axis. / 每轴上一个视口长边对应的索引单元数。
+const MERGE_CELLS_PER_EDGE: usize = 4;
+/// Grid width with outer cells extending beyond the indexed region. / 网格宽度，最外侧单元向索引区域外延伸。
+const MERGE_GRID_EDGE: usize = MERGE_CELLS_PER_EDGE * 2 + 1;
+
+type MergePoint = svg_gjk::Point;
+
+/// Padded paint bounds in Picture coordinates. / 含余量的 Picture 坐标绘制边界。
+#[derive(Clone, Copy)]
+struct MergeBox {
+    /// Top left corner. / 左上角。
+    min: MergePoint,
+    /// Bottom right corner. / 右下角。
+    max: MergePoint,
+}
+
+impl MergeBox {
+    /// Encloses both boxes. / 包住两个边界。
+    fn union(self, other: Self) -> Self {
+        Self {
+            min: MergePoint {
+                x: self.min.x.min(other.min.x),
+                y: self.min.y.min(other.min.y),
+            },
+            max: MergePoint {
+                x: self.max.x.max(other.max.x),
+                y: self.max.y.max(other.max.y),
+            },
+        }
+    }
+
+    /// Checks inclusive overlap so touching always blocks a merge. / 含边检查重叠，所以相切也阻止合并。
+    fn overlaps(self, other: Self) -> bool {
+        self.min.x <= other.max.x
+            && other.min.x <= self.max.x
+            && self.min.y <= other.max.y
+            && other.min.y <= self.max.y
+    }
+}
+
+/// Tracks one original path inside the current compound draw. / 跟踪当前合并绘制中的一条原始路径。
+struct MergeShape {
+    /// Paint bounds expanded for joins, caps and antialiasing. / 为描边连接、端点和抗锯齿外扩的绘制边界。
+    bbox: MergeBox,
+    /// Square dilation radius used by the GJK support function. / GJK 支撑函数采用的正方形外扩半径。
+    radius: f64,
+    /// Main point range in the compound path. / 在合并主路径中的点范围。
+    points: std::ops::Range<usize>,
+    /// Separate stroke point range, empty for shared geometry. / 单独描边的点范围，共用几何时为空。
+    stroke_points: std::ops::Range<usize>,
+    /// Lazily computed hull, needed only when padded boxes overlap. / 仅外扩边界相交时才构建的凸包。
+    hull: Vec<MergePoint>,
+}
+
+impl MergeShape {
+    /// Bounds all endpoints and controls before allocating a convex hull. / 分配凸包前先框住全部端点和控制点。
+    fn new(path: &SvgPath, gap: f64) -> Option<Self> {
+        let points = 0..path.points.len();
+        let stroke_points = 0..extra_stroke_points(path).len();
+        let mut all = merge_points(path, points.clone(), stroke_points.clone());
+        let first = all.next()?;
+        let mut bbox = all.fold(
+            MergeBox {
+                min: first,
+                max: first,
+            },
+            |bbox, p| bbox.union(MergeBox { min: p, max: p }),
+        );
+        let magnitude = bbox
+            .min
+            .x
+            .abs()
+            .max(bbox.min.y.abs())
+            .max(bbox.max.x.abs())
+            .max(bbox.max.y.abs());
+        // A square margin includes the radius in every direction and rounds outwards. / 正方形余量在所有方向都覆盖该半径，并向外留舍入余量。
+        let radius = gap * 0.5 + stroke_outset(path) + magnitude * (32.0 * f64::EPSILON);
+        bbox.min.x -= radius;
+        bbox.min.y -= radius;
+        bbox.max.x += radius;
+        bbox.max.y += radius;
+        Some(Self {
+            bbox,
+            radius,
+            points,
+            stroke_points,
+            hull: Vec::new(),
+        })
+    }
+
+    /// Builds the hull once using the original geometry's slice in the compound path. / 从合并路径中的原始几何切片构建一次凸包。
+    fn hull(&mut self, path: &SvgPath) -> &[MergePoint] {
+        if self.hull.is_empty() {
+            self.hull = svg_gjk::convex_hull(
+                merge_points(path, self.points.clone(), self.stroke_points.clone()).collect(),
+            );
+        }
+        &self.hull
+    }
+}
+
+/// Reads all controls in Picture space, including paths with a local stroke matrix. / 读取 Picture 空间的全部控制点，含携带局部描边矩阵的路径。
+fn merge_points(
+    path: &SvgPath,
+    points: std::ops::Range<usize>,
+    stroke: std::ops::Range<usize>,
+) -> impl Iterator<Item = MergePoint> + '_ {
+    let matrix = path.stroke_style.as_ref().and_then(|s| s.matrix.as_deref());
+    path.points[points]
+        .chunks_exact(2)
+        .chain(extra_stroke_points(path)[stroke].chunks_exact(2))
+        .map(move |p| {
+            let (x, y) = (f64::from(p[0]), f64::from(p[1]));
+            if let Some(&[a, b, c, d, e, f]) = matrix {
+                MergePoint {
+                    x: f64::from(a) * x + f64::from(c) * y + f64::from(e),
+                    y: f64::from(b) * x + f64::from(d) * y + f64::from(f),
+                }
+            } else {
+                MergePoint { x, y }
+            }
+        })
+}
+
+/// Returns explicitly replayed stroke geometry when present. / 存在独立描边几何时返回其坐标。
+fn extra_stroke_points(path: &SvgPath) -> &[f32] {
+    path.stroke_style
+        .as_ref()
+        .and_then(|s| s.geometry.as_ref())
+        .map_or(&[], |g| &g.points)
+}
+
+/// Bounds the excursion of stroke caps and joins, including affine replay. / 保守估计仿射回放下描边端点和连接的外扩。
+fn stroke_outset(path: &SvgPath) -> f64 {
+    if !path.has_stroke {
+        return 0.0;
+    }
+    let style = path.stroke_style.as_ref();
+    let flags = style.map_or(0, |s| s.flags);
+    if flags & STROKE_OUTLINE != 0 {
+        return 0.0;
+    }
+    let cap = if flags & 3 == 2 {
+        std::f64::consts::SQRT_2
+    } else {
+        1.0
+    };
+    let join = if (flags >> 2) & 3 == 0 {
+        f64::from(style.map_or(DEFAULT_MITER_LIMIT, |s| s.miter_limit))
+    } else {
+        1.0
+    };
+    let scale = match style.and_then(|s| s.matrix.as_deref()) {
+        Some(&[a, b, c, d, _, _]) => f64::from(a)
+            .hypot(f64::from(c))
+            .max(f64::from(b).hypot(f64::from(d))),
+        _ => 1.0,
+    };
+    f64::from(path.stroke_width) * 0.5 * cap.max(join) * scale
+}
+
+/// Tracks a consecutive run with an index local to its first path. / 用相对首条路径的空间索引跟踪连续绘制段。
+#[derive(Default)]
+struct DrawRun {
+    /// Output index of the only path eligible for appending. / 唯一允许追加的输出路径下标。
+    index: Option<usize>,
+    /// Fixed grid origin at the first path's padded top left corner. / 网格原点固定在首条路径外扩边界的左上角。
+    origin: Option<MergePoint>,
+    /// Geometry slices for original paths in the run. / 绘制段中各原始路径的几何切片。
+    shapes: Vec<MergeShape>,
+    /// Cells indexed by their fixed coordinates relative to the first path. / 按相对首条路径的固定坐标索引的单元。
+    grid: std::collections::HashMap<usize, Vec<usize>>,
+}
+
+#[cfg(test)]
+thread_local! {
+    /// Counts calls per test thread. / 按测试线程统计进入合并段的次数。
+    static MERGE_APPEND_CALLS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+
+impl DrawRun {
+    /// Ends a run when crossing a group, image or incompatible draw. / 跨越分组、图像或不兼容绘制时结束当前段。
+    fn reset(&mut self) {
+        self.index = None;
+        self.origin = None;
+        self.shapes.clear();
+        self.grid.clear();
+    }
+
+    /// Appends the next sibling when paint matches, capacity remains and all members are disjoint. / 画笔一致、仍有容量且与所有成员相离时追加下一条同组路径。
+    fn append(&mut self, out: &mut [SvgPath], path: &mut SvgPath, limits: MergeRunLimits) -> bool {
+        #[cfg(test)]
+        MERGE_APPEND_CALLS.with(|calls| calls.set(calls.get() + 1));
+        if !merge_eligible(path, limits.small_rect_edge) {
+            self.reset();
+            return false;
+        }
+        if let Some(index) = self.index {
+            let previous = &mut out[index];
+            if self.shapes.len() < MERGE_MAX_PATHS
+                && same_merge_paint(previous, path)
+                && self.try_append(previous, path, limits.gap, limits.viewport_edge)
+            {
+                return true;
+            }
+        }
+        self.reset();
+        self.index = Some(out.len());
+        false
+    }
+
+    /// Uses the fixed grid to find paths that may intersect. / 通过固定网格查找可能相交的路径。
+    fn try_append(
+        &mut self,
+        previous: &mut SvgPath,
+        path: &mut SvgPath,
+        gap: f64,
+        viewport_edge: f64,
+    ) -> bool {
+        let Some(mut next) = MergeShape::new(path, gap) else {
+            return false;
+        };
+        let origin = if let Some(origin) = self.origin {
+            origin
+        } else {
+            let Some(first) = MergeShape::new(previous, gap) else {
+                return false;
+            };
+            let origin = first.bbox.min;
+            self.insert_cells(first.bbox, origin, viewport_edge, 0);
+            self.origin = Some(origin);
+            self.shapes.push(first);
+            origin
+        };
+        let mut seen = [false; MERGE_MAX_PATHS];
+        for key in merge_cells(next.bbox, origin, viewport_edge) {
+            for &index in self.grid.get(&key).into_iter().flatten() {
+                if std::mem::replace(&mut seen[index], true) {
+                    continue;
+                }
+                let shape = &mut self.shapes[index];
+                let radius = shape.radius + next.radius;
+                if shape.bbox.overlaps(next.bbox)
+                    && svg_gjk::intersects(shape.hull(previous), next.hull(path), radius)
+                {
+                    return false;
+                }
+            }
+        }
+        self.insert_cells(next.bbox, origin, viewport_edge, self.shapes.len());
+        let main_start = previous.points.len();
+        let stroke_start = extra_stroke_points(previous).len();
+        next.points = main_start..main_start + path.points.len();
+        next.stroke_points = stroke_start..stroke_start + extra_stroke_points(path).len();
+        self.shapes.push(next);
+        previous.verbs.append(&mut path.verbs);
+        previous.points.append(&mut path.points);
+        if let (Some(a), Some(b)) = (
+            previous
+                .stroke_style
+                .as_mut()
+                .and_then(|s| s.geometry.as_mut()),
+            path.stroke_style.as_mut().and_then(|s| s.geometry.as_mut()),
+        ) {
+            a.verbs.append(&mut b.verbs);
+            a.points.append(&mut b.points);
+        }
+        true
+    }
+
+    /// Records one member in all cells touched by its padded box. / 将成员写入外扩边界覆盖的全部单元。
+    fn insert_cells(
+        &mut self,
+        bbox: MergeBox,
+        origin: MergePoint,
+        viewport_edge: f64,
+        index: usize,
+    ) {
+        for key in merge_cells(bbox, origin, viewport_edge) {
+            self.grid.entry(key).or_default().push(index);
+        }
+    }
+}
+
+/// Enumerates touched cells, mapping outlying coordinates to the outer cells. / 枚举覆盖的单元，超出范围的坐标归入最外侧单元。
+fn merge_cells(
+    bbox: MergeBox,
+    origin: MergePoint,
+    viewport_edge: f64,
+) -> impl Iterator<Item = usize> {
+    let cell = |v: f64, origin: f64| {
+        let normalized = ((v - origin) / viewport_edge * MERGE_CELLS_PER_EDGE as f64).floor();
+        (normalized + MERGE_CELLS_PER_EDGE as f64).clamp(0.0, (MERGE_GRID_EDGE - 1) as f64) as usize
+    };
+    let columns = cell(bbox.min.x, origin.x)..=cell(bbox.max.x, origin.x);
+    let rows = cell(bbox.min.y, origin.y)..=cell(bbox.max.y, origin.y);
+    rows.flat_map(move |row| {
+        columns
+            .clone()
+            .map(move |column| row * MERGE_GRID_EDGE + column)
+    })
+}
+
+/// Recognizes tiny closed rectangles that use a single cheap fill in Impeller. / 识别 Impeller 可用一次低成本填充的微型闭合矩形。
+fn is_small_fill_rect(path: &SvgPath, max_edge: f32) -> bool {
+    if path.has_stroke || path.verbs != [0, 1, 1, 1, 4] {
+        return false;
+    }
+    let &[x0, y0, x1, y1, x2, y2, x3, y3] = path.points.as_slice() else {
+        return false;
+    };
+    let dx = (x0 - x2).abs();
+    let dy = (y0 - y2).abs();
+    dx > 0.0
+        && dy > 0.0
+        && dx.max(dy) <= max_edge
+        && ((x0 == x1 && x2 == x3 && y1 == y2 && y3 == y0)
+            || (y0 == y1 && y2 == y3 && x1 == x2 && x3 == x0))
+}
+
+/// Preserves primitive lines and tiny rectangles alongside independent paint effects. / 保留独立直线、微型矩形和带独立绘制特效的路径。
+fn merge_eligible(path: &SvgPath, small_rect_edge: f32) -> bool {
+    (path.has_fill || path.has_stroke)
+        && path.verbs.first() == Some(&0)
+        && !is_small_fill_rect(path, small_rect_edge)
+        && path
+            .effects
+            .as_ref()
+            .is_none_or(|e| e.mask.is_none() && e.blur.is_none() && e.stroke_pattern.is_none())
+        && (!path.has_stroke
+            || (path.stroke_argb >> 24 == 255
+                // DrawLine and a compound stroked path can rasterize identical segments differently. / DrawLine 和复合描边可能以不同方式光栅化同一线段。
+                && !(path.verbs == [0, 1] && extra_stroke_points(path).is_empty())
+                && path
+                    .stroke_gradient
+                    .as_ref()
+                    .is_none_or(|g| g.stops.iter().all(|s| s.color_argb >> 24 == 255))))
+}
+
+/// Checks every replay paint value while keeping each distinct geometry slice. / 逐项对比回放画笔，并保留独立几何切片。
+fn same_merge_paint(a: &SvgPath, b: &SvgPath) -> bool {
+    a.has_fill == b.has_fill
+        && a.fill_argb == b.fill_argb
+        && a.even_odd == b.even_odd
+        && a.has_stroke == b.has_stroke
+        && a.stroke_argb == b.stroke_argb
+        && a.stroke_width == b.stroke_width
+        && a.stroke_first == b.stroke_first
+        && a.fill_gradient == b.fill_gradient
+        && a.stroke_gradient == b.stroke_gradient
+        && match (&a.stroke_style, &b.stroke_style) {
+            (Some(a), Some(b)) => {
+                a.flags == b.flags
+                    && a.miter_limit == b.miter_limit
+                    && a.matrix == b.matrix
+                    && a.geometry.is_some() == b.geometry.is_some()
+            }
+            (None, None) => true,
+            _ => false,
+        }
+        && a.effects.as_ref().and_then(|e| e.fill_pattern.as_ref())
+            == b.effects.as_ref().and_then(|e| e.fill_pattern.as_ref())
 }
 
 /// 更新本组的最近遮罩或模糊；两者都缺省时沿用父组上下文。
@@ -2773,6 +3284,121 @@ fn append_mapped_points(t: &Transform, src: &[Point], out: &mut Vec<f32>) {
 /// 返回值的 [SvgPath::effects] 只带自身的填充/描边图案（如果有）——继承的
 /// 裁剪/遮罩/模糊由 [collect] 按分组上下文并入。
 fn convert_path(p: &usvg::Path, transform: Transform) -> Option<SvgPath> {
+    let geometry = prepare_path_geometry(p, transform)?;
+    let primary = geometry.primary(p);
+    let t = geometry.transform;
+    let mut stroke_geometry = None;
+    if geometry.fill.is_some() {
+        if let Some(path) = &geometry.expanded {
+            let mut outline = SvgStrokeGeometry {
+                verbs: Vec::new(),
+                points: Vec::new(),
+            };
+            append_segments(path, &t, &mut outline.verbs, &mut outline.points);
+            if !outline.points.iter().all(|v| v.is_finite()) {
+                return None;
+            }
+            stroke_geometry = Some(outline);
+        }
+    }
+    let mut verbs = Vec::new();
+    let mut points = Vec::new();
+    append_segments(primary, &t, &mut verbs, &mut points);
+    if !points.iter().all(|v| v.is_finite()) {
+        return None;
+    }
+
+    let (has_fill, fill_argb, even_odd, fill_gradient, fill_pattern) = match geometry.fill {
+        Some(f) => {
+            let (argb, gradient, pattern) = resolve_paint(f.paint(), &t, f.opacity().get());
+            (
+                true,
+                argb,
+                matches!(f.rule(), usvg::FillRule::EvenOdd),
+                gradient,
+                pattern,
+            )
+        }
+        None => (false, 0, false, None, None),
+    };
+    let (stroke_argb, stroke_gradient, stroke_pattern) = match geometry.stroke {
+        Some(s) => resolve_paint(s.paint(), &t, s.opacity().get()),
+        None => (0, None, None),
+    };
+    let stroke_style = (geometry.flags != 0
+        || geometry.miter_limit != DEFAULT_MITER_LIMIT
+        || geometry.stroke_matrix.is_some()
+        || stroke_geometry.is_some())
+    .then(|| SvgStrokeStyle {
+        flags: geometry.flags,
+        miter_limit: geometry.miter_limit,
+        matrix: geometry.stroke_matrix.as_ref().map(transform_to_vec6),
+        geometry: stroke_geometry,
+    });
+
+    let stroke_first = matches!(p.paint_order(), usvg::PaintOrder::StrokeAndFill);
+
+    Some(SvgPath {
+        verbs,
+        points,
+        has_fill,
+        fill_argb,
+        even_odd,
+        has_stroke: geometry.stroke.is_some(),
+        stroke_argb,
+        stroke_width: geometry.stroke_width,
+        stroke_style,
+        stroke_first,
+        fill_gradient,
+        stroke_gradient,
+        effects: SvgEffects::some_if_present(fill_pattern, stroke_pattern, None, None),
+    })
+}
+
+/// Geometry shared by the complexity count and wire conversion. / 复杂度统计和跨 FFI 转换共用的几何。
+struct PathGeometry<'a> {
+    /// Fill that covers a nondegenerate contour. / 覆盖非退化轮廓的填充。
+    fill: Option<&'a usvg::Fill>,
+    /// Stroke that survives expansion. / 展开后仍可绘制的描边。
+    stroke: Option<&'a usvg::Stroke>,
+    /// Transform baked into the geometry. / 烘焙进几何的变换。
+    transform: Transform,
+    /// Affine transform deferred to stroke replay. / 推迟到描边回放的仿射变换。
+    stroke_matrix: Option<Transform>,
+    /// Stroke width in the geometry's coordinate system. / 几何坐标系中的描边宽度。
+    stroke_width: f32,
+    /// Stroke cap, join and outline bits. / 描边端点、连接和轮廓位。
+    flags: u8,
+    /// Stroke join miter limit. / 描边连接的斜接限制。
+    miter_limit: f32,
+    /// Expanded dashes or stroke outline, when required. / 按需展开的虚线或描边轮廓。
+    expanded: Option<Path>,
+}
+
+impl PathGeometry<'_> {
+    /// Selects the point stream counted by the Dart raster cache. / 选取 Dart 位图缓存计数的点流。
+    fn primary<'a>(&'a self, path: &'a usvg::Path) -> &'a Path {
+        if self.fill.is_none() {
+            self.expanded.as_ref().unwrap_or_else(|| path.data())
+        } else {
+            path.data()
+        }
+    }
+}
+
+/// Checks the same mapped coordinates as wire conversion without allocating. / 无分配地检查跨 FFI 转换使用的同一组变换后坐标。
+fn mapped_points_are_finite(path: &Path, transform: &Transform) -> bool {
+    // tiny-skia Path already guarantees finite source points. / tiny-skia Path 已保证源坐标有限。
+    transform.is_identity()
+        || path.points().iter().all(|point| {
+            let mut point = *point;
+            transform.map_points(std::slice::from_mut(&mut point));
+            point.x.is_finite() && point.y.is_finite()
+        })
+}
+
+/// Resolves drawable geometry before emitting coordinates or paint. / 在生成坐标和画笔前确定可绘制几何。
+fn prepare_path_geometry(p: &usvg::Path, transform: Transform) -> Option<PathGeometry<'_>> {
     if !p.is_visible() {
         return None;
     }
@@ -2788,7 +3414,6 @@ fn convert_path(p: &usvg::Path, transform: Transform) -> Option<SvgPath> {
     let mut stroke_width = 0.0;
     let mut flags = 0;
     let mut miter_limit = DEFAULT_MITER_LIMIT;
-    let mut stroke_geometry = None;
     let mut dash_or_outline = None;
     let mut has_stroke = stroke.is_some();
     if let Some(s) = stroke {
@@ -2802,7 +3427,7 @@ fn convert_path(p: &usvg::Path, transform: Transform) -> Option<SvgPath> {
                 return None;
             }
             stroke_width = s.width().get();
-            stroke_matrix = Some(transform_to_vec6(&transform));
+            stroke_matrix = Some(transform);
             t = Transform::default();
         }
         flags = stroke_flags(s);
@@ -2823,76 +3448,18 @@ fn convert_path(p: &usvg::Path, transform: Transform) -> Option<SvgPath> {
             has_stroke = dash_or_outline.is_some();
         }
     }
-    let mut verbs = Vec::new();
-    let mut points = Vec::new();
-    let primary = if fill.is_none() {
-        dash_or_outline.as_ref().unwrap_or_else(|| p.data())
-    } else {
-        if let Some(path) = &dash_or_outline {
-            let mut geometry = SvgStrokeGeometry {
-                verbs: Vec::new(),
-                points: Vec::new(),
-            };
-            append_segments(path, &t, &mut geometry.verbs, &mut geometry.points);
-            if !geometry.points.iter().all(|v| v.is_finite()) {
-                return None;
-            }
-            stroke_geometry = Some(geometry);
-        }
-        p.data()
-    };
     if fill.is_none() && !has_stroke {
         return None;
     }
-    append_segments(primary, &t, &mut verbs, &mut points);
-    if !points.iter().all(|v| v.is_finite()) {
-        return None;
-    }
-
-    let (has_fill, fill_argb, even_odd, fill_gradient, fill_pattern) = match fill {
-        Some(f) => {
-            let (argb, gradient, pattern) = resolve_paint(f.paint(), &t, f.opacity().get());
-            (
-                true,
-                argb,
-                matches!(f.rule(), usvg::FillRule::EvenOdd),
-                gradient,
-                pattern,
-            )
-        }
-        None => (false, 0, false, None, None),
-    };
-    let (stroke_argb, stroke_gradient, stroke_pattern) = match stroke.filter(|_| has_stroke) {
-        Some(s) => resolve_paint(s.paint(), &t, s.opacity().get()),
-        None => (0, None, None),
-    };
-    let stroke_style = (flags != 0
-        || miter_limit != DEFAULT_MITER_LIMIT
-        || stroke_matrix.is_some()
-        || stroke_geometry.is_some())
-    .then_some(SvgStrokeStyle {
+    Some(PathGeometry {
+        fill,
+        stroke: stroke.filter(|_| has_stroke),
+        transform: t,
+        stroke_matrix,
+        stroke_width,
         flags,
         miter_limit,
-        matrix: stroke_matrix,
-        geometry: stroke_geometry,
-    });
-
-    let stroke_first = matches!(p.paint_order(), usvg::PaintOrder::StrokeAndFill);
-
-    Some(SvgPath {
-        verbs,
-        points,
-        has_fill,
-        fill_argb,
-        even_odd,
-        has_stroke,
-        stroke_argb,
-        stroke_width,
-        stroke_style,
-        stroke_first,
-        fill_gradient,
-        stroke_gradient,
-        effects: SvgEffects::some_if_present(fill_pattern, stroke_pattern, None, None),
+        expanded: dash_or_outline,
     })
 }
 
@@ -3204,6 +3771,314 @@ fn concat(a: svgtypes::Transform, b: svgtypes::Transform) -> svgtypes::Transform
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Keeps the standalone SVG viewport independent of painted extent. / 独立 SVG 固有视口不随绘制范围改变。
+    #[test]
+    fn static_svg_without_dimensions_uses_default_viewport() {
+        let scene = parse_svg(
+            "<svg xmlns='http://www.w3.org/2000/svg'><rect width='500' height='400'/></svg>".into(),
+            None,
+        )
+        .unwrap();
+        assert_eq!((scene.width, scene.height), (300.0, 150.0));
+        let bounds = scene.content_bounds.unwrap();
+        assert_eq!((bounds.right, bounds.bottom), (500.0, 400.0));
+    }
+
+    /// The default viewport does not create source attributes for CSS. / 默认视口不会在 CSS 中产生原先缺失的源属性。
+    #[test]
+    fn default_viewport_preserves_css_attribute_selector_matching() {
+        let scene = parse_svg(
+            "<svg xmlns='http://www.w3.org/2000/svg'><style>svg[width] rect { fill: red }</style><rect width='40' height='30'/></svg>".into(),
+            None,
+        )
+        .unwrap();
+        assert_eq!(
+            (scene.width, scene.height),
+            (DEFAULT_VIEWPORT_WIDTH, DEFAULT_VIEWPORT_HEIGHT)
+        );
+        assert_eq!(scene.paths[0].fill_argb, 0xff000000);
+    }
+
+    /// Joins consecutive disjoint opaque fills. / 合并连续且相离的不透明填充。
+    #[test]
+    fn disjoint_equal_fills_share_a_draw_call() {
+        let scene =
+            merge_scene("<rect x='1' width='4' height='4'/><rect x='15' width='4' height='4'/>");
+        assert_eq!(scene.paths.len(), 1);
+        assert_eq!(
+            scene.paths[0]
+                .verbs
+                .iter()
+                .filter(|&&verb| verb == 0)
+                .count(),
+            2
+        );
+    }
+
+    /// Keeps small rectangular fills and line strokes as independent primitives. / 保留微型矩形填充和线段描边的独立图元。
+    #[test]
+    fn preserves_tiny_rectangles_and_straight_strokes() {
+        let scene = merge_scene(
+            "<rect x='1' width='2' height='1'/><path d='M12 0V2H14V0Z'/>
+             <path d='M1 10L3 11' fill='none' stroke='black'/>
+             <path d='M12 10L14 11' fill='none' stroke='black'/>
+             <path d='M1 20L3 21L5 20' fill='none' stroke='black'/>
+             <path d='M12 20L14 21L16 20' fill='none' stroke='black'/>",
+        );
+        assert_eq!(
+            scene
+                .paths
+                .iter()
+                .map(|path| path.verbs.len())
+                .collect::<Vec<_>>(),
+            [5, 5, 2, 2, 6]
+        );
+    }
+
+    /// Merges compatible siblings inside a clip that contains strokes. / 裁剪区含描边时仍合并相容的同组路径。
+    #[test]
+    fn clipped_fills_and_multisegment_strokes_can_merge() {
+        let scene = merge_scene(
+            "<defs><clipPath id='c'><rect width='100' height='100'/></clipPath></defs>
+             <g clip-path='url(#c)'>
+               <rect width='4' height='4'/><rect x='12' width='4' height='4'/>
+               <path d='M1 20L3 21L5 20' fill='none' stroke='black'/>
+               <path d='M12 20L14 21L16 20' fill='none' stroke='black'/>
+             </g>",
+        );
+        assert_eq!(
+            scene
+                .paths
+                .iter()
+                .map(|path| path.verbs.len())
+                .collect::<Vec<_>>(),
+            [10, 6]
+        );
+    }
+
+    /// Keeps overlapping or independently composited paths in order. / 保留有重叠或独立合成的原始绘制顺序。
+    #[test]
+    fn unsafe_path_pairs_keep_separate_draw_calls() {
+        let cases = [
+            (
+                "opposite windings with touching bounds",
+                "<path d='M0 0H4V4H0Z'/><path d='M4 0V4H8V0Z'/>",
+            ),
+            (
+                "overlapping translucent fills",
+                "<rect width='9' height='4' fill-opacity='.5'/><rect x='8' width='9' height='4' fill-opacity='.5'/>",
+            ),
+            (
+                "object bounding box gradient matrices",
+                "<defs><radialGradient id='g'><stop stop-color='red'/><stop offset='1' stop-color='blue'/></radialGradient></defs><rect width='4' height='4' fill='url(#g)'/><rect x='20' width='5' height='4' fill='url(#g)'/>",
+            ),
+            (
+                "stroke outsets",
+                "<path d='M0 1H5' fill='none' stroke='black' stroke-width='4' stroke-linecap='square'/><path d='M8 1H12' fill='none' stroke='black' stroke-width='4' stroke-linecap='square'/>",
+            ),
+            (
+                "different groups",
+                "<g opacity='.9'><rect width='4' height='4'/></g><rect x='20' width='4' height='4'/>",
+            ),
+            (
+                "different clip scopes",
+                "<defs><clipPath id='c'><rect width='100' height='50'/></clipPath></defs><g clip-path='url(#c)'><rect width='4' height='4'/></g><rect x='20' width='4' height='4'/>",
+            ),
+            (
+                "another earlier box in the same batch",
+                "<rect width='4' height='4'/><rect x='20' width='4' height='4'/><rect x='1' width='4' height='4'/>",
+            ),
+        ];
+        for (name, body) in cases {
+            assert_eq!(merge_scene(body).paths.len(), 2, "{name}");
+        }
+    }
+
+    /// Parses merge fixtures without moving their Picture coordinates. / 解析合并夹具且保持 Picture 坐标原样。
+    fn merge_scene(content: &str) -> SvgScene {
+        let tree = merge_fixture_tree(content);
+        collect_scene(&tree, Some(SceneMerge::new(tree.size()))).unwrap()
+    }
+
+    /// Provides a fixed viewport for the merge tests. / 为合并测试提供固定视口。
+    fn merge_fixture_tree(content: &str) -> usvg::Tree {
+        usvg::Tree::from_str(
+            &format!(
+                "<svg xmlns='http://www.w3.org/2000/svg' width='256' height='256'>{content}</svg>"
+            ),
+            usvg_options(),
+        )
+        .unwrap()
+    }
+
+    /// Verifies the native and Dart thresholds against the Dart source fixture. / 用 Dart 源码夹具核对原生和 Dart 的门槛。
+    #[test]
+    fn merge_thresholds_match_dart_raster_cache() {
+        let dart = include_str!("../../../lib/src/xvg_raster_cache.dart");
+        for (name, expected) in [
+            ("xvgRasterMinPaths", MERGE_MIN_PATHS),
+            ("xvgRasterMinPoints", MERGE_MIN_POINTS),
+        ] {
+            let prefix = format!("const {name} = ");
+            let literal = dart
+                .lines()
+                .find_map(|line| line.strip_prefix(&prefix))
+                .unwrap();
+            assert_eq!(
+                literal.trim_end_matches(';').replace('_', "").parse(),
+                Ok(expected)
+            );
+        }
+    }
+
+    /// Checks the public parse path against the no-merge SSE and counts calls into the draw run. / 从公开解析入口对比无合并 SSE，并核对进入合并段的次数。
+    #[test]
+    fn icon_skips_merge_and_preserves_wire_bytes() {
+        use crate::frb_generated::SseEncode;
+        let source = "<svg xmlns='http://www.w3.org/2000/svg' width='256' height='256'><rect width='4' height='4'/><rect x='15' width='4' height='4'/></svg>";
+        let tree = usvg::Tree::from_str(source, usvg_options()).unwrap();
+        let mut expected = flutter_rust_bridge::for_generated::SseSerializer::new();
+        collect_scene(&tree, None)
+            .unwrap()
+            .sse_encode(&mut expected);
+        MERGE_APPEND_CALLS.with(|calls| calls.set(0));
+        assert_eq!(wire_bytes(source), expected.cursor.into_inner());
+        MERGE_APPEND_CALLS.with(|calls| assert_eq!(calls.get(), 0));
+        assert_eq!(
+            merge_scene("<rect width='4' height='4'/><rect x='15' width='4' height='4'/>")
+                .paths
+                .len(),
+            1
+        );
+    }
+
+    /// Checks both inclusive thresholds against the original wire geometry. / 按原始跨 FFI 几何验证两项门槛均包含等号。
+    #[test]
+    fn merge_gate_counts_paths_and_curve_control_points() {
+        let rect = "<rect width='4' height='4'/>";
+        let curves = "C9 1 9 9 1 9".repeat((MERGE_MIN_POINTS - 1) / 3);
+        for (body, qualifies) in [
+            (rect.repeat(MERGE_MIN_PATHS - 1), false),
+            (rect.repeat(MERGE_MIN_PATHS), true),
+            (format!("<path d='M1 1{curves}L1 1Z'/>"), false),
+            (format!("<path d='M1 1{curves}Q9 1 1 1Z'/>"), true),
+        ] {
+            let tree = merge_fixture_tree(&body);
+            let original = collect_scene(&tree, None).unwrap();
+            let points = original
+                .paths
+                .iter()
+                .map(|path| path.points.len() / 2)
+                .sum::<usize>();
+            assert_eq!(
+                qualifies,
+                original.paths.len() == MERGE_MIN_PATHS || points == MERGE_MIN_POINTS
+            );
+            MERGE_APPEND_CALLS.with(|calls| calls.set(0));
+            try_scene_from_tree(&tree).unwrap();
+            MERGE_APPEND_CALLS.with(|calls| assert_eq!(calls.get() > 0, qualifies));
+        }
+    }
+
+    /// Checks that unlimited runs can extend beyond the viewport and still reject overlap there. / 验证不限跨度的合并段可跨出视口，且仍拒绝视口外重叠。
+    #[test]
+    fn unlimited_span_still_checks_off_viewport_overlap() {
+        for (first, second, width) in [(950.0, 952.0, 4.0), (1e25, 1.000005e25, 1e20)] {
+            let scene = merge_scene(&format!(
+                "<rect width='4' height='4'/><rect x='{first}' width='{width}' height='4'/><rect x='{second}' width='{width}' height='4'/>"
+            ));
+            assert_eq!(
+                scene
+                    .paths
+                    .iter()
+                    .map(|path| path.verbs.len())
+                    .collect::<Vec<_>>(),
+                [10, 5]
+            );
+        }
+    }
+
+    /// Separates overlapping boxes with a convex-hull projection. / 用凸包投影分离包围盒重叠的斜形。
+    #[test]
+    fn disjoint_diagonal_hulls_merge_despite_overlapping_boxes() {
+        let scene =
+            merge_scene("<path d='M1 1L20 20L21 19L2 0Z'/><path d='M1 7L20 26L21 25L2 6Z'/>");
+        assert_eq!(scene.paths.len(), 1);
+        assert_eq!(scene.paths[0].verbs, [0, 1, 1, 1, 4, 0, 1, 1, 1, 4]);
+    }
+
+    /// Near or overlapping hulls remain individual draws. / 过近或相交的凸包保留为单独绘制。
+    #[test]
+    fn intersecting_or_close_diagonal_hulls_remain_separate() {
+        for second in ["M1 21L20 1L21 2L2 22Z", "M1 2L20 21L21 20L2 1Z"] {
+            let scene = merge_scene(&format!(
+                "<path d='M1 1L20 20L21 19L2 0Z'/><path d='{second}'/>"
+            ));
+            assert_eq!(scene.paths.len(), 2);
+        }
+    }
+
+    /// The midpoint of an endpoint/control pair can underbound a cubic. / 端点与控制点中点可能低估三次曲线的覆盖。
+    #[test]
+    fn cubic_bulge_outside_control_midpoints_blocks_merge() {
+        let scene = merge_scene(
+            "<path d='M1 1C1 25 21 25 21 1Z'/><rect x='10' y='17' width='2' height='2'/>",
+        );
+        assert_eq!(scene.paths.len(), 2);
+        assert!(scene.paths[0].verbs.contains(&3));
+    }
+
+    /// Keeps the two same-color runs on either side of the middle draw. / 保持同色绘制段位于中间绘制的两侧。
+    #[test]
+    fn merge_keeps_draw_order_and_contour_order() {
+        let scene = merge_scene("<rect x='1' width='3' height='3'/><rect x='6' width='3' height='3'/><rect x='1' width='24' height='1' fill='red'/><rect x='11' width='3' height='3'/><rect x='16' width='3' height='3'/>");
+        assert_eq!(
+            scene.paths.iter().map(|p| p.fill_argb).collect::<Vec<_>>(),
+            [0xff000000, 0xffff0000, 0xff000000]
+        );
+        assert_eq!(scene.paths[0].points[0], 1.0);
+        assert_eq!(scene.paths[0].points[8], 6.0);
+        assert_eq!(scene.paths[2].points[0], 11.0);
+        assert_eq!(scene.paths[2].points[8], 16.0);
+    }
+
+    /// Starts another draw after 1,024 originals even when all are disjoint. / 即使全部相离，合并 1024 条原始路径后也会开启下一次绘制。
+    #[test]
+    fn merge_caps_original_paths_per_draw() {
+        let mut body = String::new();
+        for index in 0..MERGE_MAX_PATHS + 2 {
+            let x = (index % 33) * 8;
+            let y = (index / 33) * 8;
+            body.push_str(&format!("<rect x='{x}' y='{y}' width='3' height='3'/>"));
+        }
+        let scene = merge_scene(&body);
+        assert_eq!(
+            scene
+                .paths
+                .iter()
+                .map(|p| p.verbs.len())
+                .collect::<Vec<_>>(),
+            [MERGE_MAX_PATHS * 5, 10]
+        );
+    }
+
+    /// Matches resolved paint servers and excludes translucent strokes. / 匹配已解析的画笔服务器并排除半透明描边。
+    #[test]
+    fn compatible_shaders_and_opaque_strokes_can_merge() {
+        for (paint, expected) in [
+            ("fill='url(#g)'", 1),
+            ("fill='url(#p)'", 1),
+            ("fill='none' stroke='red' stroke-width='1'", 1),
+            (
+                "fill='none' stroke='red' stroke-width='1' stroke-opacity='.5'",
+                2,
+            ),
+        ] {
+            let scene = merge_scene(&format!("<defs><linearGradient id='g' gradientUnits='userSpaceOnUse'><stop stop-color='red'/><stop offset='1' stop-color='blue'/></linearGradient><pattern id='p' patternUnits='userSpaceOnUse' width='4' height='4'><rect width='2' height='2'/></pattern></defs><rect width='4' height='4' {paint}/><rect x='12' width='4' height='4' {paint}/>"));
+            assert_eq!(scene.paths.len(), expected, "{paint}");
+        }
+    }
 
     /// 解析静态测试内容，统一 viewport。
     fn opacity_scene(content: &str) -> SvgScene {

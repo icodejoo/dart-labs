@@ -1,5 +1,7 @@
 ## Unreleased
 
+- Reduce draw calls for complex static SVGs by merging consecutive paths with matching paint and disjoint padded convex hulls. Tiny axis-aligned filled rectangles and standalone lines retain their fast paths, and icons below the complexity threshold skip merging.
+- Static SVGs without width, height, or a viewBox use a 300 × 150 intrinsic viewport.
 - Match browser rendering on the Dart animation path for SVG lengths, nested viewports, symbol instances, single-line text spans, clip and mask units, paint inheritance and order, and embedded image aspect ratio. SVGs without dimensions or a viewBox now default to 300 × 150.
 - Support SMIL numeric and transform addition and accumulation, repeat duration, single-begin interval constraints, and point and dash list animation. Reject invalid SMIL timing lists and calibrate dashes with pathLength.
 

@@ -10,11 +10,13 @@ import 'dart:ui' as ui;
 
 // ignore: deprecated_member_use
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show RenderRepaintBoundary;
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:xvg/src/rust/api/svg.dart';
 import 'package:xvg/src/rust/frb_generated.dart';
 import 'package:xvg/src/rust_static_svg.dart';
+import 'package:xvg/src/xvg_raster_cache.dart';
 
 import 'mdi_icons_1000.dart';
 
@@ -26,6 +28,17 @@ const _spinnerWindow = Duration(milliseconds: 160);
 
 /// Deadline for the first completed Flutter frame. / 首个完成帧的等待上限。
 const _frameTimeout = Duration(seconds: 15);
+
+/// Artwork box shared by timing and pixel capture. / 计时与像素采集共用的图稿尺寸。
+const _artSize = Size(310, 450);
+
+/// Time to observe raster work after the first artwork frame. / 首图帧后继续观察栅格工作的时长。
+const _rasterWindow = Duration(milliseconds: 450);
+
+/// Zoomed case exercises the tiled cache on the same source. / 缩放用例用相同源图实际触发分块缓存。
+const _tiledSample = 'web-543-zoom';
+const _tiledSource = 'web-543';
+const _tileZoom = 2.0;
 
 /// Loads the profile-only plan after the host stages runtime inputs. / 主机推送输入后读取 profile 基准计划。
 Future<void> main() async {
@@ -65,6 +78,9 @@ class _Trace {
   /// Optional callback for the first frame showing the picture. / 可选的首次显示 Picture 帧回调。
   VoidCallback? onRecorded;
 
+  /// Image-space generation submission boundaries. / 图片坐标快照的提交边界。
+  final requests = <List<int>>[];
+
   /// Marks a boundary on the engine monotonic clock. / 在引擎单调时钟上打点。
   void mark(String boundary) => times[boundary] = Timeline.now;
 
@@ -86,6 +102,8 @@ class _Trace {
       'paths': value.paths.length,
       'commands': value.displayList?.commands.length ?? 0,
       'images': value.images.length,
+      'recording_us': [times['record_done']! - times['record']!],
+      'requests': requests,
       'times_us': times,
     };
   }
@@ -200,11 +218,33 @@ class _BenchState extends State<_Bench> {
   /// Engine reports captured across the spinner trials. / 转圈试次期间采集的引擎报告。
   final _frames = <ui.FrameTiming>[];
 
+  /// Identifies the measured art subtree across async placeholder frames. / 跨异步占位帧定位计时的图稿子树。
+  final _artKey = GlobalKey();
+
+  /// Identifies the art capture layer used after timing. / 定位计时结束后使用的图稿采集层。
+  final _pixelKey = GlobalKey();
+
+  /// Measures the displayed artwork layer. / 测量实际显示的图稿图层。
+  bool get _displayedPixels => widget.plan['displayed_pixels'] == true;
+
+  /// Runs only cold recording, whole-image snapshots and pixel comparison. / 只运行冷录制、整图快照和像素对比。
+  bool get _quickMerge => widget.plan['quick_merge'] == true;
+
+  /// Observation window long enough for queued tiles to finish. / 留出足够时间让排队的纹理块生成完。
+  Duration get _tileWindow =>
+      Duration(milliseconds: widget.plan['tile_window_ms'] as int);
+
   /// The active artwork, or null during the spinner baseline. / 当前图稿，转圈基线时为空。
   String? _source;
 
+  /// Scale applied inside the fixed artwork viewport. / 固定图稿视口内的缩放比例。
+  double _scale = 1;
+
   /// Whether the spinner should keep the page producing frames. / 是否用转圈让页面持续出帧。
   bool _spinner = false;
+
+  /// Enables the screenshot layer only during pixel capture. / 只在像素采集阶段启用截图层。
+  bool _capturingPixels = false;
 
   /// Installs library hooks before starting measurements. / 在测量开始前安装库钩子。
   @override
@@ -212,8 +252,16 @@ class _BenchState extends State<_Bench> {
     super.initState();
     SchedulerBinding.instance.addTimingsCallback(_frames.addAll);
     RustXvgPictureCache.debugWrapRecordingCanvas = (canvas) {
-      widget.bridge.active?.mark('record');
+      widget.bridge.active?.times.putIfAbsent('record', () => Timeline.now);
       return canvas;
+    };
+    debugXvgRasterRequest = (started, width, height) {
+      widget.bridge.active?.requests.add([
+        Timeline.now,
+        started ? 1 : 0,
+        width,
+        height,
+      ]);
     };
     _cache.onParseMiss = (_) {
       final trace = widget.bridge.active;
@@ -223,11 +271,26 @@ class _BenchState extends State<_Bench> {
     unawaited(_run());
   }
 
+  /// Detects the first frame with the real painter in the artwork subtree. / 检测图稿子树首次挂上真实画家的帧。
+  bool _hasArt(Element element) {
+    final child = element.widget;
+    if (child is XvgRasterPaint ||
+        (child is CustomPaint && child.painter != null)) {
+      return true;
+    }
+    var found = false;
+    element.visitChildren((child) {
+      if (!found) found = _hasArt(child);
+    });
+    return found;
+  }
+
   /// Removes instrumentation when the benchmark screen is detached. / 页面卸载时移除计时钩子。
   @override
   void dispose() {
     SchedulerBinding.instance.removeTimingsCallback(_frames.addAll);
     RustXvgPictureCache.debugWrapRecordingCanvas = null;
+    debugXvgRasterRequest = null;
     _cache.onParseMiss = null;
     super.dispose();
   }
@@ -235,7 +298,8 @@ class _BenchState extends State<_Bench> {
   /// Reads one staged file or reuses the existing MDI control dataset. / 读取一份运行时文件或复用已有 MDI 对照集。
   Future<String> _read(String id) => id.startsWith('mdi-')
       ? Future.value(mdiIcons1000[int.parse(id.substring(4))])
-      : File('$_root/$id.svg').readAsString();
+      : File('$_root/${id == _tiledSample ? _tiledSource : id}.svg')
+            .readAsString();
 
   /// Records a cold picture while forcing only the microbenchmark onto the worker. / 冷录制 Picture，仅在分段测量中强制走 worker。
   Future<_Trace> _stages(String source) async {
@@ -254,31 +318,161 @@ class _BenchState extends State<_Bench> {
   }
 
   /// Captures the real widget's first painted frame with the spinner still moving. / 保持转圈，采集真实组件的首个绘制帧。
-  Future<_Trace> _scenario(String source) async {
-    await Future<void>.delayed(_spinnerWindow);
+  Future<_Trace> _scenario(
+    String source, {
+    bool jump = false,
+    bool tiled = false,
+  }) async {
+    if (!_quickMerge) await Future<void>.delayed(_spinnerWindow);
     final trace = _Trace();
     final shown = Completer<void>();
-    trace.onRecorded = () {
-      SchedulerBinding.instance.addPostFrameCallback((_) {
-        trace.times['first_art_frame'] =
-            ui.PlatformDispatcher.instance.frameData.frameNumber;
-        trace.mark('first_art_post_frame');
-        shown.complete();
-      });
-    };
+    void observeArt(Duration _) {
+      if (widget.bridge.active != trace) return;
+      final art = _artKey.currentContext;
+      if (_displayedPixels && (art is! Element || !_hasArt(art))) {
+        SchedulerBinding.instance.addPostFrameCallback(observeArt);
+        return;
+      }
+      trace.times['first_art_frame'] =
+          ui.PlatformDispatcher.instance.frameData.frameNumber;
+      trace.mark('first_art_post_frame');
+      shown.complete();
+    }
+
+    trace.onRecorded = () =>
+        SchedulerBinding.instance.addPostFrameCallback(observeArt);
     widget.bridge.active = trace;
     trace.mark('mount');
-    setState(() => _source = source);
+    if (jump) {
+      final navigator = Navigator.of(context);
+      unawaited(
+        navigator.push<void>(
+          MaterialPageRoute(
+            builder: (_) => Scaffold(body: Center(child: _art(source))),
+          ),
+        ),
+      );
+    } else {
+      setState(() {
+        _source = source;
+        _scale = tiled ? _tileZoom : 1;
+      });
+    }
     await shown.future.timeout(_frameTimeout);
-    await Future<void>.delayed(_spinnerWindow);
+    await Future<void>.delayed(
+      tiled
+          ? _tileWindow
+          : (widget.plan['drawcall'] == true || _displayedPixels
+                ? _rasterWindow
+                : _spinnerWindow),
+    );
     trace.mark('window_end');
     final info = _cache.peek(source)!;
-    setState(() => _source = null);
-    await SchedulerBinding.instance.endOfFrame;
+    if (jump) {
+      Navigator.of(context).pop();
+      await Future<void>.delayed(const Duration(milliseconds: 360));
+    } else {
+      setState(() => _source = null);
+      await SchedulerBinding.instance.endOfFrame;
+    }
     _cache.clear();
     info.picture.dispose();
     widget.bridge.active = null;
     return trace;
+  }
+
+  /// Exercises a cold scroll through the existing 1,000 distinct icons. / 使用现有一千个不同图标执行冷滚动。
+  Future<Map<String, int>> _icons() async {
+    final controller = ScrollController();
+    final navigator = Navigator.of(context);
+    _cache.clear();
+    unawaited(
+      navigator.push<void>(
+        MaterialPageRoute(
+          builder: (_) => Scaffold(
+            body: GridView.builder(
+              controller: controller,
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 6,
+              ),
+              itemCount: mdiIcons1000.length,
+              itemBuilder: (_, index) => Center(
+                child: StaticXvg(mdiIcons1000[index], width: 32, height: 32),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await Future<void>.delayed(const Duration(milliseconds: 400));
+    final start = Timeline.now;
+    await controller.animateTo(
+      controller.position.maxScrollExtent,
+      duration: const Duration(milliseconds: 1650),
+      curve: Curves.linear,
+    );
+    final end = Timeline.now;
+    navigator.pop();
+    await Future<void>.delayed(const Duration(milliseconds: 360));
+    controller.dispose();
+    _cache.clear();
+    return {'start': start, 'end': end};
+  }
+
+  /// Captures original RGBA at the spinner artwork's physical size. / 捕获转圈场景图稿物理尺寸下的原始 RGBA。
+  Future<void> _capture(String id, double dpr) async {
+    final info = await _cache.getOrRenderAsync(await _read(id));
+    final image = await rasterizeSvgPicture(
+      info,
+      width: (_artSize.width * dpr).round(),
+      height: (_artSize.height * dpr).round(),
+    );
+    try {
+      final rgba = (await image.toByteData())!.buffer.asUint8List();
+      File('$_root/$id.rgba.z').writeAsBytesSync(ZLibEncoder().convert(rgba));
+    } finally {
+      image.dispose();
+      _cache.clear();
+      info.picture.dispose();
+    }
+  }
+
+  /// Captures settled pixels from the displayed widget's layer. / 读取真机上已稳定显示的组件图层像素。
+  Future<List<int>> _captureDisplayed(String id, double dpr) async {
+    final source = await _read(id);
+    setState(() {
+      _capturingPixels = true;
+      _source = source;
+      _scale = id == _tiledSample ? _tileZoom : 1;
+    });
+    final watch = Stopwatch()..start();
+    while (true) {
+      await SchedulerBinding.instance.endOfFrame;
+      final art = _artKey.currentContext;
+      if (art is Element && _hasArt(art)) break;
+      if (watch.elapsed > _frameTimeout) throw StateError('Artwork is missing');
+    }
+    await Future<void>.delayed(
+      id == _tiledSample ? _tileWindow : _rasterWindow,
+    );
+    final boundary =
+        _pixelKey.currentContext!.findRenderObject()! as RenderRepaintBoundary;
+    final image = await boundary.toImage(pixelRatio: dpr);
+    try {
+      final rgba = (await image.toByteData())!.buffer.asUint8List();
+      File('$_root/$id.rgba.z').writeAsBytesSync(ZLibEncoder().convert(rgba));
+      return [image.width, image.height];
+    } finally {
+      image.dispose();
+      setState(() {
+        _capturingPixels = false;
+        _source = null;
+      });
+      await SchedulerBinding.instance.endOfFrame;
+      final info = _cache.peek(source)!;
+      _cache.clear();
+      info.picture.dispose();
+    }
   }
 
   /// Runs the arranged cold trials and flushes the engine's timing batches. / 执行安排好的冷试次并等待引擎送齐批量帧数据。
@@ -286,6 +480,9 @@ class _BenchState extends State<_Bench> {
     var step = 'warmup';
     final results = <Map<String, Object?>>[];
     final scenarios = <Map<String, Object?>>[];
+    final jumps = <Map<String, Object?>>[];
+    final pixelSizes = <String, List<int>>{};
+    Map<String, int>? iconScroll;
     final status = File('$_root/status');
     try {
       await SchedulerBinding.instance.endOfFrame;
@@ -294,6 +491,13 @@ class _BenchState extends State<_Bench> {
       final plan = widget.plan;
       final trials = plan['trials'] as int;
       final samples = (plan['samples'] as List<dynamic>).cast<String>();
+      final drawcall = plan['drawcall'] == true;
+      if (drawcall || _displayedPixels) {
+        status.writeAsStringSync('ready');
+        while (!File('$_root/trace.ready').existsSync()) {
+          await Future<void>.delayed(const Duration(milliseconds: 100));
+        }
+      }
       for (final id in samples) {
         step = 'stages $id';
         status.writeAsStringSync(step);
@@ -303,21 +507,55 @@ class _BenchState extends State<_Bench> {
           results.add(trace.finish(id, trial, source.length));
         }
       }
-      setState(() => _spinner = true);
-      await Future<void>.delayed(const Duration(milliseconds: 700));
+      if (!_quickMerge) {
+        setState(() => _spinner = true);
+        await Future<void>.delayed(const Duration(milliseconds: 700));
+      }
       for (final id in samples) {
         step = 'scenario $id';
         status.writeAsStringSync(step);
         final source = await _read(id);
         for (var trial = 1; trial <= trials; trial++) {
-          final trace = await _scenario(source);
+          final trace = await _scenario(source, tiled: id == _tiledSample);
           scenarios.add({
             ...trace.finish(id, trial, source.length),
             'hz': view.display.refreshRate,
           });
         }
       }
-      setState(() => _spinner = false);
+      if (!_quickMerge) setState(() => _spinner = false);
+      if (_displayedPixels) {
+        for (final id in samples) {
+          step = 'pixels $id';
+          status.writeAsStringSync(step);
+          pixelSizes[id] = await _captureDisplayed(id, view.devicePixelRatio);
+        }
+      }
+      if (_displayedPixels && !_quickMerge) {
+        step = 'icons';
+        status.writeAsStringSync(step);
+        iconScroll = await _icons();
+      }
+      if (drawcall) {
+        for (final id in samples) {
+          step = 'jump $id';
+          status.writeAsStringSync(step);
+          final source = await _read(id);
+          final trace = await _scenario(source, jump: true);
+          jumps.add({
+            ...trace.finish(id, 1, source.length),
+            'hz': view.display.refreshRate,
+          });
+        }
+        step = 'icons';
+        status.writeAsStringSync(step);
+        iconScroll = await _icons();
+        for (final id in samples) {
+          step = 'pixels $id';
+          status.writeAsStringSync(step);
+          await _capture(id, view.devicePixelRatio);
+        }
+      }
       await Future<void>.delayed(const Duration(milliseconds: 1250));
       File('$_root/result.json').writeAsStringSync(
         jsonEncode({
@@ -327,6 +565,9 @@ class _BenchState extends State<_Bench> {
           'dpr': view.devicePixelRatio,
           'stages': results,
           'scenarios': scenarios,
+          'jumps': jumps,
+          'icon_scroll': iconScroll,
+          'pixel_sizes': pixelSizes,
           'frame_phases': [
             ...ui.FramePhase.values.map((phase) => phase.name),
             'frameNumber',
@@ -347,6 +588,21 @@ class _BenchState extends State<_Bench> {
     }
   }
 
+  /// Same art constraints in both route and spinner cases. / 路由和转圈场景使用相同的图稿约束。
+  Widget _art(String? source) {
+    final art = source == null ? null : StaticXvg(source, fit: BoxFit.contain);
+    final box = SizedBox.fromSize(
+      key: _displayedPixels ? _artKey : null,
+      size: _artSize,
+      child: _scale == 1
+          ? art
+          : ClipRect(
+              child: Transform.scale(scale: _scale, child: art),
+            ),
+    );
+    return _capturingPixels ? RepaintBoundary(key: _pixelKey, child: box) : box;
+  }
+
   /// Keeps the layout static while the separate spinner produces frames. / 固定布局，由独立的转圈区域持续出帧。
   @override
   Widget build(BuildContext context) {
@@ -362,13 +618,7 @@ class _BenchState extends State<_Bench> {
                   ? const RepaintBoundary(child: CircularProgressIndicator())
                   : null,
             ),
-            SizedBox(
-              width: 310,
-              height: 450,
-              child: source == null
-                  ? null
-                  : StaticXvg(source, fit: BoxFit.contain),
-            ),
+            _art(source),
           ],
         ),
       ),

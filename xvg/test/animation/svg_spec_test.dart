@@ -275,8 +275,8 @@ void main() {
     final source = _svg('<rect width="500" height="400"/>', '');
     final doc = parseAnimatedSvgDocument(source);
     final staticSize = RustXvgPictureCache.instance.getOrRender(source).size;
-    debugPrint('v01 Rust intrinsic size: $staticSize');
     expect(Size(doc.width, doc.height), const Size(300, 150));
+    expect(staticSize, const Size(300, 150));
   });
 
   test('a01 additive sum, by and from-by sample the SVG sandwich', () async {

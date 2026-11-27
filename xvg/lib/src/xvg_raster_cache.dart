@@ -41,10 +41,10 @@ abstract final class XvgRasterCache {
   static int get disposedTileCount => _TileCache.instance.disposedCount;
 }
 
-/// Minimum parsed path count for automatic caching. / 自动缓存所需的最少路径数。
+/// Minimum path count shared with MERGE_MIN_PATHS in rust/src/api/svg.rs. / 与 rust/src/api/svg.rs 的 MERGE_MIN_PATHS 共用的路径门槛。
 const xvgRasterMinPaths = 100;
 
-/// Minimum parsed point count for automatic caching. / 自动缓存所需的最少坐标点数。
+/// Minimum point count shared with MERGE_MIN_POINTS in rust/src/api/svg.rs. / 与 rust/src/api/svg.rs 的 MERGE_MIN_POINTS 共用的点数门槛。
 const xvgRasterMinPoints = 15000;
 
 /// Cache overrides used by tests and benchmarks. / 测试与基准使用的缓存覆盖。
