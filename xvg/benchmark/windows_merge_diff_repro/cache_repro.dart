@@ -246,6 +246,21 @@ List<int> pixel(Uint8List data, int width, int x, int y) {
   return (changed: changed, maxDelta: maxDelta);
 }
 
+/// 使用组件坐标与贴图原点记录缓存纹理的绘制。
+ui.Picture recordCachePicture(
+  ui.Picture vector,
+  Target target, {
+  required ui.Offset paste,
+  bool unitScale = false,
+}) {
+  final recorder = ui.PictureRecorder();
+  ui.Canvas(recorder)
+    ..translate(target.tx - paste.dx, target.ty - paste.dy)
+    ..scale(unitScale ? 1.0 : target.sx, unitScale ? 1.0 : target.sy)
+    ..drawPicture(vector);
+  return recorder.endRecording();
+}
+
 /// 渲染全尺寸矢量、缓存纹理及贴回结果，并分别探测三个像素。
 Future<Map<String, Object?>> capturePair(
   ui.Picture vector,
@@ -276,34 +291,45 @@ Future<Map<String, Object?>> capturePair(
     ..scale(sx, sy)
     ..drawPicture(vector);
   final direct = directRecorder.endRecording();
-  final cacheRecorder = ui.PictureRecorder();
-  ui.Canvas(cacheRecorder)
-    ..translate(target.tx - paste.dx, target.ty - paste.dy)
-    ..scale(sx, sy)
-    ..drawPicture(vector);
-  final cachePicture = cacheRecorder.endRecording();
-  final directImage = await toImage(direct, target, scene);
-  direct.dispose();
-  final texture = sync
-      ? cachePicture.toImageSync(width, height, targetFormat: targetFormat)
-      : await cachePicture.toImage(width, height);
-  cachePicture.dispose();
-
-  final pasteRecorder = ui.PictureRecorder();
-  final src = ui.Rect.fromLTWH(0, 0, width.toDouble(), height.toDouble());
-  ui.Canvas(pasteRecorder).drawImageRect(
-    texture,
-    src,
-    src.shift(paste),
-    ui.Paint()
-      ..isAntiAlias = false
-      ..filterQuality = linear ? ui.FilterQuality.low : ui.FilterQuality.none,
-  );
-  final pastePicture = pasteRecorder.endRecording();
-  final pasted = await toImage(pastePicture, target, scene);
-  pastePicture.dispose();
-
+  ui.Image? directImage;
+  ui.Image? texture;
+  ui.Image? pasted;
   try {
+    try {
+      directImage = await toImage(direct, target, scene);
+    } finally {
+      direct.dispose();
+    }
+    final cachePicture = recordCachePicture(
+      vector,
+      target,
+      paste: paste,
+      unitScale: unitScale,
+    );
+    try {
+      texture = sync
+          ? cachePicture.toImageSync(width, height, targetFormat: targetFormat)
+          : await cachePicture.toImage(width, height);
+    } finally {
+      cachePicture.dispose();
+    }
+
+    final pasteRecorder = ui.PictureRecorder();
+    final src = ui.Rect.fromLTWH(0, 0, width.toDouble(), height.toDouble());
+    ui.Canvas(pasteRecorder).drawImageRect(
+      texture,
+      src,
+      src.shift(paste),
+      ui.Paint()
+        ..isAntiAlias = false
+        ..filterQuality = linear ? ui.FilterQuality.low : ui.FilterQuality.none,
+    );
+    final pastePicture = pasteRecorder.endRecording();
+    try {
+      pasted = await toImage(pastePicture, target, scene);
+    } finally {
+      pastePicture.dispose();
+    }
     final a = await rgba(directImage);
     final b = await rgba(pasted);
     final t = await rgba(texture);
@@ -317,9 +343,9 @@ Future<Map<String, Object?>> capturePair(
       'max_delta': stats.maxDelta,
     };
   } finally {
-    directImage.dispose();
-    pasted.dispose();
-    texture.dispose();
+    directImage?.dispose();
+    pasted?.dispose();
+    texture?.dispose();
   }
 }
 

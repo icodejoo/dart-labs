@@ -41,6 +41,7 @@ Windows 每个 C1 或新版进程完成正式计时后，从 310×450 的 `Repai
 | `archive_replay.dart` | 本机另行提供的 Rust 路径输出 | 完整 B 和 C1 的部分新纹理均复现 `[122,122,120,255]`，直绘为 `[184,184,182,255]` |
 | `msaa_repro.dart` | 同一完整画稿或局部边缘，缓存强制 RGBA32F | Impeller 使用单样本目标，原纹素与贴回恒为 `[246,246,246,255]` |
 | `context_repro.dart` | 同一完整 B 画稿，裁减末尾前的绘制操作 | 九档每档 24 次无 62 级跳变，包含保留前 5,300 条和末尾 14 条的用例 |
+| `msaa_stage_probe.dart` | 同一完整 C1 画稿，七个对照档（original、legacy、clean、poison、readback、winding、float32），每档 150 张，各档按批交错 | 低值 `[122,122,120,255]`：original 21/180、legacy 34/180、clean 10/180、readback 16/180、poison 1/180、winding 0/180、float32 0/180（恒 `[246,246,246,255]`）；统计见 `msaa_stage_run.py`，结论见报告第 7 步 |
 
 ### 运行
 
@@ -58,6 +59,8 @@ python -I <repo>/benchmark/bench_app/tool/win_quiet_launch.py --exe build/window
 - JSONL 首行有 `commands`，每条记录为 `[kind,index,opacity]`。样本只用 `0` 绘制、`4` 压入 clip、`5` 退出 clip。后续路径行按 `index` 索引，列为 `[verbs,points,fillArgbOrNull,evenOdd,strokeArgbOrNull,strokeWidth,strokeFlagsOrNull,miterLimitOrNull]`，本机 dump 可附带空的扩展字段。
 - `clips-481.json` 的 `clips` 为 `[verbs,points,evenOdd]` 数组。历史 B 和 C1 的 paths 分别为 5,954 和 12,511。在最终 native DLL 上启用 `allowPathMerge` 后，Final 为 5,942 条。
 
+用 `-t lib/msaa_stage_probe.dart` 构建后，运行 `python -I msaa_stage_run.py --exe <bench_app.exe> --archive <含 C1-web-481.jsonl 与 clips-481.json 的目录> --out <目录> --round N`，每次只启动一个进程，已有 `audit-N.json` 的轮次拒绝重跑。它输出各档低值计数和成对 Fisher 双侧 p 值，合并 `--out` 里所有有数据的轮次。
+
 ### 上游 issue 草稿
 
 **Title** · Impeller OpenGLES on Windows can produce two different texels from the same offscreen picture and transform
@@ -67,6 +70,8 @@ python -I <repo>/benchmark/bench_app/tool/win_quiet_launch.py --exe build/window
 **Expected** · Repeated fresh textures of the same display list and transform agree. At matched sample origins, the point at component `(160,267)` and texture `(160,134)` agree with the vector replay.
 
 **Observed** · The full display list produced `[184,184,182,255]` or `[122,122,120,255]` in the original texture. The pasted pixel matched the original texel, and the full-size vector replay gave the high value. We reproduced the same result after splitting the compound paths and with synchronous and asynchronous snapshots. Removing the black fill suppressed the jump in this run. Removing the inner white fill kept the 62-level jump. The synthetic rounded-edge control shows comparable coverage levels and stays stable at matched sample origins.
+
+**MSAA stage (full display list, 180 fresh 310×184 textures per arm over two processes)** · The low value `[122,122,120,255]` appears in 21/180 plain snapshots, and only in the multisampled path. Forcing a single-sample `rgbaFloat32` target gives 0/180 (constant `[246,246,246,255]`). Replacing the black fill with a repeated same-direction contour, which keeps the non-zero result but changes the fill pipeline, gives 0/180 (Fisher two-sided p=5e-07). Inserting synchronous readbacks before and after each snapshot does not remove it (16/180, p=0.49 against 21/180), so a readback or resolve timing race is unlikely. Rendering a same-size image that writes the whole stencil right before the snapshot lowers it to 1/180 (p=6e-06), opposite to what stale-stencil residue would predict; a blank same-size image gives 10/180. The jump appears as independent per-texture events with no sticky streaks. Whether the cause is per-sample coverage, depth or stencil, or the RGBA8 versus RGBA32F attachment precision is not separable from outside the driver. A RenderDoc or ANGLE call capture of the 4× attachment before resolve is needed, and an engine option for an explicit single-sample RGBA8 target would separate sample count from precision.
 
 **Reproducer status** · The asset-free controls run with the files in this directory. The intermittent jump still requires the local full display list in the available reproduction. Further reduction is needed before supplying a public positive reproducer. No original SVG, full path dump, or rendered artwork is included here.
 

@@ -7,12 +7,13 @@ import 'package:flutter/services.dart';
 import 'cache_edge_probe.dart' as edge;
 import 'cache_repro.dart' as probe;
 
-/// 从本机 Rust 输出重放全图，可按绘制操作消融或移除裁剪。
+/// 从本机 Rust 输出重放全图，可消融、移除裁剪或重复指定的填充轮廓。
 Future<ui.Picture> archive(
   String stem, {
   int? omit,
   bool clip = true,
   bool Function(int, List)? includes,
+  int? duplicateNonZeroFill,
 }) async {
   final recorder = ui.PictureRecorder();
   final canvas = ui.Canvas(recorder);
@@ -59,7 +60,8 @@ Future<ui.Picture> archive(
             : ui.PathFillType.nonZero;
       probe.appendPath(p, row[0] as List, row[1] as List);
       if (row[2] case final int fill) {
-        canvas.drawPath(p, ui.Paint()..color = ui.Color(fill));
+        final fillPath = i == duplicateNonZeroFill ? repeatNonZeroPath(p) : p;
+        canvas.drawPath(fillPath, ui.Paint()..color = ui.Color(fill));
       }
       if (row[4] case final int stroke) {
         final flags = row[6] as int;
@@ -82,6 +84,14 @@ Future<ui.Picture> archive(
   } finally {
     art.dispose();
   }
+}
+
+/// 同向追加轮廓，使非零绕数的填充区域和全部边坐标保持一致。
+ui.Path repeatNonZeroPath(ui.Path path) {
+  if (path.fillType != ui.PathFillType.nonZero) {
+    throw ArgumentError('Repeating an even-odd path would erase its fill');
+  }
+  return ui.Path.from(path)..addPath(path, ui.Offset.zero);
 }
 
 /// 保留全图回放及有限路径复现结果。
