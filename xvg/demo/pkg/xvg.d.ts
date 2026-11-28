@@ -71,9 +71,9 @@ declare interface InitOutput {
     readonly wasm_start_callback: () => void;
     readonly workerpool_new: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => void;
     readonly workerpool_new_raw: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => void;
-    readonly __wasm_bindgen_func_elem_549: (a: number, b: number, c: any) => void;
-    readonly __wasm_bindgen_func_elem_549_12: (a: number, b: number, c: any) => void;
-    readonly __wasm_bindgen_func_elem_565: (a: number, b: number) => void;
+    readonly __wasm_bindgen_func_elem_682: (a: number, b: number, c: any) => void;
+    readonly __wasm_bindgen_func_elem_682_12: (a: number, b: number, c: any) => void;
+    readonly __wasm_bindgen_func_elem_698: (a: number, b: number) => void;
     readonly __wbindgen_export: (a: number, b: number) => number;
     readonly __wbindgen_export2: (a: number, b: number, c: number, d: number) => number;
     readonly __wbindgen_export3: (a: number, b: number, c: number) => void;
